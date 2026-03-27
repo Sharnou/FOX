@@ -66,10 +66,10 @@ export default function Home() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
 
       {/* Header — NO admin link */}
-      <header style={{ background: '#002f34', color: 'white', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+      <header style={{ background: 'linear-gradient(135deg, #002f34 0%, #003d3b 100%)', color: 'white', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
         <span style={{ fontSize: 22, fontWeight: 'bold', letterSpacing: 1 }}>XTOX</span>
         <input value={search} onChange={e => setSearch(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && search && (window.location.href = `/search?q=${search}`)}
@@ -126,7 +126,7 @@ export default function Home() {
 
       {/* FEATURED — max 16, newest first */}
       {featuredAds.length > 0 && (
-        <div style={{ background: 'linear-gradient(135deg, #002f34 0%, #004d40 100%)', padding: '16px' }}>
+        <div style={{ background: 'linear-gradient(135deg, #002f34 0%, #00695c 100%)', padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <span style={{ background: '#ffd700', color: '#002f34', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>⭐ مميز</span>
             <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{featuredAds.length}/16 هذا الأسبوع</span>
