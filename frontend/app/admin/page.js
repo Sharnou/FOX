@@ -159,6 +159,7 @@ Answer concisely as a senior developer. Suggest code fixes when relevant.`;
     { id: 'errors', label: '🔴 Errors' },
     { id: 'broadcast', label: '📢 Broadcast' },
     { id: 'system', label: '⚙️ System' },
+    { id: 'language', label: '🧠 Language AI' },
   ];
 
   // ── Login Screen ──
@@ -456,6 +457,22 @@ Answer concisely as a senior developer. Suggest code fixes when relevant.`;
                     {err.url && <div style={{ color: '#8b949e', fontSize: 11, marginTop: 4 }}>URL: {err.url}</div>}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* LANGUAGE AI TAB */}
+          {tab === 'language' && (
+            <div>
+              <h2 style={{ color: '#bf5fff', marginBottom: 16, fontSize: 18 }}>🧠 Local Language AI Engine</h2>
+              <div style={{ background: '#161b22', border: '1px solid #bf5fff', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                <p style={{ color: '#8b949e', fontSize: 13, margin: '0 0 16px', lineHeight: 1.8 }}>
+                  النظام يتعلم تلقائياً اللهجات المحلية من كل إعلان يُنشر.
+                  يمكنك مراجعة الكلمات المتعلمة، تعليم كلمات جديدة، أو الموافقة على اقتراحات AI.
+                </p>
+                <a href="/admin/language" style={{ background: '#bf5fff', color: 'white', padding: '12px 24px', borderRadius: 10, textDecoration: 'none', fontWeight: 'bold', fontSize: 14, fontFamily: 'monospace', display: 'inline-block' }}>
+                  🔍 فتح لوحة إدارة اللغة الكاملة →
+                </a>
               </div>
             </div>
           )}
