@@ -42,6 +42,19 @@ export default function RootLayout({ children }) {
               reportError('Unhandled Promise: ' + (e.reason && e.reason.message || String(e.reason)), e.reason && e.reason.stack, 'medium');
             };
             console.log('[XTOX] Error tracking active');
+            var deferredPrompt;
+            window.addEventListener('beforeinstallprompt', function(e) {
+              e.preventDefault();
+              deferredPrompt = e;
+              setTimeout(function() {
+                if (document.getElementById('install-banner')) return;
+                var banner = document.createElement('div');
+                banner.id = 'install-banner';
+                banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#002f34;color:white;padding:14px 20px;border-radius:16px;z-index:9999;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:340px;width:90%;font-family:system-ui';
+                banner.innerHTML = '<span style="font-size:24px">📱</span><div style="flex:1"><p style="margin:0;font-weight:bold;font-size:14px">ثبّت XTOX على هاتفك</p><p style="margin:2px 0 0;opacity:0.8;font-size:12px">وصول سريع + إشعارات</p></div><button onclick="if(deferredPrompt){deferredPrompt.prompt();}document.getElementById(\'install-banner\').remove();" style="background:#00b09b;border:none;color:white;padding:8px 14px;border-radius:10px;cursor:pointer;font-weight:bold;font-size:13px">ثبّت</button><button onclick="document.getElementById(\'install-banner\').remove();" style="background:transparent;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:20px;padding:0 4px">×</button>';
+                document.body.appendChild(banner);
+              }, 30000);
+            });
           })();
         `}} />
       </head>
