@@ -87,6 +87,22 @@ export default function Home() {
         )}
       </header>
 
+      {/* Quick Actions Bar */}
+      <div style={{ display: 'flex', gap: 8, padding: '10px 16px', background: 'white', borderBottom: '1px solid #eee', overflowX: 'auto' }}>
+        <a href="/nearby"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#002f34', color: 'white', borderRadius: 20, textDecoration: 'none', fontSize: 13, fontWeight: 'bold', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          📍 قريب منك
+        </a>
+        <a href="/my-ads"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#f0f0f0', color: '#333', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          📋 إعلاناتي
+        </a>
+        <a href="/chat"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#f0f0f0', color: '#333', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          💬 الرسائل
+        </a>
+      </div>
+
       {/* Categories */}
       <div style={{ display: 'flex', gap: 8, padding: '12px 16px', overflowX: 'auto', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
         {CATEGORIES.map(c => (
