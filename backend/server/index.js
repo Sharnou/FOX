@@ -23,6 +23,7 @@ import supermarketRoutes from '../routes/supermarket.js';
 import pharmacyRoutes from '../routes/pharmacy.js';
 import fastfoodRoutes from '../routes/fastfood.js';
 import rssRoutes from '../routes/rss.js';
+import profileRoutes from '../routes/profile.js';
 
 const logger = pino();
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/supermarket', supermarketRoutes);
 app.use('/api/pharmacy', pharmacyRoutes);
 app.use('/api/fastfood', fastfoodRoutes);
 app.use('/rss', rssRoutes);
+app.use('/api/profile', profileRoutes);
 app.get('/', (_, res) => res.send('XTOX Backend v2.0 ✅'));
 
 const server = http.createServer(app);
@@ -51,6 +53,13 @@ cron.schedule('0 2 * * *', async () => {
   await archiveExpiredAds();
   await deleteOldArchives();
   logger.info('Daily cleanup done');
+});
+
+// Auto backup every 24 hours at 3am
+cron.schedule('0 3 * * *', async () => {
+  const { autoBackup } = await import('./archiveManager.js');
+  await autoBackup();
+  logger.info('Auto-backup complete');
 });
 
 mongoose.connect(process.env.MONGO_URI)
