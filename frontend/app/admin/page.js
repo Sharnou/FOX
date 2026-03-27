@@ -82,16 +82,18 @@ export default function AdminPage() {
 
   async function fetchAll(tk) {
     const h = { Authorization: `Bearer ${tk || token}` };
-    const [u, a, r, l] = await Promise.allSettled([
+    const [u, a, r, l, e] = await Promise.allSettled([
       axios.get(`${API}/api/admin/users`, { headers: h }),
       axios.get(`${API}/api/admin/ads`, { headers: h }),
       axios.get(`${API}/api/admin/reports`, { headers: h }),
       axios.get(`${API}/api/admin/ai-logs`, { headers: h }),
+      axios.get(`${API}/api/errors`, { headers: h }),
     ]);
     if (u.status === 'fulfilled') { setUsers(u.value.data); setStats(s => ({ ...s, users: u.value.data.length })); }
     if (a.status === 'fulfilled') { setAds(a.value.data); setStats(s => ({ ...s, ads: a.value.data.length })); }
     if (r.status === 'fulfilled') { setReports(r.value.data); setStats(s => ({ ...s, reports: r.value.data.length })); }
     if (l.status === 'fulfilled') setLogs(l.value.data);
+    if (e.status === 'fulfilled') setLogs(prev => [...(l.value?.data || []), ...e.value.data]);
   }
 
   useEffect(() => {
@@ -154,6 +156,7 @@ Answer concisely as a senior developer. Suggest code fixes when relevant.`;
     { id: 'users', label: '👥 Users' },
     { id: 'ads', label: '📋 Ads' },
     { id: 'reports', label: '🚨 Reports' },
+    { id: 'errors', label: '🔴 Errors' },
     { id: 'broadcast', label: '📢 Broadcast' },
     { id: 'system', label: '⚙️ System' },
   ];
@@ -418,6 +421,42 @@ Answer concisely as a senior developer. Suggest code fixes when relevant.`;
                   BROADCAST TO ALL USERS →
                 </button>
               </AITerminal>
+            </div>
+          )}
+
+          {/* ERRORS TAB */}
+          {tab === 'errors' && (
+            <div>
+              <h2 style={{ color: '#ff4444', marginBottom: 16, fontSize: 18 }}>🔴 Error Logs</h2>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                <button onClick={async () => { const r = await axios.get(`${API}/api/errors`, { headers }); setLogs(r.data); }}
+                  style={{ background: '#21262d', color: '#00d4ff', border: '1px solid #00d4ff', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontFamily: 'monospace' }}>
+                  $ refresh --errors
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {logs.filter(l => l.message).length === 0 && (
+                  <AITerminal title="errors.log" color="green"><div>✅ No errors logged. System clean.</div></AITerminal>
+                )}
+                {logs.filter(l => l.message).map(err => (
+                  <div key={err._id} style={{ background: '#161b22', border: `1px solid ${err.severity === 'high' || err.severity === 'critical' ? '#ff4444' : '#ffd700'}`, borderRadius: 8, padding: '12px 16px', fontFamily: 'monospace' }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      <span style={{ background: err.severity === 'high' || err.severity === 'critical' ? '#3d1a1a' : '#2d2a1a', color: err.severity === 'high' || err.severity === 'critical' ? '#ff4444' : '#ffd700', padding: '2px 8px', borderRadius: 12, fontSize: 11, flexShrink: 0 }}>{(err.severity || 'medium').toUpperCase()}</span>
+                      <span style={{ color: '#00d4ff', fontSize: 12 }}>{err.page || 'unknown'}</span>
+                      <span style={{ color: '#8b949e', fontSize: 11, marginRight: 'auto' }}>{new Date(err.createdAt).toLocaleString()}</span>
+                      {!err.resolved && (
+                        <button onClick={async () => { await axios.patch(`${API}/api/errors/${err._id}/resolve`, {}, { headers }); const r = await axios.get(`${API}/api/errors`, { headers }); setLogs(r.data); }}
+                          style={{ background: '#1f3a1f', color: '#00ff41', border: '1px solid #00ff41', padding: '2px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'monospace' }}>
+                          resolve
+                        </button>
+                      )}
+                      {err.resolved && <span style={{ color: '#00ff41', fontSize: 11 }}>✅ resolved</span>}
+                    </div>
+                    <div style={{ color: '#e6edf3', fontSize: 13, marginTop: 8 }}>{err.message?.slice(0, 150)}</div>
+                    {err.url && <div style={{ color: '#8b949e', fontSize: 11, marginTop: 4 }}>URL: {err.url}</div>}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
