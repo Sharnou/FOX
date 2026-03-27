@@ -29,6 +29,9 @@
     "archiver": "^7.0.0",
     "qrcode": "^1.5.3"
   },
+    "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
     "nodemon": "^3.1.0"
   }
