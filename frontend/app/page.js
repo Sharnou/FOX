@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];
 const CAT_MAP = { 'سيارات': 'Vehicles', 'إلكترونيات': 'Electronics', 'عقارات': 'Real Estate', 'وظائف': 'Jobs', 'خدمات': 'Services', 'سوبرماركت': 'Supermarket', 'صيدلية': 'Pharmacy', 'طعام': 'Fast Food', 'موضة': 'Fashion' };
-const API = process.env.NEXT_PUBLIC_API_URL || '';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
 const POPUP_INTERVAL = 4 * 60 * 60 * 1000;
 const CARTOONS = ['🦊', '🐨', '🦁', '🐸', '🦝', '🐙', '🦄', '🐼'];
 
