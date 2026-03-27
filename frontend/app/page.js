@@ -82,6 +82,9 @@ export default function Home() {
         ) : (
           <a href="/login" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', padding: '8px 14px', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap' }}>دخول</a>
         )}
+        {user && (
+          <a href="/my-ads" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '6px 12px', borderRadius: 16, textDecoration: 'none', fontSize: 12, whiteSpace: 'nowrap' }}>📋</a>
+        )}
       </header>
 
       {/* Categories */}
