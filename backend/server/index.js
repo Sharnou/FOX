@@ -30,7 +30,28 @@ import seoRoutes from '../routes/seo.js';
 
 const logger = pino();
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    const allowed = [
+      'https://fox-kohl-eight.vercel.app',
+      'https://fox-production.up.railway.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      process.env.FRONTEND_URL
+    ].filter(Boolean);
+    if (allowed.some(a => origin.startsWith(a)) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for now — tighten after testing
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-country', 'x-user-country']
+}));
+app.options('*', cors()); // handle preflight for all routes
 app.use(express.json({ limit: '10mb' }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
