@@ -13,7 +13,9 @@ const AdSchema = new mongoose.Schema({
   featuredAt: { type: Date }, // when it was featured (for sorting new→top) visibilityScore: { type: Number, default: 100 },
   isDuplicate: Boolean, fixedByAI: Boolean, isDeleted: Boolean, deletedAt: Date,
   isExpired: Boolean, archivedAt: Date,
-  expiresAt: { type: Date, default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+  expiresAt: { type: Date, default: () => new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) },
+  expiredAt: Date,
+  republishedCount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 export default mongoose.model('Ad', AdSchema);
