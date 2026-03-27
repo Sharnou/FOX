@@ -26,6 +26,7 @@ import rssRoutes from '../routes/rss.js';
 import profileRoutes from '../routes/profile.js';
 import errorRoutes from '../routes/errors.js';
 import geoRoutes from '../routes/geo.js';
+import seoRoutes from '../routes/seo.js';
 
 const logger = pino();
 const app = express();
@@ -46,6 +47,9 @@ app.use('/rss', rssRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/errors', errorRoutes);
 app.use('/api/geo', geoRoutes);
+app.use('/seo', seoRoutes);
+app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
+app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => res.send('XTOX Backend v2.0 ✅'));
 
 const server = http.createServer(app);
