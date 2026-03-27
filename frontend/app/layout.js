@@ -12,6 +12,9 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="icon" href="/favicon.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             var API = '` + (process.env.NEXT_PUBLIC_API_URL || '') + `';
@@ -58,7 +61,7 @@ export default function RootLayout({ children }) {
           })();
         `}} />
       </head>
-      <body style={{ margin: 0, padding: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <body style={{ margin: 0, padding: 0, fontFamily: "'Cairo', 'Tajawal', 'system-ui', sans-serif", background: '#f5f5f5', WebkitFontSmoothing: 'antialiased' }}>
         {children}
       </body>
     </html>
