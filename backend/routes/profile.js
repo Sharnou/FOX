@@ -1,0 +1,56 @@
+import express from 'express';
+import User from '../models/User.js';
+import Ad from '../models/Ad.js';
+import Review from '../models/Review.js';
+import { auth } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// GET full seller profile
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password -registrationIp -fcmToken');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const ads = await Ad.find({ userId: req.params.id, isDeleted: false, isExpired: false }).limit(20).sort({ createdAt: -1 });
+    const reviews = await Review.find({ sellerId: req.params.id }).populate('buyerId', 'name avatar').sort({ createdAt: -1 }).limit(20);
+
+    const avgRating = reviews.length > 0
+      ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+      : null;
+
+    res.json({ user, ads, reviews, avgRating, reviewCount: reviews.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST review on seller
+router.post('/:id/review', auth, async (req, res) => {
+  try {
+    const { rating, comment, adId } = req.body;
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Cannot review yourself' });
+
+    const review = await Review.findOneAndUpdate(
+      { sellerId: req.params.id, buyerId: req.user.id },
+      { sellerId: req.params.id, buyerId: req.user.id, adId, rating, comment },
+      { upsert: true, new: true }
+    );
+
+    // Update seller reputation
+    const all = await Review.find({ sellerId: req.params.id });
+    const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
+    await User.findByIdAndUpdate(req.params.id, { reputation: Math.round(avg * 20) }); // 5 stars = 100 rep
+
+    res.json(review);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT update own profile
+router.put('/me', auth, async (req, res) => {
+  try {
+    const { name, city, avatar } = req.body;
+    const user = await User.findByIdAndUpdate(req.user.id, { name, city, avatar }, { new: true }).select('-password');
+    res.json(user);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+export default router;
