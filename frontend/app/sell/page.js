@@ -83,7 +83,18 @@ export default function SellPage() {
         reader.readAsDataURL(blob);
       };
       recorder.start();
-      setTimeout(() => { recorder.stop(); stream.getTracks().forEach(t => t.stop()); }, 5000);
+      setAiLoading(true);
+      let seconds = 0;
+      const countdown = setInterval(() => {
+        seconds++;
+        const btn = document.getElementById('voice-record-btn');
+        if (btn) btn.textContent = `🔴 جار التسجيل... ${60 - seconds}ث`;
+        if (seconds >= 60) {
+          clearInterval(countdown);
+          recorder.stop();
+          stream.getTracks().forEach(t => t.stop());
+        }
+      }, 1000);
     } catch { setError('لا يمكن الوصول للميكروفون'); setAiLoading(false); }
   }
 
@@ -127,10 +138,10 @@ export default function SellPage() {
             صوّر المنتج — الذكاء الاصطناعي يكمل البقية
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={aiFromImage} />
           </label>
-          <button onClick={aiFromVoice}
+          <button id="voice-record-btn" onClick={aiFromVoice}
             style={{ background: '#00b09b', color: 'white', textAlign: 'center', padding: 20, borderRadius: 18, cursor: 'pointer', fontSize: 16, fontWeight: 'bold', border: 'none', fontFamily: 'inherit' }}>
             <div style={{ fontSize: 32, marginBottom: 6 }}>🎤</div>
-            تحدث عن المنتج (5 ثوانٍ)
+            تحدث عن المنتج (دقيقة كاملة)
           </button>
           <button onClick={() => setStep('form')}
             style={{ background: 'white', color: '#002f34', textAlign: 'center', padding: 20, borderRadius: 18, cursor: 'pointer', fontSize: 16, fontWeight: 'bold', border: '2px solid #002f34', fontFamily: 'inherit' }}>
