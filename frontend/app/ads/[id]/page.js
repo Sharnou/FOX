@@ -166,6 +166,22 @@ export default function AdPage({ params }) {
         )}
       </div>
 
+      {/* Seller Profile Link */}
+      {sellerId && (
+        <a href={`/profile/${sellerId}`}
+          style={{ display: 'block', marginTop: 16, background: '#f8f8f8', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textDecoration: 'none', color: '#002f34' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>
+              {ad.userId?.name?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div>
+              <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{ad.userId?.name || 'البائع'}</p>
+              <p style={{ margin: 0, color: '#666', fontSize: 12 }}>عرض الملف الشخصي والتقييمات →</p>
+            </div>
+          </div>
+        </a>
+      )}
+
       {/* Share */}
       <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
         <button onClick={() => navigator.share?.({ title: ad.title, url: window.location.href }) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))}
