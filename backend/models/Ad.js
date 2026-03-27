@@ -16,6 +16,11 @@ const AdSchema = new mongoose.Schema({
   expiresAt: { type: Date, default: () => new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) },
   expiredAt: Date,
   republishedCount: { type: Number, default: 0 },
+  location: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: [Number],
+    placeName: String
+  },
   createdAt: { type: Date, default: Date.now }
 });
 export default mongoose.model('Ad', AdSchema);
