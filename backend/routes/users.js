@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import fetch from 'node-fetch';
+import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
 import { detectFraud } from '../server/fraud.js';
 import { getOrCreateCountry } from '../server/countries.js';
@@ -106,14 +107,39 @@ router.post('/auth/apple', async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// ── OTP ──
+// ── Send OTP via WhatsApp or SMS ──
 router.post('/send-otp', async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, via = 'sms' } = req.body;
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(phone, { otp, expires: Date.now() + 10 * 60 * 1000 });
+
+    const message = `رمز التحقق XTOX: ${otp}\nصالح لمدة 10 دقائق`;
+
+    if (via === 'whatsapp' && process.env.TWILIO_SID && process.env.TWILIO_TOKEN) {
+      try {
+        const { default: twilio } = await import('twilio');
+        const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+        await client.messages.create({
+          from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER || '+14155238886'}`,
+          to: `whatsapp:${phone}`,
+          body: message
+        });
+        return res.json({ success: true, method: 'whatsapp' });
+      } catch (e) { console.warn('WhatsApp OTP failed, falling back:', e.message); }
+    }
+
+    if (process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_PHONE) {
+      try {
+        const { default: twilio } = await import('twilio');
+        const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+        await client.messages.create({ from: process.env.TWILIO_PHONE, to: phone, body: message });
+        return res.json({ success: true, method: 'sms' });
+      } catch (e) { console.warn('SMS OTP failed:', e.message); }
+    }
+
     console.log(`OTP for ${phone}: ${otp}`);
-    res.json({ success: true, debug_otp: process.env.NODE_ENV === 'development' ? otp : undefined });
+    res.json({ success: true, method: 'console', debug_otp: process.env.NODE_ENV === 'development' ? otp : undefined });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -167,6 +193,25 @@ router.post('/login', async (req, res) => {
     user.lastActive = new Date(); await user.save();
     const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, process.env.JWT_SECRET, { expiresIn: '90d' });
     res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// Update own profile (phone, whatsapp, avatar, name, city, visibility)
+router.put('/me', auth, async (req, res) => {
+  try {
+    const { name, city, avatar, phone, whatsapp, showPhone, showWhatsapp } = req.body;
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (city !== undefined) update.city = city;
+    if (avatar !== undefined) update.avatar = avatar;
+    if (phone !== undefined) update.phone = phone;
+    if (whatsapp !== undefined) update.whatsapp = whatsapp;
+    if (showPhone !== undefined) update.showPhone = showPhone;
+    if (showWhatsapp !== undefined) update.showWhatsapp = showWhatsapp;
+
+    const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password -registrationIp');
+    res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
