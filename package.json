@@ -1,0 +1,15 @@
+{
+  "name": "xtox-backend",
+  "version": "2.0.0",
+  "description": "XTOX Marketplace Backend",
+  "type": "module",
+  "scripts": {
+    "start": "cd backend && node server/index.js",
+    "install:backend": "cd backend && npm install",
+    "build": "echo built"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}
