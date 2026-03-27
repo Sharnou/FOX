@@ -11,6 +11,10 @@ const UserSchema = new mongoose.Schema({
   isMuted: Boolean, isHidden: Boolean, canChangeCountry: Boolean,
   adsToday: { type: Number, default: 0 }, lastAdDate: Date,
   isSimulation: Boolean,
+  phone: String,
+  whatsapp: String,
+  showPhone: { type: Boolean, default: false },
+  showWhatsapp: { type: Boolean, default: false },
   favorites: [String], blockedUsers: [String],
   lastActive: Date, createdAt: { type: Date, default: Date.now }
 });
