@@ -5,6 +5,58 @@ import axios from 'axios';
 const API = process.env.NEXT_PUBLIC_API_URL || '';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 
+function AITranslate({ title, description }) {
+  const [translated, setTranslated] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [lang, setLang] = useState('en');
+
+  async function translate() {
+    setLoading(true);
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_KEY || ''}` },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: `Translate this marketplace ad to ${lang === 'en' ? 'English' : lang === 'ar' ? 'Arabic' : lang === 'fr' ? 'French' : 'German'}:\nTitle: ${title}\nDescription: ${description}\n\nReturn JSON: {"title":"...","description":"..."}` }],
+          max_tokens: 300
+        })
+      });
+      const data = await res.json();
+      const parsed = JSON.parse(data.choices[0].message.content);
+      setTranslated(parsed);
+    } catch { setTranslated({ title: 'Translation failed — add OpenAI key to env', description: '' }); }
+    setLoading(false);
+  }
+
+  if (translated) return (
+    <div style={{ marginTop: 12, background: '#f0f8ff', border: '1px solid #b3d9ff', borderRadius: 12, padding: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 12, color: '#0066cc', fontWeight: 'bold' }}>🌐 ترجمة</span>
+        <button onClick={() => setTranslated(null)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 18 }}>×</button>
+      </div>
+      <p style={{ fontWeight: 'bold', margin: '0 0 4px', fontSize: 15 }}>{translated.title}</p>
+      <p style={{ color: '#555', margin: 0, fontSize: 13 }}>{translated.description}</p>
+    </div>
+  );
+
+  return (
+    <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+      <select value={lang} onChange={e => setLang(e.target.value)}
+        style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, background: 'white' }}>
+        <option value="en">English</option>
+        <option value="ar">العربية</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+      </select>
+      <button onClick={translate} disabled={loading}
+        style={{ padding: '6px 16px', background: loading ? '#ccc' : '#0066cc', color: 'white', border: 'none', borderRadius: 8, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+        {loading ? '...' : '🌐 ترجم'}
+      </button>
+    </div>
+  );
+}
+
 export default function AdPage({ params }) {
   const [ad, setAd] = useState(null);
   const [mediaIdx, setMediaIdx] = useState(0);
@@ -180,6 +232,21 @@ export default function AdPage({ params }) {
             </div>
           </div>
         </a>
+      )}
+
+      {/* AI Translate Button */}
+      <AITranslate title={ad.title} description={ad.description} />
+
+      {/* Hashtags */}
+      {ad.hashtags && ad.hashtags.length > 0 && (
+        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {ad.hashtags.map((tag, i) => (
+            <a key={i} href={`/search?q=${tag}`}
+              style={{ padding: '4px 12px', background: '#e8f4f8', color: '#002f34', borderRadius: 20, fontSize: 12, textDecoration: 'none', fontWeight: 'bold' }}>
+              #{tag}
+            </a>
+          ))}
+        </div>
       )}
 
       {/* Share */}
