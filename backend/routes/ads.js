@@ -135,6 +135,10 @@ router.post('/', auth, async (req, res) => {
     await rankAd(ad).catch(() => {});
     await indexAd(ad).catch(() => {});
 
+    // AUTO-LEARN local language from this ad
+    const { learnFromAd } = await import('../server/languageLearner.js');
+    learnFromAd(title, description, country).catch(() => {});
+
     res.status(201).json(ad);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -142,23 +146,30 @@ router.post('/', auth, async (req, res) => {
 // ── AI Generate ad from media ──
 router.post('/ai-generate', auth, async (req, res) => {
   try {
+    const { detectCategoryFromText, learnFromAd } = await import('../server/languageLearner.js');
+    const text = req.body.text || '';
+    const country = req.user?.country || 'EG';
+
+    // Try offline detection from learned dictionary first
+    let learnedCategory = null;
+    if (text) learnedCategory = await detectCategoryFromText(text, country).catch(() => null);
+
     const result = await buildAdFromMedia({
       imagePath: req.body.image || req.body.imagePath || null,
       audioPath: req.body.audio || req.body.audioPath || null,
       text: req.body.text || req.body.description || ''
     });
+
+    // Use learned category if AI returned General
+    if (learnedCategory && result.category === 'General') result.category = learnedCategory;
+
+    // Learn from AI result
+    if (result.title) learnFromAd(result.title, result.description, country).catch(() => {});
+
     res.json(result);
   } catch (e) {
     console.error('AI generate error:', e.message);
-    res.json({
-      title: req.body.text?.slice(0, 60) || '',
-      description: '',
-      category: 'General',
-      subcategory: 'Other',
-      suggestedPrice: 0,
-      language: 'ar',
-      hashtags: []
-    });
+    res.json({ title: req.body.text?.slice(0, 60) || '', description: '', category: 'General', subcategory: 'Other', suggestedPrice: 0, language: 'ar', hashtags: [] });
   }
 });
 
