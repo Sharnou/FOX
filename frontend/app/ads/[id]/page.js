@@ -2,8 +2,8 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 
-const API = process.env.NEXT_PUBLIC_API_URL || '';
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://fox-production.up.railway.app';
 
 function AITranslate({ title, description }) {
   const [translated, setTranslated] = useState(null);
