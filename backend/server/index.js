@@ -11,6 +11,8 @@ import { initSocket } from './socket.js';
 import { archiveExpiredAds, deleteOldArchives } from './archiveManager.js';
 import { seedCountries } from './countries.js';
 import { seedCelebrations } from './celebrations.js';
+import { seedCoreDictionary } from './languageLearner.js';
+import { runHealthCheck, autoResolveOldErrors } from './healthMonitor.js';
 
 // Routes
 import userRoutes from '../routes/users.js';
@@ -26,6 +28,7 @@ import rssRoutes from '../routes/rss.js';
 import profileRoutes from '../routes/profile.js';
 import errorRoutes from '../routes/errors.js';
 import geoRoutes from '../routes/geo.js';
+import languageRoutes from '../routes/language.js';
 import seoRoutes from '../routes/seo.js';
 
 const logger = pino();
@@ -69,6 +72,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/errors', errorRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/seo', seoRoutes);
+app.use('/api/language', languageRoutes);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => res.json({
@@ -99,6 +103,12 @@ cron.schedule('0 3 * * *', async () => {
   logger.info('Auto-backup complete');
 });
 
+// Health check every 15 minutes
+cron.schedule('*/15 * * * *', async () => {
+  await runHealthCheck();
+  await autoResolveOldErrors();
+});
+
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     logger.info('MongoDB connected');
@@ -106,6 +116,7 @@ mongoose.connect(process.env.MONGO_URI)
     await seedCelebrations();
     const { seedSuperAdmin } = await import('../routes/users.js');
     await seedSuperAdmin();
+    await seedCoreDictionary();
   })
   .catch(err => logger.error(err));
 
