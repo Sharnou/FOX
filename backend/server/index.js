@@ -25,6 +25,7 @@ import fastfoodRoutes from '../routes/fastfood.js';
 import rssRoutes from '../routes/rss.js';
 import profileRoutes from '../routes/profile.js';
 import errorRoutes from '../routes/errors.js';
+import geoRoutes from '../routes/geo.js';
 
 const logger = pino();
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/fastfood', fastfoodRoutes);
 app.use('/rss', rssRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/errors', errorRoutes);
+app.use('/api/geo', geoRoutes);
 app.get('/', (_, res) => res.send('XTOX Backend v2.0 ✅'));
 
 const server = http.createServer(app);
