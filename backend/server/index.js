@@ -24,6 +24,7 @@ import pharmacyRoutes from '../routes/pharmacy.js';
 import fastfoodRoutes from '../routes/fastfood.js';
 import rssRoutes from '../routes/rss.js';
 import profileRoutes from '../routes/profile.js';
+import errorRoutes from '../routes/errors.js';
 
 const logger = pino();
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/pharmacy', pharmacyRoutes);
 app.use('/api/fastfood', fastfoodRoutes);
 app.use('/rss', rssRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/errors', errorRoutes);
 app.get('/', (_, res) => res.send('XTOX Backend v2.0 ✅'));
 
 const server = http.createServer(app);
