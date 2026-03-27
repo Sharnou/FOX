@@ -1,27 +1,34 @@
 import Ad from '../models/Ad.js';
 import { createBackup } from './backup.js';
 
+// Mark ads as expired after 45 days → start 7-day grace period
 export async function archiveExpiredAds() {
+  const now = new Date();
   const result = await Ad.updateMany(
-    { expiresAt: { $lt: new Date() }, isExpired: false, isDeleted: false },
-    { isExpired: true, archivedAt: new Date() }
+    { expiresAt: { $lt: now }, isExpired: false, isDeleted: false },
+    { $set: { isExpired: true, expiredAt: now } }
   );
-  console.log(`[ARCHIVE] Expired ${result.modifiedCount} ads`);
+  console.log(`[ARCHIVE] Expired ${result.modifiedCount} ads (7-day reshare grace started)`);
 }
 
+// Permanently delete ads that expired 7+ days ago and were NOT reshared
 export async function deleteOldArchives() {
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const result = await Ad.deleteMany({ isExpired: true, archivedAt: { $lt: cutoff } });
-  console.log(`[CLEANUP] Deleted ${result.deletedCount} old archived ads`);
+  const gracePeriod = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const result = await Ad.deleteMany({
+    isExpired: true,
+    isDeleted: false,
+    expiredAt: { $lt: gracePeriod }
+  });
+  console.log(`[CLEANUP] Permanently deleted ${result.deletedCount} ads (grace period over)`);
 }
 
-// Auto backup every 24 hours (called from cron)
+// Auto backup every 24 hours
 export async function autoBackup() {
   try {
     const path = await createBackup();
     console.log(`[BACKUP] Auto-backup saved: ${path}`);
     return path;
   } catch (e) {
-    console.error('[BACKUP] Auto-backup failed:', e.message);
+    console.error('[BACKUP] Failed:', e.message);
   }
 }
