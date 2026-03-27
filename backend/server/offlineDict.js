@@ -26,20 +26,21 @@ export function detectLanguage(text) {
 export function detectCategoryOffline(text) {
   const t = text.toLowerCase();
   const en = translateText(t);
+  const combined = t + ' ' + en;
 
-  if (/عربية|عربيه|سيارة|car|vehicle|motor|bike|truck|دراجة/.test(t + en)) return { main: 'Vehicles', sub: 'Cars' };
-  if (/موبايل|phone|iphone|samsung|android|تليفون/.test(t + en)) return { main: 'Electronics', sub: 'Mobiles' };
-  if (/laptop|كمبيوتر|لابتوب|macbook|pc/.test(t + en)) return { main: 'Electronics', sub: 'Computers' };
-  if (/شقة|شقه|apartment|flat|villa|house|بيت|rent|عقار/.test(t + en)) return { main: 'Real Estate', sub: 'Apartments' };
-  if (/سباك|كهربائي|نجار|plumber|electric|carpenter|painter|cleaner|دهان/.test(t + en)) return { main: 'Services', sub: 'Workers' };
-  if (/وظيفة|وظيفه|job|hiring|تعيين|vacancy/.test(t + en)) return { main: 'Jobs', sub: 'General' };
-  if (/فستان|dress|clothes|ملابس|جاكيت|shoes|حذاء/.test(t + en)) {
-    if (/رجالي|men|gents/.test(t)) return { main: 'Fashion', sub: 'Men' };
-    if (/نسائي|women|ladies|فستان/.test(t)) return { main: 'Fashion', sub: 'Women' };
+  if (/عربية|عربيه|سيارة|car|vehicle|motor|truck|دراجة|موتوسيكل|توك/.test(combined)) return { main: 'Vehicles', sub: 'Cars' };
+  if (/موبايل|موبيل|phone|iphone|samsung|android|تليفون|هاتف/.test(combined)) return { main: 'Electronics', sub: 'Mobiles' };
+  if (/laptop|كمبيوتر|لابتوب|macbook|pc|شاشة|تلفزيون|تليفزيون/.test(combined)) return { main: 'Electronics', sub: 'Computers' };
+  if (/شقة|شقه|apartment|flat|villa|house|بيت|rent|عقار|أوضة|فيلا|دور/.test(combined)) return { main: 'Real Estate', sub: 'Apartments' };
+  if (/سباك|كهربائي|نجار|plumber|electric|carpenter|painter|cleaner|دهان|شغلانة|بتاع/.test(combined)) return { main: 'Services', sub: 'Workers' };
+  if (/وظيفة|وظيفه|job|hiring|تعيين|vacancy|شغل|مطلوب/.test(combined)) return { main: 'Jobs', sub: 'General' };
+  if (/فستان|dress|هدوم|ملابس|جاكيت|shoes|حذاء|جزمة|جلابية/.test(combined)) {
+    if (/رجالي|men|gents/.test(combined)) return { main: 'Fashion', sub: 'Men' };
+    if (/نسائي|women|ladies|فستان/.test(combined)) return { main: 'Fashion', sub: 'Women' };
     return { main: 'Fashion', sub: 'General' };
   }
-  if (/دواء|medicine|pharmacy|صيدلية/.test(t + en)) return { main: 'Pharmacy', sub: 'Medicine' };
-  if (/اكل|food|meal|pizza|burger|طعام|وجبة|مطعم/.test(t + en)) return { main: 'Fast Food', sub: 'Restaurant' };
-  if (/بقالة|supermarket|grocery|خضار/.test(t + en)) return { main: 'Supermarket', sub: 'Groceries' };
+  if (/دواء|دوا|medicine|pharmacy|صيدلية/.test(combined)) return { main: 'Pharmacy', sub: 'Medicine' };
+  if (/أكل|اكله|food|meal|pizza|burger|طعام|وجبة|مطعم|بيتزا/.test(combined)) return { main: 'Fast Food', sub: 'Restaurant' };
+  if (/بقالة|supermarket|grocery|خضار/.test(combined)) return { main: 'Supermarket', sub: 'Groceries' };
   return { main: 'General', sub: 'Other' };
 }
