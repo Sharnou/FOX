@@ -71,7 +71,15 @@ app.use('/api/geo', geoRoutes);
 app.use('/seo', seoRoutes);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
-app.get('/', (_, res) => res.send('XTOX Backend v2.0 ✅'));
+app.get('/', (_, res) => res.json({
+  status: 'XTOX Backend v2.0 ✅',
+  time: new Date().toISOString(),
+  env: {
+    mongoConnected: !!process.env.MONGO_URI,
+    jwtSet: !!process.env.JWT_SECRET,
+    frontendUrl: process.env.FRONTEND_URL || 'not set'
+  }
+}));
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
