@@ -1,12 +1,20 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 
 export default function AdPage({ params }) {
   const [ad, setAd] = useState(null);
   const [mediaIdx, setMediaIdx] = useState(0);
+  const [callActive, setCallActive] = useState(false);
+  const [callStatus, setCallStatus] = useState('');
+  const [socket, setSocket] = useState(null);
+  const pcRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+
+  const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') || 'guest_' + Date.now() : '';
 
   useEffect(() => {
     if (params?.id) {
@@ -14,17 +22,91 @@ export default function AdPage({ params }) {
     }
   }, [params?.id]);
 
+  // Init socket for signaling
+  useEffect(() => {
+    if (!SOCKET_URL || !userId) return;
+    let s;
+    import('socket.io-client').then(({ io }) => {
+      s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('token') || 'guest' : 'guest' } });
+      s.emit('join', userId);
+      s.on('call_offer', async (data) => {
+        setCallStatus('مكالمة واردة...');
+        const pc = await createPeer(s, data.from);
+        await pc.setRemoteDescription(data.offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        s.emit('call_answer', { to: data.from, answer });
+        setCallActive(true);
+        setCallStatus('متصل 🟢');
+      });
+      s.on('call_answer', async (data) => {
+        await pcRef.current?.setRemoteDescription(data.answer);
+        setCallStatus('متصل 🟢');
+      });
+      s.on('ice_candidate', async (data) => {
+        await pcRef.current?.addIceCandidate(data.candidate);
+      });
+      s.on('call_end', () => {
+        endCall();
+        setCallStatus('انتهت المكالمة');
+      });
+      setSocket(s);
+    });
+    return () => s?.disconnect();
+  }, [userId]);
+
+  async function createPeer(s, targetId) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] });
+    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    pc.ontrack = e => { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = e.streams[0]; };
+    pc.onicecandidate = e => { if (e.candidate) s.emit('ice_candidate', { to: targetId, candidate: e.candidate }); };
+    pcRef.current = pc;
+    return pc;
+  }
+
+  async function startCall() {
+    if (!ad?.userId?._id && !ad?.userId) return alert('لا يمكن الاتصال الآن');
+    const targetId = ad.userId?._id || ad.userId;
+    setCallStatus('جار الاتصال...');
+    try {
+      const pc = await createPeer(socket, targetId);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('call_offer', { to: targetId, from: userId, offer });
+      setCallActive(true);
+    } catch (e) {
+      setCallStatus('فشل الاتصال — تحقق من الميكروفون');
+    }
+  }
+
+  function endCall() {
+    const targetId = ad?.userId?._id || ad?.userId;
+    socket?.emit('call_end', { to: targetId });
+    pcRef.current?.close();
+    pcRef.current = null;
+    setCallActive(false);
+    setCallStatus('');
+  }
+
   if (!ad) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#002f34', fontSize: 20 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#002f34', fontSize: 20, fontFamily: 'system-ui' }}>
       جار التحميل...
     </div>
   );
 
   const media = ad.media || [];
+  const sellerId = ad.userId?._id || ad.userId;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, fontFamily: 'system-ui, sans-serif' }}>
-      <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>← رجوع</button>
+      <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
+
+      <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>
+        ← رجوع
+      </button>
+
+      {/* Media */}
       {ad.video ? (
         <video src={ad.video} controls autoPlay style={{ width: '100%', borderRadius: 12, maxHeight: 360, objectFit: 'cover' }} />
       ) : media.length > 0 ? (
@@ -34,7 +116,7 @@ export default function AdPage({ params }) {
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               {media.map((m, i) => (
                 <img key={i} src={m} onClick={() => setMediaIdx(i)}
-                  style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', border: i === mediaIdx ? '2px solid #002f34' : '2px solid transparent' }} alt="" />
+                  style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', border: i === mediaIdx ? '2px solid #002f34' : '2px solid #eee' }} alt="" />
               ))}
             </div>
           )}
@@ -42,20 +124,58 @@ export default function AdPage({ params }) {
       ) : (
         <div style={{ height: 200, background: '#f0f0f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 60 }}>📦</div>
       )}
-      <h1 style={{ fontSize: 22, fontWeight: 'bold', marginTop: 16 }}>{ad.title}</h1>
-      <p style={{ fontSize: 26, color: '#002f34', fontWeight: 'bold', margin: '8px 0' }}>{ad.price} {ad.currency}</p>
-      <p style={{ color: '#555', lineHeight: 1.6 }}>{ad.description}</p>
-      <div style={{ display: 'flex', gap: 16, color: '#999', fontSize: 13, margin: '12px 0' }}>
+
+      {/* Ad Info */}
+      <h1 style={{ fontSize: 22, fontWeight: 'bold', marginTop: 16, marginBottom: 4 }}>{ad.title}</h1>
+      <p style={{ fontSize: 26, color: '#002f34', fontWeight: 'bold', margin: '4px 0 8px' }}>{ad.price} {ad.currency}</p>
+      <p style={{ color: '#555', lineHeight: 1.6, marginBottom: 12 }}>{ad.description}</p>
+
+      <div style={{ display: 'flex', gap: 16, color: '#999', fontSize: 13, marginBottom: 8, flexWrap: 'wrap' }}>
         <span>📍 {ad.city}</span>
         <span>👁 {ad.views} مشاهدة</span>
         <span>📁 {ad.category}</span>
+        <span style={{ color: '#e44' }}>⏰ ينتهي {ad.expiresAt ? new Date(ad.expiresAt).toLocaleDateString('ar-EG') : ''}</span>
       </div>
-      <p style={{ color: '#e44', fontSize: 13 }}>⏰ ينتهي {ad.expiresAt ? new Date(ad.expiresAt).toLocaleDateString('ar-EG') : ''}</p>
-      <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-        <a href={`/chat?target=${ad.userId?._id || ad.userId}&ad=${ad._id}`}
-          style={{ flex: 1, background: '#002f34', color: 'white', textAlign: 'center', padding: '14px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold' }}>
-          💬 تواصل مع البائع
+
+      {/* Call Status */}
+      {callStatus && (
+        <div style={{ background: callActive ? '#e8f8e8' : '#fff8e0', border: `1px solid ${callActive ? '#00aa44' : '#ffcc00'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12, color: '#333', fontSize: 14, textAlign: 'center' }}>
+          {callStatus}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+        {/* Chat Button */}
+        <a href={`/chat?target=${sellerId}&ad=${ad._id}`}
+          style={{ background: '#002f34', color: 'white', textAlign: 'center', padding: '14px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15 }}>
+          💬 محادثة
         </a>
+
+        {/* P2P Voice Call Button */}
+        {!callActive ? (
+          <button onClick={startCall}
+            style={{ background: '#00aa44', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>
+            📞 مكالمة مباشرة
+          </button>
+        ) : (
+          <button onClick={endCall}
+            style={{ background: '#cc0000', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', animation: 'pulse 1s infinite' }}>
+            ⛔ إنهاء المكالمة
+          </button>
+        )}
+      </div>
+
+      {/* Share */}
+      <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
+        <button onClick={() => navigator.share?.({ title: ad.title, url: window.location.href }) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))}
+          style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+          🔗 مشاركة الإعلان
+        </button>
+        <button onClick={() => { const report = prompt('سبب الإبلاغ:'); if (report) alert('تم الإبلاغ. شكراً'); }}
+          style={{ background: 'none', border: '1px solid #ddd', color: '#999', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+          🚩 إبلاغ
+        </button>
       </div>
     </div>
   );
