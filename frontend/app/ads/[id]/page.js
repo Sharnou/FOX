@@ -2,10 +2,10 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 const API = process.env.NEXT_PUBLIC_API_URL || '';
-export default function AdPage({ params }) {
+export default function AdPage({ params: { id } }) {
   const [ad, setAd] = useState(null);
   const [mediaIdx, setMediaIdx] = useState(0);
-  useEffect(() => { axios.get(`${API}/api/ads/${params.id}`).then(r => setAd(r.data)); }, [params.id]);
+  useEffect(() => { axios.get(`${API}/api/ads/${id}`).then(r => setAd(r.data)); }, [params.id]);
   if (!ad) return <div className="flex justify-center p-20 text-brand text-2xl">جار التحميل...</div>;
   const media = ad.media || [];
   return (
