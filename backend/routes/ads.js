@@ -142,9 +142,24 @@ router.post('/', auth, async (req, res) => {
 // ── AI Generate ad from media ──
 router.post('/ai-generate', auth, async (req, res) => {
   try {
-    const result = await buildAdFromMedia(req.body);
+    const result = await buildAdFromMedia({
+      imagePath: req.body.image || req.body.imagePath || null,
+      audioPath: req.body.audio || req.body.audioPath || null,
+      text: req.body.text || req.body.description || ''
+    });
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error('AI generate error:', e.message);
+    res.json({
+      title: req.body.text?.slice(0, 60) || '',
+      description: '',
+      category: 'General',
+      subcategory: 'Other',
+      suggestedPrice: 0,
+      language: 'ar',
+      hashtags: []
+    });
+  }
 });
 
 // ── DELETE ad ──
@@ -157,16 +172,41 @@ router.delete('/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── REPUBLISH expired ad ──
+// GET user's own ads (active + expired)
+router.get('/my/all', auth, async (req, res) => {
+  try {
+    const active = await Ad.find({ userId: req.user.id, isDeleted: false, isExpired: false }).sort({ createdAt: -1 });
+    const expired = await Ad.find({ userId: req.user.id, isDeleted: false, isExpired: true }).sort({ expiredAt: -1 });
+    const expiredWithDeadline = expired.map(ad => {
+      const expiredAt = ad.expiredAt || ad.expiresAt;
+      const deadlineMs = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
+      const daysLeft = Math.max(0, Math.ceil((deadlineMs - Date.now()) / (24 * 60 * 60 * 1000)));
+      return { ...ad.toObject(), daysLeftToReshare: daysLeft };
+    });
+    res.json({ active, expired: expiredWithDeadline });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// REPUBLISH expired ad (within 7-day grace period only)
 router.post('/:id/republish', auth, async (req, res) => {
   try {
-    const ad = await Ad.findOne({ _id: req.params.id, userId: req.user.id });
-    if (!ad) return res.status(404).json({ error: 'Not found' });
+    const ad = await Ad.findOne({ _id: req.params.id, userId: req.user.id, isExpired: true });
+    if (!ad) return res.status(404).json({ error: 'Expired ad not found' });
+
+    const expiredAt = ad.expiredAt || ad.expiresAt;
+    const deadline = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
+    if (Date.now() > deadline) {
+      return res.status(400).json({ error: 'Grace period expired. Please create a new ad.' });
+    }
+
     ad.isExpired = false;
-    ad.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    ad.expiredAt = null;
+    ad.expiresAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);
+    ad.republishedCount = (ad.republishedCount || 0) + 1;
+    ad.createdAt = new Date();
     await ad.save();
-    await rankAd(ad).catch(() => {});
-    res.json(ad);
+
+    res.json({ ok: true, ad, message: 'Ad republished for 45 more days' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
