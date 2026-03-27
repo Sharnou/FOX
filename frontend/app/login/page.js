@@ -7,6 +7,10 @@ const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
 export default function LoginPage() {
   const [tab, setTab] = useState('login');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -65,6 +69,28 @@ export default function LoginPage() {
     window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirect}&scope=User.Read`;
   }
 
+
+  async function sendWhatsAppOTP() {
+    if (!phone) { setError('أدخل رقم الواتساب'); return; }
+    setOtpLoading(true); setError('');
+    try {
+      await axios.post(`${API}/api/users/send-otp`, { phone, via: 'whatsapp' });
+      setOtpSent(true);
+    } catch (e) { setError(e.response?.data?.error || 'فشل إرسال الرمز'); }
+    setOtpLoading(false);
+  }
+
+  async function verifyWhatsAppOTP() {
+    if (!otp) { setError('أدخل رمز التحقق'); return; }
+    setLoading(true); setError('');
+    try {
+      const country = typeof window !== 'undefined' ? (localStorage.getItem('detectedCountry') || 'EG') : 'EG';
+      const res = await axios.post(`${API}/api/users/verify-otp`, { phone, otp, country });
+      saveAndRedirect(res.data);
+    } catch (e) { setError(e.response?.data?.error || 'رمز خاطئ'); }
+    setLoading(false);
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui', padding: 16 }}>
       <div style={{ background: 'white', borderRadius: 20, padding: 36, width: '100%', maxWidth: 400, boxShadow: '0 4px 24px rgba(0,0,0,0.1)' }}>
@@ -96,11 +122,53 @@ export default function LoginPage() {
             style={{ width: '100%', padding: '12px', borderRadius: 10, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit' }}>
             🪟 المتابعة بـ Microsoft
           </button>
+          <button onClick={() => setTab('whatsapp')}
+            style={{ width: '100%', padding: '12px', borderRadius: 10, border: '1px solid #25d366', background: '#25d366', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit' }}>
+            💬 التسجيل بـ واتساب
+          </button>
           <button onClick={() => alert('Apple Sign In requires iOS/macOS app.')}
             style={{ width: '100%', padding: '12px', borderRadius: 10, border: '1px solid #000', background: '#000', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit' }}>
             🍎 المتابعة بـ Apple
           </button>
         </div>
+
+
+        {/* WhatsApp Login Tab */}
+        {tab === 'whatsapp' && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ background: '#e8fef0', border: '1px solid #25d366', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#1a7a3e' }}>
+              💬 سيصلك رمز تحقق على واتساب
+            </div>
+            {!otpSent ? (
+              <>
+                <input value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="+201234567890"
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }} />
+                <button onClick={sendWhatsAppOTP} disabled={otpLoading}
+                  style={{ width: '100%', padding: '12px', background: '#25d366', color: 'white', border: 'none', borderRadius: 10, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {otpLoading ? 'جار الإرسال...' : '📨 إرسال رمز واتساب'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p style={{ color: '#666', fontSize: 13, marginBottom: 12 }}>تم إرسال رمز التحقق إلى {phone} عبر واتساب</p>
+                <input value={otp} onChange={e => setOtp(e.target.value)} type="number" placeholder="123456"
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #25d366', fontSize: 20, textAlign: 'center', marginBottom: 12, boxSizing: 'border-box', letterSpacing: 8 }} />
+                <button onClick={verifyWhatsAppOTP} disabled={loading}
+                  style={{ width: '100%', padding: '12px', background: '#002f34', color: 'white', border: 'none', borderRadius: 10, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {loading ? 'جار التحقق...' : '✅ تأكيد'}
+                </button>
+                <button onClick={() => { setOtpSent(false); setOtp(''); }}
+                  style={{ width: '100%', marginTop: 8, padding: '10px', background: 'transparent', color: '#666', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+                  إعادة الإرسال
+                </button>
+              </>
+            )}
+            <button onClick={() => { setTab('login'); setOtpSent(false); }}
+              style={{ width: '100%', marginTop: 8, padding: '10px', background: 'transparent', color: '#002f34', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+              ← رجوع للدخول بالبريد
+            </button>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           <div style={{ flex: 1, height: 1, background: '#eee' }} />
