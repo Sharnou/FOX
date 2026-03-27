@@ -15,8 +15,6 @@ const router = express.Router();
 // ── GET all ads (country from JWT — locked, user cannot override) ──
 router.get('/', async (req, res) => {
   try {
-    // Country comes from JWT token (set at registration, cannot be changed)
-    // If not logged in, detect from IP header
     const country = req.user?.country || req.headers['x-country'] || req.query.country || 'EG';
     const { category, city, page = 0 } = req.query;
 
@@ -29,12 +27,29 @@ router.get('/', async (req, res) => {
     if (category && category !== 'الكل' && category !== 'All') filter.category = category;
     if (city) filter.city = city;
 
-    const ads = await Ad.find(filter)
-      .sort({ isFeatured: -1, visibilityScore: -1, createdAt: -1 })
+    // FEATURED FIRST: max 16, newest featured → top (only on page 0)
+    let featuredAds = [];
+    if (Number(page) === 0) {
+      const { getFeaturedAds, getFeaturedByCategory } = await import('../server/featuredManager.js');
+      if (category && category !== 'الكل' && category !== 'All') {
+        featuredAds = await getFeaturedByCategory(country, filter.category);
+      } else {
+        featuredAds = await getFeaturedAds(country);
+      }
+    }
+
+    // REGULAR ADS: high ranking first, exclude already-shown featured
+    const featuredIds = featuredAds.map(a => a._id.toString());
+    const regularFilter = { ...filter, isFeatured: false };
+    if (featuredIds.length) regularFilter._id = { $nin: featuredIds };
+
+    const regularAds = await Ad.find(regularFilter)
+      .sort({ visibilityScore: -1, createdAt: -1 })
       .skip(Number(page) * 20)
       .limit(20);
 
-    res.json(ads);
+    // Return featured first, then ranked regular
+    res.json([...featuredAds, ...regularAds]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
