@@ -72,8 +72,11 @@ export default function Home() {
       <header style={{ background: '#002f34', color: 'white', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
         <span style={{ fontSize: 22, fontWeight: 'bold', letterSpacing: 1 }}>XTOX</span>
         <input value={search} onChange={e => setSearch(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && search && (window.location.href = `/search?q=${search}`)}
           placeholder="ابحث عن أي شيء..."
-          style={{ flex: 1, padding: '8px 14px', borderRadius: 20, border: 'none', fontSize: 14, background: 'rgba(255,255,255,0.15)', color: 'white', outline: 'none' }} />
+          style={{ flex: 1, padding: '8px 14px', borderRadius: 20, border: 'none', fontSize: 14, background: 'rgba(255,255,255,0.15)', color: 'white', outline: 'none', cursor: 'text' }} />
+        <button onClick={() => search && (window.location.href = `/search?q=${search}`)}
+          style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', padding: '8px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 16 }}>🔍</button>
         <a href="/sell" style={{ background: '#00b09b', color: 'white', padding: '8px 16px', borderRadius: 20, textDecoration: 'none', fontWeight: 'bold', fontSize: 14, whiteSpace: 'nowrap' }}>+ بيع</a>
         {user ? (
           <a href={`/profile/${user.id}`} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', textDecoration: 'none', color: 'white', fontSize: 16, flexShrink: 0 }}>
@@ -100,6 +103,14 @@ export default function Home() {
         <a href="/chat"
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#f0f0f0', color: '#333', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>
           💬 الرسائل
+        </a>
+        <a href="/notifications"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#f0f0f0', color: '#333', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          🔔 الإشعارات
+        </a>
+        <a href="/search"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#f0f0f0', color: '#333', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          🔍 بحث متقدم
         </a>
       </div>
 
@@ -172,7 +183,11 @@ export default function Home() {
       </div>
 
       <footer style={{ textAlign: 'center', padding: '24px 16px', color: '#999', fontSize: 13, borderTop: '1px solid #eee', marginTop: 20 }}>
-        <span>XTOX © 2026</span>
+        <a href="/about" style={{ color: '#002f34', margin: '0 8px' }}>عن التطبيق</a>
+        <a href="/privacy" style={{ color: '#002f34', margin: '0 8px' }}>الخصوصية</a>
+        <a href="/terms" style={{ color: '#002f34', margin: '0 8px' }}>الشروط</a>
+        <a href={`${API}/rss/EG`} style={{ color: '#002f34', margin: '0 8px' }}>RSS</a>
+        <br /><span style={{ marginTop: 8, display: 'block' }}>XTOX © 2026 — السوق المحلي الذكي</span>
       </footer>
 
       {/* POPUP — every 4h, cartoon + featured ad */}
