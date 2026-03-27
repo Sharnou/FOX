@@ -43,8 +43,23 @@ router.post('/rank-ad', adminAuth, async (req, res) => {
 });
 router.post('/feature', adminAuth, async (req, res) => {
   const { adId, style } = req.body;
-  await Ad.findByIdAndUpdate(adId, { isFeatured: true, featuredStyle: style || 'normal', featuredUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) });
-  res.json({ ok: true });
+
+  // Get the ad to check its country
+  const ad = await Ad.findById(adId);
+  if (!ad) return res.status(404).json({ error: 'Ad not found' });
+
+  // Enforce max 16 featured per week per country
+  const { countFeaturedThisWeek } = await import('../server/featuredManager.js');
+  const count = await countFeaturedThisWeek(ad.country);
+  if (count >= 16) return res.status(400).json({ error: `Max 16 featured ads per week reached for ${ad.country}` });
+
+  await Ad.findByIdAndUpdate(adId, {
+    isFeatured: true,
+    featuredStyle: style || 'normal',
+    featuredAt: new Date(), // timestamp for sorting new→top
+    featuredUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  });
+  res.json({ ok: true, weeklyCount: count + 1 });
 });
 router.post('/promote-user', superAdminAuth, async (req, res) => {
   await User.findByIdAndUpdate(req.body.id, { role: req.body.role });
