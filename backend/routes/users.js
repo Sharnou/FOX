@@ -31,10 +31,33 @@ export async function seedSuperAdmin() {
 
 // ── Verify Google Token ──
 async function verifyGoogleToken(idToken) {
-  const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
-  const data = await res.json();
-  if (data.error) throw new Error('Invalid Google token');
-  return { email: data.email, name: data.name, avatar: data.picture, googleId: data.sub };
+  // Method 1: google-auth-library (most secure - ChatGPT recommended)
+  try {
+    const { OAuth2Client } = await import('google-auth-library');
+    const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+    const client = new OAuth2Client(CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    return {
+      email: payload.email,
+      name: payload.name,
+      avatar: payload.picture,
+      googleId: payload.sub
+    };
+  } catch (e1) {
+    // Method 2: Fallback to tokeninfo endpoint
+    try {
+      const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+      const data = await res.json();
+      if (data.error) throw new Error('Invalid Google token: ' + data.error);
+      return { email: data.email, name: data.name, avatar: data.picture, googleId: data.sub };
+    } catch (e2) {
+      throw new Error('Google token verification failed: ' + e2.message);
+    }
+  }
 }
 
 // ── Verify Microsoft Token ──
