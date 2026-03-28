@@ -5,39 +5,67 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railwa
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
 export default function LoginPage() {
-  const [tab, setTab] = useState('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState('main');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
-  const [googleReady, setGoogleReady] = useState(false);
 
   useEffect(() => {
     try {
+      // Already logged in?
       const token = localStorage.getItem('token');
-      const user = localStorage.getItem('user');
-      if (token && user) {
-        const u = JSON.parse(user);
-        window.location.href = (u.role === 'admin' || u.role === 'sub_admin') ? '/admin' : '/';
+      if (token) {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        window.location.href = (user.role === 'admin' || user.role === 'sub_admin') ? '/admin' : '/';
         return;
       }
-    } catch {}
 
-    // Google GSI disabled - using direct OAuth redirect instead
-    if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com')) {
-      setGoogleReady(true);
-    }
+      // Handle Google OAuth callback (id_token in URL hash)
+      const hash = window.location.hash || '';
+      if (hash.includes('id_token=')) {
+        setLoading(true);
+        setSuccess('جار التحقق من Google...');
+        const params = new URLSearchParams(hash.replace('#', ''));
+        const idToken = params.get('id_token');
+        if (idToken) {
+          const country = localStorage.getItem('detectedCountry') || 'EG';
+          fetch(`${API}/api/users/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken, country })
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.token) {
+              saveAndRedirect(data);
+            } else {
+              setError(data.error || 'فشل تسجيل الدخول بـ Google');
+              setLoading(false);
+              window.history.replaceState(null, '', '/login');
+            }
+          })
+          .catch(() => {
+            setError('فشل الاتصال بالخادم');
+            setLoading(false);
+          });
+        }
+        return;
+      }
+
+      // Detect country
+      fetch('https://ipapi.co/json/')
+        .then(r => r.json())
+        .then(d => { if (d.country_code) localStorage.setItem('detectedCountry', d.country_code); })
+        .catch(() => {});
+    } catch {}
   }, []);
 
   function saveAndRedirect(data) {
     try {
-      if (!data?.token) { setError('خطأ في الاستجابة'); return; }
       localStorage.setItem('token', data.token);
       localStorage.setItem('userId', data.user?.id || '');
       localStorage.setItem('user', JSON.stringify(data.user || {}));
@@ -45,57 +73,41 @@ export default function LoginPage() {
       setSuccess('تم تسجيل الدخول! جار التحويل...');
       setTimeout(() => {
         window.location.href = (data.user?.role === 'admin' || data.user?.role === 'sub_admin') ? '/admin' : '/';
-      }, 800);
+      }, 1000);
     } catch (e) { setError('خطأ: ' + e.message); }
   }
 
-  // Google redirect flow - no SDK needed
-  async function handleGoogleResponse(response) {
-    // Not used with redirect flow
-  }
-
-  async function handleEmailAuth() {
-    setError(''); setLoading(true);
-    if (!email.trim()) { setError('أدخل البريد الإلكتروني'); setLoading(false); return; }
-    if (!password) { setError('أدخل كلمة المرور'); setLoading(false); return; }
-    if (tab === 'register' && !name.trim()) { setError('أدخل اسمك'); setLoading(false); return; }
+  function loginWithGoogle() {
+    if (!GOOGLE_CLIENT_ID) { setError('Google login not configured'); return; }
     try {
-      const country = localStorage.getItem('detectedCountry') || 'EG';
-      const endpoint = tab === 'login' ? '/api/users/login' : '/api/users/register';
-      const body = tab === 'login'
-        ? { email: email.trim(), password }
-        : { email: email.trim(), password, name: name.trim(), country };
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch(`${API}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: controller.signal
+      const redirectUri = window.location.origin + '/login';
+      const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      const params = new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: redirectUri,
+        response_type: 'id_token',
+        scope: 'email profile openid',
+        nonce,
+        prompt: 'select_account'
       });
-      clearTimeout(timeout);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل');
-      saveAndRedirect(data);
-    } catch (e) {
-      if (e.name === 'AbortError') setError('انتهت مهلة الاتصال — تحقق من الإنترنت');
-      else setError(e.message || 'حدث خطأ');
-    }
-    setLoading(false);
+      window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+    } catch (e) { setError('خطأ: ' + e.message); }
   }
 
   async function sendOTP() {
-    if (!phone.trim()) { setError('أدخل رقم الواتساب'); return; }
-    setOtpLoading(true); setError('');
+    if (!phone.trim()) { setError('أدخل رقم الواتساب مع كود الدولة مثل +201234567890'); return; }
+    setOtpLoading(true); setError(''); setSuccess('');
     try {
       const res = await fetch(`${API}/api/users/send-otp`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: phone.trim(), via: 'whatsapp' })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل');
-      setOtpSent(true); setSuccess('تم إرسال الرمز على واتساب');
-    } catch (e) { setError(e.message || 'فشل إرسال الرمز'); }
+      if (!res.ok) throw new Error(data.error || 'فشل الإرسال');
+      setOtpSent(true);
+      setSuccess('تم إرسال الرمز على واتساب ✅');
+    } catch (e) { setError(e.message); }
     setOtpLoading(false);
   }
 
@@ -105,148 +117,145 @@ export default function LoginPage() {
     try {
       const country = localStorage.getItem('detectedCountry') || 'EG';
       const res = await fetch(`${API}/api/users/verify-otp`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: phone.trim(), otp: otp.trim(), country })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'رمز خاطئ');
       saveAndRedirect(data);
-    } catch (e) { setError(e.message || 'رمز خاطئ'); }
+    } catch (e) { setError(e.message); }
     setLoading(false);
   }
 
-  useEffect(() => {
-    fetch('https://ipapi.co/json/')
-      .then(r => r.json())
-      .then(d => { if (d.country_code) localStorage.setItem('detectedCountry', d.country_code); })
-      .catch(() => {});
-  }, []);
+  const bg = { minHeight: '100vh', background: 'linear-gradient(135deg, #002f34 0%, #004d40 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cairo', system-ui, sans-serif", padding: 16 };
+  const card = { background: 'white', borderRadius: 24, padding: 36, width: '100%', maxWidth: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
 
-  const S = {
-    page: { minHeight: '100vh', background: 'linear-gradient(135deg, #002f34, #004d40)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cairo', system-ui, sans-serif", padding: 16 },
-    card: { background: 'white', borderRadius: 24, padding: 36, width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-    tabs: { display: 'flex', background: '#f0f0f0', borderRadius: 12, padding: 4, marginBottom: 24 },
-    tab: (active) => ({ flex: 1, padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: 15, background: active ? '#002f34' : 'transparent', color: active ? 'white' : '#666', fontFamily: 'inherit' }),
-    alert: (type) => ({ padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 14, background: type === 'error' ? '#fff0f0' : '#e8f8e8', border: `1px solid ${type === 'error' ? '#ffcccc' : '#00aa44'}`, color: type === 'error' ? '#cc0000' : '#00aa44' }),
-    input: { width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid #ddd', fontSize: 15, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 12 },
-    btn: (color) => ({ width: '100%', padding: '14px', background: color || '#002f34', color: 'white', border: 'none', borderRadius: 12, fontWeight: 'bold', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', marginTop: 8 }),
-    oauthBtn: (border, bg, color) => ({ width: '100%', padding: '12px', borderRadius: 12, border: `1px solid ${border}`, background: bg || 'white', color: color || '#333', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit', fontWeight: 'bold', marginBottom: 10 }),
-    divider: { display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0' },
-    link: { color: '#002f34', fontSize: 12 }
-  };
+  // Loading screen
+  if (loading) {
+    return (
+      <div style={bg}>
+        <div style={{ textAlign: 'center', color: 'white' }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>🛒</div>
+          <h2 style={{ margin: '0 0 10px', fontSize: 28, fontWeight: 900 }}>XTOX</h2>
+          <p style={{ opacity: 0.85, fontSize: 16 }}>{success || 'جار التحميل...'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={S.page}>
-      <div style={S.card}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+    <div style={bg}>
+      <div style={card}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <a href="/" style={{ textDecoration: 'none' }}>
-            <div style={{ fontSize: 52 }}>🛒</div>
-            <h1 style={{ color: '#002f34', fontSize: 28, fontWeight: 900, margin: '4px 0 2px' }}>XTOX</h1>
-            <p style={{ color: '#666', fontSize: 14, margin: 0 }}>السوق المحلي الذكي</p>
+            <div style={{ fontSize: 60 }}>🛒</div>
+            <h1 style={{ color: '#002f34', fontSize: 32, fontWeight: 900, margin: '8px 0 4px' }}>XTOX</h1>
+            <p style={{ color: '#888', fontSize: 14, margin: 0 }}>السوق المحلي الذكي</p>
           </a>
         </div>
 
-        {tab === 'whatsapp' ? (
+        {/* Error */}
+        {error && (
+          <div style={{ background: '#fff0f0', border: '1px solid #ffcccc', borderRadius: 12, padding: '12px 16px', marginBottom: 20, color: '#cc0000', fontSize: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>⚠️ {error}</span>
+            <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 18, lineHeight: 1 }}>×</button>
+          </div>
+        )}
+
+        {/* Success */}
+        {success && !loading && (
+          <div style={{ background: '#e8f8e8', border: '1px solid #00aa44', borderRadius: 12, padding: '12px 16px', marginBottom: 20, color: '#00aa44', fontSize: 14 }}>
+            ✅ {success}
+          </div>
+        )}
+
+        {/* Main Tab — Google + WhatsApp only */}
+        {tab === 'main' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <p style={{ textAlign: 'center', color: '#777', fontSize: 15, margin: '0 0 6px' }}>
+              اختر طريقة الدخول
+            </p>
+
+            {/* Google */}
+            <button onClick={loginWithGoogle}
+              style={{ width: '100%', padding: '15px 20px', borderRadius: 14, border: '1px solid #dadce0', background: 'white', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontFamily: 'inherit', fontWeight: 600, color: '#3c4043', boxShadow: '0 2px 6px rgba(0,0,0,0.08)', transition: 'box-shadow 0.2s' }}>
+              <svg width="22" height="22" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              </svg>
+              المتابعة بـ Google
+            </button>
+
+            {/* WhatsApp */}
+            <button onClick={() => { setTab('whatsapp'); setError(''); setSuccess(''); }}
+              style={{ width: '100%', padding: '15px 20px', borderRadius: 14, border: 'none', background: '#25d366', color: 'white', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontFamily: 'inherit', fontWeight: 700, boxShadow: '0 2px 6px rgba(37,211,102,0.3)' }}>
+              <span style={{ fontSize: 24 }}>💬</span>
+              المتابعة بـ واتساب
+            </button>
+
+            <p style={{ textAlign: 'center', color: '#bbb', fontSize: 12, marginTop: 10 }}>
+              بالمتابعة توافق على{' '}
+              <a href="/terms" style={{ color: '#002f34' }}>الشروط</a>
+              {' '}و{' '}
+              <a href="/privacy" style={{ color: '#002f34' }}>الخصوصية</a>
+            </p>
+          </div>
+        )}
+
+        {/* WhatsApp OTP Tab */}
+        {tab === 'whatsapp' && (
           <div>
-            <button onClick={() => { setTab('login'); setOtpSent(false); setError(''); setSuccess(''); }}
-              style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16, fontFamily: 'inherit' }}>
+            <button onClick={() => { setTab('main'); setOtpSent(false); setOtp(''); setPhone(''); setError(''); setSuccess(''); }}
+              style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 18, cursor: 'pointer', marginBottom: 20, fontFamily: 'inherit', padding: 0 }}>
               ← رجوع
             </button>
-            <h3 style={{ color: '#002f34', marginBottom: 16 }}>دخول بـ واتساب</h3>
-            {error && <div style={S.alert('error')}>⚠️ {error}</div>}
-            {success && <div style={S.alert('success')}>✅ {success}</div>}
+
+            <h3 style={{ color: '#002f34', margin: '0 0 6px', fontSize: 20 }}>دخول بـ واتساب</h3>
+            <p style={{ color: '#888', fontSize: 13, margin: '0 0 24px' }}>سيصلك رمز تحقق مجاني على واتساب</p>
+
             {!otpSent ? (
               <>
-                <input value={phone} onChange={e => setPhone(e.target.value)} type="tel"
-                  placeholder="+201234567890" style={{ ...S.input, direction: 'ltr', textAlign: 'left' }} />
-                <button onClick={sendOTP} disabled={otpLoading} style={S.btn('#25d366')}>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: 14, marginBottom: 8, color: '#333' }}>رقم الواتساب</label>
+                <input
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && sendOTP()}
+                  type="tel"
+                  placeholder="+201234567890"
+                  style={{ width: '100%', padding: '14px 16px', borderRadius: 12, border: '1px solid #ddd', fontSize: 16, boxSizing: 'border-box', marginBottom: 14, direction: 'ltr', textAlign: 'left', fontFamily: 'inherit' }}
+                />
+                <button onClick={sendOTP} disabled={otpLoading}
+                  style={{ width: '100%', padding: '14px', background: otpLoading ? '#ccc' : '#25d366', color: 'white', border: 'none', borderRadius: 12, fontWeight: 'bold', fontSize: 16, cursor: otpLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                   {otpLoading ? 'جار الإرسال...' : '📨 إرسال رمز واتساب'}
                 </button>
               </>
             ) : (
               <>
-                <p style={{ color: '#25d366', marginBottom: 12 }}>✅ تم الإرسال إلى {phone}</p>
-                <input value={otp} onChange={e => setOtp(e.target.value)} type="number"
-                  placeholder="123456" style={{ ...S.input, fontSize: 24, textAlign: 'center', letterSpacing: 8 }} />
-                <button onClick={verifyOTP} disabled={loading} style={S.btn()}>
-                  {loading ? 'جار التحقق...' : '✅ تأكيد'}
+                <p style={{ color: '#25d366', fontWeight: 'bold', marginBottom: 16, fontSize: 14 }}>✅ تم إرسال الرمز إلى {phone}</p>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: 14, marginBottom: 8, color: '#333' }}>رمز التحقق</label>
+                <input
+                  value={otp}
+                  onChange={e => setOtp(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && verifyOTP()}
+                  type="number"
+                  placeholder="000000"
+                  style={{ width: '100%', padding: '16px', borderRadius: 12, border: '2px solid #25d366', fontSize: 30, textAlign: 'center', boxSizing: 'border-box', marginBottom: 14, letterSpacing: 12, fontFamily: 'inherit' }}
+                />
+                <button onClick={verifyOTP} disabled={loading}
+                  style={{ width: '100%', padding: '14px', background: '#002f34', color: 'white', border: 'none', borderRadius: 12, fontWeight: 'bold', fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                  {loading ? 'جار التحقق...' : '✅ تأكيد الرمز'}
                 </button>
-                <button onClick={() => { setOtpSent(false); setOtp(''); }}
-                  style={{ ...S.btn('#f0f0f0'), color: '#333', marginTop: 8 }}>
+                <button onClick={() => { setOtpSent(false); setOtp(''); setSuccess(''); }}
+                  style={{ width: '100%', marginTop: 10, padding: '12px', background: '#f5f5f5', border: 'none', borderRadius: 12, cursor: 'pointer', color: '#666', fontSize: 14, fontFamily: 'inherit' }}>
                   إعادة الإرسال
                 </button>
               </>
             )}
           </div>
-        ) : (
-          <>
-            <div style={S.tabs}>
-              {[['login','دخول'],['register','حساب جديد']].map(([t,l]) => (
-                <button key={t} onClick={() => { setTab(t); setError(''); setSuccess(''); }}
-                  style={S.tab(tab === t)}>{l}</button>
-              ))}
-            </div>
-
-            {error && <div style={S.alert('error')}>⚠️ {error}</div>}
-            {success && <div style={S.alert('success')}>✅ {success}</div>}
-
-            {googleReady ? (
-              <button
-                onClick={() => {
-                  try {
-                    const params = new URLSearchParams({
-                      client_id: GOOGLE_CLIENT_ID,
-                      redirect_uri: window.location.origin + '/login',
-                      response_type: 'id_token',
-                      scope: 'email profile openid',
-                      nonce: Math.random().toString(36).slice(2),
-                      prompt: 'select_account'
-                    });
-                    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
-                  } catch {}
-                }}
-                style={{ width: '100%', padding: '12px', borderRadius: 12, border: '1px solid #dadce0', background: 'white', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit', fontWeight: '600', marginBottom: 10, color: '#3c4043' }}>
-                <svg width="18" height="18" viewBox="0 0 48 48">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                </svg>
-                المتابعة بـ Google
-              </button>
-            ) : null}
-
-            <button onClick={() => { setTab('whatsapp'); setError(''); }}
-              style={S.oauthBtn('#25d366', '#25d366', 'white')}>
-              <span style={{ fontSize: 20 }}>💬</span> دخول بـ واتساب
-            </button>
-
-            <div style={S.divider}>
-              <div style={{ flex: 1, height: 1, background: '#eee' }} />
-              <span style={{ color: '#999', fontSize: 13 }}>أو بالبريد</span>
-              <div style={{ flex: 1, height: 1, background: '#eee' }} />
-            </div>
-
-            {tab === 'register' && (
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="الاسم الكامل" style={S.input} />
-            )}
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email"
-              placeholder="البريد الإلكتروني" autoComplete="email"
-              style={{ ...S.input, direction: 'ltr', textAlign: 'left' }} />
-            <input value={password} onChange={e => setPassword(e.target.value)} type="password"
-              placeholder="كلمة المرور" autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
-              onKeyDown={e => e.key === 'Enter' && !loading && handleEmailAuth()}
-              style={S.input} />
-
-            <button onClick={handleEmailAuth} disabled={loading} style={S.btn()}>
-              {loading ? 'جار التحميل...' : tab === 'login' ? '🔐 دخول' : '✅ إنشاء حساب'}
-            </button>
-
-            <p style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 16 }}>
-              بالمتابعة توافق على{' '}
-              <a href="/terms" style={S.link}>الشروط</a> و<a href="/privacy" style={S.link}>الخصوصية</a>
-            </p>
-          </>
         )}
       </div>
     </div>
