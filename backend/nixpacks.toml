@@ -1,8 +1,0 @@
-[phases.install]
-cmds = ['npm install --production']
-
-[phases.build]
-cmds = ['echo XTOX Backend Ready']
-
-[start]
-cmd = 'node server/index.js'
