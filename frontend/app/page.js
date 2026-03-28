@@ -1,10 +1,9 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 
 const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];
 const CAT_MAP = { 'سيارات': 'Vehicles', 'إلكترونيات': 'Electronics', 'عقارات': 'Real Estate', 'وظائف': 'Jobs', 'خدمات': 'Services', 'سوبرماركت': 'Supermarket', 'صيدلية': 'Pharmacy', 'طعام': 'Fast Food', 'موضة': 'Fashion' };
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
+const API = 'https://fox-production.up.railway.app';
 const POPUP_INTERVAL = 4 * 60 * 60 * 1000;
 const CARTOONS = ['🦊', '🐨', '🦁', '🐸', '🦝', '🐙', '🦄', '🐼'];
 
@@ -32,11 +31,21 @@ export default function Home() {
   async function fetchAds() {
     setLoading(true);
     try {
-      const params = { country };
-      if (cat !== 'الكل') params.category = CAT_MAP[cat] || cat;
-      const res = await axios.get(`${API}/api/ads`, { params });
-      setAds(res.data || []);
-    } catch { setAds([]); }
+      const RAILWAY = 'https://fox-production.up.railway.app';
+      const catMap = { 'سيارات': 'Vehicles', 'إلكترونيات': 'Electronics', 'عقارات': 'Real Estate', 'وظائف': 'Jobs', 'خدمات': 'Services', 'سوبرماركت': 'Supermarket', 'صيدلية': 'Pharmacy', 'طعام': 'Fast Food', 'موضة': 'Fashion' };
+      const params = new URLSearchParams({ country });
+      if (cat !== 'الكل') params.append('category', catMap[cat] || cat);
+      const res = await fetch(`${RAILWAY}/api/ads?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAds(Array.isArray(data) ? data : []);
+      } else {
+        setAds([]);
+      }
+    } catch (e) {
+      console.warn('Failed to load ads:', e.message);
+      setAds([]);
+    }
     setLoading(false);
   }
 
@@ -50,8 +59,9 @@ export default function Home() {
   async function showPopup() {
     try {
       const c = localStorage.getItem('country') || 'EG';
-      const res = await axios.get(`${API}/api/ads`, { params: { country: c } });
-      const featured = (res.data || []).filter(a => a.isFeatured);
+      const res = await fetch(`https://fox-production.up.railway.app/api/ads?country=${c}`);
+      const resData = res.ok ? await res.json() : [];
+      const featured = (Array.isArray(resData) ? resData : []).filter(a => a.isFeatured);
       if (!featured.length) return;
       const randomAd = featured[Math.floor(Math.random() * featured.length)];
       const cartoon = CARTOONS[Math.floor(Math.random() * CARTOONS.length)];
