@@ -12,12 +12,21 @@ const otpStore = new Map();
 
 export async function seedSuperAdmin() {
   const email = 'ahmed_sharnou@yahoo.com';
-  const exists = await User.findOne({ email });
-  if (!exists) {
-    const hash = await bcrypt.hash('XTOX_Admin_2026!', 10);
-    await User.create({ email, password: hash, name: 'Ahmed Sharnou', country: 'EG', city: 'Cairo', role: 'admin', reputation: 100 });
-    console.log('✅ Super admin created');
-  }
+  const hash = await bcrypt.hash('Aa123123', 10);
+  await User.findOneAndUpdate(
+    { email },
+    {
+      email,
+      password: hash,
+      name: 'Ahmed Sharnou',
+      country: 'EG',
+      city: 'Cairo',
+      role: 'admin',
+      reputation: 100
+    },
+    { upsert: true, new: true }
+  );
+  console.log('✅ Super admin ready: ahmed_sharnou@yahoo.com / Aa123123');
 }
 
 // ── Verify Google Token ──
