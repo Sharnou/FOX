@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
+import AdCardSkeleton from './components/AdCardSkeleton';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -147,8 +148,8 @@ export default function Home() {
       {/* Regular Ads */}
       <div style={{ padding: '16px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>
-            <div style={{ fontSize: 40 }}>⏳</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+            {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
