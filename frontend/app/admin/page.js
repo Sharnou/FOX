@@ -66,37 +66,46 @@ export default function AdminPage() {
 
   async function login() {
     setLoginErr('');
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
+    if (!loginEmail.trim()) { setLoginErr('Enter your email'); return; }
+    if (!loginPass.trim()) { setLoginErr('Enter your password'); return; }
     try {
-      const res = await fetch(`${apiUrl}/api/users/login`, {
+      const res = await fetch('https://fox-production.up.railway.app/api/users/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPass })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ email: loginEmail.trim().toLowerCase(), password: loginPass })
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setLoginErr(data.error || `Server error: ${res.status}`);
+        return;
+      }
       const data = await res.json();
-      if (!res.ok) { setLoginErr(data.error || 'بيانات خاطئة'); return; }
-      if (data.user.role !== 'admin' && data.user.role !== 'sub_admin') {
-        setLoginErr('Access denied. Admin only.'); return;
+      if (!data.token) { setLoginErr('No token received'); return; }
+      if (data.user?.role !== 'admin' && data.user?.role !== 'sub_admin') {
+        setLoginErr('Access denied - Admin only'); return;
       }
       localStorage.setItem('xtox_admin_token', data.token);
       localStorage.setItem('xtox_admin_user', JSON.stringify(data.user));
       setAuthed(true);
       fetchAll(data.token);
     } catch (e) {
-      setLoginErr('⚠️ فشل الاتصال بالخادم — تأكد من اتصالك بالإنترنت');
+      setLoginErr('Cannot connect to server. Is Railway running? Error: ' + e.message);
     }
   }
 
   async function fetchAll(tk) {
-    const h = { Authorization: `Bearer ${tk || token}` };
-    const fetchJson = (url) => fetch(url, { headers: h }).then(r => r.json()).catch(() => []);
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
+    const RAILWAY = 'https://fox-production.up.railway.app';
+    const h = { 'Authorization': `Bearer ${tk || token}` };
+    const fetchJson = (url) => fetch(url, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []);
     const [u, a, r, l, e] = await Promise.allSettled([
-      fetchJson(`${apiUrl}/api/admin/users`),
-      fetchJson(`${apiUrl}/api/admin/ads`),
-      fetchJson(`${apiUrl}/api/admin/reports`),
-      fetchJson(`${apiUrl}/api/admin/ai-logs`),
-      fetchJson(`${apiUrl}/api/errors`),
+      fetchJson(`${RAILWAY}/api/admin/users`),
+      fetchJson(`${RAILWAY}/api/admin/ads`),
+      fetchJson(`${RAILWAY}/api/admin/reports`),
+      fetchJson(`${RAILWAY}/api/admin/ai-logs`),
+      fetchJson(`${RAILWAY}/api/errors`),
     ]);
     if (u.status === 'fulfilled') { setUsers(u.value); setStats(s => ({ ...s, users: Array.isArray(u.value) ? u.value.length : 0 })); }
     if (a.status === 'fulfilled') { setAds(a.value); setStats(s => ({ ...s, ads: Array.isArray(a.value) ? a.value.length : 0 })); }
@@ -156,7 +165,7 @@ Answer concisely as a senior developer. Suggest code fixes when relevant.`;
     setAiLoading(false);
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
+  const apiBase = 'https://fox-production.up.railway.app';
   const postJson = (url, body) => fetch(url, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
   const ban = (id, hours) => postJson(`${apiBase}/api/admin/ban`, { id, hours }).then(() => fetchAll());
   const featureAd = (adId, style) => postJson(`${apiBase}/api/admin/feature`, { adId, style }).then(() => fetchAll());
