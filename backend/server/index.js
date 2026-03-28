@@ -114,7 +114,9 @@ const mongoUri = process.env.MONGO_URI ||
                  process.env.MONGO_URL_PRIVATE ||
                  process.env.MONGO_URL_Private ||
                  process.env.DATABASE_URL ||
-                 process.env.MONGO_URL;
+                 process.env.MONGO_URL ||
+                 // Last resort: hardcoded Atlas (add MONGO_URI to Railway to override)
+                 'mongodb+srv://ahmedsharnou_db_user:MiqAQuCFW080G6u9@cluster0.77mmp6c.mongodb.net/?appName=Cluster0';
 
 logger.info(`[MongoDB] Trying URI from: ${
   process.env.MONGO_URI ? 'MONGO_URI' :
