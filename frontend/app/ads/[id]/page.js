@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
+const API = 'https://fox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://fox-production.up.railway.app';
 
 function AITranslate({ title, description }) {
@@ -70,7 +69,11 @@ export default function AdPage({ params }) {
 
   useEffect(() => {
     if (params?.id) {
-      axios.get(`${API}/api/ads/${params.id}`).then(r => setAd(r.data)).catch(() => {});
+      const RAILWAY = 'https://fox-production.up.railway.app';
+      fetch(`${RAILWAY}/api/ads/${params.id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setAd(data); })
+        .catch(() => {});
     }
   }, [params?.id]);
 
