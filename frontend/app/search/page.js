@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import AdCardSkeleton from '../components/AdCardSkeleton';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
 const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];
@@ -94,7 +95,11 @@ export default function SearchPage() {
         </div>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 60, color: '#666' }}>🔍 جار البحث...</div>}
+      {loading && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+          {[...Array(6)].map((_, i) => <AdCardSkeleton key={i} />)}
+        </div>
+      )}
       {!loading && searched && (
         <div>
           <p style={{ color: '#666', fontSize: 14, marginBottom: 12 }}>
