@@ -146,30 +146,50 @@ router.post('/', auth, async (req, res) => {
 // ── AI Generate ad from media ──
 router.post('/ai-generate', auth, async (req, res) => {
   try {
-    const { detectCategoryFromText, learnFromAd } = await import('../server/languageLearner.js');
-    const text = req.body.text || '';
+    const { image, audio, text } = req.body;
     const country = req.user?.country || 'EG';
 
-    // Try offline detection from learned dictionary first
+    // Try learned dictionary detection
     let learnedCategory = null;
-    if (text) learnedCategory = await detectCategoryFromText(text, country).catch(() => null);
+    try {
+      const { detectCategoryFromText, learnFromAd } = await import('../server/languageLearner.js');
+      if (text) learnedCategory = await detectCategoryFromText(text, country).catch(() => null);
+    } catch {}
 
     const result = await buildAdFromMedia({
-      imagePath: req.body.image || req.body.imagePath || null,
-      audioPath: req.body.audio || req.body.audioPath || null,
-      text: req.body.text || req.body.description || ''
+      imagePath: image || null,
+      audioPath: audio || null,
+      text: text || ''
     });
 
-    // Use learned category if AI returned General
     if (learnedCategory && result.category === 'General') result.category = learnedCategory;
 
-    // Learn from AI result
-    if (result.title) learnFromAd(result.title, result.description, country).catch(() => {});
+    // Fire-and-forget learning
+    try {
+      const { learnFromAd } = await import('../server/languageLearner.js');
+      if (result.title) learnFromAd(result.title, result.description, country).catch(() => {});
+    } catch {}
 
-    res.json(result);
+    res.json({ ...result, aiEnabled: true });
   } catch (e) {
-    console.error('AI generate error:', e.message);
-    res.json({ title: req.body.text?.slice(0, 60) || '', description: '', category: 'General', subcategory: 'Other', suggestedPrice: 0, language: 'ar', hashtags: [] });
+    // Always return something useful — never fail completely
+    console.warn('[AI Generate] Failed, using offline mode:', e.message);
+    try {
+      const { detectCategoryOffline } = await import('../server/offlineDict.js');
+      const detected = detectCategoryOffline(req.body.text || '');
+      return res.json({
+        title: (req.body.text || '').slice(0, 60),
+        description: '',
+        category: detected.main || 'General',
+        subcategory: detected.sub || 'Other',
+        suggestedPrice: 0,
+        language: 'ar',
+        hashtags: [],
+        aiEnabled: false,
+        message: 'AI offline — using smart detection'
+      });
+    } catch {}
+    res.json({ title: (req.body.text || '').slice(0, 60), description: '', category: 'General', subcategory: 'Other', suggestedPrice: 0, language: 'ar', hashtags: [], aiEnabled: false });
   }
 });
 
