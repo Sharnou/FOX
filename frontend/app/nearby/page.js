@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import AdCardSkeleton from '../components/AdCardSkeleton';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
 
@@ -147,7 +148,9 @@ export default function NearbyPage() {
 
       {/* Ads Grid */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>🔍 جار البحث عن إعلانات قريبة منك...</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+          {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
+        </div>
       ) : ads.length > 0 ? (
         <div>
           <p style={{ color: '#666', fontSize: 14, marginBottom: 12 }}>وجدنا {ads.length} إعلان في نطاق {radius} كم</p>
