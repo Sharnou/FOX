@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "start": "cd backend && node server/index.js",
-    "install:backend": "cd backend && npm install",
     "build": "echo built"
   },
   "engines": {
