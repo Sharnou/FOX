@@ -74,7 +74,8 @@ app.get('/', (_, res) => res.json({
   time: new Date().toISOString(),
   admin: 'ahmed_sharnou@yahoo.com / Aa123123',
   env: {
-    mongoConnected: !!(process.env.MONGO_URI || process.env.MONGODB_URL || process.env.MONGOURL || process.env.DATABASE_URL || process.env.MONGO_URL),
+    mongoConnected: !!(process.env.MONGO_URI || process.env.MONGODB_URL || process.env.MONGOURL || process.env.MONGO_PUBLIC_URL || process.env.DATABASE_URL || process.env.MONGO_URL),
+    mongoUriSource: process.env.MONGO_URI ? 'MONGO_URI' : process.env.MONGODB_URL ? 'MONGODB_URL' : process.env.MONGOURL ? 'MONGOURL' : process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' : 'NOT SET',
     jwtSet: !!process.env.JWT_SECRET,
     frontendUrl: process.env.FRONTEND_URL || 'not set'
   }
@@ -108,9 +109,22 @@ cron.schedule('*/15 * * * *', async () => {
 // Try multiple MongoDB env var names (Atlas, Railway plugin, etc.)
 const mongoUri = process.env.MONGO_URI || 
                  process.env.MONGODB_URL || 
-                 process.env.MONGOURL || 
+                 process.env.MONGOURL ||
+                 process.env.MONGO_PUBLIC_URL ||
                  process.env.DATABASE_URL ||
-                 process.env.MONGO_URL;
+                 process.env.MONGO_URL ||
+                 process.env.MONGO_URL_PRIVATE;
+
+logger.info(`[MongoDB] Trying URI from: ${
+  process.env.MONGO_URI ? 'MONGO_URI' :
+  process.env.MONGODB_URL ? 'MONGODB_URL' :
+  process.env.MONGOURL ? 'MONGOURL' :
+  process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' :
+  process.env.DATABASE_URL ? 'DATABASE_URL' :
+  process.env.MONGO_URL ? 'MONGO_URL' :
+  process.env.MONGO_URL_PRIVATE ? 'MONGO_URL_PRIVATE' :
+  'NONE FOUND'
+}`);
 
 if (!mongoUri) {
   logger.warn('⚠️ No MongoDB URI found. Set MONGO_URI or connect Railway MongoDB plugin.');
