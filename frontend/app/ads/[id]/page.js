@@ -145,7 +145,7 @@ export default function AdPage({ params }) {
   }
 
   if (!ad) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#002f34', fontSize: 20, fontFamily: 'system-ui' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#002f34', fontSize: 20, fontFamily: "'Cairo', 'Tajawal', system-ui" }}>
       جار التحميل...
     </div>
   );
@@ -154,7 +154,7 @@ export default function AdPage({ params }) {
   const sellerId = ad.userId?._id || ad.userId;
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
       <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
 
       <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>

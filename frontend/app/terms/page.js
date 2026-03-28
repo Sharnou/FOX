@@ -1,6 +1,6 @@
 export default function TermsPage() {
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 24, fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f5f5f5' }}>
+    <div style={{ maxWidth: 700, margin: '0 auto', padding: 24, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>
       <a href="/" style={{ display: 'inline-block', color: '#002f34', fontWeight: 'bold', fontSize: 18, textDecoration: 'none', marginBottom: 20 }}>← رجوع</a>
       <div style={{ background: 'white', borderRadius: 20, padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
         <h1 style={{ color: '#002f34', fontSize: 24, fontWeight: 'bold', marginBottom: 24 }}>📋 شروط الاستخدام</h1>

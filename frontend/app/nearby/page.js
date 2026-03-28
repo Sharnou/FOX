@@ -70,7 +70,7 @@ export default function NearbyPage() {
   }
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f5f5f5' }}>
+    <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 20, cursor: 'pointer' }}>←</button>
@@ -156,7 +156,7 @@ export default function NearbyPage() {
               <a key={ad._id} href={`/ads/${ad._id}`}
                 style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit' }}>
                 <div style={{ height: 120, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, overflow: 'hidden' }}>
-                  {ad.media?.[0] ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : '📦'}
+                  {ad.media?.[0] ? <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : '📦'}
                 </div>
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ fontWeight: 'bold', fontSize: 13, margin: 0 }}>{ad.title?.slice(0, 28)}</p>
@@ -186,7 +186,7 @@ export default function NearbyPage() {
             style={{ background: 'white', borderRadius: 24, padding: 32, maxWidth: 360, width: '100%', textAlign: 'center' }}>
             <h2 style={{ color: '#002f34', marginBottom: 8 }}>📱 QR Code للتطبيق</h2>
             <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>اطبعه أو شاركه — أي شخص يمسحه يفتح XTOX مباشرة</p>
-            <img src={shareData.qrUrl} style={{ width: 200, height: 200, borderRadius: 12, border: '2px solid #002f34' }} alt="QR" />
+            <img loading="lazy" src={shareData.qrUrl} style={{ width: 200, height: 200, borderRadius: 12, border: '2px solid #002f34' }} alt="QR" />
             <p style={{ color: '#999', fontSize: 11, marginTop: 12, wordBreak: 'break-all' }}>{shareData.shareUrl}</p>
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
               <button onClick={() => { navigator.clipboard.writeText(shareData.shareUrl); alert('تم نسخ الرابط!'); }}

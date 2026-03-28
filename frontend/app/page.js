@@ -90,7 +90,7 @@ export default function Home() {
         <a href="/sell" style={{ background: '#00b09b', color: 'white', padding: '8px 16px', borderRadius: 20, textDecoration: 'none', fontWeight: 'bold', fontSize: 14, whiteSpace: 'nowrap' }}>+ بيع</a>
         {user ? (
           <a href={`/profile/${user.id}`} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', textDecoration: 'none', color: 'white', fontSize: 16, flexShrink: 0 }}>
-            {user.avatar ? <img src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt="" /> : user.name?.[0]?.toUpperCase()}
+            {user.avatar ? <img loading="lazy" src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt="" /> : user.name?.[0]?.toUpperCase()}
           </a>
         ) : (
           <a href="/login" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', padding: '8px 14px', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap' }}>دخول</a>
@@ -146,7 +146,7 @@ export default function Home() {
               <a key={ad._id} href={`/ads/${ad._id}`}
                 style={{ minWidth: 160, background: 'white', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', color: 'inherit', display: 'block', flexShrink: 0, border: ad.featuredStyle === 'cartoon' ? '3px solid #ffd700' : 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
                 <div style={{ height: 110, background: '#f0f0f0', overflow: 'hidden', position: 'relative' }}>
-                  {ad.media?.[0] ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📦</div>}
+                  {ad.media?.[0] ? <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📦</div>}
                   {ad.featuredStyle === 'cartoon' && <span style={{ position: 'absolute', top: 4, right: 4, background: '#ffd700', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🌟</span>}
                 </div>
                 <div style={{ padding: '8px 10px' }}>
@@ -170,7 +170,7 @@ export default function Home() {
                 style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit', display: 'block' }}>
                 <div style={{ height: 140, background: '#f0f0f0', overflow: 'hidden' }}>
                   {ad.video ? <video src={ad.video} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay muted loop playsInline />
-                    : ad.media?.[0] ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                    : ad.media?.[0] ? <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                     : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>📦</div>}
                 </div>
                 <div style={{ padding: '10px 12px' }}>
@@ -211,7 +211,7 @@ export default function Home() {
             {popup.ad && (
               <a href={`/ads/${popup.ad._id}`} onClick={() => setPopup(null)}
                 style={{ display: 'block', background: '#f8f8f8', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', color: 'inherit', border: '2px solid #002f34', marginBottom: 16 }}>
-                {popup.ad.media?.[0] && <img src={popup.ad.media[0]} style={{ width: '100%', height: 140, objectFit: 'cover' }} alt="" />}
+                {popup.ad.media?.[0] && <img loading="lazy" src={popup.ad.media[0]} style={{ width: '100%', height: 140, objectFit: 'cover' }} alt="" />}
                 <div style={{ padding: '10px 14px' }}>
                   <p style={{ fontWeight: 'bold', margin: 0 }}>{popup.ad.title}</p>
                   <p style={{ color: '#002f34', fontWeight: 'bold', margin: '4px 0 0', fontSize: 18 }}>{popup.ad.price} {popup.ad.currency}</p>

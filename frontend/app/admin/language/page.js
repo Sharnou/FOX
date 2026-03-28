@@ -187,7 +187,7 @@ export default function LanguagePage() {
           <h3 style={{ color: '#bf5fff', marginBottom: 8 }}>🤖 أضف كلمة للتعلم</h3>
           <p style={{ color: '#8b949e', fontSize: 13, marginBottom: 16 }}>كل إعلان يُنشر يُعلّم النظام تلقائياً. يمكنك أيضاً إضافة كلمة يدوياً هنا.</p>
           <input value={learnText} onChange={e => setLearnText(e.target.value)} placeholder="أدخل كلمة لتعلمها (مثال: عربية)"
-            style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #30363d', background: '#0d1117', color: '#e6edf3', fontSize: 15, marginBottom: 12, boxSizing: 'border-box', fontFamily: 'system-ui' }} />
+            style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #30363d', background: '#0d1117', color: '#e6edf3', fontSize: 15, marginBottom: 12, boxSizing: 'border-box', fontFamily: "'Cairo', 'Tajawal', system-ui" }} />
           <button onClick={triggerLearn} style={{ padding: '12px 28px', background: '#bf5fff', color: 'white', border: 'none', borderRadius: 10, fontWeight: 'bold', cursor: 'pointer', fontSize: 15, fontFamily: 'monospace' }}>🧠 تعلم الآن</button>
           <div style={{ marginTop: 20, padding: 16, background: '#0d1117', borderRadius: 10, border: '1px solid #30363d' }}>
             <p style={{ color: '#8b949e', fontSize: 13, margin: 0, lineHeight: 1.8 }}>

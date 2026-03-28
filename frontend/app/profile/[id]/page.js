@@ -116,7 +116,7 @@ export default function ProfilePage({ params }) {
   const isOwnProfile = myUserId === params?.id;
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: 'system-ui, sans-serif', background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", background: '#f5f5f5', minHeight: '100vh' }}>
       <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
       <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>← رجوع</button>
 
@@ -125,7 +125,7 @@ export default function ProfilePage({ params }) {
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }}>
             {user.avatar ? (
-              <img src={user.avatar} style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid #002f34' }} alt="" />
+              <img loading="lazy" src={user.avatar} style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid #002f34' }} alt="" />
             ) : (
               <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: 'white' }}>
                 {user.name?.[0]?.toUpperCase()}
@@ -210,7 +210,7 @@ export default function ProfilePage({ params }) {
             {ads.map(ad => (
               <a key={ad._id} href={`/ads/${ad._id}`} style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit' }}>
                 <div style={{ height: 100, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
-                  {ad.media?.[0] ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : '📦'}
+                  {ad.media?.[0] ? <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : '📦'}
                 </div>
                 <div style={{ padding: '8px 10px' }}>
                   <p style={{ fontWeight: 'bold', fontSize: 12, margin: 0 }}>{ad.title?.slice(0, 28)}</p>

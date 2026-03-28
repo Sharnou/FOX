@@ -39,7 +39,7 @@ export default function AboutPage() {
   ];
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", background: '#f5f5f5', minHeight: '100vh' }}>
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg, #002f34 0%, #004d40 100%)', color: 'white', padding: '60px 20px', textAlign: 'center', position: 'relative' }}>
         <a href="/" style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '8px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 14, textDecoration: 'none' }}>← رجوع</a>

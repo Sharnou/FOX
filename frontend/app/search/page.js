@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
-const CATEGORIES = ['الكل', 'Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion'];
+const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];
+const CAT_MAP = { 'سيارات': 'Vehicles', 'إلكترونيات': 'Electronics', 'عقارات': 'Real Estate', 'وظائف': 'Jobs', 'خدمات': 'Services', 'سوبرماركت': 'Supermarket', 'صيدلية': 'Pharmacy', 'طعام': 'Fast Food', 'موضة': 'Fashion' };
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
@@ -30,7 +31,7 @@ export default function SearchPage() {
     setLoading(true); setSearched(true);
     try {
       const params = { country };
-      if (category !== 'الكل') params.category = category;
+      if (category !== 'الكل') params.category = CAT_MAP[category] || category;
       if (city) params.city = city;
       const res = await axios.get(`${API}/api/ads`, { params });
       const filtered = (res.data || []).filter(ad =>
@@ -56,7 +57,7 @@ export default function SearchPage() {
   });
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 16, fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f5f5f5' }}>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 20, cursor: 'pointer' }}>←</button>
         <h1 style={{ color: '#002f34', margin: 0, fontSize: 22, fontWeight: 'bold' }}>🔍 البحث</h1>
