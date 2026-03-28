@@ -30,3 +30,21 @@ button, input, select, textarea { font-family: inherit; }
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* RTL-aware slide-in animations */
+@keyframes slideInLTR {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+@keyframes slideInRTL {
+  from { transform: translateX(100%);  opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+/* Default: LTR — slide in from the left */
+.slide-in {
+  animation: slideInLTR 0.3s ease forwards;
+}
+/* RTL override: slide in from the right */
+[dir="rtl"] .slide-in {
+  animation: slideInRTL 0.3s ease forwards;
+}
