@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "cd backend && node server/index.js",
-    "build": "echo built"
+    "build": "echo built",
+    "postinstall": "npm install --prefix backend"
   },
   "engines": {
     "node": ">=18.0.0",
