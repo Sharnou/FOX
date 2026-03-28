@@ -157,44 +157,58 @@ cron.schedule('*/15 * * * *', async () => {
   await autoResolveOldErrors();
 });
 
-// Railway MongoDB plugin provides: MONGO_URL (primary variable name per Railway docs)
-const mongoUri = process.env.MONGO_URL ||
-                 process.env.MONGO_URI || 
-                 process.env.MONGODB_URL || 
-                 process.env.MONGOURL ||
-                 process.env.MONGO_PUBLIC_URL ||
-                 process.env.MONGO_URL_PRIVATE ||
-                 process.env.MONGO_URL_Private ||
-                 process.env.DATABASE_URL;
+// Log ALL env vars available (helps diagnose Railway setup)
+const mongoEnvVars = Object.keys(process.env).filter(k => 
+  k.toLowerCase().includes('mongo') || k.toLowerCase().includes('database')
+);
+logger.info(`[MongoDB] Available env vars: ${mongoEnvVars.join(', ') || 'NONE'}`);
+mongoEnvVars.forEach(k => {
+  const val = process.env[k];
+  const masked = val ? val.replace(/:([^@]+)@/, ':***@').slice(0, 80) : 'empty';
+  logger.info(`[MongoDB] ${k} = ${masked}`);
+});
 
-// If still no URL, construct from Railway MongoDB individual vars
-let constructedUri = null;
+// Railway MongoDB plugin primary variable = MONGO_URL
+// Skip Atlas URLs (IP blocked) unless no other option
+const allMongoVars = [
+  process.env.MONGO_URL,
+  process.env.MONGODB_URL,
+  process.env.MONGOURL,
+  process.env.MONGO_PUBLIC_URL,
+  process.env.MONGO_URL_PRIVATE,
+  process.env.MONGO_URL_Private,
+  process.env.DATABASE_URL,
+];
+
+// Use first non-Atlas, non-empty URL
+let mongoUri = allMongoVars.find(u => u && u.trim() && !u.includes('cluster0.77mmp6c'));
+
+// If no non-Atlas URL, try constructing from Railway plugin parts
 if (!mongoUri) {
   const host = process.env.MONGOHOST || process.env.MONGOHOST_Railway;
   const port = process.env.MONGOPORT || process.env.MONGOPORT_MongoDB || '27017';
-  const user = process.env.MONGOUSER || process.env.MONGOUSER_Mongodb || process.env.MONGO_INITDB_ROOT_USERNAME || 'root';
-  const pass = process.env.MONGOPASSWORD || process.env.MONGOPASSWORD_Root || process.env.MONGO_INITDB_ROOT_PASSWORD;
+  const user = process.env.MONGOUSER || process.env.MONGOUSER_Mongodb || 
+                process.env.MONGO_INITDB_ROOT_USERNAME || 'root';
+  const pass = process.env.MONGOPASSWORD || process.env.MONGOPASSWORD_Root || 
+                process.env.MONGO_INITDB_ROOT_PASSWORD;
   if (host && pass) {
-    constructedUri = `mongodb://${user}:${encodeURIComponent(pass)}@${host}:${port}/?authSource=admin`;
+    mongoUri = `mongodb://${user}:${encodeURIComponent(String(pass))}@${host}:${port}/?authSource=admin`;
+    logger.info(`[MongoDB] Constructed: ${user}@${host}:${port}`);
   }
 }
 
-const finalMongoUri = mongoUri || constructedUri;
+// Last resort: use Atlas even though it may be IP-blocked
+if (!mongoUri) {
+  mongoUri = process.env.MONGO_URI || null;
+  if (mongoUri) logger.warn('[MongoDB] Using Atlas URL - may be IP blocked. Add MONGO_URL to Railway!');
+}
 
-logger.info(`[MongoDB] URI source: ${
-  process.env.MONGO_URL ? 'MONGO_URL ✅' :
-  process.env.MONGO_URI ? 'MONGO_URI' :
-  process.env.MONGODB_URL ? 'MONGODB_URL' :
-  process.env.MONGOURL ? 'MONGOURL' :
-  process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' :
-  constructedUri ? 'CONSTRUCTED' :
-  'NOT FOUND ❌'
-}`);
+const finalMongoUri = mongoUri;
 
 if (!finalMongoUri) {
   logger.warn('⚠️ No MongoDB URI found. Set MONGO_URL in Railway environment variables.');
 } else {
-  logger.info('MongoDB URI found: ' + finalMongoUri.replace(/:([^@]+)@/, ':***@'));
+  logger.info('MongoDB URI: ' + finalMongoUri.replace(/:([^@]+)@/, ':***@'));
   mongoose.connect(finalMongoUri)
     .then(async () => {
     logger.info('MongoDB connected');
