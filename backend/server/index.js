@@ -74,7 +74,7 @@ app.get('/', (_, res) => res.json({
   time: new Date().toISOString(),
   admin: 'ahmed_sharnou@yahoo.com / Aa123123',
   env: {
-    mongoConnected: !!process.env.MONGO_URI,
+    mongoConnected: !!(process.env.MONGO_URI || process.env.MONGODB_URL || process.env.MONGOURL || process.env.DATABASE_URL || process.env.MONGO_URL),
     jwtSet: !!process.env.JWT_SECRET,
     frontendUrl: process.env.FRONTEND_URL || 'not set'
   }
@@ -105,10 +105,17 @@ cron.schedule('*/15 * * * *', async () => {
 });
 
 // MongoDB — graceful startup even if URI missing
-const mongoUri = process.env.MONGO_URI;
+// Try multiple MongoDB env var names (Atlas, Railway plugin, etc.)
+const mongoUri = process.env.MONGO_URI || 
+                 process.env.MONGODB_URL || 
+                 process.env.MONGOURL || 
+                 process.env.DATABASE_URL ||
+                 process.env.MONGO_URL;
+
 if (!mongoUri) {
-  logger.warn('⚠️ MONGO_URI not set — add it to Railway environment variables');
+  logger.warn('⚠️ No MongoDB URI found. Set MONGO_URI or connect Railway MongoDB plugin.');
 } else {
+  logger.info('MongoDB URI found: ' + mongoUri.replace(/:([^@]+)@/, ':***@'));
   mongoose.connect(mongoUri)
     .then(async () => {
     logger.info('MongoDB connected');
