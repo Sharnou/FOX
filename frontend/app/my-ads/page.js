@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = process.env.NEXT_PUBLIC_API_URL || '';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
 
 export default function MyAdsPage() {
   const [data, setData] = useState({ active: [], expired: [] });
