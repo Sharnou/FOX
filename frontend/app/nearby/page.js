@@ -183,6 +183,7 @@ export default function NearbyPage() {
         <div onClick={() => setShowShareModal(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()}
+            className="slide-in"
             style={{ background: 'white', borderRadius: 24, padding: 32, maxWidth: 360, width: '100%', textAlign: 'center' }}>
             <h2 style={{ color: '#002f34', marginBottom: 8 }}>📱 QR Code للتطبيق</h2>
             <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>اطبعه أو شاركه — أي شخص يمسحه يفتح XTOX مباشرة</p>
