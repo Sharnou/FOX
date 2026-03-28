@@ -9,15 +9,11 @@ const nextConfig = {
   },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  experimental: {
-    missingSuspenseWithCSRBailout: false
-  },
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: [
-          // Allow embedding in iframes (Blogger, any website)
           { key: 'X-Frame-Options', value: 'ALLOWALL' },
           { key: 'Content-Security-Policy', value: "frame-ancestors *" },
         ],
