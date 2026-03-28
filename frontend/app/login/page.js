@@ -29,30 +29,10 @@ export default function LoginPage() {
       }
     } catch {}
 
-    if (!GOOGLE_CLIENT_ID) return;
-    try {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        try {
-          if (!window.google || !window.google.accounts) return;
-          if (!GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com')) return;
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleResponse,
-            auto_select: false,
-            cancel_on_tap_outside: true
-          });
-          // Use prompt() instead of renderButton() to avoid React DOM conflicts
-          setGoogleReady(true);
-        } catch (e) {
-          console.warn('Google init error:', e.message);
-        }
-      };
-      document.head.appendChild(script);
-    } catch {}
+    // Google GSI disabled - using direct OAuth redirect instead
+    if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com')) {
+      setGoogleReady(true);
+    }
   }, []);
 
   function saveAndRedirect(data) {
