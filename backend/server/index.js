@@ -109,8 +109,13 @@ cron.schedule('*/15 * * * *', async () => {
   await autoResolveOldErrors();
 });
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(async () => {
+// MongoDB — graceful startup even if URI missing
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+  logger.warn('⚠️ MONGO_URI not set — add it to Railway environment variables');
+} else {
+  mongoose.connect(mongoUri)
+    .then(async () => {
     logger.info('MongoDB connected');
     await seedCountries();
     await seedCelebrations();
@@ -118,6 +123,7 @@ mongoose.connect(process.env.MONGO_URI)
     await seedSuperAdmin();
     await seedCoreDictionary();
   })
-  .catch(err => logger.error(err));
+  .catch(err => logger.error('MongoDB connection failed:', err.message));
+}
 
 server.listen(process.env.PORT || 3000, () => logger.info(`XTOX running on port ${process.env.PORT || 3000}`));
