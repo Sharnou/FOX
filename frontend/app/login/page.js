@@ -69,20 +69,9 @@ export default function LoginPage() {
     } catch (e) { setError('خطأ: ' + e.message); }
   }
 
+  // Google redirect flow - no SDK needed
   async function handleGoogleResponse(response) {
-    setLoading(true); setError('');
-    try {
-      const country = localStorage.getItem('detectedCountry') || 'EG';
-      const res = await fetch(`${API}/api/users/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: response.credential, country })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل');
-      saveAndRedirect(data);
-    } catch (e) { setError(e.message || 'فشل تسجيل الدخول بـ Google'); }
-    setLoading(false);
+    // Not used with redirect flow
   }
 
   async function handleEmailAuth() {
@@ -221,22 +210,19 @@ export default function LoginPage() {
             {error && <div style={S.alert('error')}>⚠️ {error}</div>}
             {success && <div style={S.alert('success')}>✅ {success}</div>}
 
-            {GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com') ? (
+            {googleReady ? (
               <button
                 onClick={() => {
                   try {
-                    if (window.google && googleReady) {
-                      window.google.accounts.id.prompt();
-                    } else {
-                      const params = new URLSearchParams({
-                        client_id: GOOGLE_CLIENT_ID,
-                        redirect_uri: window.location.origin,
-                        response_type: 'token',
-                        scope: 'email profile',
-                        prompt: 'select_account'
-                      });
-                      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
-                    }
+                    const params = new URLSearchParams({
+                      client_id: GOOGLE_CLIENT_ID,
+                      redirect_uri: window.location.origin + '/login',
+                      response_type: 'id_token',
+                      scope: 'email profile openid',
+                      nonce: Math.random().toString(36).slice(2),
+                      prompt: 'select_account'
+                    });
+                    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
                   } catch {}
                 }}
                 style={{ width: '100%', padding: '12px', borderRadius: 12, border: '1px solid #dadce0', background: 'white', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit', fontWeight: '600', marginBottom: 10, color: '#3c4043' }}>
