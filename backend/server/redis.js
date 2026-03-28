@@ -1,35 +1,34 @@
 import Redis from 'ioredis';
 
-// Make Redis completely optional — never crash the server
+// Redis - completely optional, never crashes the server
 let redis = null;
 
-const url = process.env.REDIS_URL;
-const isValidUrl = url && url !== 'your_redis_url' && url !== 'disabled' && url.startsWith('redis');
+const REDIS_URL = process.env.REDIS_URL || '';
 
-if (isValidUrl) {
+const isRealRedis = REDIS_URL &&
+  REDIS_URL !== 'disabled' &&
+  REDIS_URL !== 'false' &&
+  REDIS_URL !== 'none' &&
+  REDIS_URL !== 'null' &&
+  REDIS_URL !== 'your_redis_url' &&
+  (REDIS_URL.startsWith('redis://') || REDIS_URL.startsWith('rediss://'));
+
+if (isRealRedis) {
   try {
-    redis = new Redis(url, {
+    redis = new Redis(REDIS_URL, {
       maxRetriesPerRequest: 0,
       enableReadyCheck: false,
       lazyConnect: true,
-      retryStrategy: () => null // never retry — fail silently
+      retryStrategy: () => null
     });
-    redis.on('error', () => {}); // swallow ALL errors
-    redis.on('connect', () => console.log('[Redis] Connected ✅'));
+    redis.on('error', () => {}); // never crash on redis error
+    redis.on('connect', () => console.log('[Redis] ✅ Connected'));
   } catch (e) {
+    console.warn('[Redis] Failed to init:', e.message);
     redis = null;
-    console.warn('[Redis] Init failed (non-fatal):', e.message);
   }
 } else {
-  console.warn('[Redis] Not configured — ranking features disabled');
+  console.log(`[Redis] Skipped — REDIS_URL="${REDIS_URL || 'not set'}" is not a valid Redis URL`);
 }
-
-// Prevent ANY unhandled Redis error from crashing the process
-process.on('unhandledRejection', (reason) => {
-  if (String(reason).includes('redis') || String(reason).includes('ECONNREFUSED')) {
-    return; // silently ignore Redis rejections
-  }
-  console.error('Unhandled rejection:', reason);
-});
 
 export default redis;
