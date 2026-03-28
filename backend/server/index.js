@@ -75,7 +75,7 @@ app.get('/', (_, res) => res.json({
   admin: 'ahmed_sharnou@yahoo.com / Aa123123',
   env: {
     mongoConnected: !!(process.env.MONGO_URI || process.env.MONGODB_URL || process.env.MONGOURL || process.env.MONGO_PUBLIC_URL || process.env.DATABASE_URL || process.env.MONGO_URL),
-    mongoUriSource: process.env.MONGO_URI ? 'MONGO_URI' : process.env.MONGODB_URL ? 'MONGODB_URL' : process.env.MONGOURL ? 'MONGOURL' : process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' : 'NOT SET',
+    mongoUriSource: process.env.MONGO_URI ? 'MONGO_URI' : process.env.MONGODB_URL ? 'MONGODB_URL' : process.env.MONGOURL ? 'MONGOURL' : process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' : process.env.MONGO_URL_PRIVATE ? 'MONGO_URL_PRIVATE' : process.env.MONGO_URL_Private ? 'MONGO_URL_Private' : 'NOT SET',
     jwtSet: !!process.env.JWT_SECRET,
     frontendUrl: process.env.FRONTEND_URL || 'not set'
   }
@@ -111,9 +111,10 @@ const mongoUri = process.env.MONGO_URI ||
                  process.env.MONGODB_URL || 
                  process.env.MONGOURL ||
                  process.env.MONGO_PUBLIC_URL ||
+                 process.env.MONGO_URL_PRIVATE ||
+                 process.env.MONGO_URL_Private ||
                  process.env.DATABASE_URL ||
-                 process.env.MONGO_URL ||
-                 process.env.MONGO_URL_PRIVATE;
+                 process.env.MONGO_URL;
 
 logger.info(`[MongoDB] Trying URI from: ${
   process.env.MONGO_URI ? 'MONGO_URI' :
