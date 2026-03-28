@@ -52,6 +52,47 @@ app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
+// ─── Cache-Control Middleware ───────────────────────────────────────────────
+// Applied after CORS & rate-limit, before all route handlers.
+app.use((req, res, next) => {
+  const p = req.path;
+
+  // Auth / user-session / admin / chat / profile / errors — never cache
+  if (
+    p.startsWith('/api/users') ||
+    p.startsWith('/api/admin') ||
+    p.startsWith('/api/chat') ||
+    p.startsWith('/api/profile') ||
+    p.startsWith('/api/errors')
+  ) {
+    res.set('Cache-Control', 'no-store');
+
+  // Geo & language data — semi-static, cache 5 minutes
+  } else if (p.startsWith('/api/geo') || p.startsWith('/api/language')) {
+    if (req.method === 'GET') {
+      res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+    } else {
+      res.set('Cache-Control', 'no-store');
+    }
+
+  // RSS / SEO / sitemap — mostly static, cache 1 hour
+  } else if (p.startsWith('/rss') || p.startsWith('/seo') || p.startsWith('/sitemap') || p.startsWith('/robots')) {
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=7200');
+
+  // Public listing GET routes (ads, jobs, services, etc.) — short cache
+  } else if (req.method === 'GET') {
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+
+  // POST / PUT / DELETE — no cache
+  } else {
+    res.set('Cache-Control', 'no-store');
+  }
+
+  next();
+});
+// ────────────────────────────────────────────────────────────────────────────
+
+
 app.use('/api/users', userRoutes);
 app.use('/api/ads', adRoutes);
 app.use('/api/chat', chatRoutes);
