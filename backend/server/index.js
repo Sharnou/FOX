@@ -1,3 +1,12 @@
+// CRITICAL: Clear invalid Redis URL before ANY module imports it
+// Prevents "ENOTFOUND disabled" crash
+if (process.env.REDIS_URL && 
+    !process.env.REDIS_URL.startsWith('redis://') && 
+    !process.env.REDIS_URL.startsWith('rediss://')) {
+  console.log('[BOOT] Clearing invalid REDIS_URL:', process.env.REDIS_URL);
+  process.env.REDIS_URL = '';
+}
+
 import 'dotenv/config';
 import express from 'express';
 import http from 'http';
