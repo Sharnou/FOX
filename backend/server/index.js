@@ -157,39 +157,59 @@ cron.schedule('*/15 * * * *', async () => {
 });
 
 // MongoDB — graceful startup even if URI missing
-// Try full URL env vars first
-let mongoUri = process.env.MONGO_URI || 
-               process.env.MONGODB_URL || 
-               process.env.MONGOURL ||
-               process.env.MONGO_PUBLIC_URL ||
+// ─── Gemini/Railway-advised connection strategy ───
+// Railway MongoDB plugin injects MONGOURL (full private URL) automatically.
+// Private format: mongodb://root:PASS@hostname.railway.internal:27017
+// Public format:  mongodb://root:PASS@roundhouse.proxy.rlwy.net:PORT
+
+// Try full URL env vars first (Railway injects MONGOURL and MONGO_URL_Private)
+let mongoUri = process.env.MONGO_URI ||
+               process.env.MONGOURL ||           // Railway auto-injects this as full URL
+               process.env.MONGO_URL_Private ||  // Railway private URL (Railway naming)
                process.env.MONGO_URL_PRIVATE ||
-               process.env.MONGO_URL_Private ||
+               process.env.MONGODB_URL ||
+               process.env.MONGO_PUBLIC_URL ||
                process.env.DATABASE_URL ||
                process.env.MONGO_URL;
 
-// If no full URL, try to construct from Railway MongoDB plugin individual variables
+// If no full URL, construct from Railway MongoDB plugin individual variables
+// Railway variable names (with Railway plugin suffixes): MONGOHOST_Railway, etc.
 if (!mongoUri) {
-  const host = process.env.MONGOHOST || process.env.MONGOHOST_Railway;
-  const port = process.env.MONGOPORT || process.env.MONGOPORT_MongoDB || '27017';
-  const user = process.env.MONGOUSER || process.env.MONGOUSER_Mongodb || process.env.MONGO_INITDB_ROOT_USERNAME || 'root';
-  const pass = process.env.MONGOPASSWORD || process.env.MONGOPASSWORD_Root || process.env.MONGO_INITDB_ROOT_PASSWORD;
-  
+  const host = process.env.MONGOHOST ||
+               process.env.MONGOHOST_Railway;
+  const port = process.env.MONGOPORT ||
+               process.env.MONGOPORT_MongoDB || '27017';
+  const user = process.env.MONGOUSER ||
+               process.env.MONGOUSER_Mongodb ||
+               process.env.MONGO_INITDB_ROOT_USERNAME || 'root';
+  const pass = process.env.MONGOPASSWORD ||
+               process.env.MONGOPASSWORD_Root ||
+               process.env.MONGO_INITDB_ROOT_PASSWORD;
+
   if (host && pass) {
-    mongoUri = `mongodb://${user}:${encodeURIComponent(pass)}@${host}:${port}`;
-    logger.info(`[MongoDB] Constructed URL from components: ${user}@${host}:${port}`);
+    // authSource=admin required for root user in Railway MongoDB
+    mongoUri = `mongodb://${user}:${encodeURIComponent(pass)}@${host}:${port}/?authSource=admin`;
+    logger.info(`[MongoDB] Constructed from components: ${user}@${host}:${port} (authSource=admin)`);
   }
 }
 
-logger.info(`[MongoDB] Trying URI from: ${
+// Log all available MongoDB env vars for debugging
+logger.info('[MongoDB] Available env vars: ' + [
+  'MONGO_URI','MONGOURL','MONGO_URL_Private','MONGO_URL_PRIVATE','MONGODB_URL',
+  'MONGO_PUBLIC_URL','MONGOHOST','MONGOHOST_Railway','MONGOPORT','MONGOPORT_MongoDB',
+  'MONGOUSER','MONGOUSER_Mongodb','MONGOPASSWORD','MONGO_INITDB_ROOT_PASSWORD'
+].filter(k => process.env[k]).join(', ') || 'NONE');
+
+logger.info(`[MongoDB] Using URI from: ${
   process.env.MONGO_URI ? 'MONGO_URI' :
-  process.env.MONGODB_URL ? 'MONGODB_URL' :
   process.env.MONGOURL ? 'MONGOURL' :
-  process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' :
-  process.env.DATABASE_URL ? 'DATABASE_URL' :
-  process.env.MONGO_URL ? 'MONGO_URL' :
+  process.env.MONGO_URL_Private ? 'MONGO_URL_Private' :
   process.env.MONGO_URL_PRIVATE ? 'MONGO_URL_PRIVATE' :
-  process.env.MONGOHOST ? 'CONSTRUCTED_FROM_MONGOHOST' :
-  'NONE FOUND'
+  process.env.MONGODB_URL ? 'MONGODB_URL' :
+  process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' :
+  process.env.MONGOHOST ? 'CONSTRUCTED_FROM_COMPONENTS' :
+  process.env.MONGOHOST_Railway ? 'CONSTRUCTED_FROM_RAILWAY_COMPONENTS' :
+  'NONE_FOUND — set MONGOURL in Railway'
 }`);
 
 if (!mongoUri) {
