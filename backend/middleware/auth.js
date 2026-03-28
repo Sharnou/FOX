@@ -1,3 +1,4 @@
+// CORS is handled in index.js
 import jwt from 'jsonwebtoken';
 export function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
