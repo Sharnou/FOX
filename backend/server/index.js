@@ -157,16 +157,28 @@ cron.schedule('*/15 * * * *', async () => {
 });
 
 // MongoDB — graceful startup even if URI missing
-// Try multiple MongoDB env var names (Atlas, Railway plugin, etc.)
-const mongoUri = process.env.MONGO_URI || 
-                 process.env.MONGODB_URL || 
-                 process.env.MONGOURL ||
-                 process.env.MONGO_PUBLIC_URL ||
-                 process.env.MONGO_URL_PRIVATE ||
-                 process.env.MONGO_URL_Private ||
-                 process.env.DATABASE_URL ||
-                 process.env.MONGO_URL ||
-                 null; // No hardcoded fallback - set MONGO_URI in Railway
+// Try full URL env vars first
+let mongoUri = process.env.MONGO_URI || 
+               process.env.MONGODB_URL || 
+               process.env.MONGOURL ||
+               process.env.MONGO_PUBLIC_URL ||
+               process.env.MONGO_URL_PRIVATE ||
+               process.env.MONGO_URL_Private ||
+               process.env.DATABASE_URL ||
+               process.env.MONGO_URL;
+
+// If no full URL, try to construct from Railway MongoDB plugin individual variables
+if (!mongoUri) {
+  const host = process.env.MONGOHOST || process.env.MONGOHOST_Railway;
+  const port = process.env.MONGOPORT || process.env.MONGOPORT_MongoDB || '27017';
+  const user = process.env.MONGOUSER || process.env.MONGOUSER_Mongodb || process.env.MONGO_INITDB_ROOT_USERNAME || 'root';
+  const pass = process.env.MONGOPASSWORD || process.env.MONGOPASSWORD_Root || process.env.MONGO_INITDB_ROOT_PASSWORD;
+  
+  if (host && pass) {
+    mongoUri = `mongodb://${user}:${encodeURIComponent(pass)}@${host}:${port}`;
+    logger.info(`[MongoDB] Constructed URL from components: ${user}@${host}:${port}`);
+  }
+}
 
 logger.info(`[MongoDB] Trying URI from: ${
   process.env.MONGO_URI ? 'MONGO_URI' :
@@ -176,6 +188,7 @@ logger.info(`[MongoDB] Trying URI from: ${
   process.env.DATABASE_URL ? 'DATABASE_URL' :
   process.env.MONGO_URL ? 'MONGO_URL' :
   process.env.MONGO_URL_PRIVATE ? 'MONGO_URL_PRIVATE' :
+  process.env.MONGOHOST ? 'CONSTRUCTED_FROM_MONGOHOST' :
   'NONE FOUND'
 }`);
 
