@@ -38,22 +38,18 @@ export default function LoginPage() {
       script.onload = () => {
         try {
           if (!window.google || !window.google.accounts) return;
-          // Only init if client ID looks real (not a placeholder)
           if (!GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com')) return;
           window.google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
             callback: handleGoogleResponse,
-            auto_select: false
+            auto_select: false,
+            cancel_on_tap_outside: true
           });
-          const btn = document.getElementById('google-btn');
-          if (btn) {
-            window.google.accounts.id.renderButton(btn, {
-              type: 'standard', theme: 'outline', size: 'large',
-              text: 'continue_with', width: 320, locale: 'ar'
-            });
-            setGoogleReady(true);
-          }
-        } catch {}
+          // Use prompt() instead of renderButton() to avoid React DOM conflicts
+          setGoogleReady(true);
+        } catch (e) {
+          console.warn('Google init error:', e.message);
+        }
       };
       document.head.appendChild(script);
     } catch {}
