@@ -188,7 +188,7 @@ export default function Home() {
       {/* Popup Cartoon */}
       {popup && (
         <div onClick={() => setPopup(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '24px 24px 0 0', padding: 24, maxWidth: 380, width: '100%' }}>
+          <div onClick={e => e.stopPropagation()} className="slide-in" style={{ background: 'white', borderRadius: '24px 24px 0 0', padding: 24, maxWidth: 380, width: '100%' }}>
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: 64, display: 'inline-block' }}>{popup.cartoon}</div>
               <p style={{ color: '#002f34', fontWeight: 'bold', margin: '8px 0 0', fontSize: 16 }}>
