@@ -48,3 +48,30 @@ button, input, select, textarea { font-family: inherit; }
 [dir="rtl"] .slide-in {
   animation: slideInRTL 0.3s ease forwards;
 }
+
+/* ── Skeleton loading shimmer ── */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #e8e8e8 25%,
+    #f4f4f4 50%,
+    #e8e8e8 75%
+  );
+  background-size: 1200px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+/* RTL: reverse shimmer direction for a more natural feel */
+[dir="rtl"] .skeleton-shimmer {
+  background: linear-gradient(
+    270deg,
+    #e8e8e8 25%,
+    #f4f4f4 50%,
+    #e8e8e8 75%
+  );
+  background-size: 1200px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
