@@ -1,0 +1,7 @@
+providers = ["node"]
+
+[phases.install]
+cmds = ["npm ci --omit=dev || npm install --omit=dev"]
+
+[start]
+cmd = "node server/index.js"
