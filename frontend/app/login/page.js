@@ -37,7 +37,9 @@ export default function LoginPage() {
       script.defer = true;
       script.onload = () => {
         try {
-          if (!window.google) return;
+          if (!window.google || !window.google.accounts) return;
+          // Only init if client ID looks real (not a placeholder)
+          if (!GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com')) return;
           window.google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
             callback: handleGoogleResponse,
