@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+const API = 'https://fox-production.up.railway.app';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://fox-production.up.railway.app';
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [msg, setMsg] = useState('');
