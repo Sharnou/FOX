@@ -1,9 +1,24 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'XTOX',
+  title: {
+    default: 'XTOX Marketplace',
+    template: '%s — XTOX',
+  },
   description: 'XTOX Marketplace — السوق المحلي الذكي',
-  manifest: '/manifest.webmanifest'
+  manifest: '/manifest.webmanifest',
+  openGraph: {
+    type: 'website',
+    siteName: 'XTOX',
+    title: 'XTOX Marketplace',
+    description: 'XTOX Marketplace — السوق المحلي الذكي',
+    locale: 'ar_EG',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'XTOX Marketplace',
+    description: 'XTOX Marketplace — السوق المحلي الذكي',
+  },
 };
 
 export default function RootLayout({ children }) {
