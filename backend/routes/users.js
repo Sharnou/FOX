@@ -119,13 +119,40 @@ router.post('/auth/apple', async (req, res) => {
 // ── Send OTP via WhatsApp or SMS ──
 router.post('/send-otp', async (req, res) => {
   try {
-    const { phone, via = 'sms' } = req.body;
+    const { phone, via = 'whatsapp' } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone number required' });
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(phone, { otp, expires: Date.now() + 10 * 60 * 1000 });
 
-    const message = `رمز التحقق XTOX: ${otp}\nصالح لمدة 10 دقائق`;
+    const message = `رمز التحقق XTOX: ${otp}\nXTOX verification code: ${otp}\nValid for 10 minutes.`;
 
-    if (via === 'whatsapp' && process.env.TWILIO_SID && process.env.TWILIO_TOKEN) {
+    // Method 1: UltraMsg (free WhatsApp API - no credit card)
+    if (process.env.ULTRAMSG_INSTANCE && process.env.ULTRAMSG_TOKEN) {
+      try {
+        const cleanPhone = phone.replace(/[^0-9+]/g, '');
+        const res2 = await fetch(`https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE}/messages/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            token: process.env.ULTRAMSG_TOKEN,
+            to: cleanPhone,
+            body: message,
+            priority: '1'
+          })
+        });
+        const data = await res2.json();
+        if (data.sent === 'true' || data.id) {
+          console.log(`[OTP] Sent via UltraMsg to ${phone}`);
+          return res.json({ success: true, method: 'whatsapp', provider: 'ultramsg' });
+        }
+      } catch (e) {
+        console.warn('[OTP] UltraMsg failed:', e.message);
+      }
+    }
+
+    // Method 2: Twilio WhatsApp (if configured)
+    if (process.env.TWILIO_SID && process.env.TWILIO_TOKEN) {
       try {
         const { default: twilio } = await import('twilio');
         const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
@@ -134,22 +161,43 @@ router.post('/send-otp', async (req, res) => {
           to: `whatsapp:${phone}`,
           body: message
         });
-        return res.json({ success: true, method: 'whatsapp' });
-      } catch (e) { console.warn('WhatsApp OTP failed, falling back:', e.message); }
+        console.log(`[OTP] Sent via Twilio to ${phone}`);
+        return res.json({ success: true, method: 'whatsapp', provider: 'twilio' });
+      } catch (e) {
+        console.warn('[OTP] Twilio failed:', e.message);
+      }
     }
 
-    if (process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_PHONE) {
+    // Method 3: Whapi.Cloud (5-day free trial, no credit card)
+    if (process.env.WHAPI_TOKEN) {
       try {
-        const { default: twilio } = await import('twilio');
-        const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
-        await client.messages.create({ from: process.env.TWILIO_PHONE, to: phone, body: message });
-        return res.json({ success: true, method: 'sms' });
-      } catch (e) { console.warn('SMS OTP failed:', e.message); }
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        const res3 = await fetch('https://gate.whapi.cloud/messages/text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.WHAPI_TOKEN}` },
+          body: JSON.stringify({ to: `${cleanPhone}@s.whatsapp.net`, body: message })
+        });
+        const data = await res3.json();
+        if (data.id || data.sent) {
+          console.log(`[OTP] Sent via Whapi to ${phone}`);
+          return res.json({ success: true, method: 'whatsapp', provider: 'whapi' });
+        }
+      } catch (e) {
+        console.warn('[OTP] Whapi failed:', e.message);
+      }
     }
 
-    console.log(`OTP for ${phone}: ${otp}`);
-    res.json({ success: true, method: 'console', debug_otp: process.env.NODE_ENV === 'development' ? otp : undefined });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    // Fallback: dev mode — log OTP to console
+    console.log(`[OTP] DEV MODE - Code for ${phone}: ${otp}`);
+    res.json({ 
+      success: true, 
+      method: 'console',
+      message: 'No WhatsApp provider configured. Add ULTRAMSG_INSTANCE + ULTRAMSG_TOKEN to Railway.',
+      debug_otp: process.env.NODE_ENV === 'development' ? otp : undefined
+    });
+  } catch (e) { 
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 router.post('/verify-otp', async (req, res) => {
