@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
 
-const API = process.env.NEXT_PUBLIC_API_URL || '';
+const API = 'https://fox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 
 function Stars({ rating }) {
@@ -31,7 +30,10 @@ export default function ProfilePage({ params }) {
 
   useEffect(() => {
     if (params?.id) {
-      axios.get(`${API}/api/profile/${params.id}`).then(r => setData(r.data)).catch(() => {});
+      fetch(`${API}/api/profile/${params.id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setData(data); })
+        .catch(() => {});
     }
   }, [params?.id]);
 
@@ -90,12 +92,14 @@ export default function ProfilePage({ params }) {
     if (!myRating) return alert('اختر تقييم أولاً');
     setSubmitting(true);
     try {
-      await axios.post(`${API}/api/profile/${params.id}/review`,
-        { rating: myRating, comment: myComment },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const r = await axios.get(`${API}/api/profile/${params.id}`);
-      setData(r.data);
+      await fetch(`${API}/api/profile/${params.id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rating: myRating, comment: myComment })
+      });
+      const reloadRes = await fetch(`${API}/api/profile/${params.id}`);
+      const reloadData = reloadRes.ok ? await reloadRes.json() : null;
+      if (reloadData) setData(reloadData);
       setMyRating(0); setMyComment('');
       alert('✅ تم إرسال تقييمك!');
     } catch (e) { alert(e.response?.data?.error || 'خطأ'); }
