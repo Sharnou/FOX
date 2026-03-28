@@ -1,62 +1,32 @@
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Cairo', 'Tajawal', 'system-ui', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
   background: #f5f5f5;
   direction: rtl;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 a { text-decoration: none; color: inherit; }
+button, input, select, textarea { font-family: inherit; }
 
-button, input, select, textarea {
-  font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
-
-h1, h2, h3, h4 {
-  font-family: 'Cairo', sans-serif;
-  font-weight: 700;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-
-a, button {
-  transition: opacity 0.15s ease, transform 0.15s ease, background 0.2s ease;
+@keyframes bounce {
+  from { transform: translateY(0) rotate(-5deg); }
+  to { transform: translateY(-10px) rotate(5deg); }
 }
-a:hover, button:hover { opacity: 0.92; }
-
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f0f0f0; }
-::-webkit-scrollbar-thumb { background: #002f34; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #004d40; }
-
-.card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
-
-:root {
-  --brand: #002f34;
-  --brand-light: #004d40;
-  --accent: #00b09b;
-  --accent-hover: #009688;
-  --danger: #e53935;
-  --warning: #ffd700;
-  --success: #00aa44;
-  --text: #1a1a1a;
-  --text-muted: #666;
-  --border: #e0e0e0;
-  --bg: #f5f5f5;
-  --card: #ffffff;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
-
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes bounce { from { transform: translateY(0) rotate(-5deg); } to { transform: translateY(-10px) rotate(5deg); } }
-
-.animate-slideUp { animation: slideUp 0.3s ease; }
-.animate-fadeIn { animation: fadeIn 0.3s ease; }
-.animate-pulse { animation: pulse 2s infinite; }
