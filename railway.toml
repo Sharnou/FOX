@@ -1,3 +1,4 @@
 [deploy]
 startCommand = "node backend/server/index.js"
 healthcheckPath = "/"
+healthcheckTimeout = 60
