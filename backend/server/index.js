@@ -69,17 +69,27 @@ app.use('/seo', seoRoutes);
 app.use('/api/language', languageRoutes);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
-app.get('/', (_, res) => res.json({
-  status: 'XTOX Backend v2.0 ✅',
-  time: new Date().toISOString(),
-  admin: 'ahmed_sharnou@yahoo.com / Aa123123',
-  env: {
-    mongoConnected: !!(process.env.MONGO_URI || process.env.MONGODB_URL || process.env.MONGOURL || process.env.MONGO_PUBLIC_URL || process.env.DATABASE_URL || process.env.MONGO_URL),
-    mongoUriSource: process.env.MONGO_URI ? 'MONGO_URI' : process.env.MONGODB_URL ? 'MONGODB_URL' : process.env.MONGOURL ? 'MONGOURL' : process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' : process.env.MONGO_URL_PRIVATE ? 'MONGO_URL_PRIVATE' : process.env.MONGO_URL_Private ? 'MONGO_URL_Private' : 'NOT SET',
-    jwtSet: !!process.env.JWT_SECRET,
-    frontendUrl: process.env.FRONTEND_URL || 'not set'
-  }
-}));
+app.get('/', (_, res) => {
+  const connState = mongoose.connection.readyState;
+  const stateNames = ['disconnected','connected','connecting','disconnecting'];
+  res.json({
+    status: 'XTOX Backend v2.0 ✅',
+    time: new Date().toISOString(),
+    admin: 'ahmed_sharnou@yahoo.com / Aa123123',
+    env: {
+      mongoConnected: connState === 1,
+      mongoState: stateNames[connState] || 'unknown',
+      mongoUriSource: process.env.MONGO_URI ? 'MONGO_URI' :
+                      process.env.MONGODB_URL ? 'MONGODB_URL' :
+                      process.env.MONGOURL ? 'MONGOURL' :
+                      process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' :
+                      process.env.MONGO_URL_Private ? 'MONGO_URL_Private' :
+                      'HARDCODED_ATLAS',
+      jwtSet: !!process.env.JWT_SECRET,
+      frontendUrl: process.env.FRONTEND_URL || 'not set'
+    }
+  });
+});
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -115,8 +125,7 @@ const mongoUri = process.env.MONGO_URI ||
                  process.env.MONGO_URL_Private ||
                  process.env.DATABASE_URL ||
                  process.env.MONGO_URL ||
-                 // Last resort: hardcoded Atlas (add MONGO_URI to Railway to override)
-                 'mongodb+srv://ahmedsharnou_db_user:MiqAQuCFW080G6u9@cluster0.77mmp6c.mongodb.net/?appName=Cluster0';
+                 null; // No hardcoded fallback - set MONGO_URI in Railway
 
 logger.info(`[MongoDB] Trying URI from: ${
   process.env.MONGO_URI ? 'MONGO_URI' :
