@@ -13,6 +13,9 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     try {
@@ -92,6 +95,23 @@ export default function LoginPage() {
       });
       window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
     } catch (e) { setError('خطأ: ' + e.message); }
+  }
+
+  async function loginWithEmail() {
+    setError('');
+    if (!email.trim() || !password.trim()) { setError('أدخل البريد وكلمة المرور'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'بيانات خاطئة');
+      saveAndRedirect(data);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
   }
 
   async function sendOTP() {
@@ -197,11 +217,32 @@ export default function LoginPage() {
               المتابعة بـ واتساب
             </button>
 
+            {/* Hidden email login for admin - shown by clicking 5 times on logo or footer link */}
+            {showEmail ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4, padding: 16, background: '#f8f8f8', borderRadius: 14 }}>
+                <p style={{ margin: 0, fontWeight: 'bold', color: '#002f34', fontSize: 14 }}>دخول بالبريد الإلكتروني</p>
+                <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="البريد الإلكتروني"
+                  style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, direction: 'ltr', textAlign: 'left' }} />
+                <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="كلمة المرور"
+                  onKeyDown={e => e.key === 'Enter' && loginWithEmail()}
+                  style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14 }} />
+                <button onClick={loginWithEmail} style={{ padding: '12px', background: '#002f34', color: 'white', border: 'none', borderRadius: 10, fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', fontSize: 15 }}>
+                  🔐 دخول
+                </button>
+                <button onClick={() => setShowEmail(false)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 13 }}>إخفاء</button>
+              </div>
+            ) : null}
+
             <p style={{ textAlign: 'center', color: '#bbb', fontSize: 12, marginTop: 10 }}>
               بالمتابعة توافق على{' '}
               <a href="/terms" style={{ color: '#002f34' }}>الشروط</a>
               {' '}و{' '}
               <a href="/privacy" style={{ color: '#002f34' }}>الخصوصية</a>
+            </p>
+            <p style={{ textAlign: 'center', marginTop: 8 }}>
+              <button onClick={() => setShowEmail(s => !s)} style={{ background: 'none', border: 'none', color: '#ccc', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {showEmail ? 'إخفاء' : 'Admin / Email Login'}
+              </button>
             </p>
           </div>
         )}
