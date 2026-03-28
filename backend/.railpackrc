@@ -1,5 +1,0 @@
-{
-  "start": "node server/index.js",
-  "install": "npm install --production",
-  "language": "node"
-}
