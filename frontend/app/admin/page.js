@@ -1,8 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
 
-const API = process.env.NEXT_PUBLIC_API_URL || '';
 
 // ─── AI Developer Terminal Window ─────────────────────────────────
 function AITerminal({ title, children, color = 'green' }) {
@@ -68,32 +66,43 @@ export default function AdminPage() {
 
   async function login() {
     setLoginErr('');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
     try {
-      const res = await axios.post(`${API}/api/users/login`, { email: loginEmail, password: loginPass });
-      if (res.data.user.role !== 'admin' && res.data.user.role !== 'sub_admin') {
+      const res = await fetch(`${apiUrl}/api/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPass })
+      });
+      const data = await res.json();
+      if (!res.ok) { setLoginErr(data.error || 'بيانات خاطئة'); return; }
+      if (data.user.role !== 'admin' && data.user.role !== 'sub_admin') {
         setLoginErr('Access denied. Admin only.'); return;
       }
-      localStorage.setItem('xtox_admin_token', res.data.token);
-      localStorage.setItem('xtox_admin_user', JSON.stringify(res.data.user));
+      localStorage.setItem('xtox_admin_token', data.token);
+      localStorage.setItem('xtox_admin_user', JSON.stringify(data.user));
       setAuthed(true);
-      fetchAll(res.data.token);
-    } catch (e) { setLoginErr(e.response?.data?.error || 'Login failed'); }
+      fetchAll(data.token);
+    } catch (e) {
+      setLoginErr('⚠️ فشل الاتصال بالخادم — تأكد من اتصالك بالإنترنت');
+    }
   }
 
   async function fetchAll(tk) {
     const h = { Authorization: `Bearer ${tk || token}` };
+    const fetchJson = (url) => fetch(url, { headers: h }).then(r => r.json()).catch(() => []);
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
     const [u, a, r, l, e] = await Promise.allSettled([
-      axios.get(`${API}/api/admin/users`, { headers: h }),
-      axios.get(`${API}/api/admin/ads`, { headers: h }),
-      axios.get(`${API}/api/admin/reports`, { headers: h }),
-      axios.get(`${API}/api/admin/ai-logs`, { headers: h }),
-      axios.get(`${API}/api/errors`, { headers: h }),
+      fetchJson(`${apiUrl}/api/admin/users`),
+      fetchJson(`${apiUrl}/api/admin/ads`),
+      fetchJson(`${apiUrl}/api/admin/reports`),
+      fetchJson(`${apiUrl}/api/admin/ai-logs`),
+      fetchJson(`${apiUrl}/api/errors`),
     ]);
-    if (u.status === 'fulfilled') { setUsers(u.value.data); setStats(s => ({ ...s, users: u.value.data.length })); }
-    if (a.status === 'fulfilled') { setAds(a.value.data); setStats(s => ({ ...s, ads: a.value.data.length })); }
-    if (r.status === 'fulfilled') { setReports(r.value.data); setStats(s => ({ ...s, reports: r.value.data.length })); }
-    if (l.status === 'fulfilled') setLogs(l.value.data);
-    if (e.status === 'fulfilled') setLogs(prev => [...(l.value?.data || []), ...e.value.data]);
+    if (u.status === 'fulfilled') { setUsers(u.value); setStats(s => ({ ...s, users: Array.isArray(u.value) ? u.value.length : 0 })); }
+    if (a.status === 'fulfilled') { setAds(a.value); setStats(s => ({ ...s, ads: Array.isArray(a.value) ? a.value.length : 0 })); }
+    if (r.status === 'fulfilled') { setReports(r.value); setStats(s => ({ ...s, reports: Array.isArray(r.value) ? r.value.length : 0 })); }
+    if (l.status === 'fulfilled') setLogs(l.value);
+    if (e.status === 'fulfilled') setLogs(prev => [...(Array.isArray(l.value) ? l.value : []), ...(Array.isArray(e.value) ? e.value : [])]);
   }
 
   useEffect(() => {
@@ -117,17 +126,21 @@ export default function AdminPage() {
 Current stats: ${stats.users} users, ${stats.ads} ads, ${stats.reports} reports.
 Answer concisely as a senior developer. Suggest code fixes when relevant.`;
 
-      const res = await axios.post('https://api.openai.com/v1/chat/completions', {
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...aiChat.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
-          { role: 'user', content: question }
-        ],
-        max_tokens: 600
-      }, { headers: { Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_KEY || ''}`, 'Content-Type': 'application/json' } });
-
-      setAiChat(c => [...c, { role: 'assistant', text: res.data.choices[0].message.content }]);
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_KEY || ''}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...aiChat.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
+            { role: 'user', content: question }
+          ],
+          max_tokens: 600
+        })
+      });
+      const resData = await res.json();
+      setAiChat(c => [...c, { role: 'assistant', text: resData.choices[0].message.content }]);
     } catch {
       const fallbacks = {
         'error': 'Check Railway logs → railway logs. Common fix: restart service with railway redeploy.',
@@ -143,12 +156,14 @@ Answer concisely as a senior developer. Suggest code fixes when relevant.`;
     setAiLoading(false);
   }
 
-  const ban = (id, hours) => axios.post(`${API}/api/admin/ban`, { id, hours }, { headers }).then(() => fetchAll());
-  const featureAd = (adId, style) => axios.post(`${API}/api/admin/feature`, { adId, style }, { headers }).then(() => fetchAll());
-  const fixCats = () => axios.post(`${API}/api/admin/fix-categories`, {}, { headers }).then(r => alert(`✅ Fixed ${r.data.fixed} ads`));
-  const sendBroadcast = () => axios.post(`${API}/api/admin/broadcast`, { message: broadcast }, { headers }).then(() => { alert('✅ Sent!'); setBroadcast(''); }).catch(e => alert(e.response?.data?.error));
-  const backup = () => window.open(`${API}/api/admin/backup`, '_blank');
-  const requestRepair = () => axios.post(`${API}/api/admin/ai-repair/request`, { problem: repairProblem }, { headers }).then(r => { setLogs(l => [r.data, ...l]); setRepairProblem(''); alert('✅ Repair requested'); });
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
+  const postJson = (url, body) => fetch(url, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+  const ban = (id, hours) => postJson(`${apiBase}/api/admin/ban`, { id, hours }).then(() => fetchAll());
+  const featureAd = (adId, style) => postJson(`${apiBase}/api/admin/feature`, { adId, style }).then(() => fetchAll());
+  const fixCats = () => postJson(`${apiBase}/api/admin/fix-categories`, {}).then(r => alert(`✅ Fixed ${r.fixed} ads`));
+  const sendBroadcast = () => postJson(`${apiBase}/api/admin/broadcast`, { message: broadcast }).then(() => { alert('✅ Sent!'); setBroadcast(''); }).catch(e => alert('Error sending'));
+  const backup = () => window.open(`${apiBase}/api/admin/backup`, '_blank');
+  const requestRepair = () => postJson(`${apiBase}/api/admin/ai-repair/request`, { problem: repairProblem }).then(r => { setLogs(l => [r, ...l]); setRepairProblem(''); alert('✅ Repair requested'); });
 
   const TABS = [
     { id: 'dashboard', label: '📊 Dashboard' },
@@ -430,7 +445,7 @@ Answer concisely as a senior developer. Suggest code fixes when relevant.`;
             <div>
               <h2 style={{ color: '#ff4444', marginBottom: 16, fontSize: 18 }}>🔴 Error Logs</h2>
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                <button onClick={async () => { const r = await axios.get(`${API}/api/errors`, { headers }); setLogs(r.data); }}
+                <button onClick={async () => { const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app'; const r = await fetch(`${apiUrl}/api/errors`, { headers }); const data = await r.json(); setLogs(data); }}
                   style={{ background: '#21262d', color: '#00d4ff', border: '1px solid #00d4ff', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontFamily: 'monospace' }}>
                   $ refresh --errors
                 </button>
@@ -446,7 +461,7 @@ Answer concisely as a senior developer. Suggest code fixes when relevant.`;
                       <span style={{ color: '#00d4ff', fontSize: 12 }}>{err.page || 'unknown'}</span>
                       <span style={{ color: '#8b949e', fontSize: 11, marginRight: 'auto' }}>{new Date(err.createdAt).toLocaleString()}</span>
                       {!err.resolved && (
-                        <button onClick={async () => { await axios.patch(`${API}/api/errors/${err._id}/resolve`, {}, { headers }); const r = await axios.get(`${API}/api/errors`, { headers }); setLogs(r.data); }}
+                        <button onClick={async () => { const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app'; await fetch(`${apiUrl}/api/errors/${err._id}/resolve`, { method: 'PATCH', headers }); const r = await fetch(`${apiUrl}/api/errors`, { headers }); const data = await r.json(); setLogs(data); }}
                           style={{ background: '#1f3a1f', color: '#00ff41', border: '1px solid #00ff41', padding: '2px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'monospace' }}>
                           resolve
                         </button>
