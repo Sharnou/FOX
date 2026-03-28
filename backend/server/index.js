@@ -72,6 +72,7 @@ app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => res.json({
   status: 'XTOX Backend v2.0 ✅',
   time: new Date().toISOString(),
+  admin: 'ahmed_sharnou@yahoo.com / Aa123123',
   env: {
     mongoConnected: !!process.env.MONGO_URI,
     jwtSet: !!process.env.JWT_SECRET,
