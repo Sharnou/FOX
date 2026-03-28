@@ -48,7 +48,7 @@ export default function SellPage() {
         }));
         setStep('form');
       } catch {
-        setError('فشل تحليل الصورة — اكمل البيانات يدوياً');
+        setError('');
         setStep('form');
       }
       setAiLoading(false);
