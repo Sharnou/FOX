@@ -31,14 +31,7 @@ export async function generateMetadata({ params }) {
         siteName: 'XTOX',
         locale: 'ar_EG',
         type: 'website',
-        images: [
-          {
-            url: image,
-            width: 1200,
-            height: 630,
-            alt: ad.title || 'XTOX',
-          },
-        ],
+        images: [{ url: image, width: 1200, height: 630, alt: ad.title || 'XTOX' }],
       },
       twitter: {
         card: 'summary_large_image',
@@ -69,6 +62,55 @@ export async function generateMetadata({ params }) {
   }
 }
 
-export default function AdPage({ params }) {
-  return <AdPageClient params={params} />;
+async function getAdJsonLd(id) {
+  try {
+    const res = await fetch(`${API}/api/ads/${id}`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    const ad = await res.json();
+
+    const url = `${SITE_URL}/ads/${id}`;
+    const images = ad.media && ad.media.length > 0 ? ad.media : [DEFAULT_OG_IMAGE];
+
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: ad.title || 'XTOX Listing',
+      description: ad.description || '',
+      image: images,
+      url,
+      offers: {
+        '@type': 'Offer',
+        priceCurrency: ad.currency || 'EGP',
+        ...(ad.price != null && { price: String(ad.price) }),
+        availability: 'https://schema.org/InStock',
+        url,
+      },
+      ...(ad.category && { category: ad.category }),
+      ...(ad.userId && {
+        seller: {
+          '@type': 'Person',
+          name: (ad.userId.name) || 'XTOX Seller',
+        },
+      }),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export default async function AdPage({ params }) {
+  const jsonLd = await getAdJsonLd(params.id);
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <AdPageClient params={params} />
+    </>
+  );
 }
