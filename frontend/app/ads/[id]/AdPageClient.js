@@ -277,6 +277,35 @@ export default function AdPageClient({ params }) {
           )}
         </button>
       )}
+      {/* WhatsApp Button */}
+      {phone && (
+        <a
+          href={`https://wa.me/${(phone || '').replace(/\D/g, '').replace(/^0/, '20')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          dir="rtl"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+            marginTop: 10,
+            padding: '13px 16px',
+            borderRadius: 12,
+            background: '#25D366',
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: 15,
+            textDecoration: 'none',
+            fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif",
+            boxSizing: 'border-box',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>💬</span>
+          <span>واتساب</span>
+        </a>
+      )}
 
       {/* Seller Profile Link */}
       {sellerId && (
