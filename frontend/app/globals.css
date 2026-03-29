@@ -75,3 +75,16 @@ button, input, select, textarea { font-family: inherit; }
   background-size: 1200px 100%;
   animation: shimmer 1.4s infinite linear;
 }
+
+/* ── Image blur-fade-in placeholder (run 12) ── */
+/* Images start blurred and scaled up slightly; on load they transition to sharp */
+.img-blur-load {
+  filter: blur(8px);
+  transform: scale(1.05);
+  transition: filter 0.45s ease, transform 0.45s ease;
+  will-change: filter, transform;
+}
+.img-blur-load.loaded {
+  filter: blur(0);
+  transform: scale(1);
+}
