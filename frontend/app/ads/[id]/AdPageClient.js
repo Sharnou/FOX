@@ -63,6 +63,7 @@ export default function AdPageClient({ params }) {
   const [callActive, setCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState('');
   const [socket, setSocket] = useState(null);
+  const [copied, setCopied] = useState(false);
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
@@ -145,10 +146,30 @@ export default function AdPageClient({ params }) {
     setCallStatus('');
   }
 
+  function copyPhone() {
+    const phone = ad?.phone || ad?.userId?.phone;
+    if (!phone) return alert('رقم الهاتف غير متاح');
+    navigator.clipboard.writeText(phone).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Fallback for browsers without clipboard API
+      const el = document.createElement('textarea');
+      el.value = phone;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   if (!ad) return <AdDetailSkeleton />;
 
   const media = ad.media || [];
   const sellerId = ad.userId?._id || ad.userId;
+  const phone = ad?.phone || ad?.userId?.phone;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
@@ -217,6 +238,45 @@ export default function AdPageClient({ params }) {
           </button>
         )}
       </div>
+
+      {/* Copy Phone Number Button */}
+      {phone && (
+        <button
+          onClick={copyPhone}
+          dir="rtl"
+          style={{
+            width: '100%',
+            marginTop: 10,
+            padding: '13px 16px',
+            borderRadius: 12,
+            border: copied ? '2px solid #00aa44' : '2px solid #e0e0e0',
+            background: copied ? '#e8f8e8' : '#f8f8f8',
+            color: copied ? '#00aa44' : '#002f34',
+            fontWeight: 'bold',
+            fontSize: 15,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            transition: 'all 0.25s ease',
+            fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif",
+          }}
+        >
+          {copied ? (
+            <>
+              <span style={{ fontSize: 18 }}>✓</span>
+              <span>تم النسخ</span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: 16 }}>📋</span>
+              <span>نسخ الرقم</span>
+              <span style={{ color: '#666', fontWeight: 'normal', fontSize: 13 }}>{phone}</span>
+            </>
+          )}
+        </button>
+      )}
 
       {/* Seller Profile Link */}
       {sellerId && (
