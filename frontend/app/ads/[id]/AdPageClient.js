@@ -64,6 +64,7 @@ export default function AdPageClient({ params }) {
   const [callStatus, setCallStatus] = useState('');
   const [socket, setSocket] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
@@ -306,6 +307,41 @@ export default function AdPageClient({ params }) {
           <span>واتساب</span>
         </a>
       )}
+
+      {/* Native Web Share / Copy Link */}
+      <button
+        onClick={async () => {
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: ad?.title || 'إعلان XTOX',
+                text: ad?.description || '',
+                url: window.location.href,
+              });
+            } catch (e) {}
+          } else {
+            navigator.clipboard.writeText(window.location.href);
+            setShareCopied(true);
+            setTimeout(() => setShareCopied(false), 2000);
+          }
+        }}
+        style={{
+          display: 'block',
+          width: '100%',
+          padding: '12px',
+          marginTop: '8px',
+          background: shareCopied ? '#16a34a' : '#1877F2',
+          color: '#fff',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          borderRadius: '10px',
+          border: 'none',
+          cursor: 'pointer',
+          transition: 'background 0.3s',
+        }}
+      >
+        {shareCopied ? '✓ تم نسخ الرابط' : '📤 مشاركة'}
+      </button>
 
       {/* Seller Profile Link */}
       {sellerId && (
