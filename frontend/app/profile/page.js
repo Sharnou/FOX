@@ -11,6 +11,9 @@ export default function ProfilePage() {
   const myAdsCount = typeof window !== 'undefined' ? (() => {
     try { return Number(localStorage.getItem('myAdsCount') || '0'); } catch { return 0; }
   })() : 0;
+  const savedCount = typeof window !== 'undefined' ? (() => {
+    try { return JSON.parse(localStorage.getItem('xtox_saved_ads') || '[]').length; } catch { return 0; }
+  })() : 0;
   const memberSince = user.createdAt
     ? new Date(user.createdAt).getFullYear()
     : new Date().getFullYear();
@@ -52,9 +55,17 @@ export default function ProfilePage() {
             <div className="text-xs text-gray-500 mt-1">موثّق</div>
           </div>
         </div>
-        <a href="/my-ads" className="mt-3 block text-center text-brand font-bold text-sm border border-brand rounded-xl py-2">
-          📋 عرض جميع إعلاناتي
-        </a>
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <a href="/my-ads" className="block text-center text-brand font-bold text-sm border border-brand rounded-xl py-2">
+            📋 إعلاناتي
+          </a>
+          <a href="/saved" className="flex items-center justify-center gap-1 text-brand font-bold text-sm border border-brand rounded-xl py-2">
+            🔖 المحفوظات
+            {savedCount > 0 && (
+              <span className="inline-block bg-brand text-white text-xs rounded-full px-1.5 leading-tight">{savedCount}</span>
+            )}
+          </a>
+        </div>
       </div>
 
       <div className="text-center mb-6">
