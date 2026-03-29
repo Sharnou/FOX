@@ -218,7 +218,15 @@ if (!finalMongoUri) {
   logger.warn('⚠️ No MongoDB URI found. Set MONGO_URL in Railway environment variables.');
 } else {
   logger.info('MongoDB URI: ' + finalMongoUri.replace(/:([^@]+)@/, ':***@'));
-  mongoose.connect(finalMongoUri)
+  logger.info(`[MongoDB] Attempting connection... (timeout: 30s)`);
+  mongoose.connect(finalMongoUri, {
+    serverSelectionTimeoutMS: 30000,  // 30 seconds to find a server
+    socketTimeoutMS: 45000,           // 45 seconds for operations
+    connectTimeoutMS: 30000,          // 30 seconds to connect
+    maxPoolSize: 10,
+    retryWrites: true,
+    w: 'majority'
+  })
     .then(async () => {
     logger.info('MongoDB connected');
     await seedCountries();
@@ -227,7 +235,26 @@ if (!finalMongoUri) {
     await seedSuperAdmin();
     await seedCoreDictionary();
   })
-  .catch(err => logger.error('MongoDB connection failed:', err.message));
+  .catch(err => {
+    logger.error('[MongoDB] Connection failed:', err.message);
+    logger.error('[MongoDB] Check: 1) MONGO_URL in Railway env, 2) Atlas IP whitelist 0.0.0.0/0');
+    // Retry after 10 seconds
+    setTimeout(async () => {
+      logger.info('[MongoDB] Retrying connection...');
+      try {
+        await mongoose.connect(finalMongoUri, {
+          serverSelectionTimeoutMS: 30000,
+          socketTimeoutMS: 45000,
+          connectTimeoutMS: 30000
+        });
+        logger.info('[MongoDB] Retry successful ✅');
+        const { seedSuperAdmin } = await import('../routes/users.js');
+        await seedSuperAdmin();
+      } catch (e) {
+        logger.error('[MongoDB] Retry also failed:', e.message);
+      }
+    }, 10000);
+  });
 }
 
 server.listen(process.env.PORT || 3000, () => logger.info(`XTOX running on port ${process.env.PORT || 3000}`));
