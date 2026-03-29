@@ -3,27 +3,6 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import AdCardSkeleton from '../components/AdCardSkeleton';
-
-export const metadata = {
-  title: 'سوبرماركت | XTOX - سوق محلي',
-  description: 'تسوق من أفضل منتجات السوبرماركت في منطقتك على XTOX. عروض يومية وأسعار مناسبة.',
-  openGraph: {
-    title: 'سوبرماركت | XTOX - سوق محلي',
-    description: 'تسوق من أفضل منتجات السوبرماركت في منطقتك على XTOX.',
-    type: 'website',
-    locale: 'ar_EG',
-    siteName: 'XTOX',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'سوبرماركت | XTOX',
-    description: 'تسوق من أفضل منتجات السوبرماركت في منطقتك على XTOX.',
-  },
-  alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/supermarket',
-  },
-};
-
 const API = process.env.NEXT_PUBLIC_API_URL || '';
 const jsonLd = {
   "@context": "https://schema.org",
