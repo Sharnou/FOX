@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 function StarRating({ reputation }) {
   if (reputation === null || reputation === undefined) {
     return (
@@ -18,10 +20,51 @@ function StarRating({ reputation }) {
 }
 
 export default function AdCard({ ad }) {
+  const [shared, setShared] = useState(false);
+
   if (!ad) return null;
+
   const reputation = ad.userId?.reputation ?? ad.reputation ?? null;
+
+  const handleShare = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const adUrl = `${window.location.origin}/ads/${ad._id || ad.id}`;
+    const shareData = {
+      title: ad.title,
+      text: ad.description || ad.title,
+      url: adUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(adUrl);
+      }
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch (err) {
+      // User cancelled or error — do nothing
+    }
+  };
+
   return (
-    <a href={`/ads/${ad._id}`} className="bg-white rounded-xl shadow hover:shadow-lg transition block slide-in">
+    <a href={`/ads/${ad._id}`} className="bg-white rounded-xl shadow hover:shadow-lg transition block slide-in relative">
+      {/* Share button */}
+      <button
+        onClick={handleShare}
+        aria-label="مشاركة"
+        className={`absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors duration-200 ${
+          shared
+            ? 'bg-green-500 text-white'
+            : 'bg-black/40 hover:bg-black/60 text-white'
+        }`}
+      >
+        {shared ? '✓' : '📤'}
+      </button>
+
       {ad.media?.[0] ? (
         <div className="relative w-full h-44 overflow-hidden rounded-t-xl">
           <img
