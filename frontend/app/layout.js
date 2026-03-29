@@ -1,5 +1,6 @@
 import './globals.css';
 import ScrollToTop from './components/ScrollToTop';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
 // JSON-LD structured data for rich Google search results
 const jsonLd = {
@@ -60,8 +61,9 @@ export default function RootLayout({ children }) {
       </head>
       <body style={{ margin: 0, padding: 0, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", background: '#f5f5f5' }}>
         {children}
-            <ScrollToTop />
-    </body>
+        <ScrollToTop />
+        <PWAInstallPrompt />
+      </body>
     </html>
   );
 }
