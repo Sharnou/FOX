@@ -1,9 +1,20 @@
 'use client';
 import { useState } from 'react';
+
 export default function ProfilePage() {
   const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
   const [name, setName] = useState(user.name || '');
   const [avatar, setAvatar] = useState(user.avatar || '');
+
+  // Seller stats derived from localStorage
+  const myAdsCount = typeof window !== 'undefined' ? (() => {
+    try { return Number(localStorage.getItem('myAdsCount') || '0'); } catch { return 0; }
+  })() : 0;
+  const memberSince = user.createdAt
+    ? new Date(user.createdAt).getFullYear()
+    : new Date().getFullYear();
+  const isVerified = Boolean(user.phone || user.email);
+
   function saveProfile() {
     const updated = { ...user, name, avatar };
     localStorage.setItem('user', JSON.stringify(updated));
@@ -15,10 +26,36 @@ export default function ProfilePage() {
     reader.onload = ev => setAvatar(ev.target.result);
     reader.readAsDataURL(file);
   }
+
   return (
     <div className="max-w-md mx-auto p-6">
       <button onClick={() => history.back()} className="mb-4 text-brand font-bold">← رجوع</button>
       <h1 className="text-2xl font-bold text-brand mb-6">👤 الملف الشخصي</h1>
+
+      {/* Seller Stats Summary Card */}
+      <div className="bg-white rounded-2xl shadow p-4 mb-6">
+        <h2 className="text-sm font-bold text-gray-500 mb-3">📊 إحصائيات البائع</h2>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="bg-gray-50 rounded-xl p-3">
+            <div className="text-2xl font-bold text-brand">{myAdsCount}</div>
+            <div className="text-xs text-gray-500 mt-1">إعلاناتي</div>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3">
+            <div className="text-2xl font-bold text-brand">{memberSince}</div>
+            <div className="text-xs text-gray-500 mt-1">عضو منذ</div>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3">
+            <div className={`text-2xl font-bold ${isVerified ? 'text-green-600' : 'text-gray-400'}`}>
+              {isVerified ? '✓' : '–'}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">موثّق</div>
+          </div>
+        </div>
+        <a href="/my-ads" className="mt-3 block text-center text-brand font-bold text-sm border border-brand rounded-xl py-2">
+          📋 عرض جميع إعلاناتي
+        </a>
+      </div>
+
       <div className="text-center mb-6">
         <label className="cursor-pointer">
           <img src={avatar || '/favicon.svg'} className="w-24 h-24 rounded-full mx-auto border-4 border-brand object-cover" alt="avatar" />
