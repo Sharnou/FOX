@@ -87,10 +87,7 @@ function ImageCarousel({ images, title }) {
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
-    // Only trigger if horizontal swipe dominates
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
-      // In RTL markets (Arabic): swipe right → next, swipe left → prev
-      // We use document.documentElement.dir to detect RTL
       const isRTL = typeof document !== 'undefined' && document.documentElement.dir === 'rtl';
       if (dx < 0) { isRTL ? prev() : next(); }
       else { isRTL ? next() : prev(); }
@@ -100,134 +97,51 @@ function ImageCarousel({ images, title }) {
   }
 
   const navBtnBase = {
-    position: 'absolute',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'rgba(0,0,0,0.45)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '50%',
-    width: 38,
-    height: 38,
-    fontSize: 18,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-    transition: 'background 0.2s',
-    lineHeight: 1,
-    userSelect: 'none',
+    position: 'absolute', top: '50%', transform: 'translateY(-50%)',
+    background: 'rgba(0,0,0,0.45)', color: 'white', border: 'none', borderRadius: '50%',
+    width: 38, height: 38, fontSize: 18, cursor: 'pointer', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', zIndex: 2, transition: 'background 0.2s',
+    lineHeight: 1, userSelect: 'none',
   };
 
   return (
     <div style={{ userSelect: 'none' }}>
-      {/* ── Main image with prev/next overlay ── */}
-      <div
-        style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#111' }}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
-        <img
-          key={idx}
-          src={images[idx]}
-          alt={title}
+      <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#111' }}
+        onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        <img key={idx} src={images[idx]} alt={title}
           loading={idx === 0 ? 'eager' : 'lazy'}
-          style={{
-            width: '100%',
-            maxHeight: 360,
-            objectFit: 'cover',
-            display: 'block',
-            opacity: fading ? 0 : 1,
-            transition: 'opacity 0.3s ease',
-          }}
-        />
-
-        {/* Prev / Next buttons — only when multiple images */}
-        {count > 1 && (
-          <>
-            <button
-              onClick={prev}
-              aria-label="الصورة السابقة"
-              style={{ ...navBtnBase, left: 8 }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.45)'}
-            >
-              ‹
-            </button>
-            <button
-              onClick={next}
-              aria-label="الصورة التالية"
-              style={{ ...navBtnBase, right: 8 }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.45)'}
-            >
-              ›
-            </button>
-
-            {/* Image counter badge */}
-            <div style={{
-              position: 'absolute',
-              bottom: 10,
-              right: 10,
-              background: 'rgba(0,0,0,0.55)',
-              color: 'white',
-              borderRadius: 20,
-              padding: '3px 10px',
-              fontSize: 12,
-              fontWeight: 'bold',
-              letterSpacing: '0.5px',
-            }}>
-              {idx + 1} / {count}
-            </div>
-          </>
-        )}
+          style={{ width: '100%', maxHeight: 360, objectFit: 'cover', display: 'block',
+            opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease' }} />
+        {count > 1 && (<>
+          <button onClick={prev} aria-label="الصورة السابقة" style={{ ...navBtnBase, left: 8 }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.45)'}>‹</button>
+          <button onClick={next} aria-label="الصورة التالية" style={{ ...navBtnBase, right: 8 }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.45)'}>›</button>
+          <div style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(0,0,0,0.55)',
+            color: 'white', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 'bold', letterSpacing: '0.5px' }}>
+            {idx + 1} / {count}
+          </div>
+        </>)}
       </div>
-
-      {/* ── Dot indicators ── */}
       {count > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 10 }}>
           {images.map((_, i) => (
-            <button
-              key={i}
-              aria-label={`الصورة ${i + 1}`}
-              onClick={() => goTo(i)}
-              style={{
-                width: i === idx ? 22 : 8,
-                height: 8,
-                borderRadius: 4,
-                background: i === idx ? '#002f34' : '#ccc',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'all 0.25s ease',
-              }}
-            />
+            <button key={i} aria-label={`الصورة ${i + 1}`} onClick={() => goTo(i)}
+              style={{ width: i === idx ? 22 : 8, height: 8, borderRadius: 4,
+                background: i === idx ? '#002f34' : '#ccc', border: 'none', cursor: 'pointer',
+                padding: 0, transition: 'all 0.25s ease' }} />
           ))}
         </div>
       )}
-
-      {/* ── Thumbnail strip ── */}
       {count > 1 && (
         <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
           {images.map((src, i) => (
-            <img
-              key={i}
-              src={src}
-              onClick={() => goTo(i)}
-              loading="lazy"
-              alt={`صورة ${i + 1}`}
-              style={{
-                width: 60,
-                height: 60,
-                objectFit: 'cover',
-                borderRadius: 8,
-                cursor: 'pointer',
-                border: i === idx ? '2px solid #002f34' : '2px solid #eee',
-                flexShrink: 0,
-                transition: 'border-color 0.2s',
-              }}
-            />
+            <img key={i} src={src} onClick={() => goTo(i)} loading="lazy" alt={`صورة ${i + 1}`}
+              style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, cursor: 'pointer',
+                border: i === idx ? '2px solid #002f34' : '2px solid #eee', flexShrink: 0,
+                transition: 'border-color 0.2s' }} />
           ))}
         </div>
       )}
@@ -242,6 +156,7 @@ export default function AdPageClient({ params }) {
   const [socket, setSocket] = useState(null);
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
@@ -257,7 +172,13 @@ export default function AdPageClient({ params }) {
     }
   }, [params?.id]);
 
-  // Init socket for signaling
+  useEffect(() => {
+    if (params?.id && typeof window !== 'undefined') {
+      const savedAds = JSON.parse(localStorage.getItem('xtox_saved_ads') || '[]');
+      setSaved(savedAds.includes(params.id));
+    }
+  }, [params?.id]);
+
   useEffect(() => {
     if (!SOCKET_URL || !userId) return;
     let s;
@@ -274,17 +195,9 @@ export default function AdPageClient({ params }) {
         setCallActive(true);
         setCallStatus('متصل 🟢');
       });
-      s.on('call_answer', async (data) => {
-        await pcRef.current?.setRemoteDescription(data.answer);
-        setCallStatus('متصل 🟢');
-      });
-      s.on('ice_candidate', async (data) => {
-        await pcRef.current?.addIceCandidate(data.candidate);
-      });
-      s.on('call_end', () => {
-        endCall();
-        setCallStatus('انتهت المكالمة');
-      });
+      s.on('call_answer', async (data) => { await pcRef.current?.setRemoteDescription(data.answer); setCallStatus('متصل 🟢'); });
+      s.on('ice_candidate', async (data) => { await pcRef.current?.addIceCandidate(data.candidate); });
+      s.on('call_end', () => { endCall(); setCallStatus('انتهت المكالمة'); });
       setSocket(s);
     });
     return () => s?.disconnect();
@@ -310,9 +223,7 @@ export default function AdPageClient({ params }) {
       await pc.setLocalDescription(offer);
       socket.emit('call_offer', { to: targetId, from: userId, offer });
       setCallActive(true);
-    } catch (e) {
-      setCallStatus('فشل الاتصال — تحقق من الميكروفون');
-    }
+    } catch (e) { setCallStatus('فشل الاتصال — تحقق من الميكروفون'); }
   }
 
   function endCall() {
@@ -328,24 +239,24 @@ export default function AdPageClient({ params }) {
     const phone = ad?.phone || ad?.userId?.phone;
     if (!phone) return alert('رقم الهاتف غير متاح');
     navigator.clipboard.writeText(phone).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopied(true); setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
-      // Fallback for browsers without clipboard API
       const el = document.createElement('textarea');
-      el.value = phone;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      el.value = phone; document.body.appendChild(el); el.select();
+      document.execCommand('copy'); document.body.removeChild(el);
+      setCopied(true); setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  function toggleSave() {
+    const savedAds = JSON.parse(localStorage.getItem('xtox_saved_ads') || '[]');
+    const newSaved = saved ? savedAds.filter(id => id !== params.id) : [...savedAds, params.id];
+    localStorage.setItem('xtox_saved_ads', JSON.stringify(newSaved));
+    setSaved(!saved);
   }
 
   if (!ad) return <AdDetailSkeleton />;
 
-  // Normalise media: handle single string or array
   const rawMedia = ad.media || ad.images || [];
   const media = Array.isArray(rawMedia) ? rawMedia : [rawMedia].filter(Boolean);
   const sellerId = ad.userId?._id || ad.userId;
@@ -354,12 +265,7 @@ export default function AdPageClient({ params }) {
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
       <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
-
-      <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>
-        ← رجوع
-      </button>
-
-      {/* Media */}
+      <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>← رجوع</button>
       {ad.video ? (
         <video src={ad.video} controls autoPlay style={{ width: '100%', borderRadius: 12, maxHeight: 360, objectFit: 'cover' }} />
       ) : media.length > 0 ? (
@@ -367,192 +273,53 @@ export default function AdPageClient({ params }) {
       ) : (
         <div style={{ height: 200, background: '#f0f0f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 60 }}>📦</div>
       )}
-
-      {/* Ad Info */}
       <h1 dir="auto" style={{ fontSize: 22, fontWeight: 'bold', marginTop: 16, marginBottom: 4 }}>{ad.title}</h1>
       <p style={{ fontSize: 26, color: '#002f34', fontWeight: 'bold', margin: '4px 0 8px' }}>{ad.price} {ad.currency}</p>
       <p dir="auto" style={{ color: '#555', lineHeight: 1.6, marginBottom: 12 }}>{ad.description}</p>
-
       <div style={{ display: 'flex', gap: 16, color: '#999', fontSize: 13, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span>📍 {ad.city}</span>
-        <span>👁 {ad.views} مشاهدة</span>
+        <span>📍 {ad.city}</span><span>👁 {ad.views} مشاهدة</span>
         <span>📁 {ad.category}</span>
         <span style={{ color: '#e44' }}>⏰ ينتهي {ad.expiresAt ? new Date(ad.expiresAt).toLocaleDateString('ar-EG') : ''}</span>
       </div>
-
-      {/* Call Status */}
       {callStatus && (
         <div style={{ background: callActive ? '#e8f8e8' : '#fff8e0', border: `1px solid ${callActive ? '#00aa44' : '#ffcc00'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12, color: '#333', fontSize: 14, textAlign: 'center' }}>
           {callStatus}
         </div>
       )}
-
-      {/* Action Buttons */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
-        {/* Chat Button */}
-        <a href={`/chat?target=${sellerId}&ad=${ad._id}`}
-          style={{ background: '#002f34', color: 'white', textAlign: 'center', padding: '14px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15 }}>
-          💬 محادثة
-        </a>
-
-        {/* P2P Voice Call Button */}
+        <a href={`/chat?target=${sellerId}&ad=${ad._id}`} style={{ background: '#002f34', color: 'white', textAlign: 'center', padding: '14px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15 }}>💬 محادثة</a>
         {!callActive ? (
-          <button onClick={startCall}
-            style={{ background: '#00aa44', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>
-            📞 مكالمة مباشرة
-          </button>
+          <button onClick={startCall} style={{ background: '#00aa44', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>📞 مكالمة مباشرة</button>
         ) : (
-          <button onClick={endCall}
-            style={{ background: '#cc0000', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', animation: 'pulse 1s infinite' }}>
-            ⛔ إنهاء المكالمة
-          </button>
+          <button onClick={endCall} style={{ background: '#cc0000', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', animation: 'pulse 1s infinite' }}>⛔ إنهاء المكالمة</button>
         )}
       </div>
-
-      {/* Copy Phone Number Button */}
-      {phone && (
-        <button
-          onClick={copyPhone}
-          dir="rtl"
-          style={{
-            width: '100%',
-            marginTop: 10,
-            padding: '13px 16px',
-            borderRadius: 12,
-            border: copied ? '2px solid #00aa44' : '2px solid #e0e0e0',
-            background: copied ? '#e8f8e8' : '#f8f8f8',
-            color: copied ? '#00aa44' : '#002f34',
-            fontWeight: 'bold',
-            fontSize: 15,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            transition: 'all 0.25s ease',
-            fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif",
-          }}
-        >
-          {copied ? (
-            <>
-              <span style={{ fontSize: 18 }}>✓</span>
-              <span>تم النسخ</span>
-            </>
-          ) : (
-            <>
-              <span style={{ fontSize: 16 }}>📋</span>
-              <span>نسخ الرقم</span>
-              <span style={{ color: '#666', fontWeight: 'normal', fontSize: 13 }}>{phone}</span>
-            </>
-          )}
-        </button>
-      )}
-      {/* WhatsApp Button */}
-      {phone && (
-        <a
-          href={`https://wa.me/${(phone || '').replace(/\D/g, '').replace(/^0/, '20')}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          dir="rtl"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            width: '100%',
-            marginTop: 10,
-            padding: '13px 16px',
-            borderRadius: 12,
-            background: '#25D366',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: 15,
-            textDecoration: 'none',
-            fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif",
-            boxSizing: 'border-box',
-          }}
-        >
-          <span style={{ fontSize: 18 }}>💬</span>
-          <span>واتساب</span>
-        </a>
-      )}
-
-      {/* Native Web Share / Copy Link */}
-      <button
-        onClick={async () => {
-          if (navigator.share) {
-            try {
-              await navigator.share({
-                title: ad?.title || 'إعلان XTOX',
-                text: ad?.description || '',
-                url: window.location.href,
-              });
-            } catch (e) {}
-          } else {
-            navigator.clipboard.writeText(window.location.href);
-            setShareCopied(true);
-            setTimeout(() => setShareCopied(false), 2000);
-          }
-        }}
-        style={{
-          display: 'block',
-          width: '100%',
-          padding: '12px',
-          marginTop: '8px',
-          background: shareCopied ? '#16a34a' : '#1877F2',
-          color: '#fff',
-          fontWeight: 'bold',
-          fontSize: '16px',
-          borderRadius: '10px',
-          border: 'none',
-          cursor: 'pointer',
-          transition: 'background 0.3s',
-        }}
-      >
+      {phone && (<button onClick={copyPhone} dir="rtl" style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: copied ? '2px solid #00aa44' : '2px solid #e0e0e0', background: copied ? '#e8f8e8' : '#f8f8f8', color: copied ? '#00aa44' : '#002f34', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
+        {copied ? (<><span style={{ fontSize: 18 }}>✓</span><span>تم النسخ</span></>) : (<><span style={{ fontSize: 16 }}>📋</span><span>نسخ الرقم</span><span style={{ color: '#666', fontWeight: 'normal', fontSize: 13 }}>{phone}</span></>)}
+      </button>)}
+      {phone && (<a href={`https://wa.me/${(phone || '').replace(/\D/g, '').replace(/^0/, '20')}`} target="_blank" rel="noopener noreferrer" dir="rtl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, background: '#25D366', color: 'white', fontWeight: 'bold', fontSize: 15, textDecoration: 'none', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", boxSizing: 'border-box' }}>
+        <span style={{ fontSize: 18 }}>💬</span><span>واتساب</span>
+      </a>)}
+      <button onClick={async () => { if (navigator.share) { try { await navigator.share({ title: ad?.title || 'إعلان XTOX', text: ad?.description || '', url: window.location.href }); } catch (e) {} } else { navigator.clipboard.writeText(window.location.href); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); } }} style={{ display: 'block', width: '100%', padding: '12px', marginTop: '8px', background: shareCopied ? '#16a34a' : '#1877F2', color: '#fff', fontWeight: 'bold', fontSize: '16px', borderRadius: '10px', border: 'none', cursor: 'pointer', transition: 'background 0.3s' }}>
         {shareCopied ? '✓ تم نسخ الرابط' : '📤 مشاركة'}
       </button>
-
-      {/* Seller Profile Link */}
-      {sellerId && (
-        <a href={`/profile/${sellerId}`}
-          style={{ display: 'block', marginTop: 16, background: '#f8f8f8', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textDecoration: 'none', color: '#002f34' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>
-              {ad.userId?.name?.[0]?.toUpperCase() || '?'}
-            </div>
-            <div>
-              <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{ad.userId?.name || 'البائع'}</p>
-              <p style={{ margin: 0, color: '#666', fontSize: 12 }}>عرض الملف الشخصي والتقييمات →</p>
-            </div>
-          </div>
-        </a>
-      )}
-
-      {/* AI Translate Button */}
-      <AITranslate title={ad.title} description={ad.description} />
-
-      {/* Hashtags */}
-      {ad.hashtags && ad.hashtags.length > 0 && (
-        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {ad.hashtags.map((tag, i) => (
-            <a key={i} href={`/search?q=${tag}`}
-              style={{ padding: '4px 12px', background: '#e8f4f8', color: '#002f34', borderRadius: 20, fontSize: 12, textDecoration: 'none', fontWeight: 'bold' }}>
-              #{tag}
-            </a>
-          ))}
+      <button onClick={toggleSave} dir="rtl" style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: saved ? '2px solid #e44' : '2px solid #e0e0e0', background: saved ? '#fff0f0' : '#f8f8f8', color: saved ? '#cc2200' : '#555', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
+        <span style={{ fontSize: 18 }}>{saved ? '❤️' : '🤍'}</span>
+        <span>{saved ? 'محفوظ ✓' : 'احفظ الإعلان'}</span>
+      </button>
+      {sellerId && (<a href={`/profile/${sellerId}`} style={{ display: 'block', marginTop: 16, background: '#f8f8f8', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textDecoration: 'none', color: '#002f34' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>{ad.userId?.name?.[0]?.toUpperCase() || '?'}</div>
+          <div><p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{ad.userId?.name || 'البائع'}</p><p style={{ margin: 0, color: '#666', fontSize: 12 }}>عرض الملف الشخصي والتقييمات →</p></div>
         </div>
-      )}
-
-      {/* Share */}
+      </a>)}
+      <AITranslate title={ad.title} description={ad.description} />
+      {ad.hashtags && ad.hashtags.length > 0 && (<div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {ad.hashtags.map((tag, i) => (<a key={i} href={`/search?q=${tag}`} style={{ padding: '4px 12px', background: '#e8f4f8', color: '#002f34', borderRadius: 20, fontSize: 12, textDecoration: 'none', fontWeight: 'bold' }}>#{tag}</a>))}
+      </div>)}
       <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
-        <button onClick={() => navigator.share?.({ title: ad.title, url: window.location.href }) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))}
-          style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-          🔗 مشاركة الإعلان
-        </button>
-        <button onClick={() => { const report = prompt('سبب الإبلاغ:'); if (report) alert('تم الإبلاغ. شكراً'); }}
-          style={{ background: 'none', border: '1px solid #ddd', color: '#999', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-          🚩 إبلاغ
-        </button>
+        <button onClick={() => navigator.share?.({ title: ad.title, url: window.location.href }) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))} style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔗 مشاركة الإعلان</button>
+        <button onClick={() => { const report = prompt('سبب الإبلاغ:'); if (report) alert('تم الإبلاغ. شكراً'); }} style={{ background: 'none', border: '1px solid #ddd', color: '#999', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🚩 إبلاغ</button>
       </div>
     </div>
   );
