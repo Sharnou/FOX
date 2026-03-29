@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import AdDetailSkeleton from '../../components/AdDetailSkeleton';
 
 const API = 'https://fox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://fox-production.up.railway.app';
@@ -144,11 +145,7 @@ export default function AdPageClient({ params }) {
     setCallStatus('');
   }
 
-  if (!ad) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#002f34', fontSize: 20, fontFamily: "'Cairo', 'Tajawal', system-ui" }}>
-      جار التحميل...
-    </div>
-  );
+  if (!ad) return <AdDetailSkeleton />;
 
   const media = ad.media || [];
   const sellerId = ad.userId?._id || ad.userId;
