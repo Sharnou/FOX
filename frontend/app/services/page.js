@@ -3,6 +3,27 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import AdCardSkeleton from '../components/AdCardSkeleton';
+
+export const metadata = {
+  title: 'خدمات | XTOX - سوق محلي',
+  description: 'تصفح إعلانات الخدمات المتنوعة في منطقتك على XTOX. من السباكة إلى التصميم — اعثر على ما تحتاجه.',
+  openGraph: {
+    title: 'خدمات | XTOX - سوق محلي',
+    description: 'تصفح إعلانات الخدمات المتنوعة في منطقتك على XTOX.',
+    type: 'website',
+    locale: 'ar_EG',
+    siteName: 'XTOX',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'خدمات | XTOX',
+    description: 'تصفح إعلانات الخدمات المتنوعة في منطقتك على XTOX.',
+  },
+  alternates: {
+    canonical: 'https://fox-kohl-eight.vercel.app/services',
+  },
+};
+
 const API = process.env.NEXT_PUBLIC_API_URL || '';
 const WORKER_ICONS = { Plumber: '\ud83d\udd27', Electrician: '\u26a1', Carpenter: '\ud83e\udea5', Cleaner: '\ud83e\uddf9', Painter: '\ud83c\udfa8', Delivery: '\ud83d\ude9a', Gardener: '\ud83c\udf31', Driver: '\ud83d\ude97' };
 export default function ServicesPage() {
