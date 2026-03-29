@@ -57,9 +57,186 @@ function AITranslate({ title, description }) {
   );
 }
 
+/* ─── Image Carousel Component ─────────────────────────────────────────── */
+function ImageCarousel({ images, title }) {
+  const [idx, setIdx] = useState(0);
+  const [fading, setFading] = useState(false);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  const count = images.length;
+
+  function goTo(next) {
+    if (next === idx || fading) return;
+    setFading(true);
+    setTimeout(() => {
+      setIdx(next);
+      setFading(false);
+    }, 150);
+  }
+
+  function prev() { goTo((idx - 1 + count) % count); }
+  function next() { goTo((idx + 1) % count); }
+
+  function onTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function onTouchEnd(e) {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    // Only trigger if horizontal swipe dominates
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      // In RTL markets (Arabic): swipe right → next, swipe left → prev
+      // We use document.documentElement.dir to detect RTL
+      const isRTL = typeof document !== 'undefined' && document.documentElement.dir === 'rtl';
+      if (dx < 0) { isRTL ? prev() : next(); }
+      else { isRTL ? next() : prev(); }
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }
+
+  const navBtnBase = {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'rgba(0,0,0,0.45)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '50%',
+    width: 38,
+    height: 38,
+    fontSize: 18,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    userSelect: 'none',
+  };
+
+  return (
+    <div style={{ userSelect: 'none' }}>
+      {/* ── Main image with prev/next overlay ── */}
+      <div
+        style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#111' }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        <img
+          key={idx}
+          src={images[idx]}
+          alt={title}
+          loading={idx === 0 ? 'eager' : 'lazy'}
+          style={{
+            width: '100%',
+            maxHeight: 360,
+            objectFit: 'cover',
+            display: 'block',
+            opacity: fading ? 0 : 1,
+            transition: 'opacity 0.3s ease',
+          }}
+        />
+
+        {/* Prev / Next buttons — only when multiple images */}
+        {count > 1 && (
+          <>
+            <button
+              onClick={prev}
+              aria-label="الصورة السابقة"
+              style={{ ...navBtnBase, left: 8 }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.45)'}
+            >
+              ‹
+            </button>
+            <button
+              onClick={next}
+              aria-label="الصورة التالية"
+              style={{ ...navBtnBase, right: 8 }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.45)'}
+            >
+              ›
+            </button>
+
+            {/* Image counter badge */}
+            <div style={{
+              position: 'absolute',
+              bottom: 10,
+              right: 10,
+              background: 'rgba(0,0,0,0.55)',
+              color: 'white',
+              borderRadius: 20,
+              padding: '3px 10px',
+              fontSize: 12,
+              fontWeight: 'bold',
+              letterSpacing: '0.5px',
+            }}>
+              {idx + 1} / {count}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Dot indicators ── */}
+      {count > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 10 }}>
+          {images.map((_, i) => (
+            <button
+              key={i}
+              aria-label={`الصورة ${i + 1}`}
+              onClick={() => goTo(i)}
+              style={{
+                width: i === idx ? 22 : 8,
+                height: 8,
+                borderRadius: 4,
+                background: i === idx ? '#002f34' : '#ccc',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                transition: 'all 0.25s ease',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── Thumbnail strip ── */}
+      {count > 1 && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
+          {images.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              onClick={() => goTo(i)}
+              loading="lazy"
+              alt={`صورة ${i + 1}`}
+              style={{
+                width: 60,
+                height: 60,
+                objectFit: 'cover',
+                borderRadius: 8,
+                cursor: 'pointer',
+                border: i === idx ? '2px solid #002f34' : '2px solid #eee',
+                flexShrink: 0,
+                transition: 'border-color 0.2s',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdPageClient({ params }) {
   const [ad, setAd] = useState(null);
-  const [mediaIdx, setMediaIdx] = useState(0);
   const [callActive, setCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState('');
   const [socket, setSocket] = useState(null);
@@ -168,7 +345,9 @@ export default function AdPageClient({ params }) {
 
   if (!ad) return <AdDetailSkeleton />;
 
-  const media = ad.media || [];
+  // Normalise media: handle single string or array
+  const rawMedia = ad.media || ad.images || [];
+  const media = Array.isArray(rawMedia) ? rawMedia : [rawMedia].filter(Boolean);
   const sellerId = ad.userId?._id || ad.userId;
   const phone = ad?.phone || ad?.userId?.phone;
 
@@ -184,17 +363,7 @@ export default function AdPageClient({ params }) {
       {ad.video ? (
         <video src={ad.video} controls autoPlay style={{ width: '100%', borderRadius: 12, maxHeight: 360, objectFit: 'cover' }} />
       ) : media.length > 0 ? (
-        <div>
-          <img src={media[mediaIdx]} style={{ width: '100%', borderRadius: 12, maxHeight: 360, objectFit: 'cover' }} alt={ad.title} />
-          {media.length > 1 && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              {media.map((m, i) => (
-                <img key={i} src={m} onClick={() => setMediaIdx(i)}
-                  style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', border: i === mediaIdx ? '2px solid #002f34' : '2px solid #eee' }} alt="" />
-              ))}
-            </div>
-          )}
-        </div>
+        <ImageCarousel images={media} title={ad.title} />
       ) : (
         <div style={{ height: 200, background: '#f0f0f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 60 }}>📦</div>
       )}
