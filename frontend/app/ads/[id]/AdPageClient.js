@@ -35,8 +35,8 @@ function AITranslate({ title, description }) {
         <span style={{ fontSize: 12, color: '#0066cc', fontWeight: 'bold' }}>🌐 ترجمة</span>
         <button onClick={() => setTranslated(null)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
-      <p style={{ fontWeight: 'bold', margin: '0 0 4px', fontSize: 15 }}>{translated.title}</p>
-      <p style={{ color: '#555', margin: 0, fontSize: 13 }}>{translated.description}</p>
+      <p dir="auto" style={{ fontWeight: 'bold', margin: '0 0 4px', fontSize: 15 }}>{translated.title}</p>
+      <p dir="auto" style={{ color: '#555', margin: 0, fontSize: 13 }}>{translated.description}</p>
     </div>
   );
 
@@ -178,9 +178,9 @@ export default function AdPageClient({ params }) {
       )}
 
       {/* Ad Info */}
-      <h1 style={{ fontSize: 22, fontWeight: 'bold', marginTop: 16, marginBottom: 4 }}>{ad.title}</h1>
+      <h1 dir="auto" style={{ fontSize: 22, fontWeight: 'bold', marginTop: 16, marginBottom: 4 }}>{ad.title}</h1>
       <p style={{ fontSize: 26, color: '#002f34', fontWeight: 'bold', margin: '4px 0 8px' }}>{ad.price} {ad.currency}</p>
-      <p style={{ color: '#555', lineHeight: 1.6, marginBottom: 12 }}>{ad.description}</p>
+      <p dir="auto" style={{ color: '#555', lineHeight: 1.6, marginBottom: 12 }}>{ad.description}</p>
 
       <div style={{ display: 'flex', gap: 16, color: '#999', fontSize: 13, marginBottom: 8, flexWrap: 'wrap' }}>
         <span>📍 {ad.city}</span>
