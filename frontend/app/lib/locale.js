@@ -310,6 +310,9 @@ export async function detectAndSetLocale() {
     const locale = getLocale(country);
     
     localStorage.setItem('country', country);
+    // Auto-save location for nearby features
+    if (data.latitude) localStorage.setItem('userLat', data.latitude);
+    if (data.longitude) localStorage.setItem('userLng', data.longitude);
     localStorage.setItem('lang', locale.lang);
     localStorage.setItem('dir', locale.dir);
     localStorage.setItem('currency', locale.currency);
