@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
 
 const API = 'https://fox-production.up.railway.app';
