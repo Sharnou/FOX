@@ -4,6 +4,26 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import AdCardSkeleton from '../components/AdCardSkeleton';
 const API = process.env.NEXT_PUBLIC_API_URL || '';
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "CollectionPage",
+      "@id": "https://fox-kohl-eight.vercel.app/pharmacy",
+      "url": "https://fox-kohl-eight.vercel.app/pharmacy",
+      "name": "صيدلية XTOX",
+      "description": "تصفح إعلانات الأدوية والمنتجات الصحية في منطقتك",
+      "isPartOf": { "@id": "https://fox-kohl-eight.vercel.app" }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://fox-kohl-eight.vercel.app" },
+        { "@type": "ListItem", "position": 2, "name": "صيدلية", "item": "https://fox-kohl-eight.vercel.app/pharmacy" }
+      ]
+    }
+  ]
+};
 export default function PharmacyPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +36,7 @@ export default function PharmacyPage() {
   }, []);
   return (
     <div className="max-w-3xl mx-auto p-4">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="flex items-center gap-3 mb-6"><button onClick={() => history.back()} className="text-brand">←</button><h1 className="text-2xl font-bold text-brand">💊 الصيدلية</h1></div>
       <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4 text-sm">⚠️ تحقق دائمًا من تاريخ الانتهاء قبل الشراء</div>
       {loading ? (
