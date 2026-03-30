@@ -1,313 +1,332 @@
 'use client';
-export const dynamic = 'force-dynamic';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 
-// Category colors for map pins
-const CAT_COLORS = {
-  Vehicles: '#e53e3e',
-  Electronics: '#3182ce',
-  'Real Estate': '#38a169',
-  Jobs: '#d69e2e',
-  Services: '#805ad5',
-  Supermarket: '#dd6b20',
-  Pharmacy: '#e53e3e',
-  'Fast Food': '#d69e2e',
-  Fashion: '#ed64a6',
-  General: '#718096'
-};
-
-function haversineDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+// Max 5 recent map locations saved in localStorage
+const HISTORY_KEY = 'xtox_map_history';
+function saveMapHistory(lat, lng, zoom, label) {
+  try {
+    const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    const entry = { lat, lng, zoom, label, at: Date.now() };
+    const filtered = history.filter(h => Math.abs(h.lat - lat) > 0.01 || Math.abs(h.lng - lng) > 0.01);
+    const updated = [entry, ...filtered].slice(0, 5);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  } catch(e) {}
+}
+function getMapHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e) { return []; }
 }
 
 export default function NearbyPage() {
-  const [ads, setAds] = useState([]);
-  const [location, setLocation] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [radius, setRadius] = useState(10);
-  const [view, setView] = useState('map'); // 'map' | 'list'
-  const [shareData, setShareData] = useState(null);
-  const [showQR, setShowQR] = useState(false);
   const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
-  const country = typeof window !== 'undefined' ? localStorage.getItem('country') || 'EG' : 'EG';
+  const leafletMap = useRef(null);
+  const clusterGroup = useRef(null);
+  const watchId = useRef(null);
 
-  // Auto-detect location on load
+  const [ads, setAds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [radius, setRadius] = useState(5);
+  const [userPos, setUserPos] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [nearbyAlert, setNearbyAlert] = useState(null);
+  const [liveTracking, setLiveTracking] = useState(false);
+  const lastAlertAdId = useRef(null);
+
+  // Load Leaflet + MarkerCluster CSS
   useEffect(() => {
-    detectLocation();
+    if (document.getElementById('leaflet-css')) return;
+    const link1 = document.createElement('link');
+    link1.id = 'leaflet-css';
+    link1.rel = 'stylesheet';
+    link1.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link1);
+    const link2 = document.createElement('link');
+    link2.rel = 'stylesheet';
+    link2.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
+    document.head.appendChild(link2);
+    const link3 = document.createElement('link');
+    link3.rel = 'stylesheet';
+    link3.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
+    document.head.appendChild(link3);
   }, []);
 
-  // Initialize map when location changes
+  // Init map
   useEffect(() => {
-    if (location && view === 'map') {
-      initMap();
-    }
-  }, [location, ads, view]);
+    if (leafletMap.current || !mapRef.current) return;
+    let map, L;
 
-  // Cleanup map on unmount
-  useEffect(() => {
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
+    async function initMap() {
+      const leaflet = await import('leaflet');
+      L = leaflet.default;
+
+      // Fix default icons
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+
+      map = L.map(mapRef.current, { zoomControl: false }).setView([30.0444, 31.2357], 12);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      // CartoDB Positron — clean streets-only tiles, no schools/stores/government POI shown
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© XTOX | © OpenStreetMap | © CartoDB',
+        subdomains: 'abcd',
+        maxZoom: 20,
+      }).addTo(map);
+
+      leafletMap.current = map;
+
+      // Save map position to history when user stops moving
+      map.on('moveend', () => {
+        const c = map.getCenter();
+        const z = map.getZoom();
+        const label = `${c.lat.toFixed(3)}, ${c.lng.toFixed(3)}`;
+        saveMapHistory(c.lat, c.lng, z, label);
+        setHistory(getMapHistory());
+      });
+
+      // Load MarkerCluster
+      const MC = await import('leaflet.markercluster');
+      clusterGroup.current = L.markerClusterGroup({
+        maxClusterRadius: 60,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        iconCreateFunction: (cluster) => {
+          const count = cluster.getChildCount();
+          return L.divIcon({
+            html: `<div style="background:#002f34;color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-family:Cairo,sans-serif">${count}</div>`,
+            className: '',
+            iconSize: [36, 36],
+          });
+        },
+      });
+      map.addLayer(clusterGroup.current);
+
+      // Get user location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const { latitude: lat, longitude: lng } = pos.coords;
+            setUserPos({ lat, lng });
+            map.setView([lat, lng], 13);
+            saveMapHistory(lat, lng, 13, 'موقعك الحالي');
+            setHistory(getMapHistory());
+
+            // User location marker (blue circle)
+            L.circleMarker([lat, lng], {
+              radius: 10, fillColor: '#4285F4', color: '#fff',
+              fillOpacity: 0.9, weight: 2,
+            }).addTo(map).bindPopup('<div style="font-family:Cairo;direction:rtl;font-weight:700">📍 موقعك الحالي</div>');
+
+            fetchAds(lat, lng);
+          },
+          () => fetchAds(30.0444, 31.2357)
+        );
+      } else {
+        fetchAds(30.0444, 31.2357);
       }
+
+      setHistory(getMapHistory());
+    }
+
+    initMap();
+    return () => {
+      if (leafletMap.current) { leafletMap.current.remove(); leafletMap.current = null; }
+      if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
     };
   }, []);
 
-  function detectLocation() {
+  const fetchAds = useCallback(async (lat, lng) => {
     setLoading(true);
-    setError('');
-    if (!navigator.geolocation) {
-      setError('الموقع غير مدعوم في متصفحك');
-      setLoading(false);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        const loc = { lat, lng };
-        setLocation(loc);
-        // Save to localStorage for auto-sharing
-        localStorage.setItem('userLat', lat.toString());
-        localStorage.setItem('userLng', lng.toString());
-        await fetchNearbyAds(lat, lng, radius);
-        await fetchShareData(lat, lng);
-        setLoading(false);
-      },
-      (err) => {
-        setError('لم نتمكن من تحديد موقعك. الرجاء السماح بالوصول للموقع.');
-        setLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }
-
-  async function fetchNearbyAds(lat, lng, r) {
     try {
-      const res = await fetch(`${API}/api/geo/nearby?lat=${lat}&lng=${lng}&radius=${r}&country=${country}`);
-      if (res.ok) {
-        const data = await res.json();
-        setAds(Array.isArray(data) ? data : []);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API}/api/ads?lat=${lat}&lng=${lng}&radius=${radius}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      const adList = Array.isArray(data) ? data : (data.ads || []);
+      setAds(adList);
+      plotAds(adList);
+
+      // Check for new nearby ad (alert)
+      if (adList.length > 0 && adList[0]._id !== lastAlertAdId.current) {
+        lastAlertAdId.current = adList[0]._id;
+        if (adList[0].createdAt && Date.now() - new Date(adList[0].createdAt).getTime() < 3600000) {
+          setNearbyAlert(adList[0]);
+          setTimeout(() => setNearbyAlert(null), 6000);
+        }
       }
-    } catch { setAds([]); }
-  }
-
-  async function fetchShareData(lat, lng) {
-    try {
-      const res = await fetch(`${API}/api/geo/app-share?lat=${lat}&lng=${lng}`);
-      if (res.ok) setShareData(await res.json());
-    } catch {}
-  }
-
-  function initMap() {
-    if (typeof window === 'undefined' || !mapRef.current) return;
-    // Remove old map
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
+    } catch(e) {
+      console.error(e);
     }
-    markersRef.current = [];
+    setLoading(false);
+  }, [radius]);
 
-    // Load Leaflet dynamically
-    if (!window.L) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = () => createMap();
-      document.head.appendChild(script);
-    } else {
-      createMap();
-    }
-  }
-
-  function createMap() {
-    if (!mapRef.current || !window.L || !location) return;
+  const plotAds = (adList) => {
+    if (!clusterGroup.current || !window.L) return;
     const L = window.L;
+    clusterGroup.current.clearLayers();
 
-    const map = L.map(mapRef.current, { zoomControl: true, attributionControl: false }).setView(
-      [location.lat, location.lng], 13
-    );
+    adList.forEach(ad => {
+      const lat = ad.location?.coordinates?.[1] || ad.lat;
+      const lng = ad.location?.coordinates?.[0] || ad.lng;
+      if (!lat || !lng) return;
 
-    // OpenStreetMap tiles (free, no API key)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
-    }).addTo(map);
+      const img = ad.media?.[0] || ad.images?.[0] || '';
+      const price = ad.price ? `${Number(ad.price).toLocaleString('ar-EG')} ج.م` : 'السعر عند التواصل';
+      const dist = ad.distance ? `${(ad.distance/1000).toFixed(1)} كم` : '';
 
-    // User location - pulsing blue dot
-    const userIcon = L.divIcon({
-      className: '',
-      html: `<div style="width:16px;height:16px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 0 0 4px rgba(59,130,246,0.3);animation:pulse 2s infinite"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8]
-    });
-    L.marker([location.lat, location.lng], { icon: userIcon })
-      .bindPopup('<b>موقعك الحالي</b>')
-      .addTo(map);
-
-    // Radius circle
-    L.circle([location.lat, location.lng], {
-      radius: radius * 1000,
-      color: '#3b82f6',
-      fillColor: '#3b82f6',
-      fillOpacity: 0.05,
-      weight: 1,
-      dashArray: '5, 5'
-    }).addTo(map);
-
-    // Ad pins
-    ads.forEach(ad => {
-      if (!ad.location?.coordinates) return;
-      const [adLng, adLat] = ad.location.coordinates;
-      const color = CAT_COLORS[ad.category] || '#718096';
-      const dist = haversineDistance(location.lat, location.lng, adLat, adLng);
-
+      // Custom ad marker icon
       const icon = L.divIcon({
+        html: `<div style="background:#002f34;color:#fff;border-radius:10px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;font-family:Cairo,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2)">${ad.isFeatured ? '⭐ ' : ''}${price}</div>`,
         className: '',
-        html: `<div style="background:${color};color:white;padding:4px 8px;border-radius:12px;font-size:11px;font-weight:bold;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-family:Cairo,sans-serif">${ad.price} ${ad.currency || ''}</div>`,
-        iconSize: [null, null],
-        iconAnchor: [0, 0]
+        iconAnchor: [0, 0],
       });
 
-      const popup = `
-        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:200px">
-          ${ad.media?.[0] ? `<img src="${ad.media[0]}" style="width:100%;height:100px;object-fit:cover;border-radius:8px;margin-bottom:8px">` : ''}
-          <b style="font-size:14px">${ad.title?.slice(0,40)}</b><br>
-          <span style="color:#002f34;font-weight:bold;font-size:16px">${ad.price} ${ad.currency || ''}</span><br>
-          <span style="color:#666;font-size:12px">📍 ${dist.toFixed(1)} كم · ${ad.city || ''}</span><br>
-          <a href="/ads/${ad._id}" style="display:inline-block;margin-top:8px;background:#002f34;color:white;padding:6px 16px;border-radius:8px;text-decoration:none;font-size:13px">عرض الإعلان</a>
+      const marker = L.marker([lat, lng], { icon });
+
+      // Mini AdCard popup
+      const popupContent = `
+        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:200px;max-width:240px">
+          ${img ? `<img src="${img}" style="width:100%;height:110px;object-fit:cover;border-radius:8px;margin-bottom:8px" onerror="this.style.display='none'">` : ''}
+          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ad.title || 'إعلان'}</div>
+          <div style="color:#e74c3c;font-weight:700;font-size:13px;margin-bottom:4px">${price}</div>
+          ${dist ? `<div style="color:#888;font-size:11px;margin-bottom:6px">📍 ${dist}</div>` : ''}
+          <div style="display:flex;gap:6px">
+            <a href="/ads/${ad._id}" style="flex:1;background:#002f34;color:#fff;text-align:center;padding:7px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">عرض الإعلان</a>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="background:#4285F4;color:#fff;padding:7px 10px;border-radius:8px;font-size:12px;text-decoration:none">🗺️</a>
+          </div>
         </div>
       `;
 
-      const marker = L.marker([adLat, adLng], { icon })
-        .bindPopup(popup, { maxWidth: 220 })
-        .addTo(map);
-      markersRef.current.push(marker);
+      marker.bindPopup(popupContent, { maxWidth: 250, className: 'xtox-popup' });
+      clusterGroup.current.addLayer(marker);
     });
+  };
 
-    mapInstanceRef.current = map;
-
-    // Add pulse animation CSS
-    if (!document.getElementById('map-pulse-style')) {
-      const style = document.createElement('style');
-      style.id = 'map-pulse-style';
-      style.textContent = '@keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(59,130,246,0.3)}50%{box-shadow:0 0 0 8px rgba(59,130,246,0)}}';
-      document.head.appendChild(style);
-    }
-  }
-
-  function changeRadius(r) {
-    setRadius(r);
-    if (location) fetchNearbyAds(location.lat, location.lng, r);
-  }
-
-  function shareApp() {
-    if (!shareData) return;
-    if (navigator.share) {
-      navigator.share({ title: 'XTOX', text: shareData.shareText, url: shareData.shareUrl });
+  // Live location tracking
+  const toggleLiveTracking = () => {
+    if (liveTracking) {
+      if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+      setLiveTracking(false);
     } else {
-      navigator.clipboard?.writeText(shareData.shareUrl);
-      alert('تم نسخ الرابط!');
+      watchId.current = navigator.geolocation.watchPosition(pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setUserPos({ lat, lng });
+        if (leafletMap.current) leafletMap.current.setView([lat, lng], 15);
+        fetchAds(lat, lng);
+      }, null, { enableHighAccuracy: true, maximumAge: 10000 });
+      setLiveTracking(true);
     }
-  }
+  };
 
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cairo', system-ui", background: '#f5f5f5' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 60, animation: 'spin 2s linear infinite', display: 'inline-block' }}>📍</div>
-        <p style={{ color: '#002f34', fontWeight: 'bold', marginTop: 12 }}>جار تحديد موقعك...</p>
-        <p style={{ color: '#666', fontSize: 13 }}>يرجى السماح بالوصول للموقع</p>
-        <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  );
+  // Fly to history location
+  const flyToHistory = (h) => {
+    if (leafletMap.current) {
+      leafletMap.current.flyTo([h.lat, h.lng], h.zoom || 14, { duration: 1.2 });
+      fetchAds(h.lat, h.lng);
+    }
+    setShowHistory(false);
+  };
+
+  // Share current map area to Google Maps
+  const shareToGoogleMaps = () => {
+    if (!leafletMap.current) return;
+    const c = leafletMap.current.getCenter();
+    const url = `https://www.google.com/maps/@${c.lat},${c.lng},${leafletMap.current.getZoom()}z`;
+    if (navigator.share) {
+      navigator.share({ title: 'إعلانات XTOX في هذه المنطقة', url });
+    } else {
+      navigator.clipboard.writeText(url);
+      alert('تم نسخ رابط الخريطة!');
+    }
+  };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: "'Cairo', system-ui" }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', fontFamily: 'Cairo, sans-serif', direction: 'rtl', background: '#f5f5f5' }}>
+
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #002f34, #004d40)', color: 'white', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 500 }}>
-        <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}>←</button>
+      <div style={{ background: '#002f34', color: '#fff', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, zIndex: 1000, flexShrink: 0 }}>
+        <a href="/" style={{ color: '#fff', textDecoration: 'none', fontSize: 20 }}>←</a>
         <div style={{ flex: 1 }}>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 'bold' }}>📍 إعلانات قريبة منك</h1>
-          {location && <p style={{ margin: 0, fontSize: 12, opacity: 0.8 }}>{ads.length} إعلان في نطاق {radius} كم</p>}
+          <div style={{ fontWeight: 700, fontSize: 16 }}>🗺️ إعلانات قريبة</div>
+          <div style={{ fontSize: 12, opacity: 0.8 }}>{loading ? 'جار البحث...' : `${ads.length} إعلان في نطاق ${radius} كم`}</div>
         </div>
-        <button onClick={detectLocation} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', padding: '6px 12px', borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>🔄 تحديث</button>
+
+        {/* Live tracking */}
+        <button onClick={toggleLiveTracking} style={{ background: liveTracking ? '#e74c3c' : 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
+          {liveTracking ? '⏹ إيقاف' : '📡 مباشر'}
+        </button>
       </div>
 
-      {error && (
-        <div style={{ background: '#fff0f0', border: '1px solid #fcc', margin: 16, padding: 12, borderRadius: 12, color: '#c00', textAlign: 'center' }}>
-          ⚠️ {error}
-          <br /><button onClick={detectLocation} style={{ marginTop: 8, background: '#002f34', color: 'white', border: 'none', padding: '8px 20px', borderRadius: 10, cursor: 'pointer' }}>حاول مجدداً</button>
+      {/* Controls bar */}
+      <div style={{ background: '#fff', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, zIndex: 999, borderBottom: '1px solid #eee', flexShrink: 0, overflowX: 'auto' }}>
+        {/* Radius */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 12, color: '#666' }}>النطاق:</span>
+          {[1, 3, 5, 10, 25].map(r => (
+            <button key={r} onClick={() => { setRadius(r); if (userPos) fetchAds(userPos.lat, userPos.lng); }}
+              style={{ background: radius === r ? '#002f34' : '#f0f0f0', color: radius === r ? '#fff' : '#333', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+              {r} كم
+            </button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Recent history */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button onClick={() => setShowHistory(!showHistory)} style={{ background: '#f0f0f0', border: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+            🕐 السجل
+          </button>
+          {showHistory && history.length > 0 && (
+            <div style={{ position: 'absolute', top: '110%', left: 0, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 200, zIndex: 9999, overflow: 'hidden' }}>
+              {history.map((h, i) => (
+                <button key={i} onClick={() => flyToHistory(h)} style={{ display: 'block', width: '100%', textAlign: 'right', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f0f0f0', color: '#333' }}>
+                  📍 {h.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Share map */}
+        <button onClick={shareToGoogleMaps} style={{ background: '#4285F4', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+          🔗 مشاركة
+        </button>
+      </div>
+
+      {/* Map */}
+      <div ref={mapRef} style={{ flex: 1, zIndex: 1 }} />
+
+      {/* Nearby alert */}
+      {nearbyAlert && (
+        <div style={{ position: 'absolute', top: 130, right: 16, left: 16, zIndex: 9999, background: '#002f34', color: '#fff', borderRadius: 12, padding: '12px 16px', boxShadow: '0 4px 16px rgba(0,0,0,0.3)', animation: 'slideDown 0.3s ease', direction: 'rtl' }}>
+          <style>{`@keyframes slideDown{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 24 }}>🔔</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>إعلان جديد بالقرب منك!</div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>{nearbyAlert.title}</div>
+            </div>
+            <a href={`/ads/${nearbyAlert._id}`} style={{ background: '#fff', color: '#002f34', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>عرض</a>
+            <button onClick={() => setNearbyAlert(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 16, cursor: 'pointer' }}>✕</button>
+          </div>
         </div>
       )}
 
-      {location && (
-        <>
-          {/* Controls */}
-          <div style={{ background: 'white', padding: '10px 16px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-            {/* View toggle */}
-            <div style={{ display: 'flex', background: '#f0f0f0', borderRadius: 10, padding: 3 }}>
-              <button onClick={() => setView('map')} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: view === 'map' ? '#002f34' : 'transparent', color: view === 'map' ? 'white' : '#333', fontSize: 13, fontFamily: 'inherit' }}>🗺️ خريطة</button>
-              <button onClick={() => setView('list')} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: view === 'list' ? '#002f34' : 'transparent', color: view === 'list' ? 'white' : '#333', fontSize: 13, fontFamily: 'inherit' }}>📋 قائمة</button>
-            </div>
-            {/* Radius */}
-            {[5, 10, 20, 50].map(r => (
-              <button key={r} onClick={() => changeRadius(r)}
-                style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', background: radius === r ? '#002f34' : '#f0f0f0', color: radius === r ? 'white' : '#333', fontSize: 13, fontFamily: 'inherit' }}>
-                {r} كم
-              </button>
-            ))}
-            {/* Share */}
-            <button onClick={shareApp} style={{ marginRight: 'auto', background: '#00b09b', color: 'white', border: 'none', padding: '5px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>📤 شارك XTOX</button>
-          </div>
-
-          {/* Map View */}
-          {view === 'map' && (
-            <div ref={mapRef} style={{ height: 'calc(100vh - 130px)', width: '100%', zIndex: 1 }} />
-          )}
-
-          {/* List View */}
-          {view === 'list' && (
-            <div style={{ padding: 16 }}>
-              {ads.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>
-                  <div style={{ fontSize: 48 }}>🗺️</div>
-                  <p>لا توجد إعلانات في نطاق {radius} كم</p>
-                  <button onClick={() => changeRadius(50)} style={{ background: '#002f34', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit' }}>توسيع البحث إلى 50 كم</button>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                  {ads.map(ad => {
-                    const dist = ad.location?.coordinates ? haversineDistance(location.lat, location.lng, ad.location.coordinates[1], ad.location.coordinates[0]) : null;
-                    return (
-                      <a key={ad._id} href={`/ads/${ad._id}`} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                        <div style={{ height: 120, background: '#f0f0f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
-                          {ad.media?.[0] ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : '📦'}
-                        </div>
-                        <div style={{ padding: '10px 12px' }}>
-                          <p style={{ fontWeight: 'bold', fontSize: 13, margin: 0 }}>{ad.title?.slice(0, 28)}</p>
-                          <p style={{ color: '#002f34', fontWeight: 'bold', fontSize: 14, margin: '4px 0' }}>{ad.price} {ad.currency}</p>
-                          {dist && <p style={{ color: '#00aa44', fontSize: 12, margin: 0 }}>📍 {dist.toFixed(1)} كم</p>}
-                        </div>
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
+      <style>{`
+        .xtox-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .xtox-popup .leaflet-popup-content { margin: 12px; }
+        .xtox-popup .leaflet-popup-tip { background: #fff; }
+        .leaflet-marker-cluster { background: transparent !important; }
+      `}</style>
     </div>
   );
 }
