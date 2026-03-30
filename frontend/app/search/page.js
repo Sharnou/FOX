@@ -58,8 +58,56 @@ export default function SearchPage() {
     return true;
   });
 
+  // ── AggregateOffer JSON-LD Schema for Search Results ──────────────────────
+  const searchPrices = sorted.map(a => Number(a.price)).filter(p => p > 0);
+  const searchJsonLd = searched ? {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: query
+      ? `نتائج البحث عن "${query}" في XTOX`
+      : `إعلانات XTOX - ${category !== 'الكل' ? category : 'جميع الفئات'}`,
+    description: `نتائج البحث في سوق XTOX للإعلانات المبوبة`,
+    numberOfItems: sorted.length,
+    ...(searchPrices.length > 0 && {
+      offers: {
+        '@type': 'AggregateOffer',
+        offerCount: sorted.length,
+        lowPrice: Math.min(...searchPrices),
+        highPrice: Math.max(...searchPrices),
+        priceCurrency: 'EGP',
+      },
+    }),
+    itemListElement: sorted.slice(0, 10).map((ad, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      item: {
+        '@type': 'Product',
+        name: ad.title,
+        url: `https://xtox.app/ads/${ad._id}`,
+        image: ad.media?.[0] || undefined,
+        offers: {
+          '@type': 'Offer',
+          price: ad.price,
+          priceCurrency: ad.currency || 'EGP',
+          availability: 'https://schema.org/InStock',
+          itemCondition: 'https://schema.org/UsedCondition',
+        },
+      },
+    })),
+  } : null;
+  // ──────────────────────────────────────────────────────────────────────────
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>
+
+      {/* JSON-LD Structured Data — AggregateOffer for Search Results */}
+      {searchJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(searchJsonLd) }}
+        />
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 20, cursor: 'pointer' }}>←</button>
         <h1 style={{ color: '#002f34', margin: 0, fontSize: 22, fontWeight: 'bold' }}>🔍 البحث</h1>
