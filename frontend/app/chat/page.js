@@ -176,6 +176,29 @@ function IncomingCallModal({ from, onAccept, onReject }) {
   );
 }
 
+
+// ─── Location message card ────────────────────────────────────────────────────
+function LocationCard({ msg }) {
+  return (
+    <div style={{ background: '#f0f7ff', border: '1px solid #4285F4', borderRadius: 12, padding: '10px 14px', minWidth: 200 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 20 }}>📍</span>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#002f34' }}>موقعي الحالي</div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <a href={`https://www.google.com/maps?q=${msg.lat},${msg.lng}`} target="_blank" rel="noopener noreferrer"
+          style={{ flex: 1, background: '#4285F4', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+          🗺️ عرض
+        </a>
+        <a href={`https://www.google.com/maps/dir/?api=1&destination=${msg.lat},${msg.lng}`} target="_blank" rel="noopener noreferrer"
+          style={{ flex: 1, background: '#002f34', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+          🚗 اتجاهات
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function ChatPage() {
   const [myId, setMyId]           = useState('');
@@ -363,6 +386,28 @@ export default function ChatPage() {
       socketRef.current.emit('typing', { to: targetId, from: myId });
     }
   }
+
+
+  // ── Share location ─────────────────────────────────────────────────────────
+  const shareLocation = () => {
+    if (!navigator.geolocation) return alert('GPS غير متاح');
+    navigator.geolocation.getCurrentPosition(pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      const locationMsg = {
+        type: 'location',
+        lat,
+        lng,
+        label: 'موقعي الحالي',
+        text: `📍 موقعي: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        from: 'me',
+        time: Date.now(),
+      };
+      if (socketRef.current && targetId) {
+        socketRef.current.emit('send_message', { from: myId, to: targetId, ...locationMsg });
+      }
+      setMessages(prev => [...prev, locationMsg]);
+    });
+  };
 
   // ── Call button config ────────────────────────────────────────────────────
   const callConfig = {
@@ -566,36 +611,45 @@ export default function ChatPage() {
                 justifyContent: isSent ? 'flex-end' : 'flex-start',
               }}
             >
-              <div
-                dir="rtl"
-                role="article"
-                aria-label={isSent ? 'رسالتك' : `رسالة من ${m.from}`}
-                style={{
-                  maxWidth: '75%',
-                  padding: '10px 14px',
-                  borderRadius: isSent
-                    ? '18px 18px 4px 18px'
-                    : '18px 18px 18px 4px',
-                  background: isSent ? '#f97316' : '#ffffff',
-                  color: isSent ? '#ffffff' : '#1e293b',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
-                  fontSize: 15,
-                  lineHeight: 1.55,
-                  wordBreak: 'break-word',
-                }}
-              >
-                <div>{m.text}</div>
+              {m.type === 'location' ? (
+                <div>
+                  <LocationCard msg={m} />
+                  <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right', color: '#64748b' }}>
+                    {arabicRelTime(m.time)}
+                  </div>
+                </div>
+              ) : (
                 <div
+                  dir="rtl"
+                  role="article"
+                  aria-label={isSent ? 'رسالتك' : `رسالة من ${m.from}`}
                   style={{
-                    fontSize: 11,
-                    marginTop: 4,
-                    opacity: 0.65,
-                    textAlign: isSent ? 'left' : 'right',
+                    maxWidth: '75%',
+                    padding: '10px 14px',
+                    borderRadius: isSent
+                      ? '18px 18px 4px 18px'
+                      : '18px 18px 18px 4px',
+                    background: isSent ? '#f97316' : '#ffffff',
+                    color: isSent ? '#ffffff' : '#1e293b',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+                    fontSize: 15,
+                    lineHeight: 1.55,
+                    wordBreak: 'break-word',
                   }}
                 >
-                  {arabicRelTime(m.time)}
+                  <div>{m.text}</div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      marginTop: 4,
+                      opacity: 0.65,
+                      textAlign: isSent ? 'left' : 'right',
+                    }}
+                  >
+                    {arabicRelTime(m.time)}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           );
         })}
@@ -620,6 +674,27 @@ export default function ChatPage() {
             direction: 'rtl',
           }}
         >
+          <button
+            onClick={shareLocation}
+            aria-label="مشاركة الموقع"
+            title="مشاركة موقعي الحالي"
+            style={{
+              background: '#f0f7ff',
+              border: '1.5px solid #4285F4',
+              borderRadius: '50%',
+              width: 46,
+              height: 46,
+              cursor: 'pointer',
+              fontSize: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'background 0.2s',
+            }}
+          >
+            📍
+          </button>
           <input
             value={msg}
             onChange={handleTyping}
