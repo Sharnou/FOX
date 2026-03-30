@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Ad from '../models/Ad.js';
 import Report from '../models/Report.js';
@@ -103,4 +104,38 @@ router.post('/create-simulation', superAdminAuth, async (req, res) => {
   res.json(user);
 });
 
+
+// Admin-only: clean duplicate seed data (run once to fix the 115MB bloat)
+router.post('/cleanup-duplicates', adminAuth, async (req, res) => {
+  try {
+    const results = {};
+    
+    // Remove duplicate countries (keep only one per code)
+    const Country = mongoose.models.Country;
+    if (Country) {
+      const countries = await Country.find({});
+      const seen = new Set();
+      let deleted = 0;
+      for (const c of countries) {
+        const key = c.code || c.name;
+        if (seen.has(key)) { await Country.deleteOne({ _id: c._id }); deleted++; }
+        else seen.add(key);
+      }
+      results.countries = deleted;
+    }
+    
+    // Remove errors older than 7 days
+    const ErrorModel = mongoose.models.Error || mongoose.models.AppError;
+    if (ErrorModel) {
+      const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const r = await ErrorModel.deleteMany({ createdAt: { $lt: cutoff } });
+      results.errors = r.deletedCount;
+    }
+    
+    res.json({ success: true, cleaned: results });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 export default router;
+
