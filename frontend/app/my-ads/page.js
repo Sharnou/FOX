@@ -134,10 +134,19 @@ export default function MyAdsPage() {
                       <div style={{ background: '#f0f0f0', borderRadius: 4, height: 4, marginBottom: 8, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${expiryPercent}%`, background: daysLeft <= 7 ? '#e44' : daysLeft <= 15 ? '#ffd700' : '#00aa44', borderRadius: 4, transition: 'width 0.3s' }} />
                       </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <a href={`/ads/${ad._id}`} style={{ background: '#f0f0f0', color: '#333', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>👁 عرض</a>
                         <a href={`/sell?edit=${ad._id}`} style={{ background: '#e8f0fe', color: '#1a56db', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>✏️ تعديل</a>
                         <button onClick={() => deleteAd(ad._id)} style={{ background: '#fff0f0', color: '#e44', border: 'none', padding: '4px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 'bold', fontFamily: 'inherit' }}>حذف</button>
+                        <a href={`/promote?adId=${ad._id}&title=${encodeURIComponent(ad.title)}`}
+                          style={{
+                            display:'inline-block', background: ad.isFeatured ? '#FFD700' : '#002f34',
+                            color: ad.isFeatured ? '#000' : '#fff',
+                            padding:'4px 12px', borderRadius:8, fontSize:12, fontWeight:'bold',
+                            textDecoration:'none',
+                          }}>
+                          {ad.isFeatured ? '⭐ مميز حتى ' + new Date(ad.featuredUntil).toLocaleDateString('ar-EG') : '🚀 روّج'}
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -203,3 +212,4 @@ export default function MyAdsPage() {
     </div>
   );
 }
+
