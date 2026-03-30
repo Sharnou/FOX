@@ -21,6 +21,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [popup, setPopup] = useState(null);
   const [popupMuted, setPopupMuted] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
 
   useEffect(() => {
     async function init() {
@@ -33,6 +34,10 @@ export default function Home() {
       try {
         const u = localStorage.getItem('user');
         if (u) setUser(JSON.parse(u));
+      } catch {}
+      try {
+        const saved = JSON.parse(localStorage.getItem('xtox_saved_ads') || '[]');
+        setSavedCount(Array.isArray(saved) ? saved.length : 0);
       } catch {}
       await fetchAds(CAT_VALS[0], loc.country);
       const lastPopup = localStorage.getItem('lastPopup');
@@ -87,6 +92,14 @@ export default function Home() {
           placeholder={t.search}
           style={{ flex: 1, padding: '8px 14px', borderRadius: 20, border: 'none', fontSize: 14, background: 'rgba(255,255,255,0.15)', color: 'white', outline: 'none', textAlign: isRTL ? 'right' : 'left' }} />
         <a href="/sell" style={{ background: '#00b09b', color: 'white', padding: '8px 16px', borderRadius: 20, textDecoration: 'none', fontWeight: 'bold', fontSize: 14, whiteSpace: 'nowrap' }}>{t.sell}</a>
+        <a href="/saved" title={locale.lang === 'ar' ? 'المحفوظات' : locale.lang === 'de' ? 'Gespeichert' : locale.lang === 'fr' ? 'Favoris' : 'Saved'} style={{ position: 'relative', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.15)', borderRadius: '50%', textDecoration: 'none', flexShrink: 0 }}>
+          <span style={{ fontSize: 18 }}>🔖</span>
+          {savedCount > 0 && (
+            <span style={{ position: 'absolute', top: -4, right: -4, background: '#ff4d4d', color: 'white', borderRadius: '50%', fontSize: 10, fontWeight: 'bold', minWidth: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1 }}>
+              {savedCount > 9 ? '9+' : savedCount}
+            </span>
+          )}
+        </a>
         {user ? (
           <a href={`/profile/${user.id}`} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', textDecoration: 'none', color: 'white', fontSize: 16, flexShrink: 0 }}>
             {user.avatar ? <img src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt="" /> : user.name?.[0]?.toUpperCase()}
