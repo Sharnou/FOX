@@ -40,11 +40,11 @@ router.get('/', async (req, res) => {
 
     // REGULAR ADS: high ranking first, exclude already-shown featured
     const featuredIds = featuredAds.map(a => a._id.toString());
-    const regularFilter = { ...filter, isFeatured: false };
+    const regularFilter = { ...filter };
     if (featuredIds.length) regularFilter._id = { $nin: featuredIds };
 
     const regularAds = await Ad.find(regularFilter)
-      .sort({ visibilityScore: -1, createdAt: -1 })
+      .sort({ isFeatured: -1, featuredUntil: -1, visibilityScore: -1, createdAt: -1 })
       .skip(Number(page) * 20)
       .limit(20);
 
@@ -242,3 +242,4 @@ router.post('/:id/republish', auth, async (req, res) => {
 });
 
 export default router;
+
