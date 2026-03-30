@@ -43,6 +43,7 @@ import paymentRoutes from '../routes/payment.js';
 
 const logger = pino();
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors({
   origin: function(origin, callback) {
     // Allow all Vercel deployments, Railway, localhost
