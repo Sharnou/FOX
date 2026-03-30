@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 const PLANS = [
@@ -13,45 +13,8 @@ const PLANS = [
 export default function PromotePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const adId = searchParams.get('adId');
   const adTitle = searchParams.get('title') || 'إعلانك';
   const [selected, setSelected] = useState('7days');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
-
-  async function handlePromote() {
-    if (!adId) return alert('لم يتم تحديد الإعلان');
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/api/payment/create-checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ adId, plan: selected }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else if (data.success) {
-        setSuccess(true);
-        setTimeout(() => router.push('/my-ads'), 2000);
-      } else {
-        alert(data.error || 'حدث خطأ');
-      }
-    } catch (err) {
-      alert('حدث خطأ في الاتصال');
-    }
-    setLoading(false);
-  }
-
-  if (success) return (
-    <div style={{ minHeight:'100vh', background:'#002f34', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:'Cairo,sans-serif', direction:'rtl', color:'#fff' }}>
-      <div style={{ fontSize:80 }}>🎉</div>
-      <h2 style={{ fontSize:28, marginTop:16 }}>تم تفعيل الإعلان المميز!</h2>
-      <p style={{ color:'#ffffffaa' }}>جاري التحويل...</p>
-    </div>
-  );
 
   return (
     <div style={{ minHeight:'100vh', background:'#f5f5f5', fontFamily:'Cairo,sans-serif', direction:'rtl', padding:'24px 16px' }}>
@@ -88,21 +51,19 @@ export default function PromotePage() {
           </div>
         ))}
 
-        {/* Promote button */}
-        <button onClick={handlePromote} disabled={loading}
-          style={{ width:'100%', background: loading ? '#aaa' : '#002f34', color:'#fff', border:'none', borderRadius:16, padding:'16px', fontSize:18, fontWeight:700, cursor: loading ? 'not-allowed' : 'pointer', marginTop:8, boxShadow:'0 4px 16px rgba(0,47,52,0.3)' }}>
-          {loading ? '⏳ جار المعالجة...' : '💳 ادفع وروّج الآن'}
-        </button>
-
-        {/* Payment methods */}
-        <div style={{ textAlign:'center', marginTop:16, color:'#666', fontSize:13 }}>
-          <div style={{ marginBottom:6 }}>طرق الدفع المتاحة:</div>
-          <div style={{ display:'flex', justifyContent:'center', gap:12, flexWrap:'wrap' }}>
-            {['💳 Visa/MasterCard', '📱 Vodafone Cash', '🏧 Fawry', '💸 Instapay'].map(m => (
-              <span key={m} style={{ background:'#f0f0f0', padding:'4px 12px', borderRadius:20, fontSize:12 }}>{m}</span>
-            ))}
-          </div>
+        {/* Coming Soon button */}
+        <div style={{
+          width:'100%', background:'#e8e8e8', color:'#999', border:'none',
+          borderRadius:16, padding:'16px', fontSize:16, fontWeight:700,
+          marginTop:8, textAlign:'center', cursor:'not-allowed',
+          boxShadow:'none',
+        }}>
+          ⏳ الدفع قريباً
         </div>
+
+        <p style={{ textAlign:'center', color:'#aaa', fontSize:13, marginTop:12 }}>
+          سيتم تفعيل الدفع قريباً — ترقب التحديثات
+        </p>
 
         <button onClick={() => router.back()} style={{ width:'100%', background:'transparent', color:'#999', border:'none', marginTop:16, fontSize:14, cursor:'pointer' }}>
           رجوع
