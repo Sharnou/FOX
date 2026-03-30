@@ -1,5 +1,11 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+
+// Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality)
+function optimizeImage(url, width = 400) {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
+}
 import AdDetailSkeleton from '../../components/AdDetailSkeleton';
 
 const API = 'https://fox-production.up.railway.app';
@@ -108,7 +114,7 @@ function ImageCarousel({ images, title }) {
     <div style={{ userSelect: 'none' }}>
       <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#111' }}
         onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <img key={idx} src={images[idx]} alt={title}
+        <img key={idx} src={optimizeImage(images[idx], 800)} alt={title}
           loading={idx === 0 ? 'eager' : 'lazy'}
           style={{ width: '100%', maxHeight: 360, objectFit: 'cover', display: 'block',
             opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease' }} />
@@ -138,7 +144,7 @@ function ImageCarousel({ images, title }) {
       {count > 1 && (
         <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
           {images.map((src, i) => (
-            <img key={i} src={src} onClick={() => goTo(i)} loading="lazy" alt={`صورة ${i + 1}`}
+            <img key={i} src={optimizeImage(src, 800)} onClick={() => goTo(i)} loading="lazy" alt={`صورة ${i + 1}`}
               style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, cursor: 'pointer',
                 border: i === idx ? '2px solid #002f34' : '2px solid #eee', flexShrink: 0,
                 transition: 'border-color 0.2s' }} />
@@ -324,3 +330,4 @@ export default function AdPageClient({ params }) {
     </div>
   );
 }
+
