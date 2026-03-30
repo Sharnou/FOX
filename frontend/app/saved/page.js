@@ -6,7 +6,7 @@ import AdCardSkeleton from '../components/AdCardSkeleton';
 
 const AdCard = dynamic(() => import('../components/AdCard'), { ssr: false });
 
-const BACKEND = 'https://fox-production.up.railway.app';
+const BACKEND = 'https://xtox.up.railway.app';
 
 export default function SavedPage() {
   const [ads, setAds] = useState([]);
