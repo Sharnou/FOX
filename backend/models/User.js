@@ -18,4 +18,8 @@ const UserSchema = new mongoose.Schema({
   favorites: [String], blockedUsers: [String],
   lastActive: Date, createdAt: { type: Date, default: Date.now }
 });
+
+UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ country: 1 });
 export default mongoose.model('User', UserSchema);
+
