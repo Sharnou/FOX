@@ -7,6 +7,7 @@ function toArabicNumerals(n) {
   return String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
 }
 
+// ★ Seller Rating Stars — run 36: switched from inline style to Tailwind className
 function StarRating({ rating, count }) {
   if (rating === null || rating === undefined) {
     return (
@@ -17,11 +18,15 @@ function StarRating({ rating, count }) {
   }
   const filled = Math.round(rating);
   return (
-    <span className="text-xs inline-flex items-center gap-0.5" title={`${rating}/5`} dir="rtl">
+    <span
+      className="text-xs inline-flex items-center gap-0.5"
+      title={`${rating}/5`}
+      dir="rtl"
+    >
       {Array.from({ length: 5 }, (_, i) => (
         <span
           key={i}
-          style={{ color: i < filled ? '#F59E0B' : '#D1D5DB' }}
+          className={i < filled ? 'text-yellow-400' : 'text-gray-300'}
         >
           {i < filled ? '★' : '☆'}
         </span>
