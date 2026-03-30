@@ -2,19 +2,33 @@
 
 import { useState } from 'react';
 
-function StarRating({ reputation }) {
-  if (reputation === null || reputation === undefined) {
+// Convert Western numerals to Arabic-Indic numerals for RTL UI
+function toArabicNumerals(n) {
+  return String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+}
+
+function StarRating({ rating, count }) {
+  if (rating === null || rating === undefined) {
     return (
-      <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">جديد</span>
+      <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+        بائع جديد
+      </span>
     );
   }
-  const rating = Math.round(reputation);
+  const filled = Math.round(rating);
   return (
-    <span className="text-xs text-yellow-500" title={`${reputation}/5`}>
+    <span className="text-xs inline-flex items-center gap-0.5" title={`${rating}/5`} dir="rtl">
       {Array.from({ length: 5 }, (_, i) => (
-        <span key={i}>{i < rating ? '★' : '☆'}</span>
+        <span
+          key={i}
+          style={{ color: i < filled ? '#F59E0B' : '#D1D5DB' }}
+        >
+          {i < filled ? '★' : '☆'}
+        </span>
       ))}
-      <span className="text-gray-400 ms-1">({Number(reputation).toFixed(1)})</span>
+      {count != null && (
+        <span className="text-gray-400 ms-1 text-xs">({toArabicNumerals(count)})</span>
+      )}
     </span>
   );
 }
@@ -24,7 +38,20 @@ export default function AdCard({ ad }) {
 
   if (!ad) return null;
 
-  const reputation = ad.userId?.reputation ?? ad.reputation ?? null;
+  // Support sellerRating / rating fields; fall back to reputation for backwards compat
+  const rating =
+    ad.sellerRating ??
+    ad.rating ??
+    ad.userId?.reputation ??
+    ad.reputation ??
+    null;
+
+  // Support multiple possible count field names
+  const ratingCount =
+    ad.ratingCount ??
+    ad.ratingsCount ??
+    ad.userId?.ratingCount ??
+    null;
 
   const handleShare = async (e) => {
     e.preventDefault();
@@ -82,7 +109,7 @@ export default function AdCard({ ad }) {
         <p className="font-bold text-sm line-clamp-2">{ad.title}</p>
         <p className="text-brand font-bold mt-1">{ad.price} {ad.currency}</p>
         <div className="mt-1">
-          <StarRating reputation={reputation} />
+          <StarRating rating={rating} count={ratingCount} />
         </div>
         <p className="text-xs text-gray-500 mt-1">👁 {ad.views} | {ad.city}</p>
       </div>
