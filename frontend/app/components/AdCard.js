@@ -83,7 +83,23 @@ export default function AdCard({ ad }) {
   };
 
   return (
-    <a href={`/ads/${ad._id}`} className="bg-white rounded-xl shadow hover:shadow-lg transition block slide-in relative">
+    <a href={`/ads/${ad._id}`} className="bg-white rounded-xl transition block slide-in relative"
+      style={{
+        border: ad.isFeatured ? '2px solid #FFD700' : '1px solid #eee',
+        boxShadow: ad.isFeatured ? '0 4px 16px rgba(255,165,0,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
+      }}>
+      {ad.isFeatured && (
+        <div style={{
+          position:'absolute', top:8, left:8, zIndex:5,
+          background:'linear-gradient(135deg,#FFD700,#FFA500)',
+          color:'#000', fontSize:11, fontWeight:700,
+          padding:'3px 10px', borderRadius:10,
+          boxShadow:'0 2px 8px rgba(255,165,0,0.4)',
+          display:'flex', alignItems:'center', gap:4,
+        }}>
+          ⭐ مميز
+        </div>
+      )}
       {/* Share button */}
       <button
         onClick={handleShare}
@@ -121,3 +137,4 @@ export default function AdCard({ ad }) {
     </a>
   );
 }
+
