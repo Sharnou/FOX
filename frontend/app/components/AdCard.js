@@ -2,6 +2,13 @@
 
 import { useState } from 'react';
 
+// Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality, w_400=resize)
+function optimizeImage(url, width = 400) {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
+}
+
+
 // Convert Western numerals to Arabic-Indic numerals for RTL UI
 function toArabicNumerals(n) {
   return String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
@@ -117,7 +124,7 @@ export default function AdCard({ ad }) {
         <div className="relative w-full h-44 overflow-hidden rounded-t-xl">
           <img
             loading="lazy"
-            src={ad.media[0]}
+            src={optimizeImage(ad.media[0])}
             className="w-full h-full object-cover img-blur-load"
             alt={ad.title}
             onLoad={e => e.target.classList.add('loaded')}
@@ -137,4 +144,5 @@ export default function AdCard({ ad }) {
     </a>
   );
 }
+
 
