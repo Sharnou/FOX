@@ -51,6 +51,11 @@ export default function MyAdsPage() {
   const activeAds = data.active || [];
   const expiredAds = data.expired || [];
 
+  // Performance stats for active ads
+  const totalViews = activeAds.reduce((sum, ad) => sum + (ad.views || 0), 0);
+  const bestAd = activeAds.length > 0 ? activeAds.reduce((best, ad) => (ad.views || 0) > (best.views || 0) ? ad : best, activeAds[0]) : null;
+  const featuredCount = activeAds.filter(ad => ad.isFeatured).length;
+
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -58,6 +63,32 @@ export default function MyAdsPage() {
         <h1 style={{ color: '#002f34', margin: 0, fontSize: 22, fontWeight: 'bold' }}>إعلاناتي</h1>
         <a href="/sell" style={{ marginRight: 'auto', background: '#002f34', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}>+ إعلان جديد</a>
       </div>
+
+      {/* Performance Stats Banner */}
+      {!loading && activeAds.length > 0 && (
+        <div style={{ background: 'linear-gradient(135deg, #002f34 0%, #00514a 100%)', borderRadius: 16, padding: '16px 20px', marginBottom: 20, color: 'white', boxShadow: '0 4px 12px rgba(0,47,52,0.25)' }}>
+          <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.85 }}>📊 أداء إعلاناتك النشطة</p>
+          <div style={{ display: 'flex', gap: 0, textAlign: 'center' }}>
+            <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.2)' }}>
+              <div style={{ fontSize: 26, fontWeight: 'bold' }}>{activeAds.length}</div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>إعلان نشط</div>
+            </div>
+            <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.2)' }}>
+              <div style={{ fontSize: 26, fontWeight: 'bold' }}>{totalViews.toLocaleString('ar-EG')}</div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>مشاهدة إجمالية</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 26, fontWeight: 'bold' }}>{featuredCount}</div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>إعلان مميز ⭐</div>
+            </div>
+          </div>
+          {bestAd && bestAd.views > 0 && (
+            <div style={{ marginTop: 12, background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '8px 12px', fontSize: 13 }}>
+              🏆 الأكثر مشاهدة: <strong>{bestAd.title?.slice(0, 30)}</strong> — {bestAd.views} مشاهدة
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', background: 'white', borderRadius: 12, padding: 4, marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
         <button onClick={() => setTab('active')}
@@ -85,21 +116,27 @@ export default function MyAdsPage() {
               )}
               {activeAds.map(ad => {
                 const daysLeft = Math.max(0, Math.ceil((new Date(ad.expiresAt) - Date.now()) / (24 * 60 * 60 * 1000)));
+                const expiryPercent = Math.min(100, Math.round((daysLeft / 45) * 100));
                 return (
                   <div key={ad._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', gap: 14 }}>
                     <div style={{ width: 80, height: 80, borderRadius: 10, background: '#f0f0f0', overflow: 'hidden', flexShrink: 0 }}>
                       {ad.media?.[0] ? <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>📦</div>}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontWeight: 'bold', margin: 0, fontSize: 15 }}>{ad.title}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 'bold', margin: 0, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ad.title}</p>
                       <p style={{ color: '#002f34', fontWeight: 'bold', margin: '4px 0', fontSize: 16 }}>{ad.price} {ad.currency}</p>
-                      <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#999' }}>
+                      <div style={{ display: 'flex', gap: 10, fontSize: 12, color: '#999', flexWrap: 'wrap', marginBottom: 6 }}>
                         <span>👁 {ad.views}</span>
-                        <span style={{ color: daysLeft <= 7 ? '#e44' : '#00aa44', fontWeight: 'bold' }}>⏰ {daysLeft} يوم متبقي</span>
+                        <span style={{ color: daysLeft <= 7 ? '#e44' : '#00aa44', fontWeight: 'bold' }}>⏰ {daysLeft} يوم</span>
                         {ad.isFeatured && <span style={{ color: '#ffd700' }}>⭐ مميز</span>}
                       </div>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        <a href={`/ads/${ad._id}`} style={{ background: '#f0f0f0', color: '#333', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>عرض</a>
+                      {/* Expiry Progress Bar */}
+                      <div style={{ background: '#f0f0f0', borderRadius: 4, height: 4, marginBottom: 8, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${expiryPercent}%`, background: daysLeft <= 7 ? '#e44' : daysLeft <= 15 ? '#ffd700' : '#00aa44', borderRadius: 4, transition: 'width 0.3s' }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <a href={`/ads/${ad._id}`} style={{ background: '#f0f0f0', color: '#333', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>👁 عرض</a>
+                        <a href={`/sell?edit=${ad._id}`} style={{ background: '#e8f0fe', color: '#1a56db', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>✏️ تعديل</a>
                         <button onClick={() => deleteAd(ad._id)} style={{ background: '#fff0f0', color: '#e44', border: 'none', padding: '4px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 'bold', fontFamily: 'inherit' }}>حذف</button>
                       </div>
                     </div>
