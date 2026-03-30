@@ -2,10 +2,48 @@
 export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 
+// Mock seller reviews data (ready for API integration)
+const MOCK_REVIEWS = [
+  {
+    id: 1,
+    reviewer: 'أحمد الرشيد',
+    rating: 5,
+    comment: 'بائع ممتاز، التواصل سريع والمنتج كما وُصف تماماً. أنصح بالتعامل معه.',
+    date: '2024-11-15',
+  },
+  {
+    id: 2,
+    reviewer: 'سارة المنصور',
+    rating: 4,
+    comment: 'تجربة جيدة جداً، السلعة وصلت في الوقت المحدد وبحالة ممتازة.',
+    date: '2024-10-28',
+  },
+  {
+    id: 3,
+    reviewer: 'محمد العلي',
+    rating: 5,
+    comment: 'من أفضل البائعين في المنصة، صادق وأمين في التعاملات.',
+    date: '2024-10-10',
+  },
+];
+
+function StarRating({ rating }) {
+  return (
+    <span className="flex gap-0.5" aria-label={`${rating} من 5 نجوم`}>
+      {[1, 2, 3, 4, 5].map((s) => (
+        <span key={s} className={s <= rating ? 'text-yellow-400' : 'text-gray-300'}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export default function ProfilePage() {
   const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
   const [name, setName] = useState(user.name || '');
   const [avatar, setAvatar] = useState(user.avatar || '');
+  const [reviewsOpen, setReviewsOpen] = useState(false);
 
   // Seller stats derived from localStorage
   const myAdsCount = typeof window !== 'undefined' ? (() => {
@@ -18,6 +56,8 @@ export default function ProfilePage() {
     ? new Date(user.createdAt).getFullYear()
     : new Date().getFullYear();
   const isVerified = Boolean(user.phone || user.email);
+
+  const avgRating = (MOCK_REVIEWS.reduce((s, r) => s + r.rating, 0) / MOCK_REVIEWS.length).toFixed(1);
 
   function saveProfile() {
     const updated = { ...user, name, avatar };
@@ -68,15 +108,53 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Seller Reviews Section — RTL, collapsible */}
+      <div className="bg-white rounded-2xl shadow mb-6 overflow-hidden" dir="rtl">
+        <button
+          onClick={() => setReviewsOpen(!reviewsOpen)}
+          className="w-full flex items-center justify-between p-4 text-right focus:outline-none"
+          aria-expanded={reviewsOpen}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-700">⭐ تقييمات البائع</span>
+            <span className="bg-yellow-100 text-yellow-700 text-xs font-bold px-2 py-0.5 rounded-full">
+              {avgRating} / 5
+            </span>
+            <span className="text-xs text-gray-400">({MOCK_REVIEWS.length} تقييم)</span>
+          </div>
+          <span className={`text-gray-400 transition-transform duration-200 ${reviewsOpen ? 'rotate-180' : ''}`}>
+            ▼
+          </span>
+        </button>
+
+        {reviewsOpen && (
+          <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
+            {MOCK_REVIEWS.map((review) => (
+              <div key={review.id} className="bg-gray-50 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-sm text-gray-800">{review.reviewer}</span>
+                  <span className="text-xs text-gray-400">{review.date}</span>
+                </div>
+                <StarRating rating={review.rating} />
+                <p className="text-sm text-gray-600 mt-1 leading-relaxed">{review.comment}</p>
+              </div>
+            ))}
+            <p className="text-center text-xs text-gray-400 pt-1">
+              * التقييمات ستُحمَّل من الخادم عند الاتصال
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="text-center mb-6">
         <label className="cursor-pointer">
           <img src={avatar || '/favicon.svg'} className="w-24 h-24 rounded-full mx-auto border-4 border-brand object-cover" alt="avatar" />
-          <p className="text-sm text-brand mt-2">اضغط لتغيير الصورة</p>
+          <p className="text-sm text-brand mt-2">انقر لتغيير الصورة</p>
           <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
         </label>
       </div>
       <input value={name} onChange={e => setName(e.target.value)} className="w-full border rounded-xl p-3 mb-4" placeholder="اسمك" />
-      <p className="text-gray-500 text-sm mb-4">البلد: {user.country} (مقفل)</p>
+      <p className="text-gray-500 text-sm mb-4">البلد: {user.country} (مسجّل)</p>
       <button onClick={saveProfile} className="w-full bg-brand text-white py-3 rounded-xl font-bold">حفظ</button>
     </div>
   );
