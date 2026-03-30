@@ -16,6 +16,8 @@ import mongoose from 'mongoose';
 import rateLimit from 'express-rate-limit';
 import pino from 'pino';
 import cron from 'node-cron';
+import compression from 'compression';
+import helmet from 'helmet';
 import { initSocket } from './socket.js';
 import { archiveExpiredAds, deleteOldArchives } from './archiveManager.js';
 import { seedCountries } from './countries.js';
@@ -44,6 +46,16 @@ import paymentRoutes from '../routes/payment.js';
 const logger = pino();
 const app = express();
 app.set('trust proxy', 1);
+
+// Gzip compression — reduces API response size by 60-80% (free)
+app.use(compression());
+
+// Security headers (helmet) — free hardening
+app.use(helmet({
+  contentSecurityPolicy: false, // disabled to allow Cloudinary images
+  crossOriginEmbedderPolicy: false,
+}));
+
 app.use(cors({
   origin: function(origin, callback) {
     // Allow all Vercel deployments, Railway, localhost
@@ -308,4 +320,5 @@ if (!finalMongoUri) {
 }
 
 server.listen(process.env.PORT || 3000, () => logger.info(`XTOX running on port ${process.env.PORT || 3000}`));
+
 
