@@ -49,6 +49,7 @@ router.get('/', async (req, res) => {
       .limit(20);
 
     // Return featured first, then ranked regular
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json([...featuredAds, ...regularAds]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -242,4 +243,5 @@ router.post('/:id/republish', auth, async (req, res) => {
 });
 
 export default router;
+
 
