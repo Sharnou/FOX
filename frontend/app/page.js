@@ -134,6 +134,25 @@ export default function Home() {
   };
   // ──────────────────────────────────────────────────────────────────────────
 
+  // ── BreadcrumbList JSON-LD Schema ──────────────────────────────────────────
+  const breadcrumbItems = [
+    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://fox-kohl-eight.vercel.app' },
+  ];
+  if (catIdx !== 0) {
+    breadcrumbItems.push({
+      '@type': 'ListItem',
+      position: 2,
+      name: currentCatNameAr,
+      item: `https://fox-kohl-eight.vercel.app/?cat=${CAT_VALS[catIdx]}`,
+    });
+  }
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbItems,
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: locale.lang === 'ar' ? "'Cairo', 'Tajawal', system-ui" : "'Inter', system-ui, sans-serif", direction: locale.dir }}>
 
@@ -141,6 +160,12 @@ export default function Home() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      {/* JSON-LD Structured Data — BreadcrumbList */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
 
       {/* Header */}

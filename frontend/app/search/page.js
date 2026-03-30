@@ -97,6 +97,26 @@ export default function SearchPage() {
   } : null;
   // ──────────────────────────────────────────────────────────────────────────
 
+  // ── BreadcrumbList JSON-LD Schema for Search Results ──────────────────────
+  const breadcrumbSearchItems = [
+    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://fox-kohl-eight.vercel.app' },
+    { '@type': 'ListItem', position: 2, name: 'البحث', item: 'https://fox-kohl-eight.vercel.app/search' },
+  ];
+  if (searched && query.trim()) {
+    breadcrumbSearchItems.push({
+      '@type': 'ListItem',
+      position: 3,
+      name: query,
+      item: `https://fox-kohl-eight.vercel.app/search?q=${encodeURIComponent(query)}`,
+    });
+  }
+  const breadcrumbSearchLd = searched ? {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbSearchItems,
+  } : null;
+  // ──────────────────────────────────────────────────────────────────────────
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>
 
@@ -105,6 +125,14 @@ export default function SearchPage() {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(searchJsonLd) }}
+        />
+      )}
+
+      {/* JSON-LD Structured Data — BreadcrumbList for Search Results */}
+      {breadcrumbSearchLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSearchLd) }}
         />
       )}
 
