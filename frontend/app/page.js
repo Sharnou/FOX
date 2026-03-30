@@ -9,6 +9,19 @@ const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'servi
 const CAT_VALS = ['', 'Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion'];
 const CAT_ICONS = ['🌐', '🚗', '📱', '🏠', '💼', '🔧', '🛒', '💊', '🍕', '👗'];
 
+const CAT_NAMES_AR = {
+  all: 'جميع الإعلانات',
+  vehicles: 'سيارات',
+  electronics: 'إلكترونيات',
+  realEstate: 'عقارات',
+  jobs: 'وظائف',
+  services: 'خدمات',
+  supermarket: 'سوبرماركت',
+  pharmacy: 'صيدلية',
+  food: 'طعام سريع',
+  fashion: 'موضة وأزياء',
+};
+
 const POPUP_INTERVAL = 4 * 60 * 60 * 1000;
 const CARTOONS = ['🦊', '🐨', '🦁', '🐸', '🦝', '🐙', '🦄', '🐼'];
 
@@ -83,8 +96,53 @@ export default function Home() {
   const featured = ads.filter(a => a.isFeatured);
   const regular = ads.filter(a => !a.isFeatured).filter(ad => !search || ad.title?.toLowerCase().includes(search.toLowerCase()));
 
+  // ── AggregateOffer JSON-LD Schema ──────────────────────────────────────────
+  const prices = ads.map(a => Number(a.price)).filter(p => p > 0);
+  const currentCatNameAr = CAT_NAMES_AR[CAT_KEYS[catIdx]] || 'جميع الإعلانات';
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `إعلانات XTOX - ${currentCatNameAr}`,
+    description: `سوق XTOX للإعلانات المبوبة - ${currentCatNameAr}`,
+    numberOfItems: ads.length,
+    ...(prices.length > 0 && {
+      offers: {
+        '@type': 'AggregateOffer',
+        offerCount: ads.length,
+        lowPrice: Math.min(...prices),
+        highPrice: Math.max(...prices),
+        priceCurrency: locale.currency || 'EGP',
+      },
+    }),
+    itemListElement: ads.slice(0, 10).map((ad, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      item: {
+        '@type': 'Product',
+        name: ad.title,
+        url: `https://xtox.app/ads/${ad._id}`,
+        image: ad.media?.[0] || undefined,
+        offers: {
+          '@type': 'Offer',
+          price: ad.price,
+          priceCurrency: ad.currency || locale.currency || 'EGP',
+          availability: 'https://schema.org/InStock',
+          itemCondition: 'https://schema.org/UsedCondition',
+        },
+      },
+    })),
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: locale.lang === 'ar' ? "'Cairo', 'Tajawal', system-ui" : "'Inter', system-ui, sans-serif", direction: locale.dir }}>
+
+      {/* JSON-LD Structured Data — AggregateOffer */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* Header */}
       <header style={{ background: 'linear-gradient(135deg, #002f34, #003d3b)', color: 'white', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
         <span style={{ fontSize: 22, fontWeight: 'bold', letterSpacing: 1 }}>XTOX</span>
@@ -239,4 +297,3 @@ export default function Home() {
     </div>
   );
 }
-
