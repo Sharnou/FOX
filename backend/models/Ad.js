@@ -27,4 +27,13 @@ const AdSchema = new mongoose.Schema({
   },
   createdAt: { type: Date, default: Date.now }
 });
+
+// Compound indexes for fast queries — free performance boost
+AdSchema.index({ country: 1, isFeatured: -1, createdAt: -1 }); // homepage feed
+AdSchema.index({ country: 1, category: 1, createdAt: -1 });     // category filter
+AdSchema.index({ 'location': '2dsphere' });                      // GPS nearby
+AdSchema.index({ userId: 1, createdAt: -1 });                    // my-ads page
+AdSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });     // TTL auto-expire
+AdSchema.index({ title: 'text', description: 'text' });          // text search
 export default mongoose.model('Ad', AdSchema);
+
