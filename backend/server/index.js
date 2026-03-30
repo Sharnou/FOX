@@ -145,6 +145,35 @@ app.get('/', (_, res) => {
   });
 });
 
+
+// Run seeds only once — check a flag in DB to avoid re-seeding on every restart
+async function runSeedsOnce() {
+  try {
+    const SeedFlag = mongoose.models.SeedFlag || mongoose.model('SeedFlag', new mongoose.Schema({
+      key: { type: String, unique: true },
+      seededAt: Date,
+    }));
+    
+    const existing = await SeedFlag.findOne({ key: 'v2' });
+    if (existing) {
+      console.log('[SEED] Already seeded, skipping');
+      return;
+    }
+    
+    console.log('[SEED] First run — seeding data...');
+    
+    // Run all seed functions
+    if (typeof seedSuperAdmin === 'function') await seedSuperAdmin().catch(e => console.error('[SEED] admin:', e.message));
+    if (typeof seedCountries === 'function') await seedCountries().catch(e => console.error('[SEED] countries:', e.message));
+    if (typeof seedCelebrations === 'function') await seedCelebrations().catch(e => console.error('[SEED] celebrations:', e.message));
+    if (typeof seedCoreDictionary === 'function') await seedCoreDictionary().catch(e => console.error('[SEED] dictionary:', e.message));
+    
+    await SeedFlag.create({ key: 'v2', seededAt: new Date() });
+    console.log('[SEED] Complete ✅');
+  } catch(e) {
+    console.error('[SEED] Error:', e.message);
+  }
+}
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 initSocket(io);
@@ -245,11 +274,16 @@ if (!finalMongoUri) {
   })
     .then(async () => {
     logger.info('MongoDB connected');
-    await seedCountries();
-    await seedCelebrations();
+    // Auto-delete old errors after 7 days
+    try {
+      const ErrorModel = mongoose.models.Error || mongoose.models.AppError;
+      if (ErrorModel) {
+        await ErrorModel.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds: 604800 });
+        console.log('[DB] Error TTL index set (7 days)');
+      }
+    } catch(e) {}
     const { seedSuperAdmin } = await import('../routes/users.js');
-    await seedSuperAdmin();
-    await seedCoreDictionary();
+    await runSeedsOnce();
   })
   .catch(err => {
     logger.error('[MongoDB] Connection failed:', err.message);
@@ -265,7 +299,7 @@ if (!finalMongoUri) {
         });
         logger.info('[MongoDB] Retry successful ✅');
         const { seedSuperAdmin } = await import('../routes/users.js');
-        await seedSuperAdmin();
+        await runSeedsOnce();
       } catch (e) {
         logger.error('[MongoDB] Retry also failed:', e.message);
       }
