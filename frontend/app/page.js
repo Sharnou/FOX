@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
 import AdCardSkeleton from './components/AdCardSkeleton';
+import FeaturedAdPopup from './components/FeaturedAdPopup';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -233,6 +234,9 @@ export default function Home() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
       `}</style>
+
+      <FeaturedAdPopup ads={ads} />
     </div>
   );
 }
+
