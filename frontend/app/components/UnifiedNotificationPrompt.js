@@ -3,17 +3,18 @@ import { useState, useEffect } from 'react';
 
 /**
  * UnifiedNotificationPrompt
- * Merged from NotificationOptIn + PushNotificationBanner.
- * Prompts the user (Arabic RTL) to enable browser notifications.
+ * Consolidates NotificationOptIn + PushNotificationBanner into a single component.
+ * Arabic RTL, orange theme (#FF6B35), Tailwind only.
  * Stores preference in localStorage key: xtox_notif_pref
  * Values: 'granted' | 'denied' | 'dismissed'
- * Never shown again once a preference is recorded.
+ * Shows nothing if user already made a decision.
  */
 export default function UnifiedNotificationPrompt() {
   const [visible, setVisible] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
+    // Guard: SSR, no Notification API, or permission already set
     if (
       typeof window === 'undefined' ||
       !('Notification' in window) ||
@@ -21,9 +22,9 @@ export default function UnifiedNotificationPrompt() {
     ) return;
 
     const pref = localStorage.getItem('xtox_notif_pref');
-    if (pref) return; // already made a choice
+    if (pref) return; // user already decided (granted / denied / dismissed)
 
-    // Show banner after 3s delay — non-blocking
+    // Delay 3 s — non-blocking, won't interrupt initial load
     const t = setTimeout(() => setVisible(true), 3000);
     return () => clearTimeout(t);
   }, []);
@@ -35,6 +36,7 @@ export default function UnifiedNotificationPrompt() {
       localStorage.setItem('xtox_notif_pref', permission);
       if (permission === 'granted') {
         setConfirmed(true);
+        // Hide confirmation toast after 4 s
         setTimeout(() => setConfirmed(false), 4000);
         new Notification('XTOX 🔔', {
           body: 'ستصلك إشعارات عند رد البائع أو وصول إعلانات جديدة!',
@@ -51,7 +53,7 @@ export default function UnifiedNotificationPrompt() {
     localStorage.setItem('xtox_notif_pref', 'dismissed');
   };
 
-  // Confirmation toast after granting
+  // ── Confirmation toast (after granting) ──────────────────────────────────
   if (confirmed) {
     return (
       <div
@@ -60,14 +62,17 @@ export default function UnifiedNotificationPrompt() {
         role="status"
         aria-live="polite"
       >
-        <span className="text-lg">✅</span>
-        <p className="text-sm font-bold text-orange-700">تم تفعيل الإشعارات</p>
+        <span className="text-lg select-none">✅</span>
+        <p className="text-sm font-bold text-orange-700">
+          تم تفعيل الإشعارات بنجاح!
+        </p>
       </div>
     );
   }
 
   if (!visible) return null;
 
+  // ── Main notification banner ─────────────────────────────────────────────
   return (
     <div
       dir="rtl"
@@ -78,23 +83,24 @@ export default function UnifiedNotificationPrompt() {
       {/* Bell icon */}
       <div className="flex-shrink-0 text-2xl select-none">🔔</div>
 
-      {/* Text */}
+      {/* Arabic text */}
       <div className="flex-1 text-right">
         <p className="text-sm font-bold text-gray-800 leading-snug">
-          تفعيل الإشعارات
+          🔔 تفعيل الإشعارات
         </p>
         <p className="text-xs text-gray-500 mt-0.5 leading-snug">
-          احصل على تنبيه فوري عند رد البائع أو ظهور إعلان جديد يناسبك
+          احصل على إشعارات فورية عند الرد على إعلانك أو وصول رسائل جديدة
         </p>
       </div>
 
-      {/* Actions */}
+      {/* Action buttons */}
       <div className="flex flex-col gap-1 flex-shrink-0">
         <button
           onClick={handleAllow}
-          className="px-3 py-1 rounded-full bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-colors"
+          style={{ backgroundColor: '#FF6B35' }}
+          className="px-3 py-1 rounded-full text-white text-xs font-bold hover:opacity-90 transition-opacity"
         >
-          تفعيل الإشعارات
+          تفعيل
         </button>
         <button
           onClick={handleDismiss}
