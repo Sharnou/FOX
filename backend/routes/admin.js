@@ -105,6 +105,10 @@ router.post('/create-simulation', superAdminAuth, async (req, res) => {
 });
 
 
+// PROTECTED: never touch language/locale/dictionary collections
+// PROTECTED collections — never delete or modify
+const PROTECTED_COLLECTIONS = ['coredictionaries', 'dialectdictionaries', 'languages', 'locales', 'seedflags', 'languagelearners'];
+
 // Admin-only: clean duplicate seed data (run once to fix the 115MB bloat)
 router.post('/cleanup-duplicates', adminAuth, async (req, res) => {
   try {
@@ -124,7 +128,7 @@ router.post('/cleanup-duplicates', adminAuth, async (req, res) => {
       results.countries = deleted;
     }
     
-    // Remove errors older than 7 days
+    // Remove errors older than 7 days (NEVER touch language collections)
     const ErrorModel = mongoose.models.Error || mongoose.models.AppError;
     if (ErrorModel) {
       const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -132,10 +136,9 @@ router.post('/cleanup-duplicates', adminAuth, async (req, res) => {
       results.errors = r.deletedCount;
     }
     
-    res.json({ success: true, cleaned: results });
+    res.json({ success: true, cleaned: results, protected: PROTECTED_COLLECTIONS });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
 });
 export default router;
-
