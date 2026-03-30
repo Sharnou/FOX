@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 const CATS = ['Vehicles','Electronics','Real Estate','Jobs','Services','Supermarket','Pharmacy','Fast Food','Fashion','General'];
 
 export default function SellPage() {
