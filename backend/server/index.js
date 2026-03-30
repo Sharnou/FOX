@@ -39,6 +39,7 @@ import errorRoutes from '../routes/errors.js';
 import geoRoutes from '../routes/geo.js';
 import languageRoutes from '../routes/language.js';
 import seoRoutes from '../routes/seo.js';
+import paymentRoutes from '../routes/payment.js';
 
 const logger = pino();
 const app = express();
@@ -117,6 +118,7 @@ app.use('/api/errors', errorRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/seo', seoRoutes);
 app.use('/api/language', languageRoutes);
+app.use('/api/payment', paymentRoutes);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => {
@@ -165,6 +167,18 @@ cron.schedule('*/15 * * * *', async () => {
   await runHealthCheck();
   await autoResolveOldErrors();
 });
+
+// Auto-expire featured ads every hour
+setInterval(async () => {
+  try {
+    const { default: Ad } = await import('../models/Ad.js');
+    const now = new Date();
+    await Ad.updateMany(
+      { isFeatured: true, featuredUntil: { $lt: now } },
+      { $set: { isFeatured: false, featuredUntil: null, featuredPlan: null } }
+    );
+  } catch(e) {}
+}, 60 * 60 * 1000);
 
 // Log ALL env vars available (helps diagnose Railway setup)
 const mongoEnvVars = Object.keys(process.env).filter(k => 
@@ -259,3 +273,4 @@ if (!finalMongoUri) {
 }
 
 server.listen(process.env.PORT || 3000, () => logger.info(`XTOX running on port ${process.env.PORT || 3000}`));
+
