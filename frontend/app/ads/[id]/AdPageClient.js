@@ -8,6 +8,7 @@ function optimizeImage(url, width = 400) {
 }
 import AdDetailSkeleton from '../../components/AdDetailSkeleton';
 import RecentlyViewed, { recordRecentView } from '../../components/RecentlyViewed';
+import ReportAd from '../../components/ReportAd';
 
 const API = 'https://fox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://fox-production.up.railway.app';
@@ -164,6 +165,7 @@ export default function AdPageClient({ params }) {
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
@@ -326,8 +328,16 @@ export default function AdPageClient({ params }) {
       </div>)}
       <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
         <button onClick={() => navigator.share?.({ title: ad.title, url: window.location.href }) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))} style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔗 مشاركة الإعلان</button>
-        <button onClick={() => { const report = prompt('سبب الإبلاغ:'); if (report) alert('تم الإبلاغ. شكراً'); }} style={{ background: 'none', border: '1px solid #ddd', color: '#999', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🚩 إبلاغ</button>
+        <button onClick={() => setShowReport(true)} style={{ background: 'none', border: '1px solid #ffccbc', color: '#e64a19', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }} title="Report Ad / الإبلاغ عن الإعلان">🚩 الإبلاغ</button>
       </div>
+      {showReport && (
+        <ReportAd
+          adId={ad?._id || params?.id}
+          adTitle={ad?.title}
+          onClose={() => setShowReport(false)}
+          lang="ar"
+        />
+      )}
       <RecentlyViewed currentAdId={ad?._id} lang="ar" />
     </div>
   );
