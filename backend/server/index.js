@@ -224,6 +224,15 @@ setInterval(async () => {
   } catch(e) {}
 }, 60 * 60 * 1000);
 
+// ─── Start HTTP server IMMEDIATELY so Railway healthcheck passes ────────────
+// server.listen runs BEFORE MongoDB connects — healthcheck GET / always returns 200
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  logger.info(`XTOX running on port ${PORT}`);
+});
+// ────────────────────────────────────────────────────────────────────────────
+
+// Connect MongoDB in background (non-blocking)
 // Log ALL env vars available (helps diagnose Railway setup)
 const mongoEnvVars = Object.keys(process.env).filter(k => 
   k.toLowerCase().includes('mongo') || k.toLowerCase().includes('database')
@@ -348,7 +357,6 @@ if (!finalMongoUri) {
   });
 }
 
-server.listen(process.env.PORT || 3000, () => logger.info(`XTOX running on port ${process.env.PORT || 3000}`));
 
 // redeploy: 1774916299527
 
