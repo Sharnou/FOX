@@ -4,7 +4,7 @@ export const metadata = {
   openGraph: {
     title: 'إعلاناتي | XTOX',
     description: 'إدارة إعلاناتك على XTOX. تابع حالة إعلاناتك، المشاهدات، والمحادثات.',
-    url: 'https://fox-kohl-eight.vercel.app/my-ads',
+    url: 'https://xtox.app/my-ads',
     siteName: 'XTOX',
     locale: 'ar_EG',
     type: 'website',
@@ -15,7 +15,7 @@ export const metadata = {
     description: 'إدارة إعلاناتك على XTOX.',
   },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/my-ads',
+    canonical: 'https://xtox.app/my-ads',
   },
 };
 
