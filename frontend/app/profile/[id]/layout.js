@@ -2,18 +2,18 @@ export const metadata = {
   title: 'ملف البائع | XTOX',
   description: 'اطلع على ملف البائع وإعلاناته وتقييماته في XTOX.',
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/profile',
+    canonical: 'https://xtox.app/profile',
   },
   openGraph: {
     title: 'ملف البائع | XTOX',
     description: 'اطلع على ملف البائع وإعلاناته وتقييماته في XTOX.',
-    url: 'https://fox-kohl-eight.vercel.app/profile',
+    url: 'https://xtox.app/profile',
     siteName: 'XTOX',
     locale: 'ar_EG',
     type: 'profile',
     images: [
       {
-        url: 'https://fox-kohl-eight.vercel.app/og-image.png',
+        url: 'https://xtox.app/og-image.png',
         width: 1200,
         height: 630,
         alt: 'XTOX - ملف البائع',
@@ -24,7 +24,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'ملف البائع | XTOX',
     description: 'اطلع على ملف البائع وإعلاناته وتقييماته في XTOX.',
-    images: ['https://fox-kohl-eight.vercel.app/og-image.png'],
+    images: ['https://xtox.app/og-image.png'],
   },
 };
 
