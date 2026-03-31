@@ -27,7 +27,7 @@ export async function connectCouchbase() {
 
     const bucket = _cluster.bucket(BUCKET_NAME);
     _collection = bucket.defaultCollection();
-    await bucket.waitUntilReady(30000);
+    await _cluster.waitUntilReady(30000);
     _connected = true;
     console.log('[COUCHBASE] Connected ✅');
     return true;
