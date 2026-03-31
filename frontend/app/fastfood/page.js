@@ -9,17 +9,17 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "CollectionPage",
-      "@id": "https://fox-kohl-eight.vercel.app/fastfood",
-      "url": "https://fox-kohl-eight.vercel.app/fastfood",
+      "@id": "https://xtox.app/fastfood",
+      "url": "https://xtox.app/fastfood",
       "name": "وجبات سريعة XTOX",
       "description": "تصفح إعلانات الوجبات السريعة والمطاعم في منطقتك",
-      "isPartOf": { "@id": "https://fox-kohl-eight.vercel.app" }
+      "isPartOf": { "@id": "https://xtox.app" }
     },
     {
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://fox-kohl-eight.vercel.app" },
-        { "@type": "ListItem", "position": 2, "name": "وجبات سريعة", "item": "https://fox-kohl-eight.vercel.app/fastfood" }
+        { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://xtox.app" },
+        { "@type": "ListItem", "position": 2, "name": "وجبات سريعة", "item": "https://xtox.app/fastfood" }
       ]
     }
   ]
