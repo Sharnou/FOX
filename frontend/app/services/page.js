@@ -79,14 +79,14 @@ export default function ServicesPage() {
     "@type": "CollectionPage",
     "name": "إعلانات الخدمات | XTOX",
     "description": "تصفح أحدث إعلانات الخدمات المحلية في منطقتك",
-    "url": "https://fox-kohl-eight.vercel.app/services",
+    "url": "https://xtox.app/services",
     "inLanguage": "ar",
-    "isPartOf": { "@type": "WebSite", "name": "XTOX", "url": "https://fox-kohl-eight.vercel.app" },
+    "isPartOf": { "@type": "WebSite", "name": "XTOX", "url": "https://xtox.app" },
     "breadcrumb": {
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://fox-kohl-eight.vercel.app" },
-        { "@type": "ListItem", "position": 2, "name": "الخدمات", "item": "https://fox-kohl-eight.vercel.app/services" },
+        { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://xtox.app" },
+        { "@type": "ListItem", "position": 2, "name": "الخدمات", "item": "https://xtox.app/services" },
       ],
     },
   };
