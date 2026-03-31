@@ -1,14 +1,40 @@
 import fetch from 'node-fetch';
 import { callWithFailover } from './keyPool.js';
 
-const bannedWords = ['sex', 'xxx', 'nude', 'porn', 'scam', 'hack', 'drugs', 'weapon'];
+// ── English offensive / illegal content keywords ──
+const bannedWordsEn = ['sex', 'xxx', 'nude', 'porn', 'scam', 'hack', 'drugs', 'weapon'];
 
-// ── Text moderation (offline, instant) ──
+// ── Arabic banned phrases: adult content, scams, off-platform contact, violence ──
+// Covers Egyptian, Gulf, Levantine Arab marketplace users
+const bannedWordsAr = [
+  // Adult content
+  'سكس', 'إباحي', 'عاري', 'جنس مباشر',
+  // Off-platform scam contact prompts
+  'واتس فقط', 'واتساب فقط', 'تواصل خارج الموقع', 'اتصل خارج',
+  // Advance-fee / payment fraud
+  'دفع مسبق', 'تحويل مسبق', 'ارسل فلوس', 'أرسل المبلغ',
+  // Get-rich-quick / investment scams
+  'ربح سريع', 'استثمار مضمون', 'أرباح يومية مضمونة',
+  // Weapons & drugs
+  'سلاح ناري', 'مخدرات', 'قنبلة', 'متفجرات',
+  // Hacking / cracking
+  'اختراق حسابات', 'كراك',
+];
+
+// ── Text moderation (offline, instant — supports Arabic & English) ──
 export function moderateText(text) {
   if (!text) return { clean: true };
   const lower = text.toLowerCase();
-  const found = bannedWords.find(w => lower.includes(w));
-  return { clean: !found, reason: found || null };
+
+  // English check (case-insensitive)
+  const foundEn = bannedWordsEn.find(w => lower.includes(w));
+  if (foundEn) return { clean: false, reason: foundEn, lang: 'en' };
+
+  // Arabic check (case-preserved — Arabic has no case)
+  const foundAr = bannedWordsAr.find(w => text.includes(w));
+  if (foundAr) return { clean: false, reason: foundAr, lang: 'ar' };
+
+  return { clean: true };
 }
 
 // ── Image moderation via GPT-4o Vision ──
@@ -51,10 +77,10 @@ export async function moderateImage(imageUrlOrBase64) {
   }
 }
 
-// ── Video moderation (analyze first frame) ──
+// ── Video moderation (analyze URL for banned terms) ──
 export async function moderateVideoUrl(videoUrl) {
   const urlLower = videoUrl.toLowerCase();
-  const found = bannedWords.find(w => urlLower.includes(w));
+  const found = bannedWordsEn.find(w => urlLower.includes(w));
   if (found) return { clean: false, reason: found };
   return { clean: true };
 }
