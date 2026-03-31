@@ -2,18 +2,18 @@ export const metadata = {
   title: 'المحادثات | XTOX',
   description: 'تواصل مع البائعين والمشترين عبر المحادثات الفورية في XTOX.',
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/chat',
+    canonical: 'https://xtox.app/chat',
   },
   openGraph: {
     title: 'المحادثات | XTOX',
     description: 'تواصل مع البائعين والمشترين عبر المحادثات الفورية في XTOX.',
-    url: 'https://fox-kohl-eight.vercel.app/chat',
+    url: 'https://xtox.app/chat',
     siteName: 'XTOX',
     locale: 'ar_EG',
     type: 'website',
     images: [
       {
-        url: 'https://fox-kohl-eight.vercel.app/og-image.png',
+        url: 'https://xtox.app/og-image.png',
         width: 1200,
         height: 630,
         alt: 'XTOX - المحادثات',
@@ -24,7 +24,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'المحادثات | XTOX',
     description: 'تواصل مع البائعين والمشترين عبر المحادثات الفورية في XTOX.',
-    images: ['https://fox-kohl-eight.vercel.app/og-image.png'],
+    images: ['https://xtox.app/og-image.png'],
   },
 };
 
