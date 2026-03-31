@@ -4,10 +4,10 @@ let cluster = null;
 let bucket = null;
 let collection = null;
 
-const COUCHBASE_URL = process.env.COUCHBASE_URL || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
+const COUCHBASE_URL = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
 const COUCHBASE_USER = process.env.COUCHBASE_USER || 'xtox';
-const COUCHBASE_PASS = process.env.COUCHBASE_PASS || '8+fFce$rFABj';
-const BUCKET_NAME = 'xtox';
+const COUCHBASE_PASS = process.env.COUCHBASE_PASS || process.env.COUCHBASE_PASSWORD || '8+fFce$rFABj';
+const BUCKET_NAME = process.env.COUCHBASE_BUCKET || 'xtox';
 
 export async function connectCouchbase() {
   try {
