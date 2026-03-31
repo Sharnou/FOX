@@ -7,6 +7,7 @@ function optimizeImage(url, width = 400) {
   return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
 }
 import AdDetailSkeleton from '../../components/AdDetailSkeleton';
+import RecentlyViewed, { recordRecentView } from '../../components/RecentlyViewed';
 
 const API = 'https://fox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://fox-production.up.railway.app';
@@ -173,7 +174,7 @@ export default function AdPageClient({ params }) {
       const RAILWAY = 'https://fox-production.up.railway.app';
       fetch(`${RAILWAY}/api/ads/${params.id}`)
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setAd(data); })
+        .then(data => { if (data) { setAd(data); recordRecentView(data._id || params.id); } })
         .catch(() => {});
     }
   }, [params?.id]);
@@ -327,6 +328,7 @@ export default function AdPageClient({ params }) {
         <button onClick={() => navigator.share?.({ title: ad.title, url: window.location.href }) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))} style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔗 مشاركة الإعلان</button>
         <button onClick={() => { const report = prompt('سبب الإبلاغ:'); if (report) alert('تم الإبلاغ. شكراً'); }} style={{ background: 'none', border: '1px solid #ddd', color: '#999', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🚩 إبلاغ</button>
       </div>
+      <RecentlyViewed currentAdId={ad?._id} lang="ar" />
     </div>
   );
 }
