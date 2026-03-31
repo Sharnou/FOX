@@ -24,6 +24,7 @@ import { seedCountries } from './countries.js';
 import { seedCelebrations } from './celebrations.js';
 import { seedCoreDictionary } from './languageLearner.js';
 import { runHealthCheck, autoResolveOldErrors } from './healthMonitor.js';
+import { connectCouchbase, cluster as couchbaseCluster } from './couchbase.js';
 
 // Routes
 import userRoutes from '../routes/users.js';
@@ -152,6 +153,7 @@ app.get('/', (_, res) => {
                       process.env.MONGOHOST ? 'CONSTRUCTED' :
                       'HARDCODED_ATLAS_FALLBACK',
       jwtSet: !!process.env.JWT_SECRET,
+      couchbaseConnected: couchbaseCluster !== null,
       frontendUrl: process.env.FRONTEND_URL || 'not set'
     }
   });
@@ -286,6 +288,8 @@ if (!finalMongoUri) {
   })
     .then(async () => {
     logger.info('MongoDB connected');
+    // Connect Couchbase (non-fatal — app works without it)
+    connectCouchbase().catch(e => logger.warn('[COUCHBASE] Startup connection failed:', e.message));
     // Auto-delete old errors after 7 days
     try {
       const ErrorModel = mongoose.models.Error || mongoose.models.AppError;
