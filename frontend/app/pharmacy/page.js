@@ -9,17 +9,17 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "CollectionPage",
-      "@id": "https://fox-kohl-eight.vercel.app/pharmacy",
-      "url": "https://fox-kohl-eight.vercel.app/pharmacy",
+      "@id": "https://xtox.app/pharmacy",
+      "url": "https://xtox.app/pharmacy",
       "name": "صيدلية XTOX",
       "description": "تصفح إعلانات الأدوية والمنتجات الصحية في منطقتك",
-      "isPartOf": { "@id": "https://fox-kohl-eight.vercel.app" }
+      "isPartOf": { "@id": "https://xtox.app" }
     },
     {
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://fox-kohl-eight.vercel.app" },
-        { "@type": "ListItem", "position": 2, "name": "صيدلية", "item": "https://fox-kohl-eight.vercel.app/pharmacy" }
+        { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://xtox.app" },
+        { "@type": "ListItem", "position": 2, "name": "صيدلية", "item": "https://xtox.app/pharmacy" }
       ]
     }
   ]
