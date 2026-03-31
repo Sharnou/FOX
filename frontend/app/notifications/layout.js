@@ -4,7 +4,7 @@ export const metadata = {
   openGraph: {
     title: 'الإشعارات | XTOX',
     description: 'تابع آخر إشعاراتك على XTOX — ردود، رسائل، وتحديثات إعلاناتك.',
-    url: 'https://fox-kohl-eight.vercel.app/notifications',
+    url: 'https://xtox.app/notifications',
     siteName: 'XTOX',
     locale: 'ar_EG',
     type: 'website',
@@ -15,7 +15,7 @@ export const metadata = {
     description: 'تابع آخر إشعاراتك على XTOX.',
   },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/notifications',
+    canonical: 'https://xtox.app/notifications',
   },
 };
 
