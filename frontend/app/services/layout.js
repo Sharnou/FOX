@@ -16,7 +16,7 @@ export const metadata = {
     description: 'تصفح إعلانات الخدمات المتنوعة في منطقتك على XTOX.',
   },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/services',
+    canonical: 'https://xtox.app/services',
   },
 };
 
