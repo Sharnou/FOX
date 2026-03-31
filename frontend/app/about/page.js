@@ -1,156 +1,294 @@
-export const metadata = {
-  title: 'عن XTOX — السوق المحلي الذكي | Buy Sell Trade Near You',
-  description: 'XTOX هو أذكى سوق محلي — بيع واشتري بسهولة في منطقتك. إعلانات مجانية، ذكاء اصطناعي، محادثة مباشرة، مكالمات صوتية. XTOX is the smartest local marketplace to buy, sell and find deals near you.',
-  keywords: 'سوق, بيع, شراء, إعلانات مجانية, xtox, marketplace, buy sell, classified ads, عربية للبيع, شقق, وظائف, خدمات, سوبرماركت, صيدلية, طعام سريع'
+'use client';
+import { useState, useEffect } from 'react';
+
+const TRANSLATIONS = {
+  ar: {
+    title: 'عن إكستوكس',
+    subtitle: 'السوق العربي الذكي للمنتجات المحلية',
+    mission: 'مهمتنا',
+    missionText: 'نربط المجتمعات العربية بسوق رقمي آمن وذكي، يدعم اللغة العربية ويحترم خصوصية المستخدم.',
+    stats: 'أرقامنا',
+    team: 'فريقنا',
+    contact: 'تواصل معنا',
+    countries: 'دولة',
+    ads: 'إعلان نشط',
+    users: 'مستخدم',
+    vision: 'رؤيتنا',
+    visionText: 'أن نكون المنصة العربية الأولى للتجارة المحلية الذكية، حيث يستطيع كل مواطن عربي البيع والشراء بلغته وفي بلده بكل أمان.',
+    values: 'قيمنا',
+    value1Title: 'الخصوصية أولاً',
+    value1Desc: 'بياناتك محمية — إعلاناتك لا تُرى إلا في بلدك',
+    value2Title: 'الذكاء الاصطناعي',
+    value2Desc: 'صور وأصوات تتحول إلى إعلانات تلقائياً',
+    value3Title: 'المجتمع المحلي',
+    value3Desc: 'سوق لكل حي وكل مدينة',
+    value4Title: 'الأمان والثقة',
+    value4Desc: 'تشفير AES-256 لكل المحادثات',
+    backHome: 'العودة للرئيسية',
+  },
+  en: {
+    title: 'About XTOX',
+    subtitle: 'The Smart Arab Marketplace for Local Products',
+    mission: 'Our Mission',
+    missionText: 'We connect Arab communities through a safe, AI-powered digital marketplace that respects your language and privacy.',
+    stats: 'Our Numbers',
+    team: 'Our Team',
+    contact: 'Contact Us',
+    countries: 'Countries',
+    ads: 'Active Ads',
+    users: 'Users',
+    vision: 'Our Vision',
+    visionText: 'To be the #1 Arab platform for smart local commerce, where every Arab citizen can buy and sell in their language, in their country, safely.',
+    values: 'Our Values',
+    value1Title: 'Privacy First',
+    value1Desc: 'Your data is protected — ads visible only in your country',
+    value2Title: 'AI-Powered',
+    value2Desc: 'Photos and voice turn into listings automatically',
+    value3Title: 'Local Community',
+    value3Desc: 'A marketplace for every neighborhood and city',
+    value4Title: 'Security & Trust',
+    value4Desc: 'AES-256 encryption for all conversations',
+    backHome: 'Back to Home',
+  },
 };
 
+const STATS = [
+  { key: 'countries', value: '30+', icon: '🌍' },
+  { key: 'ads', value: '50K+', icon: '📋' },
+  { key: 'users', value: '100K+', icon: '👥' },
+];
+
+const VALUES = [
+  { key: 'value1', icon: '🔒', color: '#667eea' },
+  { key: 'value2', icon: '🤖', color: '#f093fb' },
+  { key: 'value3', icon: '🏘️', color: '#4facfe' },
+  { key: 'value4', icon: '🛡️', color: '#43e97b' },
+];
+
 export default function AboutPage() {
-  const hashtags = [
-    '#XTOX', '#سوق_محلي', '#بيع_وشراء', '#إعلانات_مجانية',
-    '#MarketplaceApp', '#BuySellNearYou', '#LocalMarket',
-    '#سيارات_للبيع', '#شقق_للإيجار', '#وظائف', '#خدمات_منزلية',
-    '#سوبرماركت', '#صيدلية', '#طعام_سريع', '#تسوق_اونلاين',
-    '#AIMartketplace', '#SmartAds', '#FreeListing', '#Egypt',
-    '#SaudiArabia', '#UAE', '#ذكاء_اصطناعي', '#تسوق_ذكي',
-    '#مصر', '#السعودية', '#الإمارات', '#بيع_اونلاين',
-    '#ClassifiedAds', '#OLXAlternative', '#DubizzleAlternative',
-    '#فرصة_عمل', '#تأجير_شقق', '#سلع_مستعملة', '#الكترونيات'
-  ];
+  const [lang, setLang] = useState('ar');
+  const isRtl = lang === 'ar';
+  const t = TRANSLATIONS[lang];
 
-  const features = [
-    { icon: '🤖', title: 'ذكاء اصطناعي حقيقي', title_en: 'Real AI Power', desc: 'صوّر منتجك — الذكاء الاصطناعي يكتب الإعلان كاملاً تلقائياً', desc_en: 'Photo your product — AI writes the full ad automatically' },
-    { icon: '💬', title: 'تواصل فوري', title_en: 'Instant Contact', desc: 'محادثة نصية + مكالمة صوتية مباشرة بين البائع والمشتري', desc_en: 'Text chat + P2P voice calls between buyer and seller' },
-    { icon: '📍', title: 'قريب منك', title_en: 'Near You', desc: 'إعلانات منطقتك فقط — مرتبة بالأقرب إليك جغرافياً', desc_en: 'Only your region ads — sorted by nearest to you' },
-    { icon: '🔒', title: 'آمن ومحلي', title_en: 'Safe & Local', desc: 'قفل الدولة — لا يرى إعلانات غير بلده. تشفير كامل للمحادثات', desc_en: 'Country lock — users only see their country. Full chat encryption' },
-    { icon: '⭐', title: 'تقييم البائعين', title_en: 'Seller Ratings', desc: 'نجوم وتعليقات حقيقية على كل بائع — تعرف مع من تتعامل', desc_en: 'Real stars and reviews on every seller — know who you deal with' },
-    { icon: '📱', title: 'يعمل كتطبيق', title_en: 'Works as App', desc: 'ثبّته على هاتفك من المتصفح مباشرة — بدون متجر تطبيقات', desc_en: 'Install on your phone directly from browser — no app store needed' },
-  ];
-
-  const categories = [
-    { icon: '🚗', name: 'سيارات ومركبات', en: 'Vehicles', keys: 'عربية, سيارة, دراجة, شاحنة' },
-    { icon: '📱', name: 'إلكترونيات', en: 'Electronics', keys: 'موبايل, لابتوب, تليفزيون, آيفون, سامسونج' },
-    { icon: '🏠', name: 'عقارات', en: 'Real Estate', keys: 'شقة, فيلا, أرض, إيجار, بيع' },
-    { icon: '💼', name: 'وظائف', en: 'Jobs', keys: 'تعيين, فرصة عمل, مطلوب, شاغر' },
-    { icon: '🔧', name: 'خدمات وعمال', en: 'Services', keys: 'سباك, كهربائي, نجار, دهان, تنظيف' },
-    { icon: '🛒', name: 'سوبرماركت', en: 'Supermarket', keys: 'بقالة, خضار, مواد غذائية' },
-    { icon: '💊', name: 'صيدلية', en: 'Pharmacy', keys: 'دواء, صيدلية, مستلزمات طبية' },
-    { icon: '🍕', name: 'طعام سريع', en: 'Fast Food', keys: 'مطعم, توصيل, أكل, وجبات' },
-    { icon: '👗', name: 'موضة', en: 'Fashion', keys: 'ملابس رجالي, ملابس نسائي, أحذية' },
-  ];
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('xtox_lang');
+      if (stored === 'en') setLang('en');
+    } catch {}
+  }, []);
 
   return (
-    <div style={{ fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", background: '#f5f5f5', minHeight: '100vh' }}>
+    <div
+      dir={isRtl ? 'rtl' : 'ltr'}
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
+        color: '#fff',
+        fontFamily: isRtl ? "'Cairo', 'Segoe UI', sans-serif" : "'Segoe UI', sans-serif",
+        paddingBottom: '60px',
+      }}
+    >
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #002f34 0%, #004d40 100%)', color: 'white', padding: '60px 20px', textAlign: 'center', position: 'relative' }}>
-        <a href="/" style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '8px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 14, textDecoration: 'none' }}>← رجوع</a>
-        <div style={{ fontSize: 72, marginBottom: 16 }}>🛒</div>
-        <h1 style={{ fontSize: 48, fontWeight: 'bold', margin: '0 0 8px', letterSpacing: 2 }}>XTOX</h1>
-        <p style={{ fontSize: 20, opacity: 0.9, margin: '0 0 8px' }}>السوق المحلي الذكي</p>
-        <p style={{ fontSize: 16, opacity: 0.7, margin: 0 }}>The Smartest Local Marketplace — Powered by AI</p>
-
-        {/* Hashtags cloud */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 28, maxWidth: 700, margin: '28px auto 0' }}>
-          {hashtags.map((tag, i) => (
-            <span key={i} style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.9)', padding: '4px 12px', borderRadius: 20, fontSize: 13, border: '1px solid rgba(255,255,255,0.2)' }}>
-              {tag}
-            </span>
-          ))}
-        </div>
+      <div
+        style={{
+          textAlign: 'center',
+          padding: '80px 20px 40px',
+          background: 'linear-gradient(180deg, rgba(102,126,234,0.15) 0%, transparent 100%)',
+        }}
+      >
+        <div style={{ fontSize: '64px', marginBottom: '16px' }}>🦊</div>
+        <h1 style={{ fontSize: 'clamp(28px,5vw,48px)', fontWeight: 900, margin: '0 0 12px', letterSpacing: '-1px' }}>
+          {t.title}
+        </h1>
+        <p style={{ fontSize: 'clamp(14px,2.5vw,20px)', color: '#a78bfa', maxWidth: '600px', margin: '0 auto 24px' }}>
+          {t.subtitle}
+        </p>
+        {/* Language toggle */}
+        <button
+          onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+          style={{
+            background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            color: '#fff',
+            padding: '8px 20px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            backdropFilter: 'blur(10px)',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => e.target.style.background = 'rgba(255,255,255,0.2)'}
+          onMouseLeave={e => e.target.style.background = 'rgba(255,255,255,0.1)'}
+        >
+          {lang === 'ar' ? 'English' : 'عربي'}
+        </button>
       </div>
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 20px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 20px' }}>
+        {/* Mission */}
+        <section style={{ marginBottom: '48px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '16px', color: '#a78bfa' }}>
+            {t.mission}
+          </h2>
+          <div
+            style={{
+              background: 'rgba(102,126,234,0.1)',
+              border: '1px solid rgba(102,126,234,0.3)',
+              borderRadius: '16px',
+              padding: '24px',
+              fontSize: '18px',
+              lineHeight: '1.8',
+              color: '#e2e8f0',
+            }}
+          >
+            {t.missionText}
+          </div>
+        </section>
 
-        {/* What is XTOX */}
-        <div style={{ background: 'white', borderRadius: 20, padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 24 }}>
-          <h2 style={{ color: '#002f34', fontSize: 26, marginBottom: 16 }}>ما هو XTOX؟</h2>
-          <p style={{ color: '#444', fontSize: 16, lineHeight: 1.9, marginBottom: 16 }}>
-            <strong>XTOX</strong> هو منصة سوق محلي ذكي تجمع بين قوة الذكاء الاصطناعي وسهولة الإعلانات المبوبة.
-            بيع أي شيء في ثوانٍ — صوّر المنتج والذكاء الاصطناعي يكمل الباقي: العنوان، الوصف، الفئة، وحتى السعر المقترح.
-            تواصل مباشرة مع البائع عبر المحادثة أو المكالمة الصوتية الفورية.
-          </p>
-          <p style={{ color: '#666', fontSize: 15, lineHeight: 1.9, margin: 0 }}>
-            <strong>XTOX</strong> is a smart local marketplace that combines AI power with the simplicity of classified ads.
-            Sell anything in seconds — photo your product and AI fills in everything: title, description, category, and even a suggested price.
-            Connect instantly with buyers via chat or direct P2P voice call.
-          </p>
-        </div>
-
-        {/* Features Grid */}
-        <h2 style={{ color: '#002f34', fontSize: 24, marginBottom: 16 }}>🚀 مميزات XTOX</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, marginBottom: 32 }}>
-          {features.map((f, i) => (
-            <div key={i} style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <div style={{ fontSize: 36, marginBottom: 10 }}>{f.icon}</div>
-              <h3 style={{ color: '#002f34', margin: '0 0 4px', fontSize: 17 }}>{f.title}</h3>
-              <p style={{ color: '#888', fontSize: 12, margin: '0 0 8px' }}>{f.title_en}</p>
-              <p style={{ color: '#444', fontSize: 14, margin: '0 0 4px', lineHeight: 1.6 }}>{f.desc}</p>
-              <p style={{ color: '#888', fontSize: 12, margin: 0, fontStyle: 'italic' }}>{f.desc_en}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Categories */}
-        <div style={{ background: 'white', borderRadius: 20, padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 24 }}>
-          <h2 style={{ color: '#002f34', fontSize: 24, marginBottom: 20 }}>📂 الأقسام المتاحة</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-            {categories.map((c, i) => (
-              <div key={i} style={{ padding: '14px 16px', background: '#f8f8f8', borderRadius: 12, borderRight: '3px solid #002f34' }}>
-                <div style={{ fontSize: 24, marginBottom: 6 }}>{c.icon}</div>
-                <p style={{ fontWeight: 'bold', color: '#002f34', margin: '0 0 2px', fontSize: 15 }}>{c.name}</p>
-                <p style={{ color: '#888', fontSize: 12, margin: '0 0 4px' }}>{c.en}</p>
-                <p style={{ color: '#aaa', fontSize: 11, margin: 0 }}>{c.keys}</p>
+        {/* Stats */}
+        <section style={{ marginBottom: '48px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '20px', color: '#a78bfa' }}>
+            {t.stats}
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+            {STATS.map(stat => (
+              <div
+                key={stat.key}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '16px',
+                  padding: '28px 20px',
+                  textAlign: 'center',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'transform 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+              >
+                <div style={{ fontSize: '36px', marginBottom: '8px' }}>{stat.icon}</div>
+                <div style={{ fontSize: '32px', fontWeight: 900, color: '#a78bfa', marginBottom: '4px' }}>
+                  {stat.value}
+                </div>
+                <div style={{ fontSize: '14px', color: '#94a3b8' }}>{t[stat.key]}</div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* SEO Keywords section */}
-        <div style={{ background: 'white', borderRadius: 20, padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 24 }}>
-          <h2 style={{ color: '#002f34', fontSize: 22, marginBottom: 16 }}>🔍 ابحث عنا بـ</h2>
-          <p style={{ color: '#666', fontSize: 14, lineHeight: 1.8, marginBottom: 12 }}>
-            سوق محلي · بيع وشراء · إعلانات مجانية · أوكازيون · سيارات للبيع · شقق للإيجار · وظائف شاغرة ·
-            خدمات منزلية · سباك · كهربائي · طعام سريع · توصيل · دواء · صيدلية · ملابس ·
-            إلكترونيات · موبايل للبيع · لابتوب مستعمل · آيفون · أثاث · بيع اونلاين ·
-            تسوق ذكي · ذكاء اصطناعي · تطبيق بيع وشراء
-          </p>
-          <p style={{ color: '#888', fontSize: 13, lineHeight: 1.8, margin: 0 }}>
-            Local marketplace · Buy and sell · Free ads · Classifieds · Cars for sale · Apartments for rent ·
-            Job vacancies · Home services · Electronics · Mobile phones · Laptops · Fashion ·
-            Fast food delivery · Pharmacy · AI marketplace · Smart buying · Sell near me · Find deals ·
-            OLX alternative · Dubizzle alternative · Egyptian market · Arab marketplace
-          </p>
-        </div>
+        {/* Vision */}
+        <section style={{ marginBottom: '48px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '16px', color: '#a78bfa' }}>
+            {t.vision}
+          </h2>
+          <div
+            style={{
+              background: 'linear-gradient(135deg, rgba(240,147,251,0.1) 0%, rgba(102,126,234,0.1) 100%)',
+              border: '1px solid rgba(240,147,251,0.3)',
+              borderRadius: '16px',
+              padding: '24px',
+              fontSize: '17px',
+              lineHeight: '1.8',
+              color: '#e2e8f0',
+            }}
+          >
+            {t.visionText}
+          </div>
+        </section>
 
-        {/* How it works */}
-        <div style={{ background: 'linear-gradient(135deg, #002f34, #004d40)', borderRadius: 20, padding: 32, color: 'white', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 24, marginBottom: 20 }}>⚡ كيف يعمل XTOX؟</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
+        {/* Values */}
+        <section style={{ marginBottom: '48px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '20px', color: '#a78bfa' }}>
+            {t.values}
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            {VALUES.map(v => (
+              <div
+                key={v.key}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${v.color}33`,
+                  borderRadius: '16px',
+                  padding: '24px',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = `0 8px 32px ${v.color}22`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>{v.icon}</div>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: v.color }}>
+                  {t[`${v.key}Title`]}
+                </h3>
+                <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0, lineHeight: '1.6' }}>
+                  {t[`${v.key}Desc`]}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Contact */}
+        <section style={{ marginBottom: '48px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '20px', color: '#a78bfa' }}>
+            {t.contact}
+          </h2>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             {[
-              { step: '1', icon: '📸', text: 'صوّر المنتج أو اكتب وصفه' },
-              { step: '2', icon: '🤖', text: 'الذكاء الاصطناعي يحلل ويملأ كل البيانات' },
-              { step: '3', icon: '✅', text: 'راجع الإعلان وانشره في ثانية' },
-              { step: '4', icon: '💬', text: 'المشترون يتواصلون معك مباشرة' },
-            ].map((s, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 18, margin: '0 auto 10px' }}>{s.step}</div>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
-                <p style={{ margin: 0, opacity: 0.9, fontSize: 14, lineHeight: 1.5 }}>{s.text}</p>
-              </div>
+              { label: '📧 Email', href: 'mailto:ahmed_sharnou@yahoo.com', color: '#667eea' },
+              { label: '💬 WhatsApp', href: 'https://wa.me/', color: '#25d366' },
+            ].map(link => (
+              <a
+                key={link.label}
+                href={link.href}
+                style={{
+                  display: 'inline-block',
+                  background: `${link.color}22`,
+                  border: `1px solid ${link.color}55`,
+                  color: link.color,
+                  padding: '12px 28px',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => e.target.style.background = `${link.color}44`}
+                onMouseLeave={e => e.target.style.background = `${link.color}22`}
+              >
+                {link.label}
+              </a>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* CTA */}
-        <div style={{ textAlign: 'center', padding: '32px 20px', background: 'white', borderRadius: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <h2 style={{ color: '#002f34', fontSize: 26, marginBottom: 8 }}>ابدأ الآن — مجاناً تماماً</h2>
-          <p style={{ color: '#666', marginBottom: 24 }}>Start now — 100% Free · لا بطاقة بنكية مطلوبة · No credit card required</p>
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/sell" style={{ background: '#002f34', color: 'white', padding: '14px 32px', borderRadius: 14, textDecoration: 'none', fontWeight: 'bold', fontSize: 16 }}>+ انشر إعلانك الآن</a>
-            <a href="/" style={{ background: '#f0f0f0', color: '#002f34', padding: '14px 32px', borderRadius: 14, textDecoration: 'none', fontWeight: 'bold', fontSize: 16 }}>تصفح الإعلانات</a>
-          </div>
-          <p style={{ color: '#999', fontSize: 13, marginTop: 20 }}>📧 ahmed_sharnou@yahoo.com</p>
+        {/* Back home */}
+        <div style={{ textAlign: 'center' }}>
+          <a
+            href="/"
+            style={{
+              display: 'inline-block',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: '#fff',
+              padding: '14px 36px',
+              borderRadius: '14px',
+              textDecoration: 'none',
+              fontSize: '16px',
+              fontWeight: 700,
+              boxShadow: '0 4px 20px rgba(102,126,234,0.4)',
+              transition: 'transform 0.2s',
+            }}
+            onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={e => e.target.style.transform = 'none'}
+          >
+            {t.backHome}
+          </a>
         </div>
-
       </div>
     </div>
   );
