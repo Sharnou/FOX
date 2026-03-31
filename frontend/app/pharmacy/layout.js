@@ -16,7 +16,7 @@ export const metadata = {
     description: 'تصفح منتجات الصيدليات والأدوية المتاحة في منطقتك على XTOX.',
   },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/pharmacy',
+    canonical: 'https://xtox.app/pharmacy',
   },
 };
 
