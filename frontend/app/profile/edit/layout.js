@@ -2,16 +2,16 @@ export const metadata = {
   title: 'تعديل الملف الشخصي | XTOX',
   description: 'عدّل معلومات ملفك الشخصي على منصة XTOX',
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/profile/edit',
+    canonical: 'https://xtox.app/profile/edit',
   },
   openGraph: {
     title: 'تعديل الملف الشخصي | XTOX',
     description: 'عدّل معلومات ملفك الشخصي على منصة XTOX',
-    url: 'https://fox-kohl-eight.vercel.app/profile/edit',
+    url: 'https://xtox.app/profile/edit',
     siteName: 'XTOX',
     images: [
       {
-        url: 'https://fox-kohl-eight.vercel.app/og-image.png',
+        url: 'https://xtox.app/og-image.png',
         width: 1200,
         height: 630,
         alt: 'XTOX Marketplace',
@@ -24,7 +24,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'تعديل الملف الشخصي | XTOX',
     description: 'عدّل معلومات ملفك الشخصي على منصة XTOX',
-    images: ['https://fox-kohl-eight.vercel.app/og-image.png'],
+    images: ['https://xtox.app/og-image.png'],
   },
 };
 
