@@ -170,14 +170,14 @@ export default function JobsPage() {
     '@type': 'CollectionPage',
     name: 'إعلانات الوظائف | XTOX',
     description: 'تصفح أحدث إعلانات الوظائف والعمل في منطقتك',
-    url: 'https://fox-kohl-eight.vercel.app/jobs',
+    url: 'https://xtox.app/jobs',
     inLanguage: 'ar',
-    isPartOf: { '@type': 'WebSite', name: 'XTOX', url: 'https://fox-kohl-eight.vercel.app' },
+    isPartOf: { '@type': 'WebSite', name: 'XTOX', url: 'https://xtox.app' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://fox-kohl-eight.vercel.app' },
-        { '@type': 'ListItem', position: 2, name: 'الوظائف',  item: 'https://fox-kohl-eight.vercel.app/jobs' },
+        { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://xtox.app' },
+        { '@type': 'ListItem', position: 2, name: 'الوظائف',  item: 'https://xtox.app/jobs' },
       ],
     },
   };
