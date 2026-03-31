@@ -16,7 +16,7 @@ export const metadata = {
     description: 'تسوق من أفضل منتجات السوبرماركت في منطقتك على XTOX.',
   },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/supermarket',
+    canonical: 'https://xtox.app/supermarket',
   },
 };
 
