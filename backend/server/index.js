@@ -296,6 +296,31 @@ if (!finalMongoUri) {
     } catch(e) {}
     const { seedSuperAdmin } = await import('../routes/users.js');
     await runSeedsOnce();
+    // Auto-cleanup duplicate seed data (safe, runs on each startup)
+    await (async function cleanupDuplicates() {
+      try {
+        const Country = mongoose.models.Country;
+        if (Country) {
+          const all = await Country.find({}).sort({ createdAt: 1 }).lean();
+          const seen = new Set();
+          for (const c of all) {
+            const key = c.code || c.name;
+            if (seen.has(key)) await Country.deleteOne({ _id: c._id });
+            else seen.add(key);
+          }
+          const dupeCount = all.length - seen.size;
+          if (dupeCount > 0) logger.info(`[CLEANUP] Removed ${dupeCount} duplicate countries`);
+        }
+        // Delete errors older than 7 days
+        const ErrModel = mongoose.models.Error || mongoose.models.AppError || mongoose.models.ErrorLog;
+        if (ErrModel) {
+          const r = await ErrModel.deleteMany({ createdAt: { $lt: new Date(Date.now() - 7 * 86400000) } });
+          if (r.deletedCount > 0) logger.info(`[CLEANUP] Removed ${r.deletedCount} old error logs`);
+        }
+      } catch(e) {
+        logger.warn('[CLEANUP] Skipped:', e.message);
+      }
+    })();
   })
   .catch(err => {
     logger.error('[MongoDB] Connection failed:', err.message);
