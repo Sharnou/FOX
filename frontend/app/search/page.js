@@ -144,15 +144,15 @@ export default function SearchPage() {
   } : null;
 
   const breadcrumbSearchItems = [
-    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://fox-kohl-eight.vercel.app' },
-    { '@type': 'ListItem', position: 2, name: 'البحث', item: 'https://fox-kohl-eight.vercel.app/search' },
+    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://xtox.app' },
+    { '@type': 'ListItem', position: 2, name: 'البحث', item: 'https://xtox.app/search' },
   ];
   if (searched && query.trim()) {
     breadcrumbSearchItems.push({
       '@type': 'ListItem',
       position: 3,
       name: query,
-      item: `https://fox-kohl-eight.vercel.app/search?q=${encodeURIComponent(query)}`,
+      item: `https://xtox.app/search?q=${encodeURIComponent(query)}`,
     });
   }
   const breadcrumbSearchLd = searched ? {
