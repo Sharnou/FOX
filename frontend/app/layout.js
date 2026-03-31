@@ -11,13 +11,13 @@ const jsonLd = {
   name: 'XTOX Marketplace',
   alternateName: ['اكستوكس', 'XTOX'],
   description: 'السوق المحلي الذكي — بيع واشتري بسهولة في منطقتك',
-  url: 'https://fox-production.up.railway.app',
+  url: 'https://xtox.app',
   inLanguage: 'ar',
   potentialAction: {
     '@type': 'SearchAction',
     target: {
       '@type': 'EntryPoint',
-      urlTemplate: 'https://fox-production.up.railway.app/search?q={search_term_string}',
+      urlTemplate: 'https://xtox.app/search?q={search_term_string}',
     },
     'query-input': 'required name=search_term_string',
   },
