@@ -186,14 +186,14 @@ export default function Home() {
 
   // ── JSON-LD: BreadcrumbList ───────────────────────────────────────────────
   const breadcrumbItems = [
-    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://fox-kohl-eight.vercel.app' },
+    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://xtox.app' },
   ];
   if (catIdx !== 0) {
     breadcrumbItems.push({
       '@type': 'ListItem',
       position: 2,
       name: currentCatNameAr,
-      item: `https://fox-kohl-eight.vercel.app/?cat=${CAT_VALS[catIdx]}`,
+      item: `https://xtox.app/?cat=${CAT_VALS[catIdx]}`,
     });
   }
   const breadcrumbLd = {
