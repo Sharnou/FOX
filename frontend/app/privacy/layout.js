@@ -2,16 +2,16 @@ export const metadata = {
   title: 'سياسة الخصوصية | XTOX',
   description: 'سياسة الخصوصية وحماية البيانات الشخصية على منصة XTOX',
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/privacy',
+    canonical: 'https://xtox.app/privacy',
   },
   openGraph: {
     title: 'سياسة الخصوصية | XTOX',
     description: 'سياسة الخصوصية وحماية البيانات الشخصية على منصة XTOX',
-    url: 'https://fox-kohl-eight.vercel.app/privacy',
+    url: 'https://xtox.app/privacy',
     siteName: 'XTOX',
     images: [
       {
-        url: 'https://fox-kohl-eight.vercel.app/og-image.png',
+        url: 'https://xtox.app/og-image.png',
         width: 1200,
         height: 630,
         alt: 'XTOX Marketplace',
@@ -24,7 +24,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'سياسة الخصوصية | XTOX',
     description: 'سياسة الخصوصية وحماية البيانات الشخصية على منصة XTOX',
-    images: ['https://fox-kohl-eight.vercel.app/og-image.png'],
+    images: ['https://xtox.app/og-image.png'],
   },
 };
 
