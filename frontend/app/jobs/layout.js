@@ -16,7 +16,7 @@ export const metadata = {
     description: 'تصفح أحدث إعلانات الوظائف في منطقتك على XTOX.',
   },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/jobs',
+    canonical: 'https://xtox.app/jobs',
   },
 };
 
