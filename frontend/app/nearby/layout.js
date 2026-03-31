@@ -2,18 +2,18 @@ export const metadata = {
   title: 'إعلانات قريبة منك | XTOX',
   description: 'اكتشف الإعلانات والعروض القريبة من موقعك الجغرافي على XTOX — سوق محلي ذكي.',
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/nearby',
+    canonical: 'https://xtox.app/nearby',
   },
   openGraph: {
     title: 'إعلانات قريبة منك | XTOX',
     description: 'اكتشف الإعلانات والعروض القريبة من موقعك على XTOX.',
-    url: 'https://fox-kohl-eight.vercel.app/nearby',
+    url: 'https://xtox.app/nearby',
     siteName: 'XTOX',
     locale: 'ar_EG',
     type: 'website',
     images: [
       {
-        url: 'https://fox-kohl-eight.vercel.app/og-image.png',
+        url: 'https://xtox.app/og-image.png',
         width: 1200,
         height: 630,
         alt: 'XTOX - إعلانات قريبة',
@@ -24,7 +24,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'إعلانات قريبة منك | XTOX',
     description: 'اكتشف الإعلانات والعروض القريبة من موقعك على XTOX.',
-    images: ['https://fox-kohl-eight.vercel.app/og-image.png'],
+    images: ['https://xtox.app/og-image.png'],
   },
 };
 
