@@ -16,15 +16,26 @@ import mongoose from 'mongoose';
 import rateLimit from 'express-rate-limit';
 import pino from 'pino';
 import cron from 'node-cron';
-import compression from 'compression';
-import helmet from 'helmet';
+// Dynamic imports — safe even if packages not installed
+const compressionModule = await import('compression').catch(() => null);
+const helmetModule = await import('helmet').catch(() => null);
+const compression = compressionModule?.default || null;
+const helmet = helmetModule?.default || null;
 import { initSocket } from './socket.js';
 import { archiveExpiredAds, deleteOldArchives } from './archiveManager.js';
 import { seedCountries } from './countries.js';
 import { seedCelebrations } from './celebrations.js';
 import { seedCoreDictionary } from './languageLearner.js';
 import { runHealthCheck, autoResolveOldErrors } from './healthMonitor.js';
-import { connectCouchbase, cluster as couchbaseCluster } from './couchbase.js';
+let connectCouchbase = null;
+let couchbaseCluster = null;
+try {
+  const cb = await import('./couchbase.js');
+  connectCouchbase = cb.connectCouchbase;
+  couchbaseCluster = cb.cluster;
+} catch(e) {
+  console.warn('[COUCHBASE] Module load failed:', e.message);
+}
 
 // Routes
 import userRoutes from '../routes/users.js';
@@ -49,13 +60,10 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Gzip compression — reduces API response size by 60-80% (free)
-app.use(compression());
+if (compression) app.use(compression());
 
 // Security headers (helmet) — free hardening
-app.use(helmet({
-  contentSecurityPolicy: false, // disabled to allow Cloudinary images
-  crossOriginEmbedderPolicy: false,
-}));
+if (helmet) app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -298,7 +306,7 @@ if (!finalMongoUri) {
     .then(async () => {
     logger.info('MongoDB connected');
     // Connect Couchbase (non-fatal — app works without it)
-    connectCouchbase().catch(e => logger.warn('[COUCHBASE] Startup connection failed:', e.message));
+    if (connectCouchbase) connectCouchbase().catch(e => logger.warn('[COUCHBASE] Startup connection failed:', e.message));
     // Auto-delete old errors after 7 days
     try {
       const ErrorModel = mongoose.models.Error || mongoose.models.AppError;
