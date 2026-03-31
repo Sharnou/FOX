@@ -1,6 +1,6 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 
 const RAILWAY = 'https://xtox.up.railway.app';
 
@@ -51,6 +51,49 @@ export default function AdminPage() {
   const [stats, setStats] = useState({ users: 0, ads: 0, reports: 0 });
   const [token, setToken] = useState('');
   const chatRef = useRef(null);
+
+  // --- NEW: Search & filter state ---
+  const [userSearch, setUserSearch] = useState('');
+  const [userCountryFilter, setUserCountryFilter] = useState('');
+  const [adSearch, setAdSearch] = useState('');
+  const [adCategoryFilter, setAdCategoryFilter] = useState('');
+
+  // --- NEW: Derived filtered lists ---
+  const userCountries = useMemo(() => [...new Set(users.map(u => u.country).filter(Boolean))].sort(), [users]);
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.toLowerCase();
+    return users.filter(u => {
+      const matchSearch = !q ||
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.phone || '').toLowerCase().includes(q) ||
+        (u.country || '').toLowerCase().includes(q);
+      const matchCountry = !userCountryFilter || u.country === userCountryFilter;
+      return matchSearch && matchCountry;
+    });
+  }, [users, userSearch, userCountryFilter]);
+
+  const adCategories = useMemo(() => [...new Set(ads.map(a => a.category).filter(Boolean))].sort(), [ads]);
+  const filteredAds = useMemo(() => {
+    const q = adSearch.toLowerCase();
+    return ads.filter(a => {
+      const matchSearch = !q ||
+        (a.title || '').toLowerCase().includes(q) ||
+        (a.category || '').toLowerCase().includes(q) ||
+        (a.city || '').toLowerCase().includes(q);
+      const matchCat = !adCategoryFilter || a.category === adCategoryFilter;
+      return matchSearch && matchCat;
+    });
+  }, [ads, adSearch, adCategoryFilter]);
+
+  const clearFilters = () => {
+    setUserSearch('');
+    setUserCountryFilter('');
+    setAdSearch('');
+    setAdCategoryFilter('');
+  };
+
+  const hasActiveFilters = userSearch || userCountryFilter || adSearch || adCategoryFilter;
 
   useEffect(() => {
     try {
@@ -138,15 +181,22 @@ export default function AdminPage() {
   const requestRepair = () => post('/api/admin/ai-repair/request', { problem: repairProblem }).then(r => { setLogs(l => [r, ...l]); setRepairProblem(''); alert('Repair requested'); });
   const resolveError = (id) => fetch(`${RAILWAY}/api/errors/${id}/resolve`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}` } }).then(() => fetchAll());
 
+  // --- UPDATED: Bilingual Arabic/English tab labels ---
   const TABS = [
-    { id: 'dashboard', label: '📊 Dashboard' },
-    { id: 'ai', label: '🤖 AI Dev' },
-    { id: 'users', label: '👥 Users' },
-    { id: 'ads', label: '📋 Ads' },
-    { id: 'errors', label: '🔴 Errors' },
-    { id: 'broadcast', label: '📢 Broadcast' },
-    { id: 'system', label: '⚙️ System' },
+    { id: 'dashboard', icon: '📊', en: 'Dashboard', ar: 'لوحة التحكم' },
+    { id: 'ai',        icon: '🤖', en: 'AI Dev',    ar: 'المطور الذكي' },
+    { id: 'users',     icon: '👥', en: 'Users',     ar: 'المستخدمون' },
+    { id: 'ads',       icon: '📋', en: 'Ads',       ar: 'الإعلانات' },
+    { id: 'errors',    icon: '🔴', en: 'Errors',    ar: 'الأخطاء' },
+    { id: 'broadcast', icon: '📢', en: 'Broadcast', ar: 'الإذاعة' },
+    { id: 'system',    icon: '⚙️', en: 'System',    ar: 'النظام' },
   ];
+
+  // --- NEW: Shared search bar style ---
+  const inputStyle = { background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '7px 10px', color: '#e6edf3', fontSize: 12, fontFamily: 'monospace', outline: 'none' };
+  const selectStyle = { ...inputStyle, cursor: 'pointer' };
+  const clearBtnStyle = { background: '#21262d', color: '#ffd700', border: '1px solid #ffd700', borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'nowrap' };
+  const countStyle = { color: '#8b949e', fontSize: 11, marginBottom: 10, fontFamily: 'monospace' };
 
   if (!authed) return (
     <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' }}>
@@ -183,6 +233,12 @@ export default function AdminPage() {
       <div style={{ background: '#161b22', borderBottom: '1px solid #30363d', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
         <span style={{ color: '#00ff41', fontWeight: 'bold', fontSize: 18 }}>⬡ XTOX</span>
         <span style={{ color: '#8b949e', fontSize: 12 }}>Admin Control Center</span>
+        {hasActiveFilters && (
+          <button onClick={clearFilters}
+            style={{ background: '#2d2a1a', color: '#ffd700', border: '1px solid #ffd700', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 11, fontFamily: 'monospace' }}>
+            ✕ Clear Filters / مسح الفلاتر
+          </button>
+        )}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00ff41', display: 'inline-block' }} />
           <span style={{ color: '#8b949e', fontSize: 11 }}>Ahmed Sharnou</span>
@@ -192,11 +248,12 @@ export default function AdminPage() {
       </div>
 
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 53px)' }}>
-        <div style={{ width: 180, background: '#161b22', borderRight: '1px solid #30363d', padding: '12px 0', flexShrink: 0 }}>
+        <div style={{ width: 190, background: '#161b22', borderRight: '1px solid #30363d', padding: '12px 0', flexShrink: 0 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 18px', background: tab === t.id ? '#21262d' : 'transparent', color: tab === t.id ? '#00ff41' : '#8b949e', border: 'none', cursor: 'pointer', fontSize: 12, borderLeft: tab === t.id ? '2px solid #00ff41' : '2px solid transparent' }}>
-              {t.label}
+              <span>{t.icon} {t.en}</span>
+              <span dir="rtl" style={{ display: 'block', fontSize: 10, color: tab === t.id ? 'rgba(0,255,65,0.6)' : 'rgba(139,148,158,0.6)', marginTop: 1 }}>{t.ar}</span>
             </button>
           ))}
           <div style={{ margin: '14px 10px 0', padding: '10px', background: '#0d1117', borderRadius: 6, border: '1px solid #21262d' }}>
@@ -208,7 +265,9 @@ export default function AdminPage() {
         <div style={{ flex: 1, padding: 20, overflowY: 'auto' }}>
           {tab === 'dashboard' && (
             <div>
-              <h2 style={{ color: '#00d4ff', marginBottom: 16, fontSize: 16 }}>📊 Dashboard</h2>
+              <h2 style={{ color: '#00d4ff', marginBottom: 16, fontSize: 16 }}>
+                📊 Dashboard <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ لوحة التحكم</span>
+              </h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
                 <StatCard label="Users" value={stats.users} icon="👥" color="#00d4ff" />
                 <StatCard label="Ads" value={stats.ads} icon="📋" color="#00ff41" />
@@ -232,14 +291,37 @@ export default function AdminPage() {
 
           {tab === 'users' && (
             <div>
-              <h2 style={{ color: '#00d4ff', marginBottom: 14, fontSize: 16 }}>👥 Users ({users.length})</h2>
+              <h2 style={{ color: '#00d4ff', marginBottom: 12, fontSize: 16 }}>
+                👥 Users <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ المستخدمون</span>
+              </h2>
+              {/* NEW: User search & filter bar */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                  placeholder="🔍 Search / بحث — name, email, country"
+                  style={{ ...inputStyle, flex: 1, minWidth: 200 }}
+                  dir="auto"
+                />
+                <select value={userCountryFilter} onChange={e => setUserCountryFilter(e.target.value)} style={selectStyle}>
+                  <option value="">All Countries / كل الدول</option>
+                  {userCountries.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                {(userSearch || userCountryFilter) && (
+                  <button onClick={clearFilters} style={clearBtnStyle}>✕ Clear / مسح</button>
+                )}
+              </div>
+              <div style={countStyle}>
+                Showing {filteredUsers.length} of {users.length} users
+                <span dir="rtl" style={{ marginRight: 6 }}> / عرض {filteredUsers.length} من {users.length} مستخدماً</span>
+              </div>
               <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead><tr style={{ borderBottom: '1px solid #30363d' }}>
                     {['Name','Email/Phone','Role','Country','Status','Actions'].map(h => <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#8b949e', fontWeight: 'normal' }}>{h}</th>)}
                   </tr></thead>
                   <tbody>
-                    {users.map(u => (
+                    {filteredUsers.map(u => (
                       <tr key={u._id} style={{ borderBottom: '1px solid #21262d' }}>
                         <td style={{ padding: '9px 12px', color: '#e6edf3' }}>{u.name}</td>
                         <td style={{ padding: '9px 12px', color: '#8b949e' }}>{u.email || u.phone}</td>
@@ -252,6 +334,11 @@ export default function AdminPage() {
                         </td>
                       </tr>
                     ))}
+                    {filteredUsers.length === 0 && (
+                      <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#8b949e', fontSize: 12 }}>
+                        No users found / لا يوجد مستخدمون
+                      </td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -260,14 +347,37 @@ export default function AdminPage() {
 
           {tab === 'ads' && (
             <div>
-              <h2 style={{ color: '#00d4ff', marginBottom: 14, fontSize: 16 }}>📋 Ads ({ads.length})</h2>
+              <h2 style={{ color: '#00d4ff', marginBottom: 12, fontSize: 16 }}>
+                📋 Ads <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ الإعلانات</span>
+              </h2>
+              {/* NEW: Ads search & filter bar */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input
+                  value={adSearch}
+                  onChange={e => setAdSearch(e.target.value)}
+                  placeholder="🔍 Search / بحث — title, category, city"
+                  style={{ ...inputStyle, flex: 1, minWidth: 200 }}
+                  dir="auto"
+                />
+                <select value={adCategoryFilter} onChange={e => setAdCategoryFilter(e.target.value)} style={selectStyle}>
+                  <option value="">All Categories / كل الفئات</option>
+                  {adCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                {(adSearch || adCategoryFilter) && (
+                  <button onClick={clearFilters} style={clearBtnStyle}>✕ Clear / مسح</button>
+                )}
+              </div>
+              <div style={countStyle}>
+                Showing {filteredAds.length} of {ads.length} ads
+                <span dir="rtl" style={{ marginRight: 6 }}> / عرض {filteredAds.length} من {ads.length} إعلاناً</span>
+              </div>
               <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead><tr style={{ borderBottom: '1px solid #30363d' }}>
                     {['Title','Category','City','Views','Status','Actions'].map(h => <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#8b949e', fontWeight: 'normal' }}>{h}</th>)}
                   </tr></thead>
                   <tbody>
-                    {ads.map(a => (
+                    {filteredAds.map(a => (
                       <tr key={a._id} style={{ borderBottom: '1px solid #21262d' }}>
                         <td style={{ padding: '9px 12px', color: '#e6edf3', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title}</td>
                         <td style={{ padding: '9px 12px', color: '#8b949e' }}>{a.category}</td>
@@ -280,6 +390,11 @@ export default function AdminPage() {
                         </td>
                       </tr>
                     ))}
+                    {filteredAds.length === 0 && (
+                      <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#8b949e', fontSize: 12 }}>
+                        No ads found / لا يوجد إعلانات
+                      </td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -288,7 +403,9 @@ export default function AdminPage() {
 
           {tab === 'errors' && (
             <div>
-              <h2 style={{ color: '#ff4444', marginBottom: 14, fontSize: 16 }}>🔴 Error Logs ({errors.length})</h2>
+              <h2 style={{ color: '#ff4444', marginBottom: 14, fontSize: 16 }}>
+                🔴 Error Logs <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ الأخطاء</span> ({errors.length})
+              </h2>
               <button onClick={() => fetchAll()} style={{ background: '#21262d', color: '#00d4ff', border: '1px solid #00d4ff', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 11, marginBottom: 14, fontFamily: 'monospace' }}>$ refresh</button>
               {errors.length === 0 && <AITerminal title="errors.log" color="green"><div>✅ No errors. System clean.</div></AITerminal>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -309,7 +426,9 @@ export default function AdminPage() {
 
           {tab === 'ai' && (
             <div>
-              <h2 style={{ color: '#bf5fff', marginBottom: 14, fontSize: 16 }}>🤖 AI Developer</h2>
+              <h2 style={{ color: '#bf5fff', marginBottom: 14, fontSize: 16 }}>
+                🤖 AI Developer <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ المطور الذكي</span>
+              </h2>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <AITerminal title="ai-repair.js" color="yellow">
                   <textarea value={repairProblem} onChange={e => setRepairProblem(e.target.value)}
@@ -328,7 +447,9 @@ export default function AdminPage() {
 
           {tab === 'broadcast' && (
             <div>
-              <h2 style={{ color: '#ffd700', marginBottom: 14, fontSize: 16 }}>📢 Weekly Broadcast</h2>
+              <h2 style={{ color: '#ffd700', marginBottom: 14, fontSize: 16 }}>
+                📢 Weekly Broadcast <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ الإذاعة الأسبوعية</span>
+              </h2>
               <AITerminal title="broadcast.js" color="yellow">
                 <div style={{ marginBottom: 8, color: '#8b949e', fontSize: 11 }}>Send to all {stats.users} users (1/week limit)</div>
                 <textarea value={broadcast} onChange={e => setBroadcast(e.target.value)}
@@ -343,7 +464,9 @@ export default function AdminPage() {
 
           {tab === 'system' && (
             <div>
-              <h2 style={{ color: '#00d4ff', marginBottom: 14, fontSize: 16 }}>⚙️ System</h2>
+              <h2 style={{ color: '#00d4ff', marginBottom: 14, fontSize: 16 }}>
+                ⚙️ System <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ النظام</span>
+              </h2>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <AITerminal title="system.sh" color="green">
                   <div style={{ display: 'grid', gap: 6 }}>
