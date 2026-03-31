@@ -4,7 +4,7 @@ export const metadata = {
   openGraph: {
     title: 'بيع إعلانك | XTOX',
     description: 'أضف إعلانك مجاناً على XTOX بمساعدة الذكاء الاصطناعي. صوّر منتجك وسيملأ AI التفاصيل تلقائياً.',
-    url: 'https://fox-kohl-eight.vercel.app/sell',
+    url: 'https://xtox.app/sell',
     siteName: 'XTOX',
     locale: 'ar_EG',
     type: 'website',
@@ -15,7 +15,7 @@ export const metadata = {
     description: 'أضف إعلانك مجاناً على XTOX بمساعدة الذكاء الاصطناعي.',
   },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/sell',
+    canonical: 'https://xtox.app/sell',
   },
 };
 
