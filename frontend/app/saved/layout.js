@@ -3,12 +3,12 @@ export const metadata = {
   description: 'إعلاناتك المحفوظة على منصة XTOX للسوق العربي المحلي',
   robots: { index: false, follow: false },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/saved',
+    canonical: 'https://xtox.app/saved',
   },
   openGraph: {
     title: 'إعلاناتي المحفوظة | XTOX',
     description: 'إعلاناتك المحفوظة على منصة XTOX للسوق العربي المحلي',
-    url: 'https://fox-kohl-eight.vercel.app/saved',
+    url: 'https://xtox.app/saved',
     siteName: 'XTOX',
     locale: 'ar_EG',
     type: 'website',
