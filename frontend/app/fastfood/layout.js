@@ -16,7 +16,7 @@ export const metadata = {
     description: 'اطلب أشهى الوجبات السريعة من المطاعم القريبة منك على XTOX.',
   },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/fastfood',
+    canonical: 'https://xtox.app/fastfood',
   },
 };
 
