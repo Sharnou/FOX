@@ -2,16 +2,16 @@ export const metadata = {
   title: 'الشروط والأحكام | XTOX',
   description: 'الشروط والأحكام الخاصة باستخدام منصة XTOX للبيع والشراء',
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app/terms',
+    canonical: 'https://xtox.app/terms',
   },
   openGraph: {
     title: 'الشروط والأحكام | XTOX',
     description: 'الشروط والأحكام الخاصة باستخدام منصة XTOX للبيع والشراء',
-    url: 'https://fox-kohl-eight.vercel.app/terms',
+    url: 'https://xtox.app/terms',
     siteName: 'XTOX',
     images: [
       {
-        url: 'https://fox-kohl-eight.vercel.app/og-image.png',
+        url: 'https://xtox.app/og-image.png',
         width: 1200,
         height: 630,
         alt: 'XTOX Marketplace',
@@ -24,7 +24,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'الشروط والأحكام | XTOX',
     description: 'الشروط والأحكام الخاصة باستخدام منصة XTOX للبيع والشراء',
-    images: ['https://fox-kohl-eight.vercel.app/og-image.png'],
+    images: ['https://xtox.app/og-image.png'],
   },
 };
 
