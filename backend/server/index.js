@@ -43,6 +43,7 @@ import geoRoutes from '../routes/geo.js';
 import languageRoutes from '../routes/language.js';
 import seoRoutes from '../routes/seo.js';
 import paymentRoutes from '../routes/payment.js';
+import couchbaseExampleRoutes from '../routes/couchbase-example.js';
 
 const logger = pino();
 const app = express();
@@ -133,6 +134,7 @@ app.use('/api/geo', geoRoutes);
 app.use('/seo', seoRoutes);
 app.use('/api/language', languageRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/cb-example', couchbaseExampleRoutes);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => {
@@ -154,6 +156,8 @@ app.get('/', (_, res) => {
                       'HARDCODED_ATLAS_FALLBACK',
       jwtSet: !!process.env.JWT_SECRET,
       couchbaseConnected: couchbaseCluster !== null,
+      couchbaseBucket: process.env.COUCHBASE_BUCKET || 'travel-sample',
+      couchbaseHost: process.env.COUCHBASE_HOST || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com',
       frontendUrl: process.env.FRONTEND_URL || 'not set'
     }
   });
