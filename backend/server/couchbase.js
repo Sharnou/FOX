@@ -8,7 +8,7 @@ let _connected = false;
 const COUCHBASE_URL = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
 const COUCHBASE_USER = process.env.COUCHBASE_USER || 'xtox';
 const COUCHBASE_PASS = process.env.COUCHBASE_PASS || process.env.COUCHBASE_PASSWORD || '8+fFce$rFABj';
-const BUCKET_NAME = process.env.COUCHBASE_BUCKET || 'xtox';
+const BUCKET_NAME = process.env.COUCHBASE_BUCKET || 'XTOX';
 
 export async function connectCouchbase() {
   try {
