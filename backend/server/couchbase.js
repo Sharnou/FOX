@@ -22,11 +22,12 @@ export async function connectCouchbase() {
     _cluster = await couchbase.default.connect(COUCHBASE_URL, {
       username: COUCHBASE_USER,
       password: COUCHBASE_PASS,
-      timeouts: { connectTimeout: 10000, kvTimeout: 5000 },
+      configProfile: 'wanDevelopment',  // Required for Capella cloud connections
     });
 
     const bucket = _cluster.bucket(BUCKET_NAME);
     _collection = bucket.defaultCollection();
+    await bucket.waitUntilReady(30000);
     _connected = true;
     console.log('[COUCHBASE] Connected ✅');
     return true;
