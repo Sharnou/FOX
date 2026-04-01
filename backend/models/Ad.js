@@ -25,6 +25,16 @@ const AdSchema = new mongoose.Schema({
     coordinates: [Number],
     placeName: String
   },
+  // ── Run 84: Item condition & negotiable price ──────────────────────────────
+  // Lets buyers instantly filter "new" vs "used" — essential for Arab OLX-style
+  condition: {
+    type: String,
+    enum: ['new', 'used', 'excellent', 'rent'],
+    default: null
+  },
+  // Sellers can flag price as negotiable (القابل للتفاوض) — very common in Arab markets
+  negotiable: { type: Boolean, default: false },
+  // ──────────────────────────────────────────────────────────────────────────
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -35,5 +45,5 @@ AdSchema.index({ 'location': '2dsphere' });                      // GPS nearby
 AdSchema.index({ userId: 1, createdAt: -1 });                    // my-ads page
 AdSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });     // TTL auto-expire
 AdSchema.index({ title: 'text', description: 'text' });          // text search
+AdSchema.index({ country: 1, condition: 1, createdAt: -1 });     // condition filter [run 84]
 export default mongoose.model('Ad', AdSchema);
-
