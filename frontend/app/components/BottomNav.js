@@ -5,7 +5,7 @@ const navItems = [
   { icon: '🏠', label: 'الرئيسية', href: '/' },
   { icon: '🔍', label: 'بحث', href: '/search' },
   { icon: '➕', label: 'بيع', href: '/sell', highlight: true },
-  { icon: '💬', label: 'محادثات', href: '/chat' },
+  { icon: '❤️', label: 'المفضلة', href: '/wishlist' },
   { icon: '👤', label: 'حسابي', href: '/login' },
 ];
 
