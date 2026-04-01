@@ -17,11 +17,14 @@ export default function FeaturedAdPopup({ ads }) {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (!token || !user._id) return;
 
-    const myLowViewAd = ads.find(ad =>
-      ad.userId?._id === user._id &&
-      !ad.isFeatured &&
-      (ad.views || 0) < 20
-    );
+    const myLowViewAd = ads.find(ad => {
+      const isBaby = (ad.category||'').toLowerCase().includes('أطفال') || 
+                     (ad.category||'').toLowerCase().includes('baby') ||
+                     (ad.category||'').toLowerCase().includes('kids');
+      return ad.userId?._id === user._id && 
+             !ad.isFeatured && 
+             ((ad.views || 0) < 20 || isBaby);
+    });
 
     if (myLowViewAd) {
       setTimeout(() => {
