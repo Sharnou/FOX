@@ -1,10 +1,9 @@
-const express = require('express');
-const router = express.Router();
-const mongoose = require('mongoose');
-const auth = require('../middleware/auth');
+import express from 'express';
+import { auth } from '../middleware/auth.js';
+import Ad from '../models/Ad.js';
+import User from '../models/User.js';
 
-const Ad = mongoose.model('Ad');
-const User = mongoose.model('User');
+const router = express.Router();
 
 // POST /api/wishlist — add ad to wishlist (swipe right)
 router.post('/', auth, async (req, res) => {
@@ -57,4 +56,4 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
