@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import AdCardSkeleton from '../components/AdCardSkeleton';
+import SaveSearch from '../components/SaveSearch';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production.up.railway.app';
 const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];
@@ -239,6 +240,7 @@ export default function SearchPage() {
             </div>
           )}
         </div>
+        <SaveSearch searchParams={{ q: query, category, minPrice, maxPrice, city, sortBy }} lang="ar" />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
           <select value={category} onChange={e => setCategory(e.target.value)}
