@@ -55,6 +55,7 @@ import languageRoutes from '../routes/language.js';
 import seoRoutes from '../routes/seo.js';
 import paymentRoutes from '../routes/payment.js';
 import reportRoutes from '../routes/reports.js';
+import offersRouter from '../routes/offers.js';
 
 const logger = pino();
 const app = express();
@@ -144,6 +145,7 @@ app.use('/seo', seoRoutes);
 app.use('/api/language', languageRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/offers', offersRouter);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => {
