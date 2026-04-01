@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
 import AdCardSkeleton from './components/AdCardSkeleton';
-import FeaturedAdPopup from './components/FeaturedAdPopup';
+import CartoonMoodPopup from './components/CartoonMoodPopup';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -903,7 +903,7 @@ export default function Home() {
         </div>
       )}
 
-      <FeaturedAdPopup ads={ads} />
+      <CartoonMoodPopup ads={ads} />
     </div>
   );
 }
