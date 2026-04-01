@@ -9,6 +9,7 @@ function optimizeImage(url, width = 400) {
 import AdDetailSkeleton from '../../components/AdDetailSkeleton';
 import RecentlyViewed, { recordRecentView } from '../../components/RecentlyViewed';
 import ReportAd from '../../components/ReportAd';
+import MakeOfferModal from '../../components/MakeOfferModal';
 
 const API = 'https://fox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://fox-production.up.railway.app';
@@ -166,6 +167,7 @@ export default function AdPageClient({ params }) {
   const [shareCopied, setShareCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [offerOpen, setOfferOpen] = useState(false);
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
@@ -316,6 +318,18 @@ export default function AdPageClient({ params }) {
         <span style={{ fontSize: 18 }}>{saved ? '❤️' : '🤍'}</span>
         <span>{saved ? 'محفوظ ✓' : 'احفظ الإعلان'}</span>
       </button>
+      {ad?.negotiable && userId !== sellerId && (
+        <button
+          onClick={() => setOfferOpen(true)}
+          style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: '2px solid #1877F2', background: '#f0f6ff', color: '#1877F2', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}
+        >
+          <span style={{ fontSize: 18 }}>💬</span>
+          <span>قدّم عرضاً</span>
+        </button>
+      )}
+      {offerOpen && ad && (
+        <MakeOfferModal ad={ad} user={{ _id: userId }} onClose={() => setOfferOpen(false)} />
+      )}
       {sellerId && (<a href={`/profile/${sellerId}`} style={{ display: 'block', marginTop: 16, background: '#f8f8f8', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textDecoration: 'none', color: '#002f34' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>{ad.userId?.name?.[0]?.toUpperCase() || '?'}</div>
