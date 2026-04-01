@@ -54,6 +54,7 @@ import geoRoutes from '../routes/geo.js';
 import languageRoutes from '../routes/language.js';
 import seoRoutes from '../routes/seo.js';
 import paymentRoutes from '../routes/payment.js';
+import reportRoutes from '../routes/reports.js';
 
 const logger = pino();
 const app = express();
@@ -95,7 +96,8 @@ app.use((req, res, next) => {
     p.startsWith('/api/admin') ||
     p.startsWith('/api/chat') ||
     p.startsWith('/api/profile') ||
-    p.startsWith('/api/errors')
+    p.startsWith('/api/errors') ||
+    p.startsWith('/api/reports')
   ) {
     res.set('Cache-Control', 'no-store');
 
@@ -141,6 +143,7 @@ app.use('/api/geo', geoRoutes);
 app.use('/seo', seoRoutes);
 app.use('/api/language', languageRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/reports', reportRoutes);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => {
