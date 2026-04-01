@@ -7,36 +7,38 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app
 
 const T = {
   ar: {
-    title: 'قائمة المحفوظات',
-    savedOne: 'إعلان محفوظ',
-    savedMany: 'إعلانات محفوظة',
-    empty: 'لا توجد إعلانات محفوظة',
-    emptyDesc: 'ابدأ بحفظ الإعلانات التي تعجبك وستظهر هنا',
+    title: 'المفضلة',
+    pageTitle: 'قائمة المفضلة | XTOX',
+    savedOne: 'إعلان مفضل',
+    savedMany: 'إعلانات مفضلة',
+    empty: 'لا توجد إعلانات في المفضلة بعد',
+    emptyDesc: 'أضف الإعلانات التي تعجبك إلى المفضلة وستظهر هنا',
     browse: 'تصفح الإعلانات',
-    remove: 'إزالة',
+    remove: 'إزالة من المفضلة',
     removing: 'جارٍ الإزالة...',
     noPrice: 'السعر غير محدد',
     loading: 'جاري التحميل...',
-    loginRequired: 'يرجى تسجيل الدخول لعرض قائمة المحفوظات',
+    loginRequired: 'يرجى تسجيل الدخول لعرض المفضلة',
     login: 'تسجيل الدخول',
     error: 'حدث خطأ أثناء التحميل، حاول مجدداً',
     retry: 'إعادة المحاولة',
     noTitle: 'بدون عنوان',
   },
   en: {
-    title: 'Wishlist',
-    savedOne: 'saved ad',
-    savedMany: 'saved ads',
-    empty: 'No saved ads yet',
-    emptyDesc: 'Start saving ads you like and they will appear here',
+    title: 'Favorite Ads',
+    pageTitle: 'Favorite Ads | XTOX',
+    savedOne: 'favorite ad',
+    savedMany: 'favorite ads',
+    empty: 'No favorite ads yet',
+    emptyDesc: 'Add ads you like to your favorites and they will appear here',
     browse: 'Browse Ads',
-    remove: 'Remove',
+    remove: 'Remove from Favorites',
     removing: 'Removing...',
     noPrice: 'Price not set',
     loading: 'Loading...',
-    loginRequired: 'Please log in to view your wishlist',
+    loginRequired: 'Please log in to view your favorites',
     login: 'Log In',
-    error: 'Failed to load wishlist. Please try again.',
+    error: 'Failed to load favorites. Please try again.',
     retry: 'Retry',
     noTitle: 'No title',
   },
@@ -68,6 +70,11 @@ export default function WishlistPage() {
 
   const t     = T[lang] || T.ar;
   const isRTL = lang === 'ar';
+
+  /* Set page title */
+  useEffect(() => {
+    document.title = t.pageTitle;
+  }, [t.pageTitle]);
 
   /* Read lang + token from localStorage once mounted */
   useEffect(() => {
@@ -132,7 +139,7 @@ export default function WishlistPage() {
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <span>🤍</span>
+            <span>❤️</span>
             <span>{t.title}</span>
           </h1>
           {!loading && ads.length > 0 && (
@@ -185,7 +192,7 @@ export default function WishlistPage() {
         {/* ── Empty state ──────────────────────────────────────────────── */}
         {!loading && !error && token && ads.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
-            <span className="text-7xl select-none">🤍</span>
+            <span className="text-7xl select-none">❤️</span>
             <h2 className="text-xl font-bold text-gray-700">{t.empty}</h2>
             <p className="text-gray-400 text-sm max-w-xs leading-relaxed">{t.emptyDesc}</p>
             <a
@@ -270,7 +277,7 @@ export default function WishlistPage() {
                         }
                       `}
                     >
-                      {isBusy ? t.removing : `🗑️ ${t.remove}`}
+                      {isBusy ? t.removing : `❤️ ${t.remove}`}
                     </button>
                   </div>
                 </article>
