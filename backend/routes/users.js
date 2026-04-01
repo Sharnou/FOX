@@ -242,7 +242,32 @@ router.post('/verify-otp', async (req, res) => {
 // ── Email Register ──
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name, country: countryCode, city } = req.body;
+    const { email: rawEmail, password: rawPassword, name: rawName, country: countryCode, city } = req.body;
+
+    // ── Input Validation & Sanitization ───────────────────────────────────
+    const email    = typeof rawEmail    === 'string' ? rawEmail.trim().toLowerCase()   : '';
+    const password = typeof rawPassword === 'string' ? rawPassword                     : '';
+    const name     = typeof rawName     === 'string' ? rawName.trim().slice(0, 100)    : '';
+
+    // Required fields
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'الاسم والبريد الإلكتروني وكلمة المرور مطلوبة' });
+    }
+    // Email format
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRe.test(email)) {
+      return res.status(400).json({ error: 'صيغة البريد الإلكتروني غير صحيحة' });
+    }
+    // Password minimum length
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' });
+    }
+    // Name minimum length
+    if (name.length < 2) {
+      return res.status(400).json({ error: 'الاسم يجب أن يكون حرفين على الأقل' });
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const fraud = await detectFraud(ip);
     if (fraud.isFraud) return res.status(400).json({ error: 'Account creation restricted' });
