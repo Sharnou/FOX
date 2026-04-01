@@ -133,6 +133,40 @@ export default function ProfilePage({ params }) {
               </div>
             )}
             {user.role === 'admin' && <span style={{ position: 'absolute', bottom: 0, right: 0, background: '#ffd700', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>👑</span>}
+            {/* Online Status Badge — run 88 */}
+            {user.isOnline ? (
+              <span
+                title="متصل الآن"
+                style={{
+                  position: 'absolute',
+                  bottom: 4,
+                  left: 4,
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  background: '#22c55e',
+                  border: '2px solid white',
+                  zIndex: 2,
+                }}
+              />
+            ) : user.lastSeen ? (
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: -20,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  fontSize: 10,
+                  color: '#9ca3af',
+                  whiteSpace: 'nowrap',
+                  background: 'rgba(255,255,255,0.85)',
+                  borderRadius: 4,
+                  padding: '1px 4px',
+                }}
+              >
+                {`آخر ظهور ${Math.round((Date.now() - new Date(user.lastSeen)) / 60000)} د`}
+              </span>
+            ) : null}
           </div>
 
           <div style={{ flex: 1 }}>
