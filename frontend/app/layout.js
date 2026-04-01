@@ -3,6 +3,7 @@ import ScrollToTop from './components/ScrollToTop';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 import UnifiedNotificationPrompt from './components/UnifiedNotificationPrompt';
+import BottomNav from './components/BottomNav';
 
 // JSON-LD structured data for rich Google search results
 const jsonLd = {
@@ -76,8 +77,8 @@ export default function RootLayout({ children }) {
         <PWAInstallPrompt />
         <ServiceWorkerRegistration />
         <UnifiedNotificationPrompt />
+        <BottomNav />
       </body>
     </html>
   );
 }
-
