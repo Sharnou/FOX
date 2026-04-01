@@ -45,6 +45,41 @@ function StarRating({ rating, count }) {
   );
 }
 
+// ── Run 84: Condition badge ────────────────────────────────────────────────
+// Shows item condition as a colored badge on each AdCard
+// Matches the CONDITIONS enum in sell/page.js and backend/models/Ad.js
+const CONDITION_MAP = {
+  new:       { ar: 'جديد',     bg: '#dcfce7', color: '#15803d', icon: '✨' },
+  excellent: { ar: 'ممتاز',    bg: '#dbeafe', color: '#1d4ed8', icon: '⭐' },
+  used:      { ar: 'مستعمل',   bg: '#fef9c3', color: '#92400e', icon: '🔄' },
+  rent:      { ar: 'للإيجار',  bg: '#ede9fe', color: '#6d28d9', icon: '🔑' },
+};
+
+function ConditionBadge({ condition }) {
+  if (!condition || !CONDITION_MAP[condition]) return null;
+  const { ar, bg, color, icon } = CONDITION_MAP[condition];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        padding: '2px 7px',
+        borderRadius: 8,
+        background: bg,
+        color,
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: 1.5,
+      }}
+      aria-label={`حالة المنتج: ${ar}`}
+    >
+      {icon} {ar}
+    </span>
+  );
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 export default function AdCard({ ad }) {
   const [shared, setShared] = useState(false);
 
@@ -135,6 +170,28 @@ export default function AdCard({ ad }) {
       )}
       <div className="p-3">
         <p className="font-bold text-sm line-clamp-2">{ad.title}</p>
+        {/* Run 84: condition badge + negotiable tag */}
+        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          <ConditionBadge condition={ad.condition} />
+          {ad.negotiable && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 2,
+                padding: '2px 7px',
+                borderRadius: 8,
+                background: '#fff7ed',
+                color: '#c2410c',
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+              aria-label="السعر قابل للتفاوض"
+            >
+              💬 قابل للتفاوض
+            </span>
+          )}
+        </div>
         <p className="text-brand font-bold mt-1">{ad.price} {ad.currency}</p>
         <div className="mt-1">
           <StarRating rating={rating} count={ratingCount} />
@@ -144,5 +201,3 @@ export default function AdCard({ ad }) {
     </a>
   );
 }
-
-
