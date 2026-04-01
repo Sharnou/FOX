@@ -28,6 +28,7 @@ const UserSchema = new mongoose.Schema(
     showWhatsapp: { type: Boolean, default: false },
     favorites: [String],
     blockedUsers: [String],
+    wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ad' }],
     lastSeen: { type: Date, default: null },   // updated on each authenticated request
     lastActive: Date,                           // kept for backward compat
     createdAt: { type: Date, default: Date.now },
