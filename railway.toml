@@ -1,3 +1,6 @@
+[build]
+buildCommand = ""
+
 [deploy]
 startCommand = "node backend/server/index.js"
 healthcheckPath = "/"
