@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import fetch from 'node-fetch';
+import rateLimit from 'express-rate-limit';
 import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
 import { detectFraud } from '../server/fraud.js';
@@ -9,6 +10,32 @@ import { getOrCreateCountry } from '../server/countries.js';
 
 const router = express.Router();
 const otpStore = new Map();
+
+// ── Rate Limiters ──────────────────────────────────────────────────────────
+const registerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many registration attempts, please try again later.' }
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts, please try again later.' }
+});
+
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many OTP requests, please try again later.' }
+});
+// ──────────────────────────────────────────────────────────────────────────
 
 export async function seedSuperAdmin() {
   const email = 'ahmed_sharnou@yahoo.com';
@@ -140,7 +167,7 @@ router.post('/auth/apple', async (req, res) => {
 });
 
 // ── Send OTP via WhatsApp or SMS ──
-router.post('/send-otp', async (req, res) => {
+router.post('/send-otp', otpLimiter, async (req, res) => {
   try {
     const { phone, via = 'whatsapp' } = req.body;
     if (!phone) return res.status(400).json({ error: 'Phone number required' });
@@ -240,7 +267,7 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // ── Email Register ──
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { email: rawEmail, password: rawPassword, name: rawName, country: countryCode, city } = req.body;
 
@@ -286,7 +313,7 @@ router.post('/register', async (req, res) => {
 });
 
 // ── Email Login ──
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
@@ -306,14 +333,43 @@ router.post('/login', async (req, res) => {
 router.put('/me', auth, async (req, res) => {
   try {
     const { name, city, avatar, phone, whatsapp, showPhone, showWhatsapp } = req.body;
+
+    // ── Input Validation & Sanitization ───────────────────────────────────
     const update = {};
-    if (name !== undefined) update.name = name;
-    if (city !== undefined) update.city = city;
-    if (avatar !== undefined) update.avatar = avatar;
-    if (phone !== undefined) update.phone = phone;
-    if (whatsapp !== undefined) update.whatsapp = whatsapp;
-    if (showPhone !== undefined) update.showPhone = showPhone;
-    if (showWhatsapp !== undefined) update.showWhatsapp = showWhatsapp;
+
+    if (name !== undefined) {
+      const cleanName = typeof name === 'string' ? name.trim().slice(0, 100) : null;
+      if (cleanName !== null && cleanName.length < 2) {
+        return res.status(400).json({ error: 'Name must be at least 2 characters' });
+      }
+      if (cleanName !== null) update.name = cleanName;
+    }
+
+    if (city !== undefined) {
+      const cleanCity = typeof city === 'string' ? city.trim().slice(0, 60) : null;
+      if (cleanCity !== null) update.city = cleanCity;
+    }
+
+    if (avatar !== undefined) {
+      if (typeof avatar !== 'string' || (!avatar.startsWith('http://') && !avatar.startsWith('https://'))) {
+        return res.status(400).json({ error: 'Avatar must be a valid URL' });
+      }
+      update.avatar = avatar.trim().slice(0, 500);
+    }
+
+    if (phone !== undefined) {
+      const cleanPhone = typeof phone === 'string' ? phone.trim().replace(/[^0-9+\-\s()]/g, '').slice(0, 20) : null;
+      if (cleanPhone !== null) update.phone = cleanPhone;
+    }
+
+    if (whatsapp !== undefined) {
+      const cleanWhatsapp = typeof whatsapp === 'string' ? whatsapp.trim().replace(/[^0-9+\-\s()]/g, '').slice(0, 20) : null;
+      if (cleanWhatsapp !== null) update.whatsapp = cleanWhatsapp;
+    }
+
+    if (showPhone !== undefined) update.showPhone = Boolean(showPhone);
+    if (showWhatsapp !== undefined) update.showWhatsapp = Boolean(showWhatsapp);
+    // ──────────────────────────────────────────────────────────────────────
 
     const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password -registrationIp');
     res.json(user);
