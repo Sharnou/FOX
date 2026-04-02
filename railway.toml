@@ -1,4 +1,10 @@
+[build]
+builder = "RAILPACK"
+buildCommand = "cd backend && npm install"
+
 [deploy]
 startCommand = "node backend/server/index.js"
 healthcheckPath = "/"
-healthcheckTimeout = 60
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
