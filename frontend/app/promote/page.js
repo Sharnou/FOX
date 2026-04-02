@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 const PLANS = [
@@ -74,7 +74,7 @@ const PAYMENT_METHODS = [
   { id: 'transfer', labelAr: '🏦 تحويل بنكي', labelEn: 'Bank Transfer', icon: '🏦' },
 ];
 
-export default function PromotePage() {
+function PromotePageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const adTitle = searchParams.get('title') || 'إعلانك';
@@ -599,5 +599,13 @@ export default function PromotePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PromotePage() {
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'linear-gradient(160deg, #0f0f1e 0%, #1a1a2e 50%, #002f34 100%)', color: '#fff', fontFamily: 'Cairo, sans-serif' }}>جارٍ التحميل...</div>}>
+      <PromotePageInner />
+    </Suspense>
   );
 }
