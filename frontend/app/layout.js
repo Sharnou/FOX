@@ -32,7 +32,6 @@ export const metadata = {
   description: 'XTOX Marketplace — السوق المحلي الذكي',
   keywords: ['سوق', 'بيع', 'شراء', 'إعلانات مجانية', 'marketplace', 'XTOX', 'سيارات', 'عقارات', 'إلكترونيات', 'وظائف', 'مصر', 'السعودية'],
   robots: { index: true, follow: true },
-  themeColor: '#002f34',
   manifest: '/manifest.webmanifest',
   openGraph: {
     type: 'website',
@@ -47,6 +46,11 @@ export const metadata = {
     description: 'XTOX Marketplace — السوق المحلي الذكي',
   },
 };
+
+export const viewport = {
+  themeColor: '#002f34',
+};
+
 
 export default function RootLayout({ children }) {
   return (
