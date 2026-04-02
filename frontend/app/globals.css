@@ -40,7 +40,7 @@ button, input, select, textarea { font-family: inherit; }
   from { transform: translateX(100%);  opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
 }
-/* Default: LTR — slide in from the left */
+/* Default: LTR - slide in from the left */
 .slide-in {
   animation: slideInLTR 0.3s ease forwards;
 }
@@ -49,7 +49,7 @@ button, input, select, textarea { font-family: inherit; }
   animation: slideInRTL 0.3s ease forwards;
 }
 
-/* ── Skeleton loading shimmer ── */
+/* -- Skeleton loading shimmer -- */
 @keyframes shimmer {
   0%   { background-position: -600px 0; }
   100% { background-position:  600px 0; }
@@ -76,7 +76,7 @@ button, input, select, textarea { font-family: inherit; }
   animation: shimmer 1.4s infinite linear;
 }
 
-/* ── Image blur-fade-in placeholder (run 12) ── */
+/* -- Image blur-fade-in placeholder (run 12) -- */
 /* Images start blurred and scaled up slightly; on load they transition to sharp */
 .img-blur-load {
   filter: blur(8px);
@@ -85,6 +85,6 @@ button, input, select, textarea { font-family: inherit; }
   will-change: filter, transform;
 }
 .img-blur-load.loaded {
-  filter: blur(0);
+  filter: blur(0px);
   transform: scale(1);
 }
