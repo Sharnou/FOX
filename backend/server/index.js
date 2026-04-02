@@ -29,13 +29,8 @@ import { seedCoreDictionary } from './languageLearner.js';
 import { runHealthCheck, autoResolveOldErrors } from './healthMonitor.js';
 let connectCouchbase = null;
 let couchbaseCluster = null;
-try {
-  const cb = await import('./couchbase.js');
-  connectCouchbase = cb.connectCouchbase;
-  couchbaseCluster = cb.cluster;
-} catch(e) {
-  console.warn('[COUCHBASE] Module load failed:', e.message);
-}
+// Couchbase disabled until PR #9 is merged (SDK not in package.json yet)
+
 
 // Routes
 import userRoutes from '../routes/users.js';
@@ -313,7 +308,8 @@ if (!finalMongoUri) {
     .then(async () => {
     logger.info('MongoDB connected');
     // Connect Couchbase (non-fatal — app works without it)
-    if (connectCouchbase) connectCouchbase().catch(e => logger.warn('[COUCHBASE] Startup connection failed:', e.message));
+    // if (connectCouchbase) connectCouchbase().catch(e => logger.warn('[COUCHBASE] Startup connection failed:', e.message)); // Disabled until PR #9 is merged
+
     // Auto-delete old errors after 7 days
     try {
       const ErrorModel = mongoose.models.Error || mongoose.models.AppError;
