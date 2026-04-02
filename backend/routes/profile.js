@@ -48,7 +48,32 @@ router.post('/:id/review', auth, async (req, res) => {
 router.put('/me', auth, async (req, res) => {
   try {
     const { name, city, avatar } = req.body;
-    const user = await User.findByIdAndUpdate(req.user.id, { name, city, avatar }, { new: true }).select('-password');
+
+    // ── Input Validation & Sanitization ───────────────────────────────────
+    const update = {};
+
+    if (name !== undefined) {
+      const cleanName = typeof name === 'string' ? name.trim().slice(0, 100) : null;
+      if (cleanName !== null && cleanName.length < 2) {
+        return res.status(400).json({ error: 'Name must be at least 2 characters' });
+      }
+      if (cleanName !== null) update.name = cleanName;
+    }
+
+    if (city !== undefined) {
+      const cleanCity = typeof city === 'string' ? city.trim().slice(0, 60) : null;
+      if (cleanCity !== null) update.city = cleanCity;
+    }
+
+    if (avatar !== undefined) {
+      if (typeof avatar !== 'string' || (!avatar.startsWith('http://') && !avatar.startsWith('https://'))) {
+        return res.status(400).json({ error: 'Avatar must be a valid URL' });
+      }
+      update.avatar = avatar.trim().slice(0, 500);
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
+    const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password');
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
