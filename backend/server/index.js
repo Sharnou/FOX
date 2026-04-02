@@ -38,7 +38,7 @@ try {
 }
 
 // Routes
-import userRoutes from '../routes/users.js';
+import userRoutes, { seedSuperAdmin } from '../routes/users.js';
 import adRoutes from '../routes/ads.js';
 import chatRoutes from '../routes/chat.js';
 import adminRoutes from '../routes/admin.js';
@@ -322,7 +322,6 @@ if (!finalMongoUri) {
         console.log('[DB] Error TTL index set (7 days)');
       }
     } catch(e) {}
-    const { seedSuperAdmin } = await import('../routes/users.js');
     await runSeedsOnce();
     // Auto-cleanup duplicate seed data (safe, runs on each startup)
     await (async function cleanupDuplicates() {
@@ -363,7 +362,6 @@ if (!finalMongoUri) {
           connectTimeoutMS: 30000
         });
         logger.info('[MongoDB] Retry successful ✅');
-        const { seedSuperAdmin } = await import('../routes/users.js');
         await runSeedsOnce();
       } catch (e) {
         logger.error('[MongoDB] Retry also failed:', e.message);
@@ -374,3 +372,4 @@ if (!finalMongoUri) {
 
 
 // redeploy: 1774916299527
+
