@@ -16,6 +16,8 @@ const nextConfig = {
         headers: [
           { key: 'X-Frame-Options', value: 'ALLOWALL' },
           { key: 'Content-Security-Policy', value: "frame-ancestors *" },
+          // Declare Arabic as the primary content language
+          { key: 'Content-Language', value: 'ar' },
         ],
       },
     ];
