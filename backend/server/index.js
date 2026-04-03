@@ -156,7 +156,7 @@ app.get('/', (_, res) => {
   res.json({
     status: 'XTOX Backend v2.0 ✅',
     time: new Date().toISOString(),
-    admin: 'ahmed_sharnou@yahoo.com / Aa123123',
+    admin: '[REDACTED - set via env vars]',
     env: {
       mongoConnected: connState === 1,
       mongoState: stateNames[connState] || 'unknown',
