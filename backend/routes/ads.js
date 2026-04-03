@@ -210,6 +210,16 @@ router.post('/', auth, async (req, res) => {
 
 // ── AI Generate ad from media ──
 router.post('/ai-generate', auth, async (req, res) => {
+  // FIX 7: Graceful fallback when no AI keys configured
+  if (!process.env.OPENAI_API_KEY && !process.env.AI_KEYS) {
+    return res.json({
+      title: '',
+      description: '',
+      category: 'General',
+      suggestedPrice: 0,
+      warning: 'AI analysis unavailable - OPENAI_API_KEY not configured'
+    });
+  }
   try {
     const { image, audio, text } = req.body;
     const country = req.user?.country || 'EG';

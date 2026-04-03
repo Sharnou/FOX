@@ -33,6 +33,7 @@ export default function SellPage() {
     title: '',
     description: '',
     category: '',
+    subcategory: '',
     price: '',
     city: '',
     phone: '',
@@ -42,6 +43,7 @@ export default function SellPage() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiStatus, setAiStatus] = useState('');
   const [preview, setPreview] = useState(null);
   const [token, setToken] = useState('');
   const [country, setCountry] = useState('EG');
@@ -50,43 +52,72 @@ export default function SellPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const t = localStorage.getItem('token');
+    // FIX 1: Try multiple token keys
+    const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token');
     if (!t) { window.location.href = '/login'; return; }
     setToken(t);
     setCountry(localStorage.getItem('country') || 'EG');
     // Pre-fill phone from profile if available
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (user.phone) setForm(f => ({ ...f, phone: user.phone }));
+    // FIX 3: Also try last used phone number
+    const lastPhone = localStorage.getItem('last_used_phone');
+    if (lastPhone && !form.phone) setForm(f => ({ ...f, phone: lastPhone }));
+    // FIX 2: Read AI-generated data from ai-generate page if redirected
+    const aiData = sessionStorage.getItem('ai_generated_listing');
+    if (aiData) {
+      try {
+        const parsed = JSON.parse(aiData);
+        setForm(f => ({
+          ...f,
+          title: parsed.title || f.title,
+          description: parsed.description || f.description,
+          category: parsed.category || f.category,
+          price: parsed.price ? String(parsed.price) : f.price,
+        }));
+        if (parsed.imageUrl) setPreview(parsed.imageUrl);
+        sessionStorage.removeItem('ai_generated_listing');
+      } catch {}
+    }
   }, []);
 
   async function aiFromImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // FIX 4: Set loading status message
     setAiLoading(true);
+    setAiStatus('جارٍ تحليل الصورة بالذكاء الاصطناعي...');
     setErrors({});
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const dataUrl = ev.target.result;
       setPreview(dataUrl);
       const base64 = dataUrl.split(',')[1];
+      let data = null;
       try {
         const res = await fetch(`${API}/api/ads/ai-generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ image: base64 }),
         });
-        const data = await res.json();
-        if (data.title) {
-          setForm(f => ({
-            ...f,
-            title: data.title || f.title,
-            description: data.description || f.description,
-            category: data.category || f.category,
-            price: data.suggestedPrice ? String(data.suggestedPrice) : f.price,
-          }));
-          setCharCount((data.description || '').length);
-        }
-      } catch { /* fallback silently */ }
+        data = await res.json();
+        // FIX 5: Set subcategory and condition from AI response
+        setForm(f => ({
+          ...f,
+          title: data.title || f.title,
+          description: data.description || f.description,
+          category: data.category || f.category,
+          subcategory: data.subcategory || f.subcategory || '',
+          price: data.suggestedPrice ? String(data.suggestedPrice) : f.price,
+          condition: data.condition || f.condition || '',
+        }));
+        setCharCount((data.description || '').length);
+      } catch (err) {
+        // FIX 4: If AI fails, still proceed to form with empty fields user can fill manually
+        console.warn('AI analysis failed, proceeding without AI:', err);
+      }
+      // FIX 4: Show success or fallback status after AI analysis
+      setAiStatus(data?.title ? '✅ تم تحليل الصورة بنجاح' : '⚠️ لم يتم التعرف على المنتج، يمكنك إدخال البيانات يدوياً');
       setStep('form');
       setAiLoading(false);
     };
@@ -120,6 +151,8 @@ export default function SellPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'فشل النشر');
+      // FIX 3: Save phone for next ad
+      if (form.phone) localStorage.setItem('last_used_phone', form.phone);
       window.location.href = `/?published=1`;
     } catch (e) {
       setErrors({ submit: e.message });
@@ -332,6 +365,21 @@ export default function SellPage() {
                 >
                   ✕
                 </button>
+              </div>
+            )}
+
+            {/* FIX 6: Show AI status message */}
+            {aiStatus && (
+              <div style={{
+                padding: '10px 16px',
+                borderRadius: '8px',
+                marginBottom: '12px',
+                background: aiStatus.includes('✅') ? '#e8f5e9' : '#fff8e1',
+                color: aiStatus.includes('✅') ? '#2e7d32' : '#f57f17',
+                fontSize: '14px',
+                textAlign: 'center'
+              }}>
+                {aiStatus}
               </div>
             )}
 
