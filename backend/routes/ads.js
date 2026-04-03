@@ -1,4 +1,5 @@
 import express from 'express';
+import { writeFile, unlink } from 'fs/promises';
 import Ad from '../models/Ad.js';
 import { auth } from '../middleware/auth.js';
 import { moderateText, moderateImage } from '../server/moderation.js';
@@ -168,8 +169,10 @@ router.post('/', auth, async (req, res) => {
     const { errors, sanitized } = sanitizeAdFields(req.body);
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
     const { title, description, category, price, city, currency, media, video, featuredStyle, condition } = sanitized;
-    // Extract optional coordinates from raw req.body (not sanitized — they're numbers)
-    const { lng, lat } = req.body;
+    // FIX D: Extract and validate coordinates — parseFloat + isNaN + non-zero check
+    const lng = parseFloat(req.body.lng);
+    const lat = parseFloat(req.body.lat);
+    const validLocation = !isNaN(lng) && !isNaN(lat) && lng !== 0 && lat !== 0;
 
     // COUNTRY LOCK: always use country from JWT token — user cannot override
     const country = req.user.country;
@@ -218,8 +221,8 @@ router.post('/', auth, async (req, res) => {
       condition: condition || null,
       featuredStyle: featuredStyle || 'normal',
       language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
-      // Only save location when valid coordinates are provided — avoids invalid GeoJSON
-      location: (lng && lat) ? { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] } : undefined
+      // FIX D: Only save location when coordinates are fully valid numbers and non-zero
+      location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined
     });
 
     await rankAd(ad).catch(() => {});
@@ -235,7 +238,7 @@ router.post('/', auth, async (req, res) => {
 
 // ── AI Generate ad from media ──
 router.post('/ai-generate', auth, async (req, res) => {
-  // FIX 7: Graceful fallback when no AI keys configured
+  // Graceful fallback when no AI keys configured
   if (!process.env.OPENAI_API_KEY && !process.env.AI_KEYS) {
     return res.json({
       title: '',
@@ -245,32 +248,51 @@ router.post('/ai-generate', auth, async (req, res) => {
       warning: 'AI analysis unavailable - OPENAI_API_KEY not configured'
     });
   }
+
+  let tempPath = null; // track temp file for cleanup
   try {
     const { image, audio, text } = req.body;
     const country = req.user?.country || 'EG';
 
+    // FIX: Write base64 image to a temp file so analyzeImage gets a real file path
+    // vision.js now reads the file and converts it to base64 for the API call.
+    if (image) {
+      tempPath = `/tmp/ad_image_${Date.now()}.jpg`;
+      const base64Data = image.replace(/^data:image\/[^;]+;base64,/, '');
+      await writeFile(tempPath, Buffer.from(base64Data, 'base64'));
+    }
+
+    console.log('[AI] Starting analysis for image:', tempPath);
+    console.log('[AI] Keys available:', !!(process.env.OPENAI_API_KEY || process.env.AI_KEYS));
+
     // Try learned dictionary detection
     let learnedCategory = null;
     try {
-      const { detectCategoryFromText, learnFromAd } = await import('../server/languageLearner.js');
+      const { detectCategoryFromText } = await import('../server/languageLearner.js');
       if (text) learnedCategory = await detectCategoryFromText(text, country).catch(() => null);
     } catch {}
 
-    const result = await buildAdFromMedia({
-      imagePath: image || null,
-      audioPath: audio || null,
-      text: text || ''
-    });
+    // FIX: 30-second timeout wrapper around the entire AI call
+    const aiResult = await Promise.race([
+      buildAdFromMedia({
+        imagePath: tempPath,
+        audioPath: audio || null,
+        text: text || ''
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 30000))
+    ]);
 
-    if (learnedCategory && result.category === 'General') result.category = learnedCategory;
+    console.log('[AI] Result:', JSON.stringify(aiResult));
+
+    if (learnedCategory && aiResult.category === 'General') aiResult.category = learnedCategory;
 
     // Fire-and-forget learning
     try {
       const { learnFromAd } = await import('../server/languageLearner.js');
-      if (result.title) learnFromAd(result.title, result.description, country).catch(() => {});
+      if (aiResult.title) learnFromAd(aiResult.title, aiResult.description, country).catch(() => {});
     } catch {}
 
-    res.json({ ...result, aiEnabled: true });
+    res.json({ ...aiResult, aiEnabled: true });
   } catch (e) {
     // Always return something useful — never fail completely
     console.warn('[AI Generate] Failed, using offline mode:', e.message);
@@ -290,6 +312,11 @@ router.post('/ai-generate', auth, async (req, res) => {
       });
     } catch {}
     res.json({ title: (req.body.text || '').slice(0, 60), description: '', category: 'General', subcategory: 'Other', suggestedPrice: 0, language: 'ar', hashtags: [], aiEnabled: false });
+  } finally {
+    // FIX: Always clean up the temp image file
+    if (tempPath) {
+      unlink(tempPath).catch(() => {});
+    }
   }
 });
 

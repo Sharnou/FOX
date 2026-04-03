@@ -20,19 +20,25 @@ const AdSchema = new mongoose.Schema({
   expiresAt: { type: Date, default: () => new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) },
   expiredAt: Date,
   republishedCount: { type: Number, default: 0 },
+  // FIX A: Removed default: 'Point' from nested type field to prevent auto-creation
+  // of invalid { type: 'Point' } GeoJSON when no location data is provided.
   location: {
-    type: { type: String, enum: ['Point'], default: 'Point' },
-    coordinates: { type: [Number], default: undefined },
+    type: {
+      type: String,
+      enum: ['Point'],
+    },
+    coordinates: {
+      type: [Number],
+      default: undefined,
+    },
     placeName: String
   },
   // ── Run 84: Item condition & negotiable price ──────────────────────────────
-  // Lets buyers instantly filter "new" vs "used" — essential for Arab OLX-style
   condition: {
     type: String,
     enum: ['new', 'used', 'excellent', 'rent'],
     default: null
   },
-  // Sellers can flag price as negotiable (القابل للتفاوض) — very common in Arab markets
   negotiable: { type: Boolean, default: false },
   // ──────────────────────────────────────────────────────────────────────────
   createdAt: { type: Date, default: Date.now }
@@ -41,9 +47,37 @@ const AdSchema = new mongoose.Schema({
 // Compound indexes for fast queries — free performance boost
 AdSchema.index({ country: 1, isFeatured: -1, createdAt: -1 }); // homepage feed
 AdSchema.index({ country: 1, category: 1, createdAt: -1 });     // category filter
-AdSchema.index({ location: '2dsphere' }, { sparse: true });      // GPS nearby (sparse: skip docs without coords)
+// FIX A: sparse:true ensures docs without valid location are skipped by 2dsphere index
+AdSchema.index({ location: '2dsphere' }, { sparse: true });
 AdSchema.index({ userId: 1, createdAt: -1 });                    // my-ads page
 AdSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });     // TTL auto-expire
 AdSchema.index({ title: 'text', description: 'text' });          // text search
 AdSchema.index({ country: 1, condition: 1, createdAt: -1 });     // condition filter [run 84]
+
+// FIX C: Pre-validate hook — strip incomplete location before validation runs
+// Prevents { type: 'Point' } without coordinates from ever reaching the 2dsphere index.
+AdSchema.pre('validate', function(next) {
+  if (this.location && (!this.location.coordinates || this.location.coordinates.length < 2)) {
+    this.location = undefined;
+  }
+  next();
+});
+
+// FIX B: Pre-save hook — final safety net to clear invalid location objects
+// Catches any path (create, update, republish) that writes without valid coords.
+AdSchema.pre('save', function(next) {
+  if (this.location) {
+    const coords = this.location.coordinates;
+    if (
+      !coords ||
+      !Array.isArray(coords) ||
+      coords.length < 2 ||
+      coords.some(c => c === null || c === undefined || isNaN(c))
+    ) {
+      this.location = undefined;
+    }
+  }
+  next();
+});
+
 export default mongoose.model('Ad', AdSchema);
