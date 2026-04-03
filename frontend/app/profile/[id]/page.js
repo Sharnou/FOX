@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
 
-const API = 'https://xtox.up.railway.app';
+const API = 'https://xtox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 
 function Stars({ rating }) {

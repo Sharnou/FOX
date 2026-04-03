@@ -22,10 +22,10 @@ npx expo start
 - In-app chat
 
 #### Backend Connection
-The app connects to: `https://xtox.up.railway.app`
+The app connects to: `https://xtox-production.up.railway.app`
 To change: Update the default URL in `App.js`:
 ```js
-const [base, setBase] = useState("https://xtox.up.railway.app");
+const [base, setBase] = useState("https://xtox-production.up.railway.app");
 ```
 Or update it directly in the Home screen's input field at runtime.
 
@@ -53,14 +53,14 @@ flutter run
 API base URL is set in your app's initialization. 
 Update `lib/api.dart` or pass the URL when creating `FoxApi`:
 ```dart
-final api = FoxApi('https://xtox.up.railway.app');
+final api = FoxApi('https://xtox-production.up.railway.app');
 ```
 
 ---
 
-## Backend API (xtox.up.railway.app)
+## Backend API (xtox-production.up.railway.app)
 
-Base URL: `https://xtox.up.railway.app`
+Base URL: `https://xtox-production.up.railway.app`
 
 ### Key Endpoints
 | Method | Endpoint | Description |

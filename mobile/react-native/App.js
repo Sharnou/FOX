@@ -46,7 +46,7 @@ function Input(props) {
 }
 
 function Home({ navigation }) {
-  const [base, setBase] = useState("https://xtox.up.railway.app");
+  const [base, setBase] = useState("https://xtox-production.up.railway.app");
   return (
     <ScreenContainer>
       <Text style={{ fontSize: 28, fontWeight: "700" }}>fox</Text>

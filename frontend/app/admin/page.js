@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef, useMemo } from 'react';
 
-const RAILWAY = 'https://xtox.up.railway.app';
+const RAILWAY = 'https://xtox-production.up.railway.app';
 
 function AITerminal({ title, children, color = 'green' }) {
   const colors = { green: '#00ff41', blue: '#00d4ff', yellow: '#ffd700', red: '#ff4444', purple: '#bf5fff' };

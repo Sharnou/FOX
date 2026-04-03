@@ -6,7 +6,7 @@ import AdCardSkeleton from '../components/AdCardSkeleton';
 
 const AdCard = dynamic(() => import('../components/AdCard'), { ssr: false });
 
-const BACKEND = 'https://xtox.up.railway.app';
+const BACKEND = 'https://xtox-production.up.railway.app';
 
 const TRANSLATIONS = {
   ar: {
