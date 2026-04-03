@@ -11,6 +11,9 @@ import { getOrCreateCountry } from '../server/countries.js';
 const router = express.Router();
 const otpStore = new Map();
 
+// ── JWT secret with fallback so sign() never hangs/throws on missing secret ──
+const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
+
 // ── Rate Limiters ──────────────────────────────────────────────────────────
 const registerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -64,17 +67,25 @@ export async function seedSuperAdmin() {
   console.log('✅ Super admin ready: ahmed_sharnou@yahoo.com / Aa123123');
 }
 
-// ── Verify Google Token ──
+// ── Helper: reject after ms ──────────────────────────────────────────────
+function timeout(ms, label = 'request') {
+  return new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+  );
+}
+
+// ── Verify Google Token (with 8-second timeout on every network call) ──
 async function verifyGoogleToken(idToken) {
-  // Method 1: google-auth-library (most secure - ChatGPT recommended)
+  // Method 1: google-auth-library (most secure)
   try {
     const { OAuth2Client } = await import('google-auth-library');
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
     const client = new OAuth2Client(CLIENT_ID);
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: CLIENT_ID
-    });
+    // Race against 8-second timeout so a slow Google cert fetch never hangs
+    const ticket = await Promise.race([
+      client.verifyIdToken({ idToken, audience: CLIENT_ID }),
+      timeout(8000, 'google-auth-library verifyIdToken')
+    ]);
     const payload = ticket.getPayload();
     return {
       email: payload.email,
@@ -83,9 +94,19 @@ async function verifyGoogleToken(idToken) {
       googleId: payload.sub
     };
   } catch (e1) {
-    // Method 2: Fallback to tokeninfo endpoint
+    // Method 2: Fallback to tokeninfo endpoint (8-second AbortSignal timeout)
     try {
-      const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      let res;
+      try {
+        res = await fetch(
+          `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
+          { signal: controller.signal }
+        );
+      } finally {
+        clearTimeout(timer);
+      }
       const data = await res.json();
       if (data.error) throw new Error('Invalid Google token: ' + data.error);
       return { email: data.email, name: data.name, avatar: data.picture, googleId: data.sub };
@@ -95,11 +116,19 @@ async function verifyGoogleToken(idToken) {
   }
 }
 
-// ── Verify Microsoft Token ──
+// ── Verify Microsoft Token (with 8-second timeout) ──
 async function verifyMicrosoftToken(accessToken) {
-  const res = await fetch('https://graph.microsoft.com/v1.0/me', {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  let res;
+  try {
+    res = await fetch('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   const data = await res.json();
   if (data.error) throw new Error('Invalid Microsoft token');
   return { email: data.mail || data.userPrincipalName, name: data.displayName, microsoftId: data.id };
@@ -140,38 +169,58 @@ async function findOrCreateOAuthUser(provider, profile, ip, country) {
 
 // ── Google OAuth ──
 router.post('/auth/google', async (req, res) => {
+  // Hard cap: respond within 10 seconds no matter what
+  res.setTimeout(10000, () => {
+    if (!res.headersSent) res.status(504).json({ error: 'Google auth timed out. Please try again.' });
+  });
   try {
     const { idToken, country } = req.body;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const profile = await verifyGoogleToken(idToken);
     const user = await findOrCreateOAuthUser('google', profile, ip, country);
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, process.env.JWT_SECRET, { expiresIn: '90d' });
+    // JWT_SECRET fallback ensures sign() never throws on missing env var
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
+    if (res.headersSent) return;
     res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar } });
-  } catch (e) { res.status(400).json({ error: e.message }); }
+  } catch (e) {
+    if (!res.headersSent) res.status(400).json({ error: e.message });
+  }
 });
 
 // ── Microsoft OAuth ──
 router.post('/auth/microsoft', async (req, res) => {
+  res.setTimeout(10000, () => {
+    if (!res.headersSent) res.status(504).json({ error: 'Microsoft auth timed out. Please try again.' });
+  });
   try {
     const { accessToken, country } = req.body;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const profile = await verifyMicrosoftToken(accessToken);
     const user = await findOrCreateOAuthUser('microsoft', profile, ip, country);
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, process.env.JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
+    if (res.headersSent) return;
     res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role } });
-  } catch (e) { res.status(400).json({ error: e.message }); }
+  } catch (e) {
+    if (!res.headersSent) res.status(400).json({ error: e.message });
+  }
 });
 
 // ── Apple OAuth ──
 router.post('/auth/apple', async (req, res) => {
+  res.setTimeout(10000, () => {
+    if (!res.headersSent) res.status(504).json({ error: 'Apple auth timed out. Please try again.' });
+  });
   try {
     const { idToken, country } = req.body;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const profile = await verifyAppleToken(idToken);
     const user = await findOrCreateOAuthUser('apple', profile, ip, country);
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, process.env.JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
+    if (res.headersSent) return;
     res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role } });
-  } catch (e) { res.status(400).json({ error: e.message }); }
+  } catch (e) {
+    if (!res.headersSent) res.status(400).json({ error: e.message });
+  }
 });
 
 // ── Send OTP via WhatsApp or SMS ──
@@ -269,7 +318,7 @@ router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
     await getOrCreateCountry(countryCode, countryCode);
     let user = await User.findOne({ phone });
     if (!user) user = await User.create({ phone, name: name || phone, country: countryCode, city, registrationIp: ip, isVerified: true });
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, process.env.JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
     res.json({ token, user: { id: user._id, name: user.name, country: user.country, role: user.role } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -315,7 +364,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       try { const g = await (await fetch(`http://ip-api.com/json/${ip}?fields=countryCode`)).json(); finalCountry = g.countryCode || 'EG'; } catch { finalCountry = 'EG'; }
     }
     const user = await User.create({ email, password: hash, name, country: finalCountry, city, registrationIp: ip });
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, process.env.JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
     res.json({ token, user: { id: user._id, email, name, country: user.country } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -331,7 +380,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid credentials' });
     user.lastActive = new Date(); await user.save();
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, process.env.JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
     res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
