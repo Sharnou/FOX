@@ -148,6 +148,8 @@ router.post('/', auth, async (req, res) => {
     const { errors, sanitized } = sanitizeAdFields(req.body);
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
     const { title, description, category, price, city, currency, media, video, featuredStyle } = sanitized;
+    // Extract optional coordinates from raw req.body (not sanitized — they're numbers)
+    const { lng, lat } = req.body;
 
     // COUNTRY LOCK: always use country from JWT token — user cannot override
     const country = req.user.country;
@@ -194,7 +196,9 @@ router.post('/', auth, async (req, res) => {
       video,
       country, // LOCKED from JWT
       featuredStyle: featuredStyle || 'normal',
-      language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en'
+      language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
+      // Only save location when valid coordinates are provided — avoids invalid GeoJSON
+      location: (lng && lat) ? { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] } : undefined
     });
 
     await rankAd(ad).catch(() => {});

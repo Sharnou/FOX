@@ -14,6 +14,7 @@ function generateOfflineAd(text) {
     category: detected.main || 'General',
     subcategory: detected.sub || 'Other',
     suggestedPrice: 0,
+    condition: null,
     language: /[\u0600-\u06FF]/.test(text) ? 'ar' : 'en',
     hashtags,
     source: 'offline'
@@ -23,7 +24,7 @@ function generateOfflineAd(text) {
 // Try OpenAI GPT
 async function generateWithOpenAI(text, imageDesc) {
   const prompt = `Based on this marketplace listing info: "${text} ${imageDesc}"
-Generate a JSON ad with: title (max 60 chars, use natural dialect), description (max 200 chars), category (Vehicles/Electronics/Real Estate/Jobs/Services/Supermarket/Pharmacy/Fast Food/Fashion/General), subcategory, suggestedPrice (number), hashtags (array of 5). JSON only.`;
+Generate a JSON ad with: title (max 60 chars, use natural dialect), description (max 200 chars), category (Vehicles/Electronics/Real Estate/Jobs/Services/Supermarket/Pharmacy/Fast Food/Fashion/General), subcategory, suggestedPrice (number), condition (one of: new/used/excellent/rent or null), hashtags (array of 5). JSON only.`;
   return callWithFailover(async (key) => {
     if (!key || key === 'your_openai_key') throw new Error('No OpenAI key');
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -41,7 +42,7 @@ Generate a JSON ad with: title (max 60 chars, use natural dialect), description 
 async function generateWithGemini(text, imageDesc) {
   const key = process.env.GEMINI_API_KEY;
   if (!key || key === 'your_gemini_key') throw new Error('No Gemini key');
-  const prompt = `Generate a marketplace ad JSON for: "${text} ${imageDesc}". Fields: title, description, category, suggestedPrice, hashtags. JSON only.`;
+  const prompt = `Generate a marketplace ad JSON for: "${text} ${imageDesc}". Fields: title, description, category, suggestedPrice, condition (new/used/excellent/rent or null), hashtags. JSON only.`;
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${key}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -22,7 +22,7 @@ const AdSchema = new mongoose.Schema({
   republishedCount: { type: Number, default: 0 },
   location: {
     type: { type: String, enum: ['Point'], default: 'Point' },
-    coordinates: [Number],
+    coordinates: { type: [Number], default: undefined },
     placeName: String
   },
   // ── Run 84: Item condition & negotiable price ──────────────────────────────
@@ -41,7 +41,7 @@ const AdSchema = new mongoose.Schema({
 // Compound indexes for fast queries — free performance boost
 AdSchema.index({ country: 1, isFeatured: -1, createdAt: -1 }); // homepage feed
 AdSchema.index({ country: 1, category: 1, createdAt: -1 });     // category filter
-AdSchema.index({ 'location': '2dsphere' });                      // GPS nearby
+AdSchema.index({ location: '2dsphere' }, { sparse: true });      // GPS nearby (sparse: skip docs without coords)
 AdSchema.index({ userId: 1, createdAt: -1 });                    // my-ads page
 AdSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });     // TTL auto-expire
 AdSchema.index({ title: 'text', description: 'text' });          // text search
