@@ -30,7 +30,7 @@ const ALLOWED_CURRENCIES = new Set([
   'LYD','MAD','DZD','TND','IQD','SYP','YER','SDG','SOS'
 ]);
 
-function sanitizeAdFields({ title, description, category, price, city, currency, media, video, featuredStyle }) {
+function sanitizeAdFields({ title, description, category, price, city, currency, media, video, featuredStyle, condition }) {
   const errors = [];
 
   // title — required, 3–120 chars
@@ -68,7 +68,11 @@ function sanitizeAdFields({ title, description, category, price, city, currency,
   const STYLES = new Set(['normal', 'gold', 'banner']);
   const cleanFeaturedStyle = STYLES.has(featuredStyle) ? featuredStyle : 'normal';
 
-  return { errors, sanitized: { title: cleanTitle, description: cleanDescription, category: cleanCategory, price: cleanPrice, city: cleanCity, currency: cleanCurrency, media: cleanMedia, video: cleanVideo, featuredStyle: cleanFeaturedStyle } };
+  // condition — whitelist only
+  const CONDITIONS = new Set(['new', 'used', 'excellent', 'rent']);
+  const cleanCondition = CONDITIONS.has(condition) ? condition : null;
+
+  return { errors, sanitized: { title: cleanTitle, description: cleanDescription, category: cleanCategory, price: cleanPrice, city: cleanCity, currency: cleanCurrency, media: cleanMedia, video: cleanVideo, featuredStyle: cleanFeaturedStyle, condition: cleanCondition } };
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -129,6 +133,22 @@ router.use((req, res, next) => {
   } else { next(); }
 });
 
+// GET user's own ads (active + expired)
+router.get('/my/all', auth, async (req, res) => {
+  try {
+    const active = await Ad.find({ userId: req.user.id, isDeleted: false, isExpired: false }).sort({ createdAt: -1 });
+    const expired = await Ad.find({ userId: req.user.id, isDeleted: false, isExpired: true }).sort({ expiredAt: -1 });
+    const expiredWithDeadline = expired.map(ad => {
+      const expiredAt = ad.expiredAt || ad.expiresAt;
+      const deadlineMs = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
+      const daysLeft = Math.max(0, Math.ceil((deadlineMs - Date.now()) / (24 * 60 * 60 * 1000)));
+      return { ...ad.toObject(), daysLeftToReshare: daysLeft };
+    });
+    res.json({ active, expired: expiredWithDeadline });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
 // ── GET single ad ──
 router.get('/:id', async (req, res) => {
   try {
@@ -147,7 +167,7 @@ router.post('/', auth, async (req, res) => {
     // ── FIELD-LEVEL SANITIZATION (run before anything else) ──
     const { errors, sanitized } = sanitizeAdFields(req.body);
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
-    const { title, description, category, price, city, currency, media, video, featuredStyle } = sanitized;
+    const { title, description, category, price, city, currency, media, video, featuredStyle, condition } = sanitized;
     // Extract optional coordinates from raw req.body (not sanitized — they're numbers)
     const { lng, lat } = req.body;
 
@@ -195,6 +215,7 @@ router.post('/', auth, async (req, res) => {
       media: media || [],
       video,
       country, // LOCKED from JWT
+      condition: condition || null,
       featuredStyle: featuredStyle || 'normal',
       language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
       // Only save location when valid coordinates are provided — avoids invalid GeoJSON
@@ -317,21 +338,6 @@ router.delete('/:id', auth, async (req, res) => {
     if (!ad) return res.status(404).json({ error: 'Not found' });
     ad.isDeleted = true; ad.deletedAt = new Date(); await ad.save();
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// GET user's own ads (active + expired)
-router.get('/my/all', auth, async (req, res) => {
-  try {
-    const active = await Ad.find({ userId: req.user.id, isDeleted: false, isExpired: false }).sort({ createdAt: -1 });
-    const expired = await Ad.find({ userId: req.user.id, isDeleted: false, isExpired: true }).sort({ expiredAt: -1 });
-    const expiredWithDeadline = expired.map(ad => {
-      const expiredAt = ad.expiredAt || ad.expiresAt;
-      const deadlineMs = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
-      const daysLeft = Math.max(0, Math.ceil((deadlineMs - Date.now()) / (24 * 60 * 60 * 1000)));
-      return { ...ad.toObject(), daysLeftToReshare: daysLeft };
-    });
-    res.json({ active, expired: expiredWithDeadline });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
