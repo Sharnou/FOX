@@ -57,6 +57,9 @@ import paymentRoutes from '../routes/payment.js';
 import reportRoutes from '../routes/reports.js';
 import offersRouter from '../routes/offers.js';
 import wishlistRouter from '../routes/wishlist.js';
+import reviewsRouter from '../routes/reviews.js';
+import favoritesRouter from '../routes/favorites.js';
+import countryLockMiddleware from '../middleware/countryLock.js';
 
 const logger = pino();
 const app = express();
@@ -148,6 +151,8 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/offers', offersRouter);
 app.use('/api/wishlist', wishlistRouter);
+app.use('/api/reviews', reviewsRouter);
+app.use('/api/favorites', favoritesRouter);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => {
