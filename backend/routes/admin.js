@@ -141,4 +141,17 @@ router.post('/cleanup-duplicates', adminAuth, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+router.post('/fix-all-ads', adminAuth, async (req, res) => {
+  try {
+    const result = await Ad.updateMany(
+      { $or: [{ visibilityScore: { $lte: 0 } }, { visibilityScore: null }] },
+      { $set: { visibilityScore: 10, status: 'active' } }
+    );
+    res.json({ updated: result.modifiedCount, message: 'All ads visibility fixed' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

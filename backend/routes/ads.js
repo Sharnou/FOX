@@ -88,17 +88,27 @@ function sanitizeAdFields({ title, description, category, subcategory, price, ci
 // ── GET all ads (country from JWT — locked, user cannot override) ──
 router.get('/', async (req, res) => {
   try {
-    const country = req.user?.country || req.headers['x-country'] || req.query.country || 'EG';
-    const { category, city, page = 0 } = req.query;
+    const { category, city, page = 0, q } = req.query;
+    const countryParam = req.query.country || req.headers['x-country'] || req.user?.country || null;
 
     const filter = {
-      country,
       isExpired: false,
       isDeleted: false,
-      visibilityScore: { $gt: 0 }
+      visibilityScore: { $gte: 0 }
     };
-    if (category && category !== 'الكل' && category !== 'All') filter.category = category;
+    // Country filter is OPTIONAL — only apply if a country param was provided
+    if (countryParam) filter.country = countryParam;
+    if (category && category !== 'الكل' && category !== 'All') {
+      filter.category = { $regex: new RegExp('^' + category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') };
+    }
     if (city) filter.city = city;
+    // Full-text search using $or regex (works even without text index)
+    if (q && q.trim()) {
+      filter.$or = [
+        { title: { $regex: q.trim(), $options: 'i' } },
+        { description: { $regex: q.trim(), $options: 'i' } }
+      ];
+    }
 
     // FEATURED FIRST: max 16, newest featured → top (only on page 0)
     let featuredAds = [];
@@ -269,89 +279,82 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ── AI Generate ad from media ──
-router.post('/ai-generate', auth, async (req, res) => {
-  // Graceful fallback when no AI keys configured
-  if (!process.env.OPENAI_API_KEY && !process.env.AI_KEYS) {
-    return res.json({
-      title: '',
-      description: '',
-      category: 'General',
-      suggestedPrice: 0,
-      warning: 'AI analysis unavailable - OPENAI_API_KEY not configured'
-    });
-  }
+router.post('/ai-generate', async (req, res) => {
+  res.setTimeout(35000, () => {
+    if (!res.headersSent) res.status(504).json({ error: 'AI timeout — try again' });
+  });
 
-  let tempPath = null; // track temp file for cleanup
+  const { image, text } = req.body;
+  let result = null;
+
   try {
-    const { image, audio, text } = req.body;
-    const country = req.user?.country || 'EG';
-
-    // FIX: Write base64 image to a temp file so analyzeImage gets a real file path
-    // vision.js now reads the file and converts it to base64 for the API call.
-    if (image) {
-      tempPath = `/tmp/ad_image_${Date.now()}.jpg`;
-      const base64Data = image.replace(/^data:image\/[^;]+;base64,/, '');
-      await writeFile(tempPath, Buffer.from(base64Data, 'base64'));
+    // PHASE 1: Offline analysis of text (instant, no API)
+    const inputText = text || '';
+    if (inputText.trim().length > 2) {
+      const { analyzeTextOffline } = await import('../server/smartAnalyzer.js');
+      const offline = analyzeTextOffline(inputText);
+      console.log('[AI-GENERATE] Offline result:', offline.category, offline.confidence);
+      if (offline.confidence === 'high') result = offline;
     }
 
-    console.log('[AI] Starting analysis for image:', tempPath);
-    console.log('[AI] Keys available:', !!(process.env.OPENAI_API_KEY || process.env.AI_KEYS));
+    // PHASE 2: If image provided, try OpenAI Vision (best quality)
+    if (image && (process.env.OPENAI_API_KEY || process.env.AI_KEYS)) {
+      try {
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+        const tempPath = `/tmp/fox_ai_${Date.now()}.jpg`;
+        const { writeFile, unlink } = await import('fs/promises');
+        await writeFile(tempPath, Buffer.from(base64Data, 'base64'));
 
-    // Try learned dictionary detection
-    let learnedCategory = null;
-    try {
-      const { detectCategoryFromText } = await import('../server/languageLearner.js');
-      if (text) learnedCategory = await detectCategoryFromText(text, country).catch(() => null);
-    } catch {}
+        console.log('[AI-GENERATE] Calling vision API...');
+        const visionResult = await Promise.race([
+          buildAdFromMedia({ imagePath: tempPath }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('vision timeout')), 28000))
+        ]);
+        unlink(tempPath).catch(() => {});
 
-    // FIX: 30-second timeout wrapper around the entire AI call
-    const aiResult = await Promise.race([
-      buildAdFromMedia({
-        imagePath: tempPath,
-        audioPath: audio || null,
-        text: text || ''
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 30000))
-    ]);
-
-    console.log('[AI] Result:', JSON.stringify(aiResult));
-
-    if (learnedCategory && aiResult.category === 'General') aiResult.category = learnedCategory;
-
-    // Fire-and-forget learning
-    try {
-      const { learnFromAd } = await import('../server/languageLearner.js');
-      if (aiResult.title) learnFromAd(aiResult.title, aiResult.description, country).catch(() => {});
-    } catch {}
-
-    res.json({ ...aiResult, aiEnabled: true });
-  } catch (e) {
-    // Always return something useful — never fail completely
-    console.warn('[AI Generate] Failed, using offline mode:', e.message);
-    try {
-      const { detectCategoryOffline } = await import('../server/offlineDict.js');
-      const detected = detectCategoryOffline(req.body.text || '');
-      return res.json({
-        title: (req.body.text || '').slice(0, 60),
-        description: '',
-        category: detected.main || 'General',
-        subcategory: detected.sub || 'Other',
-        suggestedPrice: 0,
-        language: 'ar',
-        hashtags: [],
-        aiEnabled: false,
-        message: 'AI offline — using smart detection'
-      });
-    } catch {}
-    res.json({ title: (req.body.text || '').slice(0, 60), description: '', category: 'General', subcategory: 'Other', suggestedPrice: 0, language: 'ar', hashtags: [], aiEnabled: false });
-  } finally {
-    // FIX: Always clean up the temp image file
-    if (tempPath) {
-      unlink(tempPath).catch(() => {});
+        if (visionResult && visionResult.title) {
+          result = visionResult;
+          console.log('[AI-GENERATE] Vision succeeded:', result.category);
+        }
+      } catch (e) {
+        console.log('[AI-GENERATE] Vision failed:', e.message);
+      }
     }
+
+    // PHASE 3: If no good result yet, try AI text generation
+    if (inputText && (!result || !result.title) && (process.env.OPENAI_API_KEY || process.env.AI_KEYS)) {
+      try {
+        const aiResult = await Promise.race([
+          buildAdFromMedia({ text: inputText }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('AI text timeout')), 20000))
+        ]);
+        if (aiResult && aiResult.title) result = aiResult;
+      } catch (e) {
+        console.log('[AI-GENERATE] AI text failed:', e.message);
+      }
+    }
+
+    // PHASE 4: Final offline fallback if everything failed
+    if (!result || !result.title) {
+      const { analyzeTextOffline } = await import('../server/smartAnalyzer.js');
+      result = analyzeTextOffline(inputText || 'general product');
+    }
+
+    console.log('[AI-GENERATE] Final:', JSON.stringify(result));
+    res.json({
+      title: result.title || '',
+      description: result.description || '',
+      category: result.category || 'General',
+      subcategory: result.subcategory || 'Other',
+      suggestedPrice: result.suggestedPrice || 0,
+      condition: result.condition || 'used',
+      source: result.source || 'ai',
+    });
+  } catch (err) {
+    console.error('[AI-GENERATE] Fatal error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
-
 
 // ── PUT update ad (owner only, full field-level sanitization) ──
 router.put('/:id', auth, async (req, res) => {

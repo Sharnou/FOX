@@ -49,6 +49,7 @@ export default function SellPage() {
   const [country, setCountry] = useState('EG');
   const [charCount, setCharCount] = useState(0);
   const fileInputRef = useRef(null);
+  const [aiDebounce, setAiDebounce] = useState(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -98,7 +99,7 @@ export default function SellPage() {
         const res = await fetch(`${API}/api/ads/ai-generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ image: base64 }),
+          body: JSON.stringify({ image: base64, text: form.title + ' ' + form.description }),
         });
         data = await res.json();
         // FIX 5: Set subcategory and condition from AI response
@@ -419,8 +420,35 @@ export default function SellPage() {
                 id="sell-title"
                 value={form.title}
                 onChange={e => {
-                  setForm(p => ({ ...p, title: e.target.value }));
+                  const value = e.target.value;
+                  setForm(p => ({ ...p, title: value }));
                   if (errors.title) setErrors(p => ({ ...p, title: '' }));
+                  // Auto-analyze title for category/price suggestions
+                  if (aiDebounce) clearTimeout(aiDebounce);
+                  const timeout = setTimeout(async () => {
+                    if (value.length < 5) return;
+                    try {
+                      const tok = localStorage.getItem('token') || localStorage.getItem('fox_token') || '';
+                      const r = await fetch(`${API}/api/ads/ai-generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                        body: JSON.stringify({ text: value })
+                      });
+                      const data = await r.json();
+                      if (data.category && data.category !== 'General') {
+                        setForm(f => ({
+                          ...f,
+                          category: data.category || f.category,
+                          subcategory: data.subcategory || f.subcategory,
+                          price: data.suggestedPrice && !f.price ? String(data.suggestedPrice) : f.price,
+                          condition: data.condition || f.condition,
+                          description: f.description || data.description || '',
+                        }));
+                        setAiStatus('✅ تم اكتشاف الفئة تلقائياً');
+                      }
+                    } catch {}
+                  }, 1500);
+                  setAiDebounce(timeout);
                 }}
                 placeholder="مثال: آيفون 14 برو ماكس بحالة ممتازة"
                 style={inputStyle('title')}

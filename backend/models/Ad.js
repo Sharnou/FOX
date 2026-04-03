@@ -14,6 +14,7 @@ const AdSchema = new mongoose.Schema({
   bumpedAt: { type: Date, default: null },
   featuredStyle: { type: String, enum: ['normal', 'cartoon', 'gold', 'banner'], default: 'normal' },
   featuredAt: { type: Date },
+  status: { type: String, default: 'active' },
   visibilityScore: { type: Number, default: 10 },
   isDuplicate: Boolean, fixedByAI: Boolean, isDeleted: Boolean, deletedAt: Date,
   isExpired: Boolean, archivedAt: Date,
@@ -53,7 +54,7 @@ AdSchema.index({ country: 1, category: 1, createdAt: -1 });     // category filt
 AdSchema.index({ location: '2dsphere' }, { sparse: true });
 AdSchema.index({ userId: 1, createdAt: -1 });                    // my-ads page
 AdSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });     // TTL auto-expire
-AdSchema.index({ title: 'text', description: 'text' });          // text search
+AdSchema.index({ title: 'text', description: 'text', title_original: 'text' }, { default_language: 'none', weights: { title: 10, description: 5 } }); // text search
 AdSchema.index({ country: 1, condition: 1, createdAt: -1 });     // condition filter [run 84]
 
 // FIX C: Pre-validate hook — strip incomplete location before validation runs
