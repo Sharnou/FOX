@@ -222,7 +222,8 @@ router.post('/', auth, async (req, res) => {
       featuredStyle: featuredStyle || 'normal',
       language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
       // FIX D: Only save location when coordinates are fully valid numbers and non-zero
-      location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined
+      location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
+      visibilityScore: 10
     });
 
     await rankAd(ad).catch(() => {});

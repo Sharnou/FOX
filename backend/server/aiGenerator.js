@@ -3,21 +3,24 @@ import { callWithFailover } from './keyPool.js';
 import { detectCategoryOffline, translateText } from './offlineDict.js';
 
 // Smart offline ad generator (no API needed)
-function generateOfflineAd(text) {
+export function generateOfflineAd(text) {
   const detected = detectCategoryOffline(text);
   const words = text.split(' ').filter(w => w.length > 2);
   const title = words.slice(0, 8).join(' ').slice(0, 60) || 'إعلان جديد';
   const hashtags = [detected.main, detected.sub, 'للبيع', 'XTOX'].filter(Boolean);
+  const category = detected.main || 'General';
+  const subcategory = detected.sub || 'Other';
   return {
     title,
     description: text.slice(0, 200),
-    category: detected.main || 'General',
-    subcategory: detected.sub || 'Other',
+    category,
+    subcategory,
     suggestedPrice: 0,
     condition: null,
     language: /[\u0600-\u06FF]/.test(text) ? 'ar' : 'en',
     hashtags,
-    source: 'offline'
+    source: 'offline',
+    confidence: (category !== 'General' && subcategory !== 'Other') ? 'high' : 'low'
   };
 }
 

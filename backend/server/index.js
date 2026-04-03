@@ -59,6 +59,7 @@ import offersRouter from '../routes/offers.js';
 import wishlistRouter from '../routes/wishlist.js';
 import reviewsRouter from '../routes/reviews.js';
 import favoritesRouter from '../routes/favorites.js';
+import promoteRouter from '../routes/promote.js';
 
 const logger = pino();
 const app = express();
@@ -152,6 +153,7 @@ app.use('/api/offers', offersRouter);
 app.use('/api/wishlist', wishlistRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/favorites', favoritesRouter);
+app.use('/api/promote', promoteRouter);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => {

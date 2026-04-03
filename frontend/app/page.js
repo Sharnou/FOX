@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
 import AdCardSkeleton from './components/AdCardSkeleton';
 import CartoonMoodPopup from './components/CartoonMoodPopup';
+import BannerAds from './components/BannerAds';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -572,6 +573,9 @@ export default function Home() {
             : `${regular.length} ads in ${CAT_NAMES_AR[currentCatKey]}`}
         </div>
       )}
+
+      {/* ── Banner Ads (gold/banner style featured) ── */}
+      <BannerAds ads={ads} lang={locale.lang} />
 
       {/* ── Featured Ads ── */}
       {featured.length > 0 && (

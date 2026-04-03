@@ -99,7 +99,10 @@ function PromotePageInner() {
     try {
       const res = await fetch('https://xtox-production.up.railway.app/api/promote', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('fox_token') || ''}`
+        },
         body: JSON.stringify({ adId, plan: selected, payment: paymentMethod, days: selectedPlan?.days }),
       });
       if (res.ok) {

@@ -108,6 +108,15 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
+    if (tab !== 'reports' || !authed) return;
+    const h = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
+    fetch(`${RAILWAY}/api/admin/reports`, { headers: h })
+      .then(r => r.ok ? r.json() : [])
+      .then(r => setReports(Array.isArray(r) ? r : []))
+      .catch(() => {});
+  }, [tab, authed, token]);
+
+  useEffect(() => {
     if (!authed) return;
     const msgs = ['[AI] System scan complete', '[RANK] Rankings updated', '[FRAUD] 0 threats', '[MEDIA] CDN sync OK', '[GEO] Country lock active', '[CRON] Backup scheduled', '[SEC] JWT valid', '[NET] 12ms latency'];
     const iv = setInterval(() => {
@@ -180,6 +189,14 @@ export default function AdminPage() {
   const sendBroadcast = () => post('/api/admin/broadcast', { message: broadcast }).then(r => { if (r.error) alert('Error: ' + r.error); else { alert('Sent!'); setBroadcast(''); } });
   const requestRepair = () => post('/api/admin/ai-repair/request', { problem: repairProblem }).then(r => { setLogs(l => [r, ...l]); setRepairProblem(''); alert('Repair requested'); });
   const resolveError = (id) => fetch(`${RAILWAY}/api/errors/${id}/resolve`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}` } }).then(() => fetchAll());
+  const muteUser = (userId) => post('/api/admin/mute', { userId }).then(() => fetchAll());
+  const hideUser = (userId) => post('/api/admin/hide-user', { userId }).then(() => fetchAll());
+  const deleteAd = async (adId) => {
+    if (!confirm('حذف هذا الإعلان؟')) return;
+    await fetch(`${RAILWAY}/api/ads/${adId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    fetchAll();
+  };
+  const resolveReport = (reportId) => post('/api/admin/resolve-report', { reportId }).then(() => fetchAll());
 
   // --- UPDATED: Bilingual Arabic/English tab labels ---
   const TABS = [
@@ -187,9 +204,11 @@ export default function AdminPage() {
     { id: 'ai',        icon: '🤖', en: 'AI Dev',    ar: 'المطور الذكي' },
     { id: 'users',     icon: '👥', en: 'Users',     ar: 'المستخدمون' },
     { id: 'ads',       icon: '📋', en: 'Ads',       ar: 'الإعلانات' },
+    { id: 'reports',   icon: '🚨', en: 'Reports',   ar: 'تقارير' },
     { id: 'errors',    icon: '🔴', en: 'Errors',    ar: 'الأخطاء' },
     { id: 'broadcast', icon: '📢', en: 'Broadcast', ar: 'الإذاعة' },
     { id: 'system',    icon: '⚙️', en: 'System',    ar: 'النظام' },
+    { id: 'language',  icon: '🌐', en: 'Language',  ar: 'لغة' },
   ];
 
   // --- NEW: Shared search bar style ---
@@ -331,6 +350,8 @@ export default function AdminPage() {
                         <td style={{ padding: '9px 12px', display: 'flex', gap: 5 }}>
                           <button onClick={() => ban(u._id, 24)} style={{ background: '#3d1a1a', color: '#ff4444', border: '1px solid #ff4444', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>Ban 24h</button>
                           <button onClick={() => ban(u._id)} style={{ background: '#21262d', color: '#8b949e', border: '1px solid #30363d', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>Perm</button>
+                          <button onClick={() => muteUser(u._id)} style={{ background: '#1a2a1a', color: '#00ff41', border: '1px solid #00ff41', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🔇</button>
+                          <button onClick={() => hideUser(u._id)} style={{ background: '#1a1a3a', color: '#00d4ff', border: '1px solid #00d4ff', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>👁️</button>
                         </td>
                       </tr>
                     ))}
@@ -387,12 +408,55 @@ export default function AdminPage() {
                         <td style={{ padding: '9px 12px', display: 'flex', gap: 5 }}>
                           <button onClick={() => featureAd(a._id, 'normal')} style={{ background: '#2d2a1a', color: '#ffd700', border: '1px solid #ffd700', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>⭐</button>
                           <button onClick={() => featureAd(a._id, 'cartoon')} style={{ background: '#2d1a2d', color: '#bf5fff', border: '1px solid #bf5fff', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🎨</button>
+                          <button onClick={() => deleteAd(a._id)} style={{ background: '#3d1a1a', color: '#ff4444', border: '1px solid #ff4444', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🗑️</button>
                         </td>
                       </tr>
                     ))}
                     {filteredAds.length === 0 && (
                       <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#8b949e', fontSize: 12 }}>
                         No ads found / لا يوجد إعلانات
+                      </td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {tab === 'reports' && (
+            <div>
+              <h2 style={{ color: '#ff4444', marginBottom: 14, fontSize: 16 }}>
+                🚨 Reports <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ تقارير</span> ({reports.length})
+              </h2>
+              <button onClick={() => {
+                const h = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
+                fetch(`${RAILWAY}/api/admin/reports`, { headers: h })
+                  .then(r => r.ok ? r.json() : [])
+                  .then(r => setReports(Array.isArray(r) ? r : []))
+                  .catch(() => {});
+              }} style={{ background: '#21262d', color: '#00d4ff', border: '1px solid #00d4ff', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 11, marginBottom: 14, fontFamily: 'monospace' }}>$ refresh</button>
+              {reports.length === 0 && <AITerminal title="reports.log" color="green"><div>✅ No reports. All clear.</div></AITerminal>}
+              <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead><tr style={{ borderBottom: '1px solid #30363d' }}>
+                    {['Ad Title / عنوان الإعلان', 'Reporter / المبلغ', 'Reason / السبب', 'Date / التاريخ', 'Actions / إجراءات'].map(h => <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#8b949e', fontWeight: 'normal' }}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {reports.map(r => (
+                      <tr key={r._id} style={{ borderBottom: '1px solid #21262d' }}>
+                        <td style={{ padding: '9px 12px', color: '#e6edf3', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.adTitle || r.adId || '—'}</td>
+                        <td style={{ padding: '9px 12px', color: '#8b949e' }}>{r.reporterName || r.userId || '—'}</td>
+                        <td style={{ padding: '9px 12px', color: '#ffd700' }}>{r.reason || '—'}</td>
+                        <td style={{ padding: '9px 12px', color: '#8b949e', fontSize: 11 }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
+                        <td style={{ padding: '9px 12px', display: 'flex', gap: 5 }}>
+                          <button onClick={() => resolveReport(r._id)} style={{ background: '#1f3a1f', color: '#00ff41', border: '1px solid #00ff41', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>✅ Resolve</button>
+                          {r.adId && <button onClick={() => deleteAd(r.adId)} style={{ background: '#3d1a1a', color: '#ff4444', border: '1px solid #ff4444', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🗑️ Delete Ad</button>}
+                        </td>
+                      </tr>
+                    ))}
+                    {reports.length === 0 && (
+                      <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#8b949e', fontSize: 12 }}>
+                        No reports / لا يوجد تقارير
                       </td></tr>
                     )}
                   </tbody>
@@ -459,6 +523,22 @@ export default function AdminPage() {
                   BROADCAST →
                 </button>
               </AITerminal>
+            </div>
+          )}
+
+          {tab === 'language' && (
+            <div>
+              <h2 style={{ color: '#00d4ff', marginBottom: 14, fontSize: 16 }}>
+                🌐 Language Settings <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ لغة</span>
+              </h2>
+              <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, padding: 20 }}>
+                <p style={{ color: '#8b949e', fontSize: 13, marginBottom: 16 }}>Manage language settings and translations in the Language Admin panel.</p>
+                <button
+                  onClick={() => window.location.href = '/admin/language'}
+                  style={{ background: '#00d4ff', color: '#0d1117', border: 'none', borderRadius: 6, padding: '10px 20px', fontWeight: 'bold', fontSize: 13, cursor: 'pointer', fontFamily: 'monospace' }}>
+                  🌐 Open Language Admin → فتح لوحة اللغات
+                </button>
+              </div>
             </div>
           )}
 
