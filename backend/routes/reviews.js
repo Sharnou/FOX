@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth.js";
+import { auth as requireAuth } from "../middleware/auth.js";
 import { countryLock } from "../middleware/countryLock.js";
 import { db, makeId } from "../lib/store.js";
 

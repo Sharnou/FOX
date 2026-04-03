@@ -6,3 +6,5 @@ export function countryLock(req, res, next) {
   }
   next();
 }
+
+export default countryLock;

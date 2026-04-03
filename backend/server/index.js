@@ -59,7 +59,6 @@ import offersRouter from '../routes/offers.js';
 import wishlistRouter from '../routes/wishlist.js';
 import reviewsRouter from '../routes/reviews.js';
 import favoritesRouter from '../routes/favorites.js';
-import countryLockMiddleware from '../middleware/countryLock.js';
 
 const logger = pino();
 const app = express();
