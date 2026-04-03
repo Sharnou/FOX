@@ -72,7 +72,6 @@ UserSchema.virtual('onlineStatusLabel').get(function () {
 
 // ── Indexes ─────────────────────────────────────────────────────────────────
 
-UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ country: 1 });
 UserSchema.index({ lastSeen: -1 });  // supports "online users" queries
 
