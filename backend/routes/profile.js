@@ -29,9 +29,20 @@ router.post('/:id/review', auth, async (req, res) => {
     const { rating, comment, adId } = req.body;
     if (req.params.id === req.user.id) return res.status(400).json({ error: 'Cannot review yourself' });
 
+    // ── Input Validation ──────────────────────────────────────────────────
+    const ratingNum = Number(rating);
+    if (!rating || !Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
+    }
+    if (comment !== undefined && (typeof comment !== 'string' || comment.trim().length > 500)) {
+      return res.status(400).json({ error: 'Comment must be 500 characters or fewer' });
+    }
+    const cleanComment = comment !== undefined ? comment.trim() : undefined;
+    // ─────────────────────────────────────────────────────────────────────
+
     const review = await Review.findOneAndUpdate(
       { sellerId: req.params.id, buyerId: req.user.id },
-      { sellerId: req.params.id, buyerId: req.user.id, adId, rating, comment },
+      { sellerId: req.params.id, buyerId: req.user.id, adId, rating: ratingNum, comment: cleanComment },
       { upsert: true, new: true }
     );
 
