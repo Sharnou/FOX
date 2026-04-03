@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality, w_400=resize)
 function optimizeImage(url, width = 400) {
@@ -82,6 +82,19 @@ function ConditionBadge({ condition }) {
 
 export default function AdCard({ ad }) {
   const [shared, setShared] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [savingBookmark, setSavingBookmark] = useState(false);
+
+  // Load saved state from localStorage wishlist on mount
+  useEffect(() => {
+    if (!ad?._id) return;
+    try {
+      const wishlist = JSON.parse(localStorage.getItem('xtox_wishlist') || '[]');
+      setSaved(wishlist.includes(String(ad._id)));
+    } catch {
+      // ignore parse errors
+    }
+  }, [ad?._id]);
 
   if (!ad) return null;
 
@@ -124,6 +137,65 @@ export default function AdCard({ ad }) {
     }
   };
 
+  const handleBookmark = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const token =
+      localStorage.getItem('token') || localStorage.getItem('authToken');
+
+    const adId = String(ad._id);
+
+    if (!token) {
+      // Guest mode: toggle localStorage only, no API call
+      try {
+        const wishlist = JSON.parse(localStorage.getItem('xtox_wishlist') || '[]');
+        let updated;
+        if (saved) {
+          updated = wishlist.filter((id) => id !== adId);
+        } else {
+          updated = [...wishlist, adId];
+        }
+        localStorage.setItem('xtox_wishlist', JSON.stringify(updated));
+        setSaved(!saved);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    // Authenticated: optimistic update then API call
+    setSavingBookmark(true);
+    const prevSaved = saved;
+    setSaved(!saved);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/wishlist/${adId}`,
+        {
+          method: saved ? 'DELETE' : 'POST',
+          headers: { Authorization: 'Bearer ' + token },
+        }
+      );
+      if (!res.ok) throw new Error('API error');
+
+      // Sync localStorage
+      const wishlist = JSON.parse(localStorage.getItem('xtox_wishlist') || '[]');
+      let updated;
+      if (prevSaved) {
+        updated = wishlist.filter((id) => id !== adId);
+      } else {
+        updated = [...wishlist, adId];
+      }
+      localStorage.setItem('xtox_wishlist', JSON.stringify(updated));
+    } catch {
+      // Revert on error
+      setSaved(prevSaved);
+    } finally {
+      setSavingBookmark(false);
+    }
+  };
+
   return (
     <a href={`/ads/${ad._id}`} className="bg-white rounded-xl transition block slide-in relative"
       style={{
@@ -153,6 +225,16 @@ export default function AdCard({ ad }) {
         }`}
       >
         {shared ? '✓' : '📤'}
+      </button>
+      {/* Bookmark / Wishlist button */}
+      <button
+        onClick={handleBookmark}
+        aria-label={saved ? 'إزالة من المحفوظات' : 'حفظ في المحفوظات'}
+        disabled={savingBookmark}
+        className="absolute top-12 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 disabled:opacity-60 transition-colors duration-200"
+        style={{ fontSize: 16 }}
+      >
+        {saved ? '❤️' : '🤍'}
       </button>
 
       {ad.media?.[0] ? (
