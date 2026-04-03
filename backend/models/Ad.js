@@ -40,6 +40,8 @@ const AdSchema = new mongoose.Schema({
     default: null
   },
   negotiable: { type: Boolean, default: false },
+  // Contact phone number (optional, provided by seller)
+  phone: { type: String, default: null },
   // ──────────────────────────────────────────────────────────────────────────
   createdAt: { type: Date, default: Date.now }
 });

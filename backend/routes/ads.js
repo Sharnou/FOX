@@ -28,10 +28,11 @@ function sanitizeText(str, maxLen) {
 
 const ALLOWED_CURRENCIES = new Set([
   'USD','EGP','SAR','AED','KWD','QAR','BHD','OMR','JOD',
-  'LYD','MAD','DZD','TND','IQD','SYP','YER','SDG','SOS'
+  'LYD','MAD','DZD','TND','IQD','SYP','YER','SDG','SOS',
+  'EUR','GBP','TRY','CAD','AUD','CHF'
 ]);
 
-function sanitizeAdFields({ title, description, category, price, city, currency, media, video, featuredStyle, condition }) {
+function sanitizeAdFields({ title, description, category, subcategory, price, city, currency, media, video, featuredStyle, condition, phone }) {
   const errors = [];
 
   // title — required, 3–120 chars
@@ -66,14 +67,20 @@ function sanitizeAdFields({ title, description, category, price, city, currency,
   if (cleanVideo && !cleanVideo.startsWith('http')) errors.push('video must be a valid URL');
 
   // featuredStyle — whitelist
-  const STYLES = new Set(['normal', 'gold', 'banner']);
+  const STYLES = new Set(['normal', 'cartoon', 'gold', 'banner']);
   const cleanFeaturedStyle = STYLES.has(featuredStyle) ? featuredStyle : 'normal';
 
   // condition — whitelist only
   const CONDITIONS = new Set(['new', 'used', 'excellent', 'rent']);
   const cleanCondition = CONDITIONS.has(condition) ? condition : null;
 
-  return { errors, sanitized: { title: cleanTitle, description: cleanDescription, category: cleanCategory, price: cleanPrice, city: cleanCity, currency: cleanCurrency, media: cleanMedia, video: cleanVideo, featuredStyle: cleanFeaturedStyle, condition: cleanCondition } };
+  // subcategory — optional, max 60 chars
+  const cleanSubcategory = subcategory ? sanitizeText(subcategory, 60) : '';
+
+  // phone — optional, digits/spaces/+/-/() only, max 20 chars
+  const cleanPhone = phone ? sanitizeText(phone, 20).replace(/[^+\d\s\-()]/g, '') : '';
+
+  return { errors, sanitized: { title: cleanTitle, description: cleanDescription, category: cleanCategory, subcategory: cleanSubcategory, price: cleanPrice, city: cleanCity, currency: cleanCurrency, media: cleanMedia, video: cleanVideo, featuredStyle: cleanFeaturedStyle, condition: cleanCondition, phone: cleanPhone } };
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -165,18 +172,41 @@ router.get('/:id', async (req, res) => {
 // ── POST new ad (AI moderation on ALL media) ──
 router.post('/', auth, async (req, res) => {
   try {
+    // ── PRE-PROCESS: Upload base64 images to Cloudinary before sanitization ──
+    const rawMedia = Array.isArray(req.body.media) ? req.body.media : [];
+    if (rawMedia.some(u => String(u || '').startsWith('data:image/'))) {
+      try {
+        const { default: cloudinaryClient } = await import('../server/cloudinary.js');
+        const processedMedia = [];
+        for (const m of rawMedia.slice(0, 10)) {
+          const url = String(m || '').trim();
+          if (url.startsWith('data:image/') && process.env.CLOUD_NAME) {
+            const result = await cloudinaryClient.uploader.upload(url, { folder: 'xtox_ads' });
+            processedMedia.push(result.secure_url);
+          } else {
+            processedMedia.push(url);
+          }
+        }
+        req.body.media = processedMedia;
+      } catch (uploadErr) {
+        // Cloudinary unavailable — strip base64 (do not store in DB)
+        req.body.media = rawMedia.filter(u => String(u || '').startsWith('http'));
+        console.warn('[ads] Cloudinary upload failed, images stripped:', uploadErr.message);
+      }
+    }
+
     // ── FIELD-LEVEL SANITIZATION (run before anything else) ──
     const { errors, sanitized } = sanitizeAdFields(req.body);
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
-    const { title, description, category, price, city, currency, media, video, featuredStyle, condition } = sanitized;
+    const { title, description, category, subcategory, price, city, currency, media, video, featuredStyle, condition, phone } = sanitized;
     // FIX D: Extract and validate coordinates — parseFloat + isNaN + non-zero check
     const lng = parseFloat(req.body.lng);
     const lat = parseFloat(req.body.lat);
     const validLocation = !isNaN(lng) && !isNaN(lat) && lng !== 0 && lat !== 0;
 
     // COUNTRY LOCK: always use country from JWT token — user cannot override
-    const country = req.user.country;
-    if (!country) return res.status(400).json({ error: 'Country not set on your account' });
+    // Fallback to 'EG' if country is missing from older JWT tokens
+    const country = req.user.country || 'EG';
 
     // TEXT MODERATION
     const textCheck = moderateText(`${title} ${description || ''}`);
@@ -200,7 +230,7 @@ router.post('/', auth, async (req, res) => {
     // AUTO CATEGORY DETECTION (offline first)
     const detected = detectCategoryOffline(`${title} ${description || ''}`);
     const finalCategory = category || detected.main;
-    const finalSubcategory = detected.sub;
+    const finalSubcategory = detected.sub || subcategory || '';
 
     // ENSURE COUNTRY EXISTS
     await getOrCreateCountry(country, country).catch(() => {});
@@ -220,6 +250,7 @@ router.post('/', auth, async (req, res) => {
       country, // LOCKED from JWT
       condition: condition || null,
       featuredStyle: featuredStyle || 'normal',
+      phone: phone || undefined,
       language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
       // FIX D: Only save location when coordinates are fully valid numbers and non-zero
       location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
