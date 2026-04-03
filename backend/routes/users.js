@@ -35,6 +35,14 @@ const otpLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many OTP requests, please try again later.' }
 });
+
+const verifyOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many OTP verification attempts, please try again later.' }
+});
 // ──────────────────────────────────────────────────────────────────────────
 
 export async function seedSuperAdmin() {
@@ -250,7 +258,7 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
   }
 });
 
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
   try {
     const { phone, otp, name, country: countryCode, city } = req.body;
     const record = otpStore.get(phone);
