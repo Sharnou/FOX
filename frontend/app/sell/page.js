@@ -1,8 +1,10 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
+import { analyzeImageForAd, checkAdSimilarity } from '../../lib/geminiAI';
+import { fetchWithRetry } from '../../lib/fetchWithRetry';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 
 // Arabic category names mapped to English backend values
 const CATS = [
@@ -50,6 +52,7 @@ export default function SellPage() {
   const [charCount, setCharCount] = useState(0);
   const fileInputRef = useRef(null);
   const [aiDebounce, setAiDebounce] = useState(null);
+  const [duplicateWarning, setDuplicateWarning] = useState(null); // AI duplicate detection
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -85,24 +88,44 @@ export default function SellPage() {
   async function aiFromImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // FIX 4: Set loading status message
     setAiLoading(true);
-    setAiStatus('جارٍ تحليل الصورة بالذكاء الاصطناعي...');
+    setAiStatus('جارٍ تحليل الصورة بالذكاء الاصطناعي Gemini...');
     setErrors({});
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const dataUrl = ev.target.result;
       setPreview(dataUrl);
-      const base64 = dataUrl.split(',')[1];
       let data = null;
+
+      // PHASE 1: Try Gemini Vision directly (faster, no backend needed)
       try {
-        const res = await fetch(`${API}/api/ads/ai-generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ image: base64, text: form.title + ' ' + form.description }),
-        });
-        data = await res.json();
-        // FIX 5: Set subcategory and condition from AI response
+        setAiStatus('✨ Gemini Vision يحلل صورتك...');
+        const geminiResult = await analyzeImageForAd(dataUrl);
+        if (geminiResult?.title) {
+          data = geminiResult;
+          setAiStatus('✅ Gemini Vision نجح في تحليل الصورة!');
+        }
+      } catch (geminiErr) {
+        console.warn('[Gemini Vision] failed, trying backend:', geminiErr.message);
+      }
+
+      // PHASE 2: Fallback to backend AI if Gemini Vision failed
+      if (!data?.title) {
+        try {
+          setAiStatus('جارٍ تحليل الصورة عبر الخادم...');
+          const base64 = dataUrl.split(',')[1];
+          const res = await fetchWithRetry(`${API}/api/ads/ai-generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ image: base64, text: form.title + ' ' + form.description }),
+          }, { retries: 2 });
+          data = await res.json();
+        } catch (err) {
+          console.warn('[AI backend] failed, proceeding without AI:', err);
+        }
+      }
+
+      if (data?.title) {
         setForm(f => ({
           ...f,
           title: data.title || f.title,
@@ -113,12 +136,10 @@ export default function SellPage() {
           condition: data.condition || f.condition || '',
         }));
         setCharCount((data.description || '').length);
-      } catch (err) {
-        // FIX 4: If AI fails, still proceed to form with empty fields user can fill manually
-        console.warn('AI analysis failed, proceeding without AI:', err);
+        setAiStatus('✅ تم تحليل الصورة بنجاح — راجع البيانات أدناه');
+      } else {
+        setAiStatus('⚠️ لم يتم التعرف على المنتج، يمكنك إدخال البيانات يدوياً');
       }
-      // FIX 4: Show success or fallback status after AI analysis
-      setAiStatus(data?.title ? '✅ تم تحليل الصورة بنجاح' : '⚠️ لم يتم التعرف على المنتج، يمكنك إدخال البيانات يدوياً');
       setStep('form');
       setAiLoading(false);
     };
@@ -136,11 +157,37 @@ export default function SellPage() {
     return Object.keys(e).length === 0;
   }
 
-  async function submit() {
+  async function submit(forceDuplicate = false) {
     if (!validate()) return;
+
+    // DUPLICATE DETECTION: Check user's existing ads for similarity (unless user confirmed)
+    if (!forceDuplicate && form.title.trim().length >= 5) {
+      try {
+        const myAdsRes = await fetchWithRetry(`${API}/api/ads/my/all`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }, { retries: 1 });
+        const myAdsData = await myAdsRes.json();
+        const myActiveAds = myAdsData?.active || [];
+        if (myActiveAds.length > 0) {
+          const similar = await checkAdSimilarity(form.title, myActiveAds);
+          const highSimilarity = similar.filter(s => s.similarity >= 80);
+          if (highSimilarity.length > 0) {
+            setDuplicateWarning({
+              message: `⚠️ يبدو أن لديك إعلاناً مشابهاً: "${myActiveAds[highSimilarity[0].index - 1]?.title}" (تشابه ${highSimilarity[0].similarity}%). هل تريد المتابعة؟`,
+              similar: highSimilarity,
+            });
+            return;
+          }
+        }
+      } catch {
+        // Silently ignore duplicate check errors
+      }
+    }
+
+    setDuplicateWarning(null);
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/ads`, {
+      const res = await fetchWithRetry(`${API}/api/ads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -149,14 +196,13 @@ export default function SellPage() {
           country,
           media: preview ? [preview] : [],
         }),
-      });
+      }, { retries: 2 });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'فشل النشر');
-      // FIX 3: Save phone for next ad
       if (form.phone) localStorage.setItem('last_used_phone', form.phone);
       window.location.href = `/?published=1`;
     } catch (e) {
-      setErrors({ submit: e.message });
+      setErrors({ submit: e.arabicMessage || e.message });
     }
     setLoading(false);
   }
@@ -239,6 +285,44 @@ export default function SellPage() {
       </div>
 
       <div style={{ padding: '20px 16px' }}>
+        {/* Duplicate ad warning */}
+        {duplicateWarning && (
+          <div role="alert" style={{
+            background: '#fffbeb',
+            border: '1.5px solid #f59e0b',
+            borderRadius: 12,
+            padding: '14px 16px',
+            marginBottom: 16,
+            direction: 'rtl',
+            fontFamily: 'Cairo, sans-serif',
+          }}>
+            <p style={{ margin: '0 0 10px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>
+              {duplicateWarning.message}
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDuplicateWarning(null)}
+                style={{
+                  padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db',
+                  background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Cairo, sans-serif',
+                }}
+              >
+                ✏️ تعديل الإعلان
+              </button>
+              <button
+                onClick={() => submit(true)}
+                style={{
+                  padding: '7px 14px', borderRadius: 8, border: 'none',
+                  background: '#002f34', color: '#fff', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'Cairo, sans-serif',
+                }}
+              >
+                نشر على أي حال
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Submit error */}
         {errors.submit && (
           <div role="alert" style={{

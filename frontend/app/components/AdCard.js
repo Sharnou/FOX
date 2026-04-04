@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import AIQualityBadge from './AIQualityBadge';
 
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality, w_400=resize)
 function optimizeImage(url, width = 400) {
@@ -275,8 +276,9 @@ export default function AdCard({ ad }) {
           )}
         </div>
         <p className="text-brand font-bold mt-1">{ad.price} {ad.currency}</p>
-        <div className="mt-1">
+        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
           <StarRating rating={rating} count={ratingCount} />
+          {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
         </div>
         <p className="text-xs text-gray-500 mt-1">👁 {ad.views} | {ad.city}</p>
       </div>

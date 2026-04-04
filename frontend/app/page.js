@@ -1,11 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchWithRetry } from '../lib/fetchWithRetry';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
 import AdCardSkeleton from './components/AdCardSkeleton';
 import CartoonMoodPopup from './components/CartoonMoodPopup';
 import BannerAds from './components/BannerAds';
+import AISearchBar from './components/AISearchBar';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
 const CAT_VALS = ['', 'Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion'];
 const CAT_ICONS = ['🌐', '🚗', '📱', '🏠', '💼', '🔧', '🛒', '💊', '🍕', '👗'];
@@ -99,15 +101,17 @@ export default function Home() {
     try {
       const params = new URLSearchParams({ country: country || locale.country });
       if (category) params.append('category', category);
-      const res = await fetch(`${API}/api/ads?${params}`);
-      if (res.ok) setAds(await res.json());
-      else {
-        setAds([]);
-        setError(locale.lang === 'ar' ? 'تعذّر تحميل الإعلانات. حاول مجدداً.' : 'Failed to load ads. Please try again.');
-      }
-    } catch {
+      const res = await fetchWithRetry(`${API}/api/ads?${params}`, {}, {
+        retries: 3,
+        baseDelay: 500,
+        onRetry: (attempt) => console.log(`[XTOX] Retry ${attempt}/3 for ads...`),
+      });
+      const data = await res.json();
+      setAds(Array.isArray(data) ? data : []);
+      setError(null); // Clear error on success
+    } catch (e) {
       setAds([]);
-      setError(locale.lang === 'ar' ? 'لا يوجد اتصال بالإنترنت. تحقق من الشبكة.' : 'No internet connection. Check your network.');
+      setError(e.arabicMessage || (locale.lang === 'ar' ? 'تعذّر تحميل الإعلانات. حاول مجدداً.' : 'Failed to load ads. Please try again.'));
     }
     setLoading(false);
   }
@@ -351,38 +355,13 @@ export default function Home() {
           XTOX
         </a>
 
-        {/* Search */}
-        <form
-          role="search"
-          aria-label={lang === 'ar' ? 'بحث في الإعلانات' : 'Search ads'}
-          onSubmit={handleSearchSubmit}
-          style={{ flex: 1, position: 'relative' }}
-        >
-          <label htmlFor="main-search" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
-            {lang === 'ar' ? 'ابحث عن إعلانات' : 'Search for ads'}
-          </label>
-          <input
-            id="main-search"
-            ref={searchRef}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+        {/* AI Smart Search Bar */}
+        <div style={{ flex: 1, position: 'relative' }}>
+          <AISearchBar
             placeholder={t.search || (lang === 'ar' ? 'ابحث عن أي شيء...' : 'Search anything...')}
-            aria-label={lang === 'ar' ? 'ابحث في الإعلانات' : 'Search ads'}
-            autoComplete="off"
-            style={{
-              width: '100%',
-              padding: '9px 14px',
-              borderRadius: 20,
-              border: 'none',
-              fontSize: 14,
-              background: 'rgba(255,255,255,0.15)',
-              color: 'white',
-              outline: 'none',
-              textAlign: isRTL ? 'right' : 'left',
-              fontFamily: 'inherit',
-            }}
+            onSearch={(q) => { window.location.href = `/search?q=${encodeURIComponent(q)}`; }}
           />
-        </form>
+        </div>
 
         {/* Sell button */}
         <a

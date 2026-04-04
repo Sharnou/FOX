@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 
 const ARAB_COUNTRY_CODES = [
   { code: '+20',  flag: '🇪🇬', name: 'مصر' },

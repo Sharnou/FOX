@@ -12,8 +12,8 @@ import ReportAd from '../../components/ReportAd';
 import ReportSeller from '../../components/ReportSeller';
 import MakeOfferModal from '../../components/MakeOfferModal';
 
-const API = 'https://xtox-production.up.railway.app';
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox-production.up.railway.app';
+const API = 'https://xtox.up.railway.app';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox.up.railway.app';
 
 function AITranslate({ title, description }) {
   const [translated, setTranslated] = useState(null);
@@ -166,7 +166,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
 
   React.useEffect(() => {
     if (!sellerId) return;
-    fetch(`https://xtox-production.up.railway.app/api/users/${sellerId}/profile`)
+    fetch(`https://xtox.up.railway.app/api/users/${sellerId}/profile`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSeller(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -269,7 +269,7 @@ export default function AdPageClient({ params }) {
 
   useEffect(() => {
     if (params?.id) {
-      const RAILWAY = 'https://xtox-production.up.railway.app';
+      const RAILWAY = 'https://xtox.up.railway.app';
       fetch(`${RAILWAY}/api/ads/${params.id}`)
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data) { setAd(data); recordRecentView(data._id || params.id); } })
@@ -312,7 +312,7 @@ export default function AdPageClient({ params }) {
   useEffect(() => {
     if (!ad) return;
     setRelatedLoading(true);
-    const RAILWAY = 'https://xtox-production.up.railway.app';
+    const RAILWAY = 'https://xtox.up.railway.app';
     const qs = new URLSearchParams({ limit: '6', exclude: ad._id || '' });
     if (ad.category) qs.set('category', ad.category);
     if (ad.country) qs.set('country', ad.country);

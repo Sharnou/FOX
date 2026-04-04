@@ -9,6 +9,7 @@ import { indexAd } from '../server/search.js';
 import { buildAdFromMedia } from '../server/ai.js';
 import { detectCategoryOffline } from '../server/offlineDict.js';
 import { generateQR } from '../server/qr.js';
+import { scoreAdWithAI } from '../server/aiQualityScore.js';
 import { getOrCreateCountry } from '../server/countries.js';
 
 const router = express.Router();
@@ -115,9 +116,9 @@ router.get('/', async (req, res) => {
     if (Number(page) === 0) {
       const { getFeaturedAds, getFeaturedByCategory } = await import('../server/featuredManager.js');
       if (category && category !== 'الكل' && category !== 'All') {
-        featuredAds = await getFeaturedByCategory(country, filter.category);
+        featuredAds = await getFeaturedByCategory(countryParam, filter.category);
       } else {
-        featuredAds = await getFeaturedAds(country);
+        featuredAds = await getFeaturedAds(countryParam);
       }
     }
 
@@ -274,6 +275,23 @@ router.post('/', auth, async (req, res) => {
     const { learnFromAd } = await import('../server/languageLearner.js');
     learnFromAd(title, description, country).catch(() => {});
 
+    // AI QUALITY SCORE — async, non-blocking (run after response)
+    setImmediate(async () => {
+      try {
+        const { score, tips } = await scoreAdWithAI({
+          title, description, category: finalCategory,
+          price, city, currency, media, condition
+        });
+        await ad.constructor.updateOne(
+          { _id: ad._id },
+          { $set: { aiQualityScore: score, aiQualityTips: tips } }
+        );
+        console.log(`[AIQuality] Ad ${ad._id} scored: ${score}/100`);
+      } catch (e) {
+        console.warn('[AIQuality] Scoring failed:', e.message);
+      }
+    });
+
     res.status(201).json(ad);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -388,6 +406,23 @@ router.put('/:id', auth, async (req, res) => {
     await ad.save();
     await rankAd(ad).catch(() => {});
     await indexAd(ad).catch(() => {});
+
+    // AI QUALITY SCORE on update — async, non-blocking
+    setImmediate(async () => {
+      try {
+        const { score, tips } = await scoreAdWithAI({
+          title: ad.title, description: ad.description,
+          category: ad.category, price: ad.price, city: ad.city,
+          currency: ad.currency, media: ad.media, condition: ad.condition
+        });
+        await ad.constructor.updateOne(
+          { _id: ad._id },
+          { $set: { aiQualityScore: score, aiQualityTips: tips } }
+        );
+      } catch (e) {
+        console.warn('[AIQuality] Update scoring failed:', e.message);
+      }
+    });
 
     res.json({ ok: true, ad });
   } catch (e) { res.status(500).json({ error: e.message }); }

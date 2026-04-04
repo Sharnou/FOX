@@ -97,7 +97,7 @@ function PromotePageInner() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('https://xtox-production.up.railway.app/api/promote', {
+      const res = await fetch('https://xtox.up.railway.app/api/promote', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 
 // ─── Arabic constants & labels ───────────────────────────────────────────────
 const LABELS = {
@@ -696,11 +696,11 @@ export default function NearbyPage() {
       </nav>
 
       {/* ── Map container ── */}
-      <div style={{ position: 'relative', flex: 1 }}>
+      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
         <div
           ref={mapRef}
           aria-label="خريطة الإعلانات القريبة"
-          style={{ width: '100%', height: '100%', zIndex: 1 }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }}
         />
 
         {/* Loading overlay on map */}

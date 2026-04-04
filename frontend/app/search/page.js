@@ -3,10 +3,12 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import AdCardSkeleton from '../components/AdCardSkeleton';
+import AISearchBar from '../components/AISearchBar';
+import { fetchWithRetry } from '../../lib/fetchWithRetry';
 import SaveSearch from '../components/SaveSearch';
 import PriceAlert from '../components/PriceAlert';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];
 const CAT_MAP = { 'سيارات': 'Vehicles', 'إلكترونيات': 'Electronics', 'عقارات': 'Real Estate', 'وظائف': 'Jobs', 'خدمات': 'Services', 'سوبرماركت': 'Supermarket', 'صيدلية': 'Pharmacy', 'طعام': 'Fast Food', 'موضة': 'Fashion' };
 const POPULAR = ['عربية', 'آيفون', 'شقة', 'لابتوب', 'سباك', 'تليفزيون', 'موبايل', 'أثاث'];
