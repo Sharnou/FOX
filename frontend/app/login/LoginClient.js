@@ -122,6 +122,10 @@ export default function LoginPage() {
       localStorage.setItem('userId',  data.user?.id || '');
       localStorage.setItem('user',    JSON.stringify(data.user || {}));
       localStorage.setItem('country', data.user?.country || 'EG');
+      if (data.user?.role === 'admin' || data.user?.role === 'sub_admin') {
+        localStorage.setItem('xtox_admin_token', data.token);
+        localStorage.setItem('xtox_admin_user', JSON.stringify(data.user || {}));
+      }
       setSuccess('تم تسجيل الدخول بنجاح! جارٍ التحويل...');
       setTimeout(() => {
         window.location.href =

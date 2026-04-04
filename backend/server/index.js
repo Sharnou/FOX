@@ -85,6 +85,7 @@ app.use(cors({
     const allowed = !origin || 
       origin.includes('vercel.app') || 
       origin.includes('railway.app') ||
+      origin.includes('netlify.app') ||
       origin.includes('blogspot.com') ||
       origin.includes('localhost') ||
       origin === process.env.FRONTEND_URL;

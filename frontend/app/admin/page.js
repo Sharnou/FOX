@@ -33,7 +33,7 @@ function StatCard({ label, value, icon, color }) {
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('ahmed_sharnou@yahoo.com');
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginErr, setLoginErr] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -112,7 +112,7 @@ export default function AdminPage() {
     const h = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
     fetch(`${RAILWAY}/api/admin/reports`, { headers: h })
       .then(r => r.ok ? r.json() : [])
-      .then(r => setReports(Array.isArray(r) ? r : []))
+      .then(r => setReports(Array.isArray(r) ? r : (r?.reports || [])))
       .catch(() => {});
   }, [tab, authed, token]);
 
@@ -169,7 +169,7 @@ export default function AdminPage() {
     ]);
     setUsers(Array.isArray(u) ? u : []);
     setAds(Array.isArray(a) ? a : []);
-    setReports(Array.isArray(r) ? r : []);
+    setReports(Array.isArray(r) ? r : (r?.reports || []));
     setLogs(Array.isArray(l) ? l : []);
     setErrors(Array.isArray(e) ? e : []);
     setStats({ users: (Array.isArray(u) ? u : []).length, ads: (Array.isArray(a) ? a : []).length, reports: (Array.isArray(r) ? r : []).length });
@@ -408,6 +408,8 @@ export default function AdminPage() {
                         <td style={{ padding: '9px 12px', display: 'flex', gap: 5 }}>
                           <button onClick={() => featureAd(a._id, 'normal')} style={{ background: '#2d2a1a', color: '#ffd700', border: '1px solid #ffd700', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>⭐</button>
                           <button onClick={() => featureAd(a._id, 'cartoon')} style={{ background: '#2d1a2d', color: '#bf5fff', border: '1px solid #bf5fff', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🎨</button>
+                          <button onClick={() => featureAd(a._id, 'banner')} style={{ background: '#1a2a3d', color: '#00d4ff', border: '1px solid #00d4ff', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🏆</button>
+                          <button onClick={() => featureAd(a._id, 'gold')} style={{ background: '#2d2700', color: '#ffd700', border: '1px solid #ffd700', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🥇</button>
                           <button onClick={() => deleteAd(a._id)} style={{ background: '#3d1a1a', color: '#ff4444', border: '1px solid #ff4444', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🗑️</button>
                         </td>
                       </tr>
@@ -432,7 +434,7 @@ export default function AdminPage() {
                 const h = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
                 fetch(`${RAILWAY}/api/admin/reports`, { headers: h })
                   .then(r => r.ok ? r.json() : [])
-                  .then(r => setReports(Array.isArray(r) ? r : []))
+                  .then(r => setReports(Array.isArray(r) ? r : (r?.reports || [])))
                   .catch(() => {});
               }} style={{ background: '#21262d', color: '#00d4ff', border: '1px solid #00d4ff', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 11, marginBottom: 14, fontFamily: 'monospace' }}>$ refresh</button>
               {reports.length === 0 && <AITerminal title="reports.log" color="green"><div>✅ No reports. All clear.</div></AITerminal>}

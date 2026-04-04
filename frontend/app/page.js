@@ -108,7 +108,7 @@ export default function Home() {
       });
       const data = await res.json();
       setAds(Array.isArray(data) ? data : []);
-      setError(null); // Clear error on success
+      setError(null);
     } catch (e) {
       setAds([]);
       setError(e.arabicMessage || (locale.lang === 'ar' ? 'تعذّر تحميل الإعلانات. حاول مجدداً.' : 'Failed to load ads. Please try again.'));
@@ -119,7 +119,6 @@ export default function Home() {
   function selectCat(idx) {
     setCatIdx(idx);
     fetchAds(CAT_VALS[idx], locale.country);
-    // Scroll selected category into view
     const el = catScrollRef.current?.children[idx];
     if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }
@@ -153,7 +152,6 @@ export default function Home() {
   const currentCatKey = CAT_KEYS[catIdx];
   const currentCatNameAr = CAT_NAMES_AR[currentCatKey] || 'جميع الإعلانات';
 
-  // ── JSON-LD: AggregateOffer ────────────────────────────────────────────────
   const prices = ads.map(a => Number(a.price)).filter(p => p > 0);
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -189,7 +187,6 @@ export default function Home() {
     })),
   };
 
-  // ── JSON-LD: BreadcrumbList ───────────────────────────────────────────────
   const breadcrumbItems = [
     { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://xtox.app' },
   ];
@@ -210,13 +207,21 @@ export default function Home() {
   const loginLabel = lang === 'ar' ? 'دخول' : lang === 'de' ? 'Einloggen' : lang === 'fr' ? 'Connexion' : 'Login';
   const savedLabel = lang === 'ar' ? 'المحفوظات' : lang === 'de' ? 'Gespeichert' : lang === 'fr' ? 'Favoris' : 'Saved';
 
+  /* ─── CSS vars ─── */
+  const PRIMARY   = '#6366f1'; // indigo-500
+  const PRIMARY_D = '#4f46e5'; // indigo-600
+  const PRIMARY_L = '#818cf8'; // indigo-400
+  const SURFACE   = 'rgba(255,255,255,0.07)';
+  const CARD_BG   = '#ffffff';
+  const BG_MAIN   = '#f1f5f9'; // slate-100
+
   return (
     <div
       dir={locale.dir}
       lang={locale.lang}
       style={{
         minHeight: '100dvh',
-        background: '#f5f5f5',
+        background: BG_MAIN,
         fontFamily: lang === 'ar'
           ? "'Cairo', 'Noto Sans Arabic', 'Tajawal', system-ui, sans-serif"
           : "'Inter', system-ui, sans-serif",
@@ -225,137 +230,226 @@ export default function Home() {
         overflowX: 'hidden',
       }}
     >
-      {/* Google Fonts: Cairo + Noto Sans Arabic */}
+      {/* ── Global Styles ── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&display=swap');
-
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Noto+Sans+Arabic:wght@400;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
-
         body { margin: 0; padding: 0; }
 
-        :focus-visible {
-          outline: 2px solid #00b09b;
-          outline-offset: 2px;
-          border-radius: 4px;
-        }
+        :focus-visible { outline: 2px solid ${PRIMARY}; outline-offset: 2px; border-radius: 4px; }
 
-        .cat-scroll::-webkit-scrollbar { display: none; }
-        .cat-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .feat-scroll::-webkit-scrollbar { display: none; }
-        .feat-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-
+        /* Scrollbar hiding */
+        .cat-scroll::-webkit-scrollbar,
+        .feat-scroll::-webkit-scrollbar,
         .quick-scroll::-webkit-scrollbar { display: none; }
-        .quick-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .cat-scroll, .feat-scroll, .quick-scroll { -ms-overflow-style: none; scrollbar-width: none; }
 
-        .slide-in {
-          animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        @keyframes slideUp {
-          from { transform: translateY(100%); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
+        /* Popup slide-in */
+        .slide-in { animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
 
+        /* Ad card */
         .ad-card {
-          background: white;
-          border-radius: 14px;
+          background: ${CARD_BG};
+          border-radius: 18px;
           overflow: hidden;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+          box-shadow: 0 2px 8px rgba(99,102,241,0.06), 0 1px 3px rgba(0,0,0,0.07);
           text-decoration: none;
           color: inherit;
           display: block;
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          border: 1.5px solid rgba(99,102,241,0.08);
         }
         .ad-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+          transform: translateY(-4px) scale(1.01);
+          box-shadow: 0 12px 32px rgba(99,102,241,0.18), 0 2px 8px rgba(0,0,0,0.1);
+          border-color: rgba(99,102,241,0.25);
         }
-        .ad-card:active { transform: translateY(0); }
+        .ad-card:active { transform: translateY(-1px) scale(1.0); }
 
+        /* Category pill */
         .cat-btn {
-          padding: 7px 16px;
-          border-radius: 20px;
+          padding: 8px 18px;
+          border-radius: 999px;
           border: none;
           cursor: pointer;
           white-space: nowrap;
           font-size: 13px;
-          transition: background 0.18s, color 0.18s, transform 0.12s;
+          font-weight: 600;
+          transition: all 0.18s ease;
           flex-shrink: 0;
+          letter-spacing: 0.2px;
         }
-        .cat-btn:active { transform: scale(0.95); }
+        .cat-btn:active { transform: scale(0.94); }
 
+        /* Featured card */
+        .feat-card {
+          min-width: 165px;
+          background: white;
+          border-radius: 18px;
+          overflow: hidden;
+          text-decoration: none;
+          color: inherit;
+          display: block;
+          flex-shrink: 0;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          border: 2px solid rgba(255,255,255,0.2);
+        }
+        .feat-card:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 28px rgba(0,0,0,0.2); }
+        .feat-card:active { transform: translateY(0); }
+
+        /* Quick action */
+        .quick-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 999px;
+          text-decoration: none;
+          font-size: 13px;
+          font-weight: 600;
+          white-space: nowrap;
+          flex-shrink: 0;
+          transition: all 0.18s ease;
+        }
+        .quick-btn:hover { transform: translateY(-1px); }
+        .quick-btn:active { transform: scale(0.96); }
+
+        /* Toast */
         .toast {
           position: fixed;
-          bottom: 80px;
+          bottom: 88px;
           left: 50%;
           transform: translateX(-50%);
           z-index: 9999;
-          padding: 10px 20px;
-          border-radius: 24px;
+          padding: 11px 22px;
+          border-radius: 999px;
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 700;
           white-space: nowrap;
-          animation: fadeInUp 0.3s ease forwards;
+          animation: toastIn 0.3s ease forwards;
           pointer-events: none;
-          max-width: 90vw;
+          max-width: 88vw;
           text-align: center;
+          backdrop-filter: blur(12px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.2);
         }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateX(-50%) translateY(10px); }
-          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-
-        .loading-pulse {
-          animation: pulse 1.5s ease-in-out infinite;
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.5; }
+        @keyframes toastIn {
+          from { opacity:0; transform: translateX(-50%) translateY(12px) scale(0.95); }
+          to   { opacity:1; transform: translateX(-50%) translateY(0)    scale(1); }
         }
 
+        /* Skeleton pulse */
+        .loading-pulse { animation: pulse 1.6s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
+
+        /* Hero gradient animation */
+        @keyframes gradShift {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+
+        /* Navbar scroll effect */
+        .navbar-scrolled {
+          background: rgba(15,10,40,0.82) !important;
+          box-shadow: 0 4px 24px rgba(99,102,241,0.18) !important;
+        }
+
+        /* Price badge */
+        .price-badge {
+          background: linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_D});
+          color: white;
+          border-radius: 8px;
+          padding: 2px 8px;
+          font-size: 13px;
+          font-weight: 800;
+          display: inline-block;
+        }
+
+        /* Hover glow on FAB */
+        .fab-btn {
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .fab-btn:hover {
+          transform: scale(1.1);
+          box-shadow: 0 8px 24px rgba(99,102,241,0.5) !important;
+        }
+
+        /* Responsive grid */
         @media (max-width: 480px) {
-          .header-brand { font-size: 18px !important; }
+          .ads-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+          .hero-title { font-size: 22px !important; }
+          .hero-subtitle { font-size: 13px !important; }
+          .header-brand { font-size: 20px !important; }
           .header-sell  { padding: 7px 12px !important; font-size: 13px !important; }
-          .ads-grid     { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
         }
-
-        @media (min-width: 768px) {
-          .ads-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
+        @media (min-width: 640px) {
+          .ads-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (min-width: 1024px) {
+          .ads-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+        @media (min-width: 1280px) {
+          .ads-grid { grid-template-columns: repeat(5, 1fr) !important; }
         }
       `}</style>
 
-      {/* JSON-LD Structured Data */}
+      {/* JSON-LD */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
 
-      {/* ── Header ── */}
+      {/* ══════════════════════════════════════════
+          GLASSMORPHISM STICKY NAVBAR
+      ══════════════════════════════════════════ */}
       <header
         role="banner"
         aria-label={lang === 'ar' ? 'رأس الصفحة الرئيسية' : 'Main header'}
+        className={scrollY > 10 ? 'navbar-scrolled' : ''}
         style={{
-          background: 'linear-gradient(135deg, #002f34, #003d3b)',
+          background: scrollY > 10
+            ? 'rgba(15,10,40,0.82)'
+            : 'linear-gradient(135deg, #0f0a28 0%, #1e1047 50%, #1a0f3d 100%)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
           color: 'white',
-          padding: '12px 16px',
+          padding: '10px 16px',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
           position: 'sticky',
           top: 0,
-          zIndex: 100,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          flexDirection: isRTL ? 'row' : 'row',
+          zIndex: 500,
+          boxShadow: scrollY > 10
+            ? '0 4px 24px rgba(99,102,241,0.18)'
+            : '0 2px 12px rgba(0,0,0,0.3)',
+          transition: 'background 0.3s ease, box-shadow 0.3s ease',
+          borderBottom: '1px solid rgba(99,102,241,0.15)',
         }}
       >
+        {/* Brand */}
         <a
           href="/"
           className="header-brand"
           aria-label={lang === 'ar' ? 'اكستوكس - الصفحة الرئيسية' : 'XTOX - Home'}
-          style={{ fontSize: 22, fontWeight: 800, letterSpacing: 1, color: 'white', textDecoration: 'none', flexShrink: 0 }}
+          style={{
+            fontSize: 24,
+            fontWeight: 900,
+            letterSpacing: 1.5,
+            textDecoration: 'none',
+            flexShrink: 0,
+            background: 'linear-gradient(135deg, #a5b4fc, #818cf8, #c4b5fd)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            filter: 'drop-shadow(0 0 8px rgba(129,140,248,0.4))',
+          }}
         >
           XTOX
         </a>
 
-        {/* AI Smart Search Bar */}
+        {/* AI Search Bar */}
         <div style={{ flex: 1, position: 'relative' }}>
           <AISearchBar
             placeholder={t.search || (lang === 'ar' ? 'ابحث عن أي شيء...' : 'Search anything...')}
@@ -363,25 +457,27 @@ export default function Home() {
           />
         </div>
 
-        {/* Sell button */}
+        {/* Sell CTA */}
         <a
           href="/sell"
           className="header-sell"
           aria-label={lang === 'ar' ? 'أضف إعلانك الآن' : 'Post your ad'}
           style={{
-            background: '#00b09b',
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
             color: 'white',
-            padding: '9px 16px',
-            borderRadius: 20,
+            padding: '9px 18px',
+            borderRadius: 999,
             textDecoration: 'none',
-            fontWeight: 'bold',
+            fontWeight: 800,
             fontSize: 14,
             whiteSpace: 'nowrap',
             flexShrink: 0,
-            transition: 'background 0.18s',
+            boxShadow: '0 4px 12px rgba(99,102,241,0.4)',
+            transition: 'all 0.2s',
+            letterSpacing: 0.3,
           }}
         >
-          {t.sell || (lang === 'ar' ? 'أعلن' : 'Sell')}
+          {t.sell || (lang === 'ar' ? '＋ أعلن' : '＋ Sell')}
         </a>
 
         {/* Saved */}
@@ -391,15 +487,17 @@ export default function Home() {
           aria-label={lang === 'ar' ? `المحفوظات${savedCount > 0 ? ` - ${savedCount} إعلان` : ''}` : `Saved${savedCount > 0 ? ` - ${savedCount}` : ''}`}
           style={{
             position: 'relative',
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(255,255,255,0.15)',
+            background: 'rgba(99,102,241,0.18)',
             borderRadius: '50%',
             textDecoration: 'none',
             flexShrink: 0,
+            border: '1px solid rgba(99,102,241,0.3)',
+            transition: 'background 0.2s',
           }}
         >
           <span style={{ fontSize: 18 }} aria-hidden="true">🔖</span>
@@ -410,7 +508,7 @@ export default function Home() {
                 position: 'absolute',
                 top: -4,
                 right: -4,
-                background: '#ff4d4d',
+                background: '#f43f5e',
                 color: 'white',
                 borderRadius: '50%',
                 fontSize: 10,
@@ -422,6 +520,7 @@ export default function Home() {
                 justifyContent: 'center',
                 padding: '0 3px',
                 lineHeight: 1,
+                boxShadow: '0 2px 6px rgba(244,63,94,0.5)',
               }}
             >
               {savedCount > 9 ? '9+' : savedCount}
@@ -435,10 +534,10 @@ export default function Home() {
             href={`/profile/${user.id}`}
             aria-label={lang === 'ar' ? `الملف الشخصي - ${user.name}` : `Profile - ${user.name}`}
             style={{
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               borderRadius: '50%',
-              background: 'rgba(255,255,255,0.2)',
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -448,6 +547,7 @@ export default function Home() {
               fontSize: 16,
               flexShrink: 0,
               overflow: 'hidden',
+              boxShadow: '0 4px 12px rgba(99,102,241,0.4)',
             }}
           >
             {user.avatar
@@ -459,14 +559,16 @@ export default function Home() {
             href="/login"
             aria-label={lang === 'ar' ? 'تسجيل الدخول إلى حسابك' : 'Log in to your account'}
             style={{
-              background: 'rgba(255,255,255,0.15)',
+              background: 'rgba(99,102,241,0.18)',
               color: 'white',
               padding: '8px 14px',
-              borderRadius: 20,
+              borderRadius: 999,
               textDecoration: 'none',
               fontSize: 13,
+              fontWeight: 600,
               whiteSpace: 'nowrap',
               flexShrink: 0,
+              border: '1px solid rgba(99,102,241,0.3)',
             }}
           >
             {loginLabel}
@@ -474,35 +576,95 @@ export default function Home() {
         )}
       </header>
 
-      {/* ── Quick Actions ── */}
-      <nav
-        aria-label={lang === 'ar' ? 'روابط سريعة' : 'Quick links'}
-        style={{ background: 'white', borderBottom: '1px solid #eee' }}
+      {/* ══════════════════════════════════════════
+          ANIMATED GRADIENT HERO
+      ══════════════════════════════════════════ */}
+      <section
+        aria-label={lang === 'ar' ? 'الصفحة الرئيسية' : 'Homepage hero'}
+        style={{
+          background: 'linear-gradient(270deg, #0f0a28, #1e1047, #2d1b69, #1a0f3d, #0d1b4b)',
+          backgroundSize: '300% 300%',
+          animation: 'gradShift 10s ease infinite',
+          padding: '36px 16px 32px',
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
       >
-        <div
-          className="quick-scroll"
-          style={{ display: 'flex', gap: 8, padding: '10px 16px', overflowX: 'auto' }}
-        >
-          <a href="/nearby" aria-label={lang === 'ar' ? 'الإعلانات القريبة منك' : 'Ads near you'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#002f34', color: 'white', borderRadius: 20, textDecoration: 'none', fontSize: 13, fontWeight: 'bold', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <span aria-hidden="true">📍</span> {t.nearby || (lang === 'ar' ? 'قريب منك' : 'Nearby')}
-          </a>
-          <a href="/my-ads" aria-label={lang === 'ar' ? 'إعلاناتي' : 'My ads'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#f0f0f0', color: '#333', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <span aria-hidden="true">📋</span> {t.myAds || (lang === 'ar' ? 'إعلاناتي' : 'My Ads')}
-          </a>
-          <a href="/chat" aria-label={lang === 'ar' ? 'المحادثات' : 'Messages'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#f0f0f0', color: '#333', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <span aria-hidden="true">💬</span> {t.messages || (lang === 'ar' ? 'رسائل' : 'Messages')}
-          </a>
-          <a href="/search" aria-label={lang === 'ar' ? 'البحث المتقدم' : 'Advanced search'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#f0f0f0', color: '#333', borderRadius: 20, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <span aria-hidden="true">🔍</span> {t.advancedSearch || (lang === 'ar' ? 'بحث متقدم' : 'Advanced')}
-          </a>
-        </div>
-      </nav>
+        {/* Decorative orbs */}
+        <div aria-hidden="true" style={{
+          position: 'absolute', top: -60, left: isRTL ? 'auto' : -60, right: isRTL ? -60 : 'auto',
+          width: 200, height: 200, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div aria-hidden="true" style={{
+          position: 'absolute', bottom: -40, right: isRTL ? 'auto' : -40, left: isRTL ? -40 : 'auto',
+          width: 160, height: 160, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
 
-      {/* ── Categories ── */}
+        <h1
+          className="hero-title"
+          style={{
+            color: 'white',
+            fontSize: 28,
+            fontWeight: 900,
+            margin: '0 0 8px',
+            letterSpacing: -0.5,
+            textShadow: '0 2px 12px rgba(99,102,241,0.4)',
+          }}
+        >
+          {lang === 'ar' ? '🛒 سوق XTOX الذكي' : '🛒 XTOX Smart Market'}
+        </h1>
+        <p
+          className="hero-subtitle"
+          style={{
+            color: 'rgba(165,180,252,0.85)',
+            fontSize: 15,
+            margin: '0 0 20px',
+            fontWeight: 500,
+          }}
+        >
+          {lang === 'ar' ? 'اعثر على أفضل الإعلانات بالقرب منك' : 'Discover the best local ads near you'}
+        </p>
+
+        {/* Quick links in hero */}
+        <nav
+          aria-label={lang === 'ar' ? 'روابط سريعة' : 'Quick links'}
+          className="quick-scroll"
+          style={{ display: 'flex', gap: 8, justifyContent: 'center', overflowX: 'auto', paddingBottom: 4 }}
+        >
+          <a href="/nearby" className="quick-btn" aria-label={lang === 'ar' ? 'الإعلانات القريبة' : 'Nearby ads'} style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>
+            <span aria-hidden="true">📍</span>{t.nearby || (lang === 'ar' ? 'قريب منك' : 'Nearby')}
+          </a>
+          <a href="/my-ads" className="quick-btn" aria-label={lang === 'ar' ? 'إعلاناتي' : 'My ads'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <span aria-hidden="true">📋</span>{t.myAds || (lang === 'ar' ? 'إعلاناتي' : 'My Ads')}
+          </a>
+          <a href="/chat" className="quick-btn" aria-label={lang === 'ar' ? 'المحادثات' : 'Messages'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <span aria-hidden="true">💬</span>{t.messages || (lang === 'ar' ? 'رسائل' : 'Messages')}
+          </a>
+          <a href="/search" className="quick-btn" aria-label={lang === 'ar' ? 'البحث المتقدم' : 'Advanced search'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <span aria-hidden="true">🔍</span>{t.advancedSearch || (lang === 'ar' ? 'بحث متقدم' : 'Advanced')}
+          </a>
+        </nav>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          CATEGORY FILTER PILLS
+      ══════════════════════════════════════════ */}
       <nav
         role="navigation"
         aria-label={lang === 'ar' ? 'تصفية حسب الفئة' : 'Filter by category'}
-        style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+        style={{
+          background: 'white',
+          boxShadow: '0 2px 12px rgba(99,102,241,0.07)',
+          borderBottom: '1px solid rgba(99,102,241,0.1)',
+          position: 'sticky',
+          top: 58,
+          zIndex: 400,
+        }}
       >
         <div
           ref={catScrollRef}
@@ -519,11 +681,15 @@ export default function Home() {
               aria-label={lang === 'ar' ? `تصفية: ${CAT_NAMES_AR[key]}` : `Filter: ${key}`}
               className="cat-btn"
               style={{
-                fontWeight: catIdx === i ? 'bold' : 'normal',
-                background: catIdx === i ? '#002f34' : '#f0f0f0',
-                color: catIdx === i ? 'white' : '#444',
+                fontWeight: catIdx === i ? 800 : 600,
+                background: catIdx === i
+                  ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                  : '#f1f5f9',
+                color: catIdx === i ? 'white' : '#64748b',
+                boxShadow: catIdx === i ? '0 4px 14px rgba(99,102,241,0.35)' : 'none',
                 fontFamily: 'inherit',
-                border: catIdx === i ? '2px solid #002f34' : '2px solid transparent',
+                border: catIdx === i ? '2px solid transparent' : '2px solid transparent',
+                transform: catIdx === i ? 'translateY(-1px)' : 'none',
               }}
             >
               <span aria-hidden="true">{CAT_ICONS[i]}</span>{' '}
@@ -539,71 +705,111 @@ export default function Home() {
           aria-live="polite"
           aria-atomic="true"
           style={{
-            padding: '8px 16px',
-            background: '#fafafa',
-            borderBottom: '1px solid #eee',
+            padding: '8px 20px',
+            background: 'rgba(99,102,241,0.04)',
+            borderBottom: '1px solid rgba(99,102,241,0.08)',
             fontSize: 13,
-            color: '#666',
+            color: '#64748b',
+            fontWeight: 500,
             textAlign: isRTL ? 'right' : 'left',
           }}
         >
           {lang === 'ar'
-            ? `${regular.length} إعلان في ${currentCatNameAr}`
-            : `${regular.length} ads in ${CAT_NAMES_AR[currentCatKey]}`}
+            ? `✨ ${regular.length} إعلان في ${currentCatNameAr}`
+            : `✨ ${regular.length} ads in ${CAT_NAMES_AR[currentCatKey]}`}
         </div>
       )}
 
-      {/* ── Banner Ads (gold/banner style featured) ── */}
-      <BannerAds ads={ads} lang={locale.lang} />
+      {/* ── Banner Ads Strip ── */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <BannerAds ads={ads} lang={locale.lang} />
+      </div>
 
-      {/* ── Featured Ads ── */}
+      {/* ══════════════════════════════════════════
+          FEATURED ADS — HORIZONTAL CAROUSEL
+      ══════════════════════════════════════════ */}
       {featured.length > 0 && (
         <section
           aria-label={lang === 'ar' ? 'الإعلانات المميزة' : 'Featured ads'}
-          style={{ background: 'linear-gradient(135deg, #002f34 0%, #00695c 100%)', padding: '16px' }}
+          style={{
+            background: 'linear-gradient(135deg, #0f0a28 0%, #2d1b69 50%, #1e1047 100%)',
+            padding: '20px 16px',
+            margin: '12px 0 0',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ background: '#ffd700', color: '#002f34', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>
+          {/* Decorative glow */}
+          <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(129,140,248,0.5), transparent)' }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{
+              background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+              color: '#1c1917',
+              padding: '4px 12px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 800,
+              boxShadow: '0 2px 8px rgba(251,191,36,0.4)',
+              letterSpacing: 0.3,
+            }}>
               <span aria-hidden="true">⭐</span> {t.featured || (lang === 'ar' ? 'مميز' : 'Featured')}
             </span>
-            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
+            <span style={{ color: 'rgba(165,180,252,0.7)', fontSize: 12, fontWeight: 500 }}>
               {featured.length}/16 {t.perWeek || (lang === 'ar' ? 'أسبوعياً' : 'per week')}
             </span>
           </div>
+
           <div
             className="feat-scroll"
             role="list"
-            style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}
+            style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 4 }}
           >
             {featured.map(ad => (
               <a
                 key={ad._id}
                 href={`/ads/${ad._id}`}
                 role="listitem"
+                className="feat-card"
                 aria-label={lang === 'ar' ? `إعلان مميز: ${ad.title} - ${ad.price} ${ad.currency || locale.currency}` : `Featured: ${ad.title}`}
                 style={{
-                  minWidth: 160,
-                  background: 'white',
-                  borderRadius: 14,
-                  overflow: 'hidden',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  display: 'block',
-                  flexShrink: 0,
-                  border: ad.featuredStyle === 'cartoon' ? '3px solid #ffd700' : 'none',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  border: ad.featuredStyle === 'gold'
+                    ? '2px solid #fbbf24'
+                    : ad.featuredStyle === 'banner'
+                    ? '2px solid #6366f1'
+                    : ad.featuredStyle === 'cartoon'
+                    ? '2px solid #c084fc'
+                    : '2px solid rgba(255,255,255,0.15)',
                 }}
               >
-                <div style={{ height: 110, background: '#f0f0f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
+                {/* Style badge */}
+                {ad.featuredStyle && ad.featuredStyle !== 'normal' && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 8,
+                    [isRTL ? 'left' : 'right']: 8,
+                    background: ad.featuredStyle === 'gold' ? '#fbbf24'
+                      : ad.featuredStyle === 'banner' ? '#6366f1'
+                      : '#c084fc',
+                    color: ad.featuredStyle === 'gold' ? '#1c1917' : 'white',
+                    borderRadius: 6,
+                    fontSize: 9,
+                    fontWeight: 800,
+                    padding: '2px 6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}>
+                    {ad.featuredStyle === 'gold' ? '🥇' : ad.featuredStyle === 'banner' ? '🏆' : '🎨'}
+                  </div>
+                )}
+                <div style={{ height: 115, background: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, position: 'relative' }}>
                   {ad.media?.[0]
                     ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title || ''} loading="lazy" />
                     : <span aria-hidden="true">📦</span>}
                 </div>
-                <div style={{ padding: '8px 10px' }}>
-                  <p style={{ fontWeight: 'bold', fontSize: 12, margin: 0 }}>{ad.title?.slice(0, 28)}</p>
-                  <p style={{ color: '#002f34', fontWeight: 'bold', fontSize: 13, margin: '3px 0 0' }}>
-                    {ad.price} {ad.currency || locale.currency}
-                  </p>
+                <div style={{ padding: '10px 12px' }}>
+                  <p style={{ fontWeight: 700, fontSize: 12, margin: '0 0 4px', lineHeight: 1.4, color: '#1e293b' }}>{ad.title?.slice(0, 30)}</p>
+                  <span className="price-badge">{ad.price} {ad.currency || locale.currency}</span>
                 </div>
               </a>
             ))}
@@ -611,13 +817,25 @@ export default function Home() {
         </section>
       )}
 
-      {/* ── Main Ads Grid ── */}
+      {/* ══════════════════════════════════════════
+          MAIN ADS GRID
+      ══════════════════════════════════════════ */}
       <main
         role="main"
         aria-label={lang === 'ar' ? 'قائمة الإعلانات' : 'Ads listing'}
-        style={{ padding: '16px' }}
+        style={{ padding: '20px 16px 100px' }}
       >
-        {/* Loading state */}
+        {/* Section label */}
+        {!loading && !error && regular.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
+              {lang === 'ar' ? '📋 أحدث الإعلانات' : '📋 Latest Ads'}
+            </h2>
+            <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(99,102,241,0.3), transparent)' }} />
+          </div>
+        )}
+
+        {/* Loading */}
         {loading && (
           <div
             aria-live="polite"
@@ -626,63 +844,62 @@ export default function Home() {
           >
             <p
               className="loading-pulse"
-              style={{
-                textAlign: 'center',
-                color: '#002f34',
-                fontWeight: 600,
-                fontSize: 15,
-                margin: '0 0 16px',
-              }}
+              style={{ textAlign: 'center', color: PRIMARY, fontWeight: 700, fontSize: 15, margin: '0 0 20px' }}
             >
               <span aria-hidden="true">⏳</span>{' '}
               {lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}
             </p>
-            <div className="ads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+            <div className="ads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
             </div>
           </div>
         )}
 
-        {/* Error state */}
+        {/* Error */}
         {error && !loading && (
           <div
             role="alert"
             aria-live="assertive"
             style={{
               textAlign: 'center',
-              padding: '48px 24px',
-              color: '#666',
+              padding: '56px 24px',
+              background: 'white',
+              borderRadius: 24,
+              boxShadow: '0 4px 20px rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.1)',
             }}
           >
-            <div style={{ fontSize: 56, marginBottom: 12 }} aria-hidden="true">⚠️</div>
-            <p style={{ fontSize: 16, fontWeight: 600, color: '#444', margin: '0 0 8px' }}>{error}</p>
+            <div style={{ fontSize: 60, marginBottom: 16 }} aria-hidden="true">⚠️</div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#334155', margin: '0 0 8px' }}>{error}</p>
             <button
               onClick={handleRetry}
               aria-label={lang === 'ar' ? 'إعادة المحاولة لتحميل الإعلانات' : 'Retry loading ads'}
               style={{
-                marginTop: 16,
-                padding: '10px 28px',
-                background: '#002f34',
+                marginTop: 18,
+                padding: '11px 30px',
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
                 color: 'white',
                 border: 'none',
-                borderRadius: 20,
-                fontWeight: 'bold',
+                borderRadius: 999,
+                fontWeight: 800,
                 fontSize: 14,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
+                boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
+                letterSpacing: 0.3,
               }}
             >
-              {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+              {lang === 'ar' ? '↩ إعادة المحاولة' : '↩ Retry'}
             </button>
           </div>
         )}
 
-        {/* Ads grid */}
+        {/* Ads Grid */}
         {!loading && !error && (
           <div
             role="list"
             className="ads-grid"
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}
           >
             {regular.map(ad => (
               <a
@@ -696,49 +913,94 @@ export default function Home() {
                     : `${ad.title} - ${ad.price} ${ad.currency || locale.currency}`
                 }
               >
-                <div style={{ height: 140, background: '#f0f0f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>
+                {/* Image / Video */}
+                <div style={{
+                  height: 145,
+                  background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 40,
+                  position: 'relative',
+                }}>
                   {ad.video
                     ? <video src={ad.video} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay muted loop playsInline aria-hidden="true" />
                     : ad.media?.[0]
                       ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" loading="lazy" />
                       : <span aria-hidden="true">📦</span>}
-                </div>
-                <div style={{ padding: '10px 12px' }}>
-                  <p style={{ fontWeight: 'bold', fontSize: 13, margin: 0, lineHeight: 1.4 }}>{ad.title?.slice(0, 32)}</p>
-                  <p style={{ color: '#002f34', fontWeight: 'bold', fontSize: 14, margin: '4px 0' }}>
-                    {ad.price} {ad.currency || locale.currency}
-                  </p>
-                  <p style={{ color: '#999', fontSize: 11, margin: '2px 0 0' }}>
-                    <span aria-hidden="true">👁</span> {ad.views} · {ad.city}
-                  </p>
-                  {ad.expiresAt && (
-                    <p style={{ color: '#e44', fontSize: 11, margin: '2px 0 0' }}>
-                      <span aria-hidden="true">⏰</span>{' '}
-                      {new Date(ad.expiresAt).toLocaleDateString(
-                        lang === 'ar' ? 'ar-EG' : lang === 'de' ? 'de-DE' : lang === 'fr' ? 'fr-FR' : 'en-US'
-                      )}
-                    </p>
+                  {/* Category badge on image */}
+                  {ad.category && (
+                    <span style={{
+                      position: 'absolute',
+                      top: 8,
+                      [isRTL ? 'right' : 'left']: 8,
+                      background: 'rgba(15,10,40,0.7)',
+                      color: 'rgba(165,180,252,0.95)',
+                      borderRadius: 6,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '2px 7px',
+                      backdropFilter: 'blur(6px)',
+                    }}>
+                      {ad.category}
+                    </span>
                   )}
+                </div>
+
+                {/* Card Body */}
+                <div style={{ padding: '10px 12px 12px' }}>
+                  <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 6px', lineHeight: 1.4, color: '#1e293b' }}>
+                    {ad.title?.slice(0, 34)}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                    <span className="price-badge">
+                      {ad.price ? `${ad.price.toLocaleString()} ${ad.currency || locale.currency}` : (lang === 'ar' ? 'تواصل' : 'Contact')}
+                    </span>
+                    {ad.city && (
+                      <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 500 }}>
+                        📍 {ad.city}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                    <span style={{ color: '#cbd5e1', fontSize: 11 }}>
+                      👁 {ad.views || 0}
+                    </span>
+                    {ad.expiresAt && (
+                      <span style={{ color: '#f87171', fontSize: 11 }}>
+                        ⏰ {new Date(ad.expiresAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </a>
             ))}
 
-            {/* Empty state */}
+            {/* Empty State */}
             {regular.length === 0 && (
               <div
                 role="status"
                 aria-live="polite"
-                style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 24px', color: '#999' }}
+                style={{
+                  gridColumn: '1/-1',
+                  textAlign: 'center',
+                  padding: '64px 24px',
+                  background: 'white',
+                  borderRadius: 24,
+                  boxShadow: '0 4px 20px rgba(99,102,241,0.08)',
+                  border: '1px solid rgba(99,102,241,0.1)',
+                }}
               >
-                <div style={{ fontSize: 56, marginBottom: 12 }} aria-hidden="true">
+                <div style={{ fontSize: 64, marginBottom: 16 }} aria-hidden="true">
                   {EMPTY_STATE_ICONS[currentCatKey] || '🏪'}
                 </div>
-                <p style={{ fontSize: 16, fontWeight: 600, color: '#555', margin: '0 0 8px' }}>
+                <p style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
                   {lang === 'ar'
                     ? `لا توجد إعلانات في ${currentCatNameAr} حتى الآن`
                     : `No ads in ${currentCatNameAr} yet`}
                 </p>
-                <p style={{ fontSize: 13, margin: '0 0 20px', color: '#aaa' }}>
+                <p style={{ fontSize: 13, margin: '0 0 24px', color: '#94a3b8' }}>
                   {lang === 'ar' ? 'كن أول من يضيف إعلاناً!' : 'Be the first to post!'}
                 </p>
                 <a
@@ -746,16 +1008,17 @@ export default function Home() {
                   aria-label={lang === 'ar' ? 'أضف إعلانك الآن' : 'Post your first ad'}
                   style={{
                     display: 'inline-block',
-                    background: '#002f34',
+                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
                     color: 'white',
-                    padding: '10px 28px',
-                    borderRadius: 20,
+                    padding: '12px 32px',
+                    borderRadius: 999,
                     textDecoration: 'none',
-                    fontWeight: 'bold',
-                    fontSize: 14,
+                    fontWeight: 800,
+                    fontSize: 15,
+                    boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
                   }}
                 >
-                  {lang === 'ar' ? 'أضف إعلاناً' : 'Post Ad'}
+                  {lang === 'ar' ? '＋ أضف إعلاناً' : '＋ Post Ad'}
                 </a>
               </div>
             )}
@@ -769,34 +1032,39 @@ export default function Home() {
         aria-label={lang === 'ar' ? 'معلومات الموقع' : 'Site info'}
         style={{
           textAlign: 'center',
-          padding: '24px 16px',
-          color: '#999',
+          padding: '28px 16px',
+          color: '#94a3b8',
           fontSize: 13,
-          borderTop: '1px solid #eee',
-          marginTop: 20,
+          borderTop: '1px solid rgba(99,102,241,0.1)',
+          background: 'white',
         }}
       >
-        <nav aria-label={lang === 'ar' ? 'روابط الموقع' : 'Site links'}>
-          <a href="/about" aria-label={lang === 'ar' ? 'من نحن' : 'About us'} style={{ color: '#002f34', margin: '0 8px' }}>{t.about || (lang === 'ar' ? 'من نحن' : 'About')}</a>
-          <a href="/privacy" aria-label={lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy policy'} style={{ color: '#002f34', margin: '0 8px' }}>{t.privacy || (lang === 'ar' ? 'الخصوصية' : 'Privacy')}</a>
-          <a href="/terms" aria-label={lang === 'ar' ? 'الشروط والأحكام' : 'Terms and conditions'} style={{ color: '#002f34', margin: '0 8px' }}>{t.terms || (lang === 'ar' ? 'الشروط' : 'Terms')}</a>
+        <nav aria-label={lang === 'ar' ? 'روابط الموقع' : 'Site links'} style={{ marginBottom: 8 }}>
+          {[
+            ['/about', t.about || (lang === 'ar' ? 'من نحن' : 'About')],
+            ['/privacy', t.privacy || (lang === 'ar' ? 'الخصوصية' : 'Privacy')],
+            ['/terms', t.terms || (lang === 'ar' ? 'الشروط' : 'Terms')],
+          ].map(([href, label]) => (
+            <a key={href} href={href} style={{ color: PRIMARY, margin: '0 10px', fontWeight: 600, textDecoration: 'none' }}>{label}</a>
+          ))}
         </nav>
-        <span style={{ marginTop: 8, display: 'block' }}>XTOX © 2026</span>
+        <span>XTOX © 2026 · {lang === 'ar' ? 'السوق المحلي الذكي' : 'The Smart Local Market'}</span>
       </footer>
 
-      {/* ── Scroll-to-top ── */}
+      {/* ── Scroll-to-top FAB ── */}
       {scrollY > 300 && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           aria-label={lang === 'ar' ? 'العودة إلى الأعلى' : 'Back to top'}
+          className="fab-btn"
           style={{
             position: 'fixed',
             bottom: 80,
             [isRTL ? 'left' : 'right']: 16,
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             borderRadius: '50%',
-            background: '#002f34',
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
             color: 'white',
             border: 'none',
             cursor: 'pointer',
@@ -804,22 +1072,24 @@ export default function Home() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-            zIndex: 200,
+            boxShadow: '0 6px 20px rgba(99,102,241,0.45)',
+            zIndex: 300,
           }}
         >
           ↑
         </button>
       )}
 
-      {/* ── Toast Notification ── */}
+      {/* ── Toast ── */}
       {toast && (
         <div
           role="status"
           aria-live="polite"
           className="toast"
           style={{
-            background: toast.type === 'error' ? '#e44' : '#002f34',
+            background: toast.type === 'error'
+              ? 'rgba(239,68,68,0.9)'
+              : 'rgba(99,102,241,0.92)',
             color: 'white',
           }}
         >
@@ -827,24 +1097,41 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── Featured Ad Popup (bottom sheet) ── */}
+      {/* ── Featured Ad Popup (Bottom Sheet) ── */}
       {popup && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label={lang === 'ar' ? 'إعلان مميز' : 'Featured ad'}
           onClick={() => setPopup(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16 }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,10,40,0.65)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            padding: 16,
+            backdropFilter: 'blur(4px)',
+          }}
         >
           <div
             onClick={e => e.stopPropagation()}
             className="slide-in"
-            style={{ background: 'white', borderRadius: '24px 24px 0 0', padding: 24, maxWidth: 380, width: '100%' }}
+            style={{
+              background: 'white',
+              borderRadius: '28px 28px 0 0',
+              padding: 28,
+              maxWidth: 420,
+              width: '100%',
+              boxShadow: '0 -8px 40px rgba(99,102,241,0.2)',
+            }}
           >
-            <div style={{ textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 64, display: 'inline-block' }} aria-hidden="true">{popup.cartoon}</div>
-              <p style={{ color: '#002f34', fontWeight: 'bold', margin: '8px 0 0', fontSize: 16 }}>
-                {lang === 'ar' ? 'إعلان مميز خصيصاً لك! 🎉' : lang === 'de' ? 'Empfohlene Anzeige! 🎉' : 'Featured Ad for you! 🎉'}
+            <div style={{ textAlign: 'center', marginBottom: 18 }}>
+              <div style={{ fontSize: 68, display: 'inline-block', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))' }} aria-hidden="true">{popup.cartoon}</div>
+              <p style={{ color: '#1e293b', fontWeight: 800, margin: '10px 0 0', fontSize: 17 }}>
+                {lang === 'ar' ? '🎉 إعلان مميز خصيصاً لك!' : '🎉 Featured Ad for You!'}
               </p>
             </div>
             {popup.ad && (
@@ -852,14 +1139,24 @@ export default function Home() {
                 href={`/ads/${popup.ad._id}`}
                 onClick={() => setPopup(null)}
                 aria-label={lang === 'ar' ? `الإعلان المميز: ${popup.ad.title}` : `Featured ad: ${popup.ad.title}`}
-                style={{ display: 'block', background: '#f8f8f8', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', color: 'inherit', border: '2px solid #002f34', marginBottom: 16 }}
+                style={{
+                  display: 'block',
+                  background: '#f8faff',
+                  borderRadius: 18,
+                  overflow: 'hidden',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  border: '2px solid rgba(99,102,241,0.2)',
+                  marginBottom: 18,
+                  boxShadow: '0 4px 14px rgba(99,102,241,0.1)',
+                }}
               >
-                {popup.ad.media?.[0] && <img src={popup.ad.media[0]} style={{ width: '100%', height: 140, objectFit: 'cover' }} alt={popup.ad.title || ''} loading="lazy" />}
-                <div style={{ padding: '10px 14px', textAlign: isRTL ? 'right' : 'left' }}>
-                  <p style={{ fontWeight: 'bold', margin: 0 }}>{popup.ad.title}</p>
-                  <p style={{ color: '#002f34', fontWeight: 'bold', margin: '4px 0 0', fontSize: 18 }}>
-                    {popup.ad.price} {popup.ad.currency}
-                  </p>
+                {popup.ad.media?.[0] && (
+                  <img src={popup.ad.media[0]} style={{ width: '100%', height: 148, objectFit: 'cover' }} alt={popup.ad.title || ''} loading="lazy" />
+                )}
+                <div style={{ padding: '12px 16px', textAlign: isRTL ? 'right' : 'left' }}>
+                  <p style={{ fontWeight: 700, margin: '0 0 6px', color: '#1e293b' }}>{popup.ad.title}</p>
+                  <span className="price-badge" style={{ fontSize: 15 }}>{popup.ad.price} {popup.ad.currency}</span>
                 </div>
               </a>
             )}
@@ -867,17 +1164,36 @@ export default function Home() {
               <button
                 onClick={() => setPopup(null)}
                 aria-label={lang === 'ar' ? 'متابعة التصفح' : 'Continue browsing'}
-                style={{ flex: 1, padding: '12px', background: '#002f34', color: 'white', border: 'none', borderRadius: 12, fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}
+                style={{
+                  flex: 1,
+                  padding: '13px',
+                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 14,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: 14,
+                  boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+                }}
               >
-                {lang === 'ar' ? 'متابعة التصفح' : lang === 'de' ? 'Weiter browsen' : 'Continue'}
+                {lang === 'ar' ? 'متابعة التصفح' : 'Continue'}
               </button>
               <button
                 onClick={() => setPopupMuted(m => !m)}
                 aria-label={popupMuted
-                  ? (lang === 'ar' ? 'تشغيل الإشعارات' : 'Unmute notifications')
-                  : (lang === 'ar' ? 'كتم الإشعارات' : 'Mute notifications')}
+                  ? (lang === 'ar' ? 'تشغيل الإشعارات' : 'Unmute')
+                  : (lang === 'ar' ? 'كتم الإشعارات' : 'Mute')}
                 aria-pressed={popupMuted}
-                style={{ padding: '12px 16px', background: '#f0f0f0', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 18 }}
+                style={{
+                  padding: '13px 18px',
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: 14,
+                  cursor: 'pointer',
+                  fontSize: 20,
+                }}
               >
                 <span aria-hidden="true">{popupMuted ? '🔇' : '🔔'}</span>
               </button>

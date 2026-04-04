@@ -93,8 +93,8 @@ router.get('/', async (req, res) => {
     const countryParam = req.query.country || req.headers['x-country'] || req.user?.country || null;
 
     const filter = {
-      isExpired: false,
-      isDeleted: false,
+      isExpired: { $ne: true },   // matches false, null, undefined — new ads have no isExpired set
+      isDeleted: { $ne: true },   // matches false, null, undefined — new ads have no isDeleted set
       visibilityScore: { $gte: 0 }
     };
     // Country filter is OPTIONAL — only apply if a country param was provided
@@ -431,7 +431,9 @@ router.put('/:id', auth, async (req, res) => {
 // ── DELETE ad ──
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const ad = await Ad.findOne({ _id: req.params.id, userId: req.user.id });
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'sub_admin';
+    const query = isAdmin ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
+    const ad = await Ad.findOne(query);
     if (!ad) return res.status(404).json({ error: 'Not found' });
     ad.isDeleted = true; ad.deletedAt = new Date(); await ad.save();
     res.json({ ok: true });
