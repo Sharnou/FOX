@@ -19,7 +19,49 @@ router.get('/ads', adminAuth, async (req, res) => {
   res.json(await Ad.find().sort({ createdAt: -1 }).limit(200));
 });
 router.get('/reports', adminAuth, async (req, res) => {
-  res.json(await Report.find({ resolved: false }).sort({ createdAt: -1 }));
+  try {
+    // Bilingual labels — Arabic (primary) / English
+    const LABELS = {
+      invalidPage:   { ar: 'رقم الصفحة غير صالح',          en: 'Invalid page number' },
+      invalidLimit:  { ar: 'حد السجلات غير صالح (1-50)',    en: 'Invalid limit value (1-50)' },
+      serverError:   { ar: 'خطأ في الخادم',                 en: 'Server error' },
+    };
+
+    // Parse & validate query params
+    const rawPage  = parseInt(req.query.page,  10);
+    const rawLimit = parseInt(req.query.limit, 10);
+
+    const page  = isNaN(rawPage)  || rawPage  < 1 ? 1  : rawPage;
+    const limit = isNaN(rawLimit) || rawLimit < 1 ? 20 : Math.min(rawLimit, 50);
+
+    if (req.query.page  && (isNaN(rawPage)  || rawPage  < 1))
+      return res.status(400).json({ error: LABELS.invalidPage.ar, error_en: LABELS.invalidPage.en });
+    if (req.query.limit && (isNaN(rawLimit) || rawLimit < 1 || rawLimit > 50))
+      return res.status(400).json({ error: LABELS.invalidLimit.ar, error_en: LABELS.invalidLimit.en });
+
+    const skip = (page - 1) * limit;
+
+    // Keep existing filter (unresolved, newest-first)
+    const filter = { resolved: false };
+    const [reports, total] = await Promise.all([
+      Report.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Report.countDocuments(filter),
+    ]);
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    res.json({
+      reports,
+      // Bilingual pagination metadata
+      page,
+      totalPages,
+      total,
+      // Arabic labels for frontend
+      labels: { page: 'الصفحة', totalPages: 'إجمالي الصفحات', total: 'الإجمالي' },
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'خطأ في الخادم', error_en: 'Server error', details: e.message });
+  }
 });
 router.get('/deleted', adminAuth, async (req, res) => {
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
