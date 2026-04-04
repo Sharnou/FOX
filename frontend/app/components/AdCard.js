@@ -391,6 +391,11 @@ export default function AdCard({ ad }) {
         </div>
         <p className="text-brand font-bold mt-1">{ad.price} {ad.currency}</p>
         <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+          {(ad.seller?.verified || ad.userId?.verified) && (
+            <span style={{color:'#23e5db',fontSize:'0.72rem',fontWeight:700,marginInlineEnd:'4px',display:'inline-flex',alignItems:'center'}}>
+              موثق ✓
+            </span>
+          )}
           <StarRating rating={rating} count={ratingCount} />
           {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
         </div>
@@ -400,13 +405,3 @@ export default function AdCard({ ad }) {
     </a>
   );
 }
-
-// ── Seller Verification Badge (موثق ✓) ──────────────────────
-// Render this inside your seller name JSX block:
-//
-//   {ad.seller?.verified && (
-//     <span style={{color:'#23e5db',fontSize:'0.72rem',fontWeight:700,marginRight:'4px'}}>
-//       موثق ✓
-//     </span>
-//   )}
-// ─────────────────────────────────────────────────────────────
