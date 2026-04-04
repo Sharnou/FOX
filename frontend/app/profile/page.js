@@ -1,6 +1,6 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Mock seller reviews data (ready for API integration)
 const MOCK_REVIEWS = [
@@ -40,9 +40,9 @@ function StarRating({ rating }) {
 }
 
 export default function ProfilePage() {
-  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
-  const [name, setName] = useState(user.name || '');
-  const [avatar, setAvatar] = useState(user.avatar || '');
+  const [user, setUser] = useState({});
+  const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState('');
   const [reviewsOpen, setReviewsOpen] = useState(false);
   // ── FIX 4: Chat toggle state ──────────────────────────────────────────
   const [chatEnabled, setChatEnabled] = useState(() => {
@@ -54,9 +54,6 @@ export default function ProfilePage() {
   });
   const [chatToggling, setChatToggling] = useState(false);
   const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
-  const token = typeof window !== 'undefined'
-    ? (localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('xtox_admin_token') || '')
-    : '';
 
   // Seller stats derived from localStorage
   const myAdsCount = typeof window !== 'undefined' ? (() => {
@@ -72,9 +69,45 @@ export default function ProfilePage() {
 
   const avgRating = (MOCK_REVIEWS.reduce((s, r) => s + r.rating, 0) / MOCK_REVIEWS.length).toFixed(1);
 
-  function saveProfile() {
+  // Load user from localStorage on mount, then fetch fresh data from API
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      if (stored && Object.keys(stored).length > 0) {
+        setUser(stored);
+        setName(stored.name || '');
+        setAvatar(stored.avatar || '');
+      }
+    } catch {}
+    const t = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('xtox_admin_token');
+    if (!t) return;
+    fetch(`${API}/api/users/me`, { headers: { Authorization: `Bearer ${t}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && !data.error) {
+          const u = data.user || data;
+          setUser(u);
+          setName(u.name || '');
+          setAvatar(u.avatar || '');
+          localStorage.setItem('user', JSON.stringify(u));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function saveProfile() {
     const updated = { ...user, name, avatar };
     localStorage.setItem('user', JSON.stringify(updated));
+    const t = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('xtox_admin_token');
+    if (t) {
+      try {
+        await fetch(`${API}/api/users/me`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ name, avatar }),
+        });
+      } catch {}
+    }
     alert('تم الحفظ!');
   }
   function uploadAvatar(e) {
@@ -134,9 +167,10 @@ export default function ProfilePage() {
               if (chatToggling) return;
               setChatToggling(true);
               try {
+                const t = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('xtox_admin_token');
                 const res = await fetch(`${API}/api/users/chat-toggle`, {
                   method: 'PATCH',
-                  headers: { Authorization: `Bearer ${token}` }
+                  headers: { Authorization: `Bearer ${t}` }
                 });
                 const data = await res.json();
                 const newVal = res.ok ? data.chatEnabled : !chatEnabled;

@@ -423,10 +423,14 @@ router.put('/me', auth, async (req, res) => {
     }
 
     if (avatar !== undefined) {
-      if (typeof avatar !== 'string' || (!avatar.startsWith('http://') && !avatar.startsWith('https://'))) {
-        return res.status(400).json({ error: 'Avatar must be a valid URL' });
+      if (typeof avatar !== 'string') {
+        return res.status(400).json({ error: 'Avatar must be a string' });
       }
-      update.avatar = avatar.trim().slice(0, 500);
+      const isValidUrl = avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:');
+      if (!isValidUrl) {
+        return res.status(400).json({ error: 'Avatar must be a valid URL or data URI' });
+      }
+      update.avatar = avatar.trim().slice(0, 2000000); // allow base64
     }
 
     if (phone !== undefined) {

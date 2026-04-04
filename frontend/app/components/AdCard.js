@@ -232,7 +232,7 @@ export default function AdCard({ ad }) {
   };
 
   // ── FIX 1: Get the best image URL with fallback ─────────────────────────
-  const rawImageUrl = ad.media?.[0] || ad.images?.[0] || null;
+  const rawImageUrl = ad.media?.[0] || ad.images?.[0] || ad.photos?.[0] || ad.photo || ad.image || ad.thumbnail || null;
   const imageUrl = rawImageUrl ? optimizeImage(rawImageUrl) : null;
   const showPlaceholder = !imageUrl || imgError;
 
@@ -422,22 +422,20 @@ export default function AdCard({ ad }) {
         {/* ── FIX 3: Chat button — bottom left of card info ────────────────── */}
         <div className="mt-2 flex items-center justify-between">
           <p className="text-xs text-gray-500 m-0">👁 {viewCount} | {ad.city}</p>
-          {/* Show chat button unless seller explicitly disabled it */}
-          {ad.sellerChatEnabled !== false && (
-            <button
-              onClick={handleChat}
-              title="تواصل مع البائع"
-              style={{
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                border: 'none', borderRadius: '50%', width: 36, height: 36,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
-                fontSize: 16, flexShrink: 0,
-              }}
-            >
-              💬
-            </button>
-          )}
+          {/* Chat button — always visible on every AdCard */}
+          <button
+            onClick={handleChat}
+            title="تواصل مع البائع"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              border: 'none', borderRadius: '50%', width: 36, height: 36,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
+              fontSize: 16, flexShrink: 0,
+            }}
+          >
+            💬
+          </button>
         </div>
       </div>
     </Link>
