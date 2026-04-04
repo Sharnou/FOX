@@ -180,7 +180,16 @@ export default function AdminPage() {
 
   async function fetchAll(tk) {
     const h = { 'Authorization': `Bearer ${tk || token}`, 'Accept': 'application/json' };
-    const get = (url) => fetch(url, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []);
+    // Robust get: handles array or { ads/users/data/results/docs: [] } response shapes
+    const get = (url) => fetch(url, { headers: h })
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null);
+    const normalize = (d, keys = ['ads','users','reports','data','results','docs']) => {
+      if (!d) return [];
+      if (Array.isArray(d)) return d;
+      for (const k of keys) if (Array.isArray(d[k])) return d[k];
+      return [];
+    };
     const [u, a, r, l, e] = await Promise.all([
       get(`${RAILWAY}/api/admin/users`),
       get(`${RAILWAY}/api/admin/ads`),
@@ -188,13 +197,18 @@ export default function AdminPage() {
       get(`${RAILWAY}/api/admin/ai-logs`),
       get(`${RAILWAY}/api/errors`),
     ]);
-    setUsers(Array.isArray(u) ? u : []);
-    setAds(Array.isArray(a) ? a : []);
-    setReports(Array.isArray(r) ? r : (r?.reports || []));
-    setLogs(Array.isArray(l) ? l : []);
-    setErrors(Array.isArray(e) ? e : []);
-    setStats({ users: (Array.isArray(u) ? u : []).length, ads: (Array.isArray(a) ? a : []).length, reports: (Array.isArray(r) ? r : []).length });
-    setLiveLog(l => [...l, `[DB] Loaded: ${(Array.isArray(u)?u:[]).length} users, ${(Array.isArray(a)?a:[]).length} ads`]);
+    const usersList    = normalize(u, ['users','data','results','docs']);
+    const adsList      = normalize(a, ['ads','data','results','docs']);
+    const reportsList  = normalize(r, ['reports','data','results','docs']);
+    const logsList     = normalize(l, ['logs','data','results','docs']);
+    const errorsList   = normalize(e, ['errors','data','results','docs']);
+    setUsers(usersList);
+    setAds(adsList);
+    setReports(reportsList);
+    setLogs(logsList);
+    setErrors(errorsList);
+    setStats({ users: usersList.length, ads: adsList.length, reports: reportsList.length });
+    setLiveLog(prev => [...prev, `[DB] Loaded: ${usersList.length} users, ${adsList.length} ads, ${reportsList.length} reports`]);
   }
 
   const post = (path, body) => fetch(`${RAILWAY}${path}`, {

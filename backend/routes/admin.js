@@ -5,6 +5,12 @@ import Ad from '../models/Ad.js';
 import Report from '../models/Report.js';
 import AILog from '../models/AILog.js';
 import { adminAuth, superAdminAuth } from '../middleware/auth.js';
+import { dbState, MemAd, MemUser, MemReport } from '../server/memoryStore.js';
+
+// Memory store helpers — used when MongoDB is unavailable
+function getAdModel()     { return dbState.usingMemoryStore ? MemAd     : Ad; }
+function getUserModel()   { return dbState.usingMemoryStore ? MemUser   : User; }
+function getReportModel() { return dbState.usingMemoryStore ? MemReport : Report; }
 import { createBackup } from '../server/backup.js';
 import { sendWeeklyBroadcast } from '../server/broadcast.js';
 import { requestRepair, approveRepair, executeRepair } from '../server/aiRepair.js';
@@ -13,10 +19,39 @@ import { detectCategoryOffline } from '../server/offlineDict.js';
 const router = express.Router();
 
 router.get('/users', adminAuth, async (req, res) => {
-  res.json(await User.find().sort({ createdAt: -1 }).limit(200));
+  try {
+    const users = await getUserModel().find({}).sort({ createdAt: -1 }).limit(200);
+    res.json(Array.isArray(users) ? users : (users?.docs || []));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 router.get('/ads', adminAuth, async (req, res) => {
-  res.json(await Ad.find().sort({ createdAt: -1 }).limit(200));
+  try {
+    const page  = parseInt(req.query.page)  || 1;
+    const limit = parseInt(req.query.limit) || 200;
+    const skip  = (page - 1) * limit;
+    const filter = {};
+    if (req.query.search) {
+      filter.$or = [
+        { title:       { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } },
+        { category:    { $regex: req.query.search, $options: 'i' } },
+        { city:        { $regex: req.query.search, $options: 'i' } },
+      ];
+    }
+    const Model = getAdModel();
+    const [rawAds, total] = await Promise.all([
+      Model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Model.countDocuments(filter),
+    ]);
+    // Normalise: MemAd.find may return { docs, total, ... } or plain array
+    const adsList = Array.isArray(rawAds) ? rawAds : (rawAds?.docs || []);
+    const totalCount = typeof total === 'number' ? total : adsList.length;
+    res.json(adsList);          // return plain array (frontend expects Array.isArray)
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 router.get('/reports', adminAuth, async (req, res) => {
   try {
