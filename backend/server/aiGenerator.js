@@ -46,7 +46,7 @@ async function generateWithGemini(text, imageDesc) {
   const key = process.env.GEMINI_API_KEY;
   if (!key || key === 'your_gemini_key') throw new Error('No Gemini key');
   const prompt = `Generate a marketplace ad JSON for: "${text} ${imageDesc}". Fields: title, description, category, suggestedPrice, condition (new/used/excellent/rent or null), hashtags. JSON only.`;
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${key}`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })

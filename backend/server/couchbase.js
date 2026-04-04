@@ -1,16 +1,23 @@
 // Couchbase Capella integration — optional, non-fatal
 // Uses dynamic import to avoid crashing if SDK not installed
+// Only connects if COUCHBASE_URL or COUCHBASE_HOST env var is explicitly set
 
 let _cluster = null;
 let _collection = null;
 let _connected = false;
 
-const COUCHBASE_URL = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
+const COUCHBASE_URL  = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST;
 const COUCHBASE_USER = process.env.COUCHBASE_USER || 'xtox';
-const COUCHBASE_PASS = process.env.COUCHBASE_PASS || process.env.COUCHBASE_PASSWORD || '8+fFce$rFABj';
-const BUCKET_NAME = process.env.COUCHBASE_BUCKET || 'XTOX';
+const COUCHBASE_PASS = process.env.COUCHBASE_PASS || process.env.COUCHBASE_PASSWORD;
+const BUCKET_NAME    = process.env.COUCHBASE_BUCKET || 'XTOX';
 
 export async function connectCouchbase() {
+  // Skip entirely if not configured — prevents noisy 30-second timeout on Railway
+  if (!COUCHBASE_URL || !COUCHBASE_PASS) {
+    console.warn('[COUCHBASE] Not configured (COUCHBASE_URL/COUCHBASE_PASS missing) — caching disabled');
+    return false;
+  }
+
   try {
     // Dynamic import — won't crash if SDK not installed
     const couchbase = await import('couchbase').catch(() => null);
@@ -27,12 +34,16 @@ export async function connectCouchbase() {
 
     const bucket = _cluster.bucket(BUCKET_NAME);
     _collection = bucket.defaultCollection();
-    await bucket.waitUntilReady(30000);
+    // Reduced timeout: 5s instead of 30s to fail fast and not block startup
+    await bucket.waitUntilReady(5000);
     _connected = true;
     console.log('[COUCHBASE] Connected ✅');
     return true;
   } catch (e) {
     console.warn('[COUCHBASE] Connection failed (non-fatal):', e.message);
+    _cluster = null;
+    _collection = null;
+    _connected = false;
     return false;
   }
 }

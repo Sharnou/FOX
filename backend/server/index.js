@@ -294,6 +294,25 @@ setInterval(async () => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   logger.info(`XTOX running on port ${PORT}`);
+
+  // ── Startup env var check — log what's missing so Railway is easy to configure ──
+  const missingEnvs = [];
+  if (!process.env.CLOUD_NAME)    missingEnvs.push('CLOUD_NAME');
+  if (!process.env.CLOUD_KEY)     missingEnvs.push('CLOUD_KEY');
+  if (!process.env.CLOUD_SECRET)  missingEnvs.push('CLOUD_SECRET');
+  if (!process.env.GEMINI_API_KEY) missingEnvs.push('GEMINI_API_KEY');
+  if (!process.env.COUCHBASE_URL && !process.env.COUCHBASE_HOST) missingEnvs.push('COUCHBASE_URL (optional)');
+  if (missingEnvs.length > 0) {
+    console.warn('[Config] Missing env vars (services degraded):', missingEnvs.join(', '));
+  }
+  console.log('[XTOX] Railway environment variable reference:');
+  console.log('  MONGO_URL=<mongodb-connection-string>');
+  console.log('  JWT_SECRET=<random-secret>');
+  console.log('  CLOUD_NAME=<cloudinary-cloud-name>');
+  console.log('  CLOUD_KEY=<cloudinary-api-key>');
+  console.log('  CLOUD_SECRET=<cloudinary-api-secret>');
+  console.log('  GEMINI_API_KEY=<google-gemini-key>');
+  console.log('  COUCHBASE_URL=<couchbase-capella-url>  # optional');
 });
 // ────────────────────────────────────────────────────────────────────────────
 
