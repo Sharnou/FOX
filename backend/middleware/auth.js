@@ -2,11 +2,13 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
+
 export function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = jwt.verify(token, JWT_SECRET);
     // Update lastSeen non-blocking — wires up isOnline/onlineStatus virtuals (run 86 User.js)
     User.updateOne({ _id: req.user.id }, { lastSeen: new Date() }).exec().catch(() => {});
     next();

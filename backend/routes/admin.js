@@ -118,11 +118,11 @@ router.post('/ban', adminAuth, async (req, res) => {
   res.json({ ok: true });
 });
 router.post('/mute', adminAuth, async (req, res) => {
-  await User.findByIdAndUpdate(req.body.id, { isMuted: req.body.mute });
+  await User.findByIdAndUpdate(req.body.userId || req.body.id, { isMuted: req.body.mute });
   res.json({ ok: true });
 });
 router.post('/hide-user', adminAuth, async (req, res) => {
-  await User.findByIdAndUpdate(req.body.id, { isHidden: req.body.hide });
+  await User.findByIdAndUpdate(req.body.userId || req.body.id, { isHidden: req.body.hide });
   res.json({ ok: true });
 });
 router.post('/rank-ad', adminAuth, async (req, res) => {

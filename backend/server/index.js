@@ -85,6 +85,7 @@ app.use(cors({
     const allowed = !origin || 
       origin.includes('vercel.app') || 
       origin.includes('railway.app') ||
+      origin.includes('netlify.app') ||
       origin.includes('blogspot.com') ||
       origin.includes('localhost') ||
       origin === process.env.FRONTEND_URL;
@@ -94,7 +95,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-country']
 }));
-app.options('*', cors());
+app.options(/\/(.*)/, cors()); // Express 5: use regex instead of '*'
 app.use(express.json({ limit: '10mb' }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 

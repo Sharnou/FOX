@@ -11,8 +11,25 @@ import { detectCategoryOffline } from '../server/offlineDict.js';
 import { generateQR } from '../server/qr.js';
 import { scoreAdWithAI } from '../server/aiQualityScore.js';
 import { getOrCreateCountry } from '../server/countries.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
 
 const router = express.Router();
+
+// ── Optional auth: attaches req.user if token present, non-blocking ──────────
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return next();
+  const token = authHeader.replace('Bearer ', '').trim();
+  if (!token) return next();
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+  } catch {}
+  next();
+};
+// Run before ALL routes so req.user is available everywhere (including GET /)
+router.use(optionalAuth);
 
 // ── Field-level input sanitizer ──────────────────────────────────────────────
 function stripTags(str) {
@@ -93,8 +110,8 @@ router.get('/', async (req, res) => {
     const countryParam = req.query.country || req.headers['x-country'] || req.user?.country || null;
 
     const filter = {
-      isExpired: false,
-      isDeleted: false,
+      isExpired: { $ne: true },   // matches false, null, undefined — new ads have no isExpired set
+      isDeleted: { $ne: true },   // matches false, null, undefined — new ads have no isDeleted set
       visibilityScore: { $gte: 0 }
     };
     // Country filter is OPTIONAL — only apply if a country param was provided
@@ -138,19 +155,7 @@ router.get('/', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Middleware to auto-attach user country from token for authenticated routes
-router.use((req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader) {
-    try {
-      import('jsonwebtoken').then(({ default: jwt }) => {
-        const decoded = jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET);
-        if (!req.user) req.user = decoded;
-        next();
-      }).catch(() => next());
-    } catch { next(); }
-  } else { next(); }
-});
+// optionalAuth middleware is now registered at the top of this file (before GET /)
 
 // GET user's own ads (active + expired)
 router.get('/my/all', auth, async (req, res) => {
@@ -431,7 +436,9 @@ router.put('/:id', auth, async (req, res) => {
 // ── DELETE ad ──
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const ad = await Ad.findOne({ _id: req.params.id, userId: req.user.id });
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'sub_admin';
+    const query = isAdmin ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
+    const ad = await Ad.findOne(query);
     if (!ad) return res.status(404).json({ error: 'Not found' });
     ad.isDeleted = true; ad.deletedAt = new Date(); await ad.save();
     res.json({ ok: true });
