@@ -99,7 +99,7 @@ export default function AdminPage() {
     try {
       const stored = localStorage.getItem('xtox_admin_token');
       const user = JSON.parse(localStorage.getItem('xtox_admin_user') || '{}');
-      if (stored && (user.role === 'admin' || user.role === 'sub_admin')) {
+      if (stored && ['admin', 'sub_admin', 'superadmin'].includes(user.role)) {
         setToken(stored);
         setAuthed(true);
         fetchAll(stored);
@@ -136,13 +136,13 @@ export default function AdminPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setLoginErr(data.error || `Error ${res.status}: ${res.statusText}`);
+        setLoginErr(data.error || data.message || `خطأ ${res.status}: ${res.statusText}`);
         setLoginLoading(false);
         return;
       }
       if (!data.token) { setLoginErr('No token received from server'); setLoginLoading(false); return; }
-      if (data.user?.role !== 'admin' && data.user?.role !== 'sub_admin') {
-        setLoginErr('Access denied — Admin account required');
+      if (!['admin', 'sub_admin', 'superadmin'].includes(data.user?.role)) {
+        setLoginErr('ليس لديك صلاحية الوصول للوحة الإدارة — Admin account required');
         setLoginLoading(false);
         return;
       }

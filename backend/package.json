@@ -10,7 +10,7 @@
     "@elastic/elasticsearch": "^9.3.4",
     "@sentry/node": "^10.47.0",
     "archiver": "^7.0.1",
-    "bcryptjs": "^3.0.3",
+    "bcryptjs": "^2.4.3",
     "cloudinary": "^2.9.0",
     "compression": "^1.8.1",
     "cors": "^2.8.6",

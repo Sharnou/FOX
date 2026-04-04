@@ -166,7 +166,7 @@ export default function LoginPage() {
         body:    JSON.stringify({ email: email.trim(), password })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'البريد أو كلمة المرور غير صحيحة');
+      if (!res.ok) throw new Error(data?.error || data?.message || 'البريد أو كلمة المرور غير صحيحة');
       saveAndRedirect(data);
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -191,7 +191,7 @@ export default function LoginPage() {
         body:    JSON.stringify({ phone: cleaned, via: 'whatsapp' })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل إرسال الرمز');
+      if (!res.ok) throw new Error(data?.error || data?.message || 'فشل إرسال الرمز');
       setOtpSent(true);
       setResendTimer(60);
       setSuccess('تم إرسال رمز التحقق على واتساب ✅');
@@ -212,7 +212,7 @@ export default function LoginPage() {
         body:    JSON.stringify({ phone: phone.trim(), otp: otp.trim(), country })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'رمز التحقق غير صحيح');
+      if (!res.ok) throw new Error(data?.error || data?.message || 'رمز التحقق غير صحيح');
       saveAndRedirect(data);
     } catch (e) { setError(e.message); }
     setLoading(false);

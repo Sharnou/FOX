@@ -84,30 +84,37 @@ const app = express();
 app.set('trust proxy', 1);
 app.use((req, res, next) => { _metricsRequestCount++; next(); });
 
+// CORS must be FIRST — before any other middleware, before body parsers
+// ─── CORS config — permissive: all Vercel previews, Railway, localhost ──────
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow non-browser (mobile/curl)
+    const allowed =
+      origin.includes('localhost') ||
+      origin.includes('vercel.app') ||
+      origin.includes('railway.app') ||
+      origin.includes('netlify.app') ||
+      origin.includes('blogspot.com') ||
+      origin.includes('xtox') ||
+      origin === process.env.FRONTEND_URL;
+    callback(allowed ? null : new Error('CORS blocked: ' + origin), allowed);
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','Accept','x-country','x-refresh-token'],
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+app.options(/\/(.*)/, cors(corsOptions)); // preflight for ALL routes
+
+
 
 // Gzip compression — reduces API response size by 60-80% (free)
 if (compression) app.use(compression());
 
 // Security headers (helmet) — free hardening
-if (helmet) app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+if (helmet) app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: false }));
 
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow all Vercel deployments, Railway, localhost
-    const allowed = !origin || 
-      origin.includes('vercel.app') || 
-      origin.includes('railway.app') ||
-      origin.includes('netlify.app') ||
-      origin.includes('blogspot.com') ||
-      origin.includes('localhost') ||
-      origin === process.env.FRONTEND_URL;
-    callback(null, allowed);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-country']
-}));
-app.options(/\/(.*)/, cors()); // Express 5: use regex instead of '*'
 app.use(express.json({ limit: '10mb' }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
@@ -181,7 +188,7 @@ app.get('/api/metrics', (req, res) => {
   const token = req.headers['authorization']?.split(' ')[1];
   let isAdmin = false;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fox-default-secret');
     isAdmin = decoded.role === 'admin' || decoded.email === 'ahmed_sharnou@yahoo.com';
   } catch (e) { isAdmin = false; }
   if (!isAdmin) return res.status(403).json({ error: 'Admin only' });
