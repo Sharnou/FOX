@@ -211,6 +211,10 @@ export default function ChatPage() {
   const [isTyping, setIsTyping]   = useState(false);
   const [socket, setSocket]       = useState(null);
 
+  const [conversations, setConversations] = useState([]);
+  const [unreadCounts, setUnreadCounts]   = useState({});
+  const [showConvPanel, setShowConvPanel] = useState(false);
+
   const pcRef            = useRef(null);
   const remoteAudioRef   = useRef(null);
   const localStreamRef   = useRef(null);
@@ -233,6 +237,23 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // ── Load conversations & unread counts from localStorage ─────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = JSON.parse(localStorage.getItem('xtox_conversations') || '[]');
+    setConversations(stored);
+    const storedUnread = JSON.parse(localStorage.getItem('xtox_unread_counts') || '{}');
+    // Clear unread badge for the currently active conversation
+    if (targetId && storedUnread[targetId]) {
+      const updated = { ...storedUnread };
+      delete updated[targetId];
+      localStorage.setItem('xtox_unread_counts', JSON.stringify(updated));
+      setUnreadCounts(updated);
+    } else {
+      setUnreadCounts(storedUnread);
+    }
+  }, [targetId]);
+
   // ── Join chat when myId is ready ──────────────────────────────────────────
   useEffect(() => {
     if (myId && !joined) joinChat();
@@ -254,10 +275,33 @@ export default function ChatPage() {
 
     // Receive message
     s.on('receive_message', (data) => {
+      const senderId = data.from || targetId;
+      const msgTime  = Date.now();
       setMessages(prev => [
         ...prev,
-        { from: data.from || targetId, text: data.text, time: Date.now() },
+        { from: senderId, text: data.text, time: msgTime },
       ]);
+
+      // ── Unread badge: increment count for non-active conversations ──────
+      if (senderId && senderId !== targetId) {
+        setUnreadCounts(prev => {
+          const updated = { ...prev, [senderId]: (prev[senderId] || 0) + 1 };
+          localStorage.setItem('xtox_unread_counts', JSON.stringify(updated));
+          return updated;
+        });
+      }
+
+      // ── Update conversation list ─────────────────────────────────────────
+      setConversations(prev => {
+        const exists = prev.find(c => c.id === senderId);
+        const updated = exists
+          ? prev.map(c => c.id === senderId
+              ? { ...c, lastMessage: data.text, lastTime: msgTime }
+              : c)
+          : [{ id: senderId, lastMessage: data.text, lastTime: msgTime }, ...prev.slice(0, 49)];
+        localStorage.setItem('xtox_conversations', JSON.stringify(updated));
+        return updated;
+      });
     });
 
     // Typing indicator from remote
@@ -374,8 +418,20 @@ export default function ChatPage() {
   // ── Send message ──────────────────────────────────────────────────────────
   function sendMessage() {
     if (!msg.trim() || !socketRef.current || !targetId) return;
-    socketRef.current.emit('send_message', { from: myId, to: targetId, text: msg, time: Date.now() });
-    setMessages(prev => [...prev, { from: 'me', text: msg, time: Date.now() }]);
+    const now = Date.now();
+    socketRef.current.emit('send_message', { from: myId, to: targetId, text: msg, time: now });
+    setMessages(prev => [...prev, { from: 'me', text: msg, time: now }]);
+    // Update conversation list with sent message
+    setConversations(prev => {
+      const exists = prev.find(c => c.id === targetId);
+      const updated = exists
+        ? prev.map(c => c.id === targetId
+            ? { ...c, lastMessage: msg, lastTime: now }
+            : c)
+        : [{ id: targetId, lastMessage: msg, lastTime: now }, ...prev.slice(0, 49)];
+      localStorage.setItem('xtox_conversations', JSON.stringify(updated));
+      return updated;
+    });
     setMsg('');
   }
 
@@ -420,6 +476,8 @@ export default function ChatPage() {
   const cc = callConfig[callStatus] || callConfig.idle;
 
   // ─────────────────────────────────────────────────────────────────────────
+  const totalUnread = Object.values(unreadCounts).reduce((s, n) => s + n, 0);
+
   return (
     <div
       dir="rtl"
@@ -442,6 +500,216 @@ export default function ChatPage() {
           from={incomingCall.from}
           onAccept={acceptIncomingCall}
           onReject={rejectIncomingCall}
+        />
+      )}
+
+      {/* ── Conversations panel with unread badges ── */}
+      {showConvPanel && (
+        <div
+          dir="rtl"
+          role="dialog"
+          aria-label="قائمة المحادثات"
+          style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: 300,
+            maxWidth: '85vw',
+            background: '#002f34',
+            zIndex: 500,
+            overflowY: 'auto',
+            boxShadow: '-4px 0 24px rgba(0,0,0,0.4)',
+            animation: 'xtox-slide-in 0.22s ease-out',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Panel header */}
+          <div style={{
+            padding: '16px',
+            borderBottom: '1px solid rgba(35,229,219,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#001f23',
+            flexShrink: 0,
+          }}>
+            <h2 style={{ margin: 0, color: '#23e5db', fontSize: 16, fontWeight: 'bold' }}>
+              المحادثات
+            </h2>
+            <button
+              onClick={() => setShowConvPanel(false)}
+              aria-label="إغلاق قائمة المحادثات"
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                borderRadius: 6,
+                width: 32,
+                height: 32,
+                fontSize: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Conversation list */}
+          {conversations.length === 0 ? (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'rgba(255,255,255,0.4)',
+              fontSize: 14,
+              gap: 8,
+              padding: 24,
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 40 }}>💬</div>
+              <p style={{ margin: 0 }}>لا توجد محادثات بعد</p>
+            </div>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, flex: 1 }}>
+              {conversations.map(conv => {
+                const unread = unreadCounts[conv.id] || 0;
+                const isActive = conv.id === targetId;
+                return (
+                  <li key={conv.id}>
+                    <button
+                      onClick={() => {
+                        // Clear unread for this conversation
+                        setUnreadCounts(prev => {
+                          const updated = { ...prev };
+                          delete updated[conv.id];
+                          localStorage.setItem('xtox_unread_counts', JSON.stringify(updated));
+                          return updated;
+                        });
+                        setShowConvPanel(false);
+                        window.location.href = `/chat?target=${encodeURIComponent(conv.id)}`;
+                      }}
+                      style={{
+                        width: '100%',
+                        background: isActive ? 'rgba(35,229,219,0.15)' : 'transparent',
+                        border: 'none',
+                        borderBottom: '1px solid rgba(255,255,255,0.07)',
+                        padding: '14px 16px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        textAlign: 'right',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(35,229,219,0.1)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = isActive ? 'rgba(35,229,219,0.15)' : 'transparent'; }}
+                    >
+                      {/* Avatar */}
+                      <div style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: '50%',
+                        background: isActive ? '#23e5db' : '#334155',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 18,
+                        flexShrink: 0,
+                        color: isActive ? '#002f34' : 'white',
+                        fontWeight: 'bold',
+                      }}>
+                        {conv.id ? conv.id.charAt(0).toUpperCase() : '👤'}
+                      </div>
+
+                      {/* Conversation info */}
+                      <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
+                        <div style={{
+                          color: isActive ? '#23e5db' : 'white',
+                          fontWeight: unread > 0 ? 'bold' : 'normal',
+                          fontSize: 14,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          marginBottom: 3,
+                        }}>
+                          {conv.id}
+                        </div>
+                        {conv.lastMessage && (
+                          <div style={{
+                            color: unread > 0 ? '#94a3b8' : 'rgba(255,255,255,0.45)',
+                            fontSize: 12,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontWeight: unread > 0 ? '600' : 'normal',
+                          }}>
+                            {conv.lastMessage}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ── Unread count badge ─────────────────────────────── */}
+                      {unread > 0 && (
+                        <span
+                          aria-label={`${unread} رسالة غير مقروءة`}
+                          style={{
+                            minWidth: 22,
+                            height: 22,
+                            background: '#23e5db',
+                            color: '#002f34',
+                            borderRadius: 11,
+                            fontSize: 12,
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0 6px',
+                            flexShrink: 0,
+                            boxShadow: '0 2px 6px rgba(35,229,219,0.4)',
+                            animation: 'xtox-badge-pulse 2s ease-in-out infinite',
+                          }}
+                        >
+                          {unread > 99 ? '99+' : unread}
+                        </span>
+                      )}
+
+                      {/* Active conversation indicator (no unread) */}
+                      {isActive && unread === 0 && (
+                        <span style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: '#23e5db',
+                          flexShrink: 0,
+                        }} />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Overlay for conversations panel */}
+      {showConvPanel && (
+        <div
+          onClick={() => setShowConvPanel(false)}
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 499,
+          }}
         />
       )}
 
@@ -478,6 +746,55 @@ export default function ChatPage() {
           }}
         >
           →
+        </button>
+
+        {/* Conversations list toggle button with unread badge */}
+        <button
+          onClick={() => setShowConvPanel(p => !p)}
+          aria-label="قائمة المحادثات"
+          title="عرض جميع المحادثات"
+          style={{
+            position: 'relative',
+            background: 'rgba(255,255,255,0.12)',
+            border: 'none',
+            color: 'white',
+            fontSize: 18,
+            cursor: 'pointer',
+            borderRadius: 8,
+            width: 36,
+            height: 36,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          💬
+          {totalUnread > 0 && (
+            <span
+              aria-label={`${totalUnread} رسائل غير مقروءة`}
+              style={{
+                position: 'absolute',
+                top: -4,
+                left: -4,
+                minWidth: 18,
+                height: 18,
+                background: '#23e5db',
+                color: '#002f34',
+                borderRadius: 9,
+                fontSize: 11,
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 4px',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                animation: 'xtox-badge-pulse 2s ease-in-out infinite',
+              }}
+            >
+              {totalUnread > 99 ? '99+' : totalUnread}
+            </span>
+          )}
         </button>
 
         {/* Avatar placeholder */}
@@ -755,6 +1072,14 @@ export default function ChatPage() {
         @keyframes xtox-ring {
           0%   { transform: scale(0.9); opacity: 0.7; }
           100% { transform: scale(1.6); opacity: 0;   }
+        }
+        @keyframes xtox-badge-pulse {
+          0%, 100% { transform: scale(1);    box-shadow: 0 2px 6px rgba(35,229,219,0.4); }
+          50%       { transform: scale(1.12); box-shadow: 0 2px 12px rgba(35,229,219,0.7); }
+        }
+        @keyframes xtox-slide-in {
+          from { transform: translateX(100%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
         }
       `}</style>
     </div>
