@@ -1,0 +1,9 @@
+node_modules
+frontend/
+mobile/
+.git
+.gitignore
+*.md
+.env.local
+.env.*.local
+nixpacks.toml
