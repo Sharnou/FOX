@@ -1,12 +1,10 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd backend && npm install --legacy-peer-deps"
+nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
 startCommand = "cd backend && node server/index.js"
 healthcheckPath = "/"
-healthcheckTimeout = 300
+healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
-numReplicas = 1
-sleepApplication = false
+restartPolicyMaxRetries = 3
