@@ -29,6 +29,44 @@ const CONDITIONS = [
   { ar: 'للإيجار',    en: 'rent',      icon: '🔑' },
 ];
 
+// Category-based price hints for Arab marketplace (Run 115)
+const CATEGORY_PRICE_HINTS = {
+  'Vehicles':    { min: 5000,    max: 500000,  symbol: 'ج.م' },
+  'Electronics': { min: 100,     max: 50000,   symbol: 'ج.م' },
+  'Real Estate': { min: 100000,  max: 5000000, symbol: 'ج.م' },
+  'Jobs':        { min: 1000,    max: 50000,   symbol: 'ج.م' },
+  'Services':    { min: 50,      max: 5000,    symbol: 'ج.م' },
+  'Supermarket': { min: 5,       max: 500,     symbol: 'ج.م' },
+  'Pharmacy':    { min: 10,      max: 2000,    symbol: 'ج.م' },
+  'Fast Food':   { min: 20,      max: 500,     symbol: 'ج.م' },
+  'Fashion':     { min: 10,      max: 2000,    symbol: 'ج.م' },
+  'General':     { min: 10,      max: 10000,   symbol: 'ج.م' },
+};
+
+function CategoryPriceHint({ category }) {
+  const hint = CATEGORY_PRICE_HINTS[category];
+  if (!hint) return null;
+  return (
+    <div
+      style={{
+        marginTop: 6,
+        padding: '7px 12px',
+        borderRadius: 8,
+        background: 'rgba(99,102,241,0.07)',
+        border: '1px solid rgba(99,102,241,0.18)',
+        direction: 'rtl',
+        textAlign: 'right',
+        fontSize: 13,
+      }}
+    >
+      <span style={{ color: '#6366f1', fontWeight: 700 }}>💡 نطاق السعر المقترح: </span>
+      <span style={{ color: '#374151' }}>
+        {hint.min.toLocaleString('ar-EG')} – {hint.max.toLocaleString('ar-EG')} {hint.symbol}
+      </span>
+    </div>
+  );
+}
+
 export default function SellPage() {
   const [step, setStep] = useState('start'); // start | form | review
   const [form, setForm] = useState({
@@ -624,6 +662,7 @@ export default function SellPage() {
                   ⚠️ {errors.category}
                 </p>
               )}
+              <CategoryPriceHint category={form.category} />
             </div>
 
             {/* Condition */}
