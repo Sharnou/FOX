@@ -262,7 +262,7 @@ async function runSeedsOnce() {
   }
 }
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: corsOptions });
 initSocket(io);
 
 // Daily cron: archive expired ads, cleanup old

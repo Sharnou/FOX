@@ -49,6 +49,15 @@ function match(doc, filter = {}) {
       if ('$exists' in v) return v.$exists ? doc[k] !== undefined : doc[k] === undefined;
       if ('$or' in v) return v.$or.some(sub => match(doc, { [k]: sub }));
     }
+    // Handle array field membership: { users: 'someId' } → doc.users includes 'someId'
+    if (Array.isArray(doc[k])) {
+      return doc[k].some(item => String(item) === String(v));
+    }
+    // $all operator: { users: { $all: ['id1', 'id2'] } }
+    if (v && typeof v === 'object' && '$all' in v) {
+      if (!Array.isArray(doc[k])) return false;
+      return v.$all.every(val => doc[k].some(item => String(item) === String(val)));
+    }
     // Treat string IDs as equal even if types differ
     return String(doc[k]) === String(v);
   });
@@ -344,6 +353,88 @@ export const MemReport = {
   },
   async countDocuments(filter = {}) {
     return [...store.reports.values()].filter(d => match(d, filter)).length;
+  },
+};
+
+
+// ─── Chat model (embedded messages, mirrors Mongoose Chat model) ─────────────
+function makeChatDoc(raw) {
+  const d = { ...raw, messages: Array.isArray(raw.messages) ? [...raw.messages] : [] };
+  d.toObject = function() {
+    const { toObject, save, lean, ...rest } = this;
+    return rest;
+  };
+  d.lean = function() { return this.toObject(); };
+  d.save = async function() {
+    const { toObject, save, lean, ...data } = this;
+    store.chats.set(String(data._id), { ...data, updatedAt: now() });
+    return this;
+  };
+  return d;
+}
+
+export const MemChat = {
+  find(filter = {}) {
+    store.chats = store.chats || new Map();
+    let docs = [...store.chats.values()].filter(d => match(d, filter));
+    let isLean = false;
+    const q = {
+      _docs: docs,
+      sort(s) {
+        if (s && typeof s === 'object') {
+          const [f, dir] = Object.entries(s)[0];
+          this._docs.sort((a, b) => dir === -1 ? (b[f] > a[f] ? 1 : -1) : (a[f] > b[f] ? 1 : -1));
+        }
+        return this;
+      },
+      lean()    { isLean = true; return this; },
+      select()  { return this; },
+      populate(){ return this; },
+      then(resolve, reject) {
+        const result = isLean ? this._docs.map(d => ({ ...d })) : this._docs.map(makeChatDoc);
+        return Promise.resolve(result).then(resolve, reject);
+      },
+      catch(reject) { return Promise.resolve(this._docs.map(makeChatDoc)).catch(reject); }
+    };
+    return q;
+  },
+  findOne(filter) {
+    store.chats = store.chats || new Map();
+    const doc = [...store.chats.values()].find(d => match(d, filter));
+    const resolved = doc ? makeChatDoc(doc) : null;
+    let isLean = false;
+    const q = {
+      lean()    { isLean = true; return this; },
+      select()  { return this; },
+      populate(){ return this; },
+      then(resolve, reject) {
+        const val = isLean && resolved ? resolved.toObject() : resolved;
+        return Promise.resolve(val).then(resolve, reject);
+      },
+      catch(reject) { return Promise.resolve(resolved).catch(reject); }
+    };
+    return q;
+  },
+  async findById(id) {
+    store.chats = store.chats || new Map();
+    const doc = store.chats.get(String(id));
+    return doc ? makeChatDoc(doc) : null;
+  },
+  async create(data) {
+    store.chats = store.chats || new Map();
+    const id = newId();
+    const doc = { ...data, _id: id, id, messages: data.messages || [], createdAt: now(), updatedAt: now() };
+    store.chats.set(id, doc);
+    return makeChatDoc(doc);
+  },
+  async findByIdAndUpdate(id, update, opts = {}) {
+    store.chats = store.chats || new Map();
+    const doc = store.chats.get(String(id));
+    if (!doc) return null;
+    const set = update.$set || update;
+    const updated = { ...doc, ...set, updatedAt: now() };
+    store.chats.set(String(id), updated);
+    return opts.new ? makeChatDoc(updated) : makeChatDoc(doc);
   },
 };
 

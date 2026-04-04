@@ -116,14 +116,6 @@ export default function AdminPage() {
       .catch(() => {});
   }, [tab, authed, token]);
 
-  useEffect(() => {
-    if (!authed) return;
-    const msgs = ['[AI] System scan complete', '[RANK] Rankings updated', '[FRAUD] 0 threats', '[MEDIA] CDN sync OK', '[GEO] Country lock active', '[CRON] Backup scheduled', '[SEC] JWT valid', '[NET] 12ms latency'];
-    const iv = setInterval(() => {
-      setLiveLog(l => [...l.slice(-25), `[${new Date().toLocaleTimeString()}] ${msgs[Math.floor(Math.random() * msgs.length)]}`]);
-    }, 4000);
-    return () => clearInterval(iv);
-  }, [authed]);
 
   async function login() {
     setLoginErr('');

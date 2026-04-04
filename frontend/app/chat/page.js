@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox.up.railway.app';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 
 // ─── Arabic relative time ────────────────────────────────────────────────────
 function arabicRelTime(ts) {
@@ -272,6 +272,19 @@ export default function ChatPage() {
 
     s.emit('join', myId);
     setJoined(true);
+
+    // Re-join on reconnect (handles server restart / network blip)
+    s.on('reconnect', () => {
+      s.emit('join', myId);
+      setJoined(true);
+    });
+    s.on('disconnect', (reason) => {
+      setJoined(false);
+      if (reason === 'io server disconnect') {
+        // Server disconnected us; try to reconnect manually
+        s.connect();
+      }
+    });
 
     // Receive message
     s.on('receive_message', (data) => {

@@ -7,7 +7,7 @@
   "devCommand": "cd frontend && npm run dev",
   "build": {
     "env": {
-      "NODE_VERSION": "24"
+      "NODE_VERSION": "22"
     }
   }
 }

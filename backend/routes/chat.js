@@ -2,6 +2,12 @@ import express from 'express';
 import mongoose from 'mongoose';
 import Chat from '../models/Chat.js';
 import { auth } from '../middleware/auth.js';
+import { MemChat, dbState } from '../server/memoryStore.js';
+
+// Use in-memory Chat when MongoDB is unavailable
+function getChat() {
+  return dbState.usingMemoryStore ? MemChat : Chat;
+}
 
 const router = express.Router();
 
@@ -10,7 +16,7 @@ const router = express.Router();
 // ─────────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   try {
-    const chats = await Chat.find({ users: req.user.id })
+    const chats = await getChat().find({ users: req.user.id })
       .sort({ lastMessage: -1 })
       .lean();
     res.json(chats);
@@ -34,12 +40,12 @@ router.post('/start', auth, async (req, res) => {
         message: 'معرّف المستخدم المستهدف مطلوب | targetId is required',
       });
     }
-    let chat = await Chat.findOne({
+    let chat = await getChat().findOne({
       users: { $all: [req.user.id, targetId] },
       adId,
     });
     if (!chat) {
-      chat = await Chat.create({
+      chat = await getChat().create({
         users: [req.user.id, targetId],
         adId,
         messages: [],
@@ -60,7 +66,7 @@ router.post('/start', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.get('/unread-count', auth, async (req, res) => {
   try {
-    const chats = await Chat.find({ users: req.user.id }).lean();
+    const chats = await getChat().find({ users: req.user.id }).lean();
     let total = 0;
     for (const chat of chats) {
       if (Array.isArray(chat.messages)) {
@@ -97,7 +103,7 @@ router.get('/:chatId/messages', auth, async (req, res) => {
       });
     }
 
-    const chat = await Chat.findOne({
+    const chat = await getChat().findOne({
       _id: chatId,
       users: req.user.id,
     }).lean();
@@ -151,7 +157,7 @@ router.patch('/:chatId/read', auth, async (req, res) => {
       });
     }
 
-    const chat = await Chat.findOne({ _id: chatId, users: req.user.id });
+    const chat = await getChat().findOne({ _id: chatId, users: req.user.id });
     if (!chat) {
       return res.status(404).json({
         error: 'Chat not found',
@@ -201,7 +207,7 @@ router.delete('/:chatId/messages/:messageId', auth, async (req, res) => {
       });
     }
 
-    const chat = await Chat.findOne({ _id: chatId, users: req.user.id });
+    const chat = await getChat().findOne({ _id: chatId, users: req.user.id });
     if (!chat) {
       return res.status(404).json({
         error: 'Chat not found',
