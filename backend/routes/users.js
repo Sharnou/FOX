@@ -353,6 +353,11 @@ router.post('/register', registerLimiter, async (req, res) => {
     // ──────────────────────────────────────────────────────────────────────
 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    // Check MongoDB connection state
+    const mongooseReg = await import('mongoose');
+    if (mongooseReg.default.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Server starting up — please try again / الخادم يبدأ — حاول مرة أخرى' });
+    }
     const fraud = await detectFraud(ip);
     if (fraud.isFraud) return res.status(400).json({ error: 'Account creation restricted' });
     await getOrCreateCountry(countryCode, countryCode);
@@ -373,6 +378,12 @@ router.post('/register', registerLimiter, async (req, res) => {
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    // Check MongoDB connection state before querying (avoids 30s buffer wait)
+    const mongoose = await import('mongoose');
+    if (mongoose.default.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Server starting up — please try again in a few seconds / الخادم يبدأ — حاول مرة أخرى' });
+    }
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
     if (user.isBanned && (!user.banExpiresAt || user.banExpiresAt > new Date()))
@@ -429,6 +440,17 @@ router.put('/me', auth, async (req, res) => {
     // ──────────────────────────────────────────────────────────────────────
 
     const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password -registrationIp');
+    res.json(user);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ── GET current user profile ──────────────────────────────────────────────────
+// Used by profile/edit page and other client components
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password -registrationIp -fcmToken');
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

@@ -380,7 +380,7 @@ if (!finalMongoUri) {
     serverSelectionTimeoutMS: 30000,  // 30 seconds to find a server
     socketTimeoutMS: 45000,           // 45 seconds for operations
     connectTimeoutMS: 30000,          // 30 seconds to connect
-    bufferTimeoutMS: 3000,            // FIX: 3s buffer timeout (was 10s) — fail fast
+    bufferTimeoutMS: 30000, // Increased from 3s to 30s — Atlas needs time to connect
     maxPoolSize: 10,
     retryWrites: true,
     w: 'majority'
@@ -446,5 +446,5 @@ if (!finalMongoUri) {
 }
 
 
-// redeploy: 1775310782345
+// redeploy: 1775337592000
 

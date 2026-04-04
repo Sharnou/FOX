@@ -5,37 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "cd backend && node server/index.js",
-    "build": "echo built"
-  },
-  "dependencies": {
-    "@elastic/elasticsearch": "^9.3.4",
-    "@sentry/node": "^10.47.0",
-    "archiver": "^7.0.1",
-    "bcryptjs": "^3.0.3",
-    "cloudinary": "^2.9.0",
-    "compression": "^1.8.1",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.0",
-    "express": "^5.2.1",
-    "express-rate-limit": "^8.3.2",
-    "firebase-admin": "^13.7.0",
-    "form-data": "^4.0.5",
-    "google-auth-library": "^10.6.2",
-    "helmet": "^8.1.0",
-    "ioredis": "^5.10.1",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.4.1",
-    "multer": "^2.1.1",
-    "node-cron": "^4.2.1",
-    "node-fetch": "^3.3.2",
-    "pino": "^10.3.1",
-    "qrcode": "^1.5.4",
-    "socket.io": "^4.8.3",
-    "stripe": "^22.0.0",
-    "next": "16.2.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
+    "build": "cd backend && npm install --legacy-peer-deps"
   },
   "engines": {
     "node": "24.x"
