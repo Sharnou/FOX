@@ -99,7 +99,10 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ country: country || locale.country });
+      // FIX A: Do NOT filter by country — ads are stored with 'EG' country code,
+      // but ipapi.co may detect a different country for the user, causing 0 results.
+      // Country detection is only used for locale/UI, not for the ads query.
+      const params = new URLSearchParams();
       if (category) params.append('category', category);
       const res = await fetchWithRetry(`${API}/api/ads?${params}`, {}, {
         retries: 3,
@@ -125,7 +128,8 @@ export default function Home() {
 
   async function showPopup(country) {
     try {
-      const res = await fetch(`${API}/api/ads?country=${country}`);
+      // FIX A: No country filter — ensures featured ads always load
+      const res = await fetch(`${API}/api/ads`);
       if (!res.ok) return;
       const all = await res.json();
       const featured = all.filter(a => a.isFeatured);

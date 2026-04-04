@@ -11,8 +11,25 @@ import { detectCategoryOffline } from '../server/offlineDict.js';
 import { generateQR } from '../server/qr.js';
 import { scoreAdWithAI } from '../server/aiQualityScore.js';
 import { getOrCreateCountry } from '../server/countries.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
 
 const router = express.Router();
+
+// ── Optional auth: attaches req.user if token present, non-blocking ──────────
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return next();
+  const token = authHeader.replace('Bearer ', '').trim();
+  if (!token) return next();
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+  } catch {}
+  next();
+};
+// Run before ALL routes so req.user is available everywhere (including GET /)
+router.use(optionalAuth);
 
 // ── Field-level input sanitizer ──────────────────────────────────────────────
 function stripTags(str) {
@@ -138,19 +155,7 @@ router.get('/', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Middleware to auto-attach user country from token for authenticated routes
-router.use((req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader) {
-    try {
-      import('jsonwebtoken').then(({ default: jwt }) => {
-        const decoded = jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET);
-        if (!req.user) req.user = decoded;
-        next();
-      }).catch(() => next());
-    } catch { next(); }
-  } else { next(); }
-});
+// optionalAuth middleware is now registered at the top of this file (before GET /)
 
 // GET user's own ads (active + expired)
 router.get('/my/all', auth, async (req, res) => {
