@@ -262,6 +262,7 @@ export default function AdPageClient({ params }) {
   const [offerOpen, setOfferOpen] = useState(false);
   const [relatedAds, setRelatedAds] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
+  const [displayedViews, setDisplayedViews] = useState(0);
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
@@ -325,6 +326,25 @@ export default function AdPageClient({ params }) {
       .catch(() => {})
       .finally(() => setRelatedLoading(false));
   }, [ad?._id]);
+
+  // Animated view counter: counts up from 0 to actual views on load
+  useEffect(() => {
+    const target = ad?.views || ad?.viewCount || 0;
+    if (!target) { setDisplayedViews(0); return; }
+    let start = 0;
+    const duration = 1000;
+    const step = target / (duration / 16);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= target) {
+        setDisplayedViews(target);
+        clearInterval(timer);
+      } else {
+        setDisplayedViews(Math.floor(start));
+      }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [ad?.views, ad?.viewCount]);
 
   async function createPeer(s, targetId) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -400,7 +420,7 @@ export default function AdPageClient({ params }) {
       <p style={{ fontSize: 26, color: '#002f34', fontWeight: 'bold', margin: '4px 0 8px' }}>{ad.price} {ad.currency}</p>
       <p dir="auto" style={{ color: '#555', lineHeight: 1.6, marginBottom: 12 }}>{ad.description}</p>
       <div style={{ display: 'flex', gap: 16, color: '#999', fontSize: 13, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span>📍 {ad.city}</span><span>👁 {ad.views} مشاهدة</span>
+        <span>📍 {ad.city}</span><span>👁 {displayedViews} مشاهدة</span>
         <span>📁 {ad.category}</span>
         <span style={{ color: '#e44' }}>⏰ ينتهي {ad.expiresAt ? new Date(ad.expiresAt).toLocaleDateString('ar-EG') : ''}</span>
       </div>
