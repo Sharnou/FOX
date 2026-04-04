@@ -62,7 +62,7 @@ export default function FloatingSearchBar() {
         animation: 'xtox-fsb-slide 0.25s ease-out both',
       }}
     >
-      <style>{\`
+      <style>{`
         @keyframes xtox-fsb-slide {
           from { transform: translateY(-100%); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
@@ -70,7 +70,7 @@ export default function FloatingSearchBar() {
         .xtox-fsb-input::placeholder { color: rgba(255,255,255,0.45); }
         .xtox-fsb-input:focus { box-shadow: 0 0 0 2px #23e5db; }
         .xtox-fsb-btn:hover  { background: #1bc8bf !important; }
-      \`}</style>
+      `}</style>
 
       <form
         onSubmit={handleSubmit}
