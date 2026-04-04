@@ -8,6 +8,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  *         character count, and WhatsApp-style message bubbles.
  * run-104: Quick Reply Templates — pre-set Arabic/English phrases for
  *          common buyer questions, one tap fills the input bar.
+ * run-114: Emoji Message Reactions — hover over any message to react with
+ *          ❤️ 😂 👍 😮 😢 🔥, counts shown below bubble, persisted in localStorage.
  *
  * Props:
  *   targetId   — seller/buyer user ID
@@ -36,6 +38,7 @@ const TRANSLATIONS = {
     imageSent: '🖼️ صورة مرفقة',
     charCount: 'حرف',
     quickReplies: 'ردود سريعة',
+    addReaction: 'أضف تفاعلاً',
   },
   en: {
     typeMessage: 'Type a message...',
@@ -56,12 +59,16 @@ const TRANSLATIONS = {
     imageSent: '🖼️ Image attached',
     charCount: 'chars',
     quickReplies: 'Quick Replies',
+    addReaction: 'Add reaction',
   },
 };
 
 const MAX_CHARS = 500;
 
 const EMOJIS = ['😊', '👍', '❤️', '😂', '🙏', '👋', '💯', '🎉', '😍', '🤝'];
+
+/** Emoji set for message reactions */
+const REACTION_EMOJIS = ['❤️', '😂', '👍', '😮', '😢', '🔥'];
 
 /**
  * Quick Reply Templates — bilingual preset phrases
@@ -112,6 +119,12 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  /** messageReaction counts: { [messageId]: { [emoji]: count } } */
+  const [reactionCounts, setReactionCounts] = useState({});
+
+  /** ID of the message currently hovered (to show reaction picker) */
+  const [hoveredMsgId, setHoveredMsgId] = useState(null);
+
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -127,6 +140,18 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
       setLang(storedLang);
     }
   }, []);
+
+  // Load persisted reaction counts from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`xtox_reactions_${adId || 'chat'}`);
+        if (stored) setReactionCounts(JSON.parse(stored));
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }, [adId]);
 
   // Simulate online status and typing (in production, use socket.io)
   useEffect(() => {
@@ -242,6 +267,33 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
     setTimeout(() => textareaRef.current?.focus(), 50);
   }, []);
 
+  /**
+   * messageReaction handler — toggles a reaction emoji on a message.
+   * First click adds +1; clicking the same emoji again removes the reaction.
+   * Persists counts to localStorage keyed by adId.
+   */
+  const handleReaction = useCallback((messageId, emoji) => {
+    setReactionCounts(prev => {
+      const msgReactions = { ...(prev[messageId] || {}) };
+      // Toggle: already reacted → remove, otherwise add
+      if (msgReactions[emoji] > 0) {
+        msgReactions[emoji] = msgReactions[emoji] - 1;
+      } else {
+        msgReactions[emoji] = (msgReactions[emoji] || 0) + 1;
+      }
+      const newCounts = { ...prev, [messageId]: msgReactions };
+      // Persist to localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`xtox_reactions_${adId || 'chat'}`, JSON.stringify(newCounts));
+        } catch {
+          // ignore storage errors
+        }
+      }
+      return newCounts;
+    });
+  }, [adId]);
+
   // Group messages by date
   const groupedMessages = messages.reduce((groups, msg) => {
     const label = formatDateLabel(msg.timestamp, lang, t);
@@ -330,43 +382,111 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
                 <div className="flex-1 h-px bg-gray-200" />
               </div>
 
-              {msgs.map(msg => (
-                <div
-                  key={msg.id}
-                  className={`flex mb-1 ${msg.sender === 'me'
-                    ? isRTL ? 'justify-start' : 'justify-end'
-                    : isRTL ? 'justify-end' : 'justify-start'
-                  }`}
-                >
+              {msgs.map(msg => {
+                const msgReactions = reactionCounts[msg.id] || {};
+                const hasReactions = Object.values(msgReactions).some(c => c > 0);
+                const isMine = msg.sender === 'me';
+                // Alignment: RTL flips sender direction
+                const alignRight = isMine ? !isRTL : isRTL;
+
+                return (
                   <div
-                    className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm shadow-sm ${
-                      msg.sender === 'me'
-                        ? 'text-white rounded-tr-sm'
-                        : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'
-                    }`}
-                    style={msg.sender === 'me' ? { backgroundColor: '#FF6B35' } : {}}
+                    key={msg.id}
+                    className={`flex mb-2 ${alignRight ? 'justify-end' : 'justify-start'}`}
                   >
-                    <p className={`leading-relaxed break-words ${msg.isFile ? 'italic text-xs' : ''}`}>
-                      {msg.text}
-                    </p>
-                    <div className={`flex items-center gap-1 mt-0.5 ${
-                      isRTL ? 'flex-row-reverse justify-start' : 'justify-end'
-                    }`}>
-                      <span className={`text-[10px] ${msg.sender === 'me' ? 'text-white/70' : 'text-gray-400'}`}>
-                        {formatTime(msg.timestamp, lang)}
-                      </span>
-                      {msg.sender === 'me' && (
-                        <span className="text-[10px] text-white/80">
-                          {msg.status === 'sending' ? '⏳'
-                            : msg.status === 'delivered' ? '✓✓'
-                            : msg.status === 'seen' ? '✓✓'
-                            : '✓'}
-                        </span>
+                    {/* Wrapper gives us a relative context for the reaction picker */}
+                    <div
+                      className="relative"
+                      onMouseEnter={() => setHoveredMsgId(msg.id)}
+                      onMouseLeave={() => setHoveredMsgId(null)}
+                    >
+                      {/* ── Reaction Picker (shown on hover) ── */}
+                      {hoveredMsgId === msg.id && (
+                        <div
+                          className={`absolute z-20 flex gap-0.5 bg-white border border-gray-200 rounded-full px-1.5 py-1 shadow-lg -top-9 ${
+                            alignRight ? 'right-0' : 'left-0'
+                          }`}
+                          onMouseEnter={() => setHoveredMsgId(msg.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          role="toolbar"
+                          aria-label={t.addReaction}
+                        >
+                          {REACTION_EMOJIS.map(emoji => (
+                            <button
+                              key={emoji}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReaction(msg.id, emoji);
+                              }}
+                              className="text-base hover:scale-125 transition-transform px-0.5 leading-none"
+                              title={emoji}
+                              aria-label={`${t.addReaction}: ${emoji}`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       )}
+
+                      {/* ── Message Bubble ── */}
+                      <div
+                        className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm shadow-sm ${
+                          isMine
+                            ? 'text-white rounded-tr-sm'
+                            : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'
+                        }`}
+                        style={isMine ? { backgroundColor: '#FF6B35' } : {}}
+                      >
+                        <p className={`leading-relaxed break-words ${msg.isFile ? 'italic text-xs' : ''}`}>
+                          {msg.text}
+                        </p>
+                        <div className={`flex items-center gap-1 mt-0.5 ${
+                          isRTL ? 'flex-row-reverse justify-start' : 'justify-end'
+                        }`}>
+                          <span className={`text-[10px] ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
+                            {formatTime(msg.timestamp, lang)}
+                          </span>
+                          {isMine && (
+                            <span className="text-[10px] text-white/80">
+                              {msg.status === 'sending' ? '⏳'
+                                : msg.status === 'delivered' ? '✓✓'
+                                : msg.status === 'seen' ? '✓✓'
+                                : '✓'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* ── messageReaction Counts ── */}
+                        {hasReactions && (
+                          <div className={`flex flex-wrap gap-1 mt-1.5 ${isRTL ? 'justify-end' : 'justify-start'}`}>
+                            {Object.entries(msgReactions)
+                              .filter(([, count]) => count > 0)
+                              .map(([emoji, count]) => (
+                                <button
+                                  key={emoji}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReaction(msg.id, emoji);
+                                  }}
+                                  className={`flex items-center gap-0.5 text-xs rounded-full px-1.5 py-0.5 border transition-all hover:scale-105 active:scale-95 ${
+                                    isMine
+                                      ? 'bg-white/20 border-white/30 text-white hover:bg-white/30'
+                                      : 'bg-orange-50 border-orange-200 text-gray-700 hover:bg-orange-100'
+                                  }`}
+                                  title={`${emoji} ${count}`}
+                                  aria-label={`${emoji} ${count}`}
+                                >
+                                  <span>{emoji}</span>
+                                  <span className="font-semibold">{count}</span>
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ))
         )}
