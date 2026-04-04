@@ -389,7 +389,33 @@ export default function AdCard({ ad }) {
             </a>
           )}
         </div>
-        <p className="text-brand font-bold mt-1">{ad.price} {ad.currency}</p>
+        {/* ── Price Drop Badge: shown when ad.originalPrice > ad.price ── */}
+        <div className="mt-1 flex items-center gap-2 flex-wrap">
+          <p className="text-brand font-bold m-0">{ad.price} {ad.currency}</p>
+          {ad.originalPrice && ad.originalPrice > ad.price && (() => {
+            const discountPercent = Math.round((1 - ad.price / ad.originalPrice) * 100);
+            return (
+              <>
+                <span style={{ textDecoration: 'line-through', color: '#9ca3af', fontSize: 12 }}>
+                  {ad.originalPrice} {ad.currency}
+                </span>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '2px 7px',
+                  borderRadius: 8,
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  marginInlineStart: 2,
+                }}>
+                  خصم {toArabicNumerals(discountPercent)}٪
+                </span>
+              </>
+            );
+          })()}
+        </div>
         <div className="mt-1 flex items-center gap-1.5 flex-wrap">
           {(ad.seller?.verified || ad.userId?.verified) && (
             <span style={{color:'#23e5db',fontSize:'0.72rem',fontWeight:700,marginInlineEnd:'4px',display:'inline-flex',alignItems:'center'}}>
