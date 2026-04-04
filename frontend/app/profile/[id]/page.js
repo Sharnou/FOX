@@ -24,6 +24,7 @@ export default function ProfilePage({ params }) {
   const [callActive, setCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState('');
   const [socket, setSocket] = useState(null);
+  const [activeTab, setActiveTab] = useState('ads');
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
@@ -116,8 +117,13 @@ export default function ProfilePage({ params }) {
   const { user, ads, reviews, avgRating, reviewCount } = data;
   const isOwnProfile = myUserId === params?.id;
 
+  const TABS = [
+    { key: 'ads',     labelAr: 'الإعلانات', icon: '📋', count: ads.length },
+    { key: 'reviews', labelAr: 'التقييمات', icon: '⭐', count: reviewCount },
+  ];
+
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", background: '#f5f5f5', minHeight: '100vh' }} dir="rtl">
       <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
       <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>← رجوع</button>
 
@@ -133,7 +139,7 @@ export default function ProfilePage({ params }) {
               </div>
             )}
             {user.role === 'admin' && <span style={{ position: 'absolute', bottom: 0, right: 0, background: '#ffd700', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>👑</span>}
-            {/* Online Status Badge — run 88 */}
+            {/* Online Status Badge */}
             {user.isOnline ? (
               <span
                 title="متصل الآن"
@@ -237,68 +243,187 @@ export default function ProfilePage({ params }) {
         )}
       </div>
 
-      {/* Seller Ads */}
-      {ads.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ fontWeight: 'bold', marginBottom: 12, color: '#002f34', fontSize: 18 }}>📋 إعلانات البائع ({ads.length})</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
-            {ads.map(ad => (
-              <a key={ad._id} href={`/ads/${ad._id}`} style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit' }}>
-                <div style={{ height: 100, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
-                  {ad.media?.[0] ? <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : '📦'}
-                </div>
-                <div style={{ padding: '8px 10px' }}>
-                  <p style={{ fontWeight: 'bold', fontSize: 12, margin: 0 }}>{ad.title?.slice(0, 28)}</p>
-                  <p style={{ color: '#002f34', fontWeight: 'bold', fontSize: 13, margin: '4px 0 0' }}>{ad.price} {ad.currency}</p>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Review Form */}
-      {token && !isOwnProfile && (
-        <div style={{ background: 'white', borderRadius: 16, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 16 }}>
-          <h2 style={{ fontWeight: 'bold', marginBottom: 16, color: '#002f34', fontSize: 18 }}>⭐ اترك تقييمك</h2>
-          <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-            {[1,2,3,4,5].map(i => (
-              <button key={i} onMouseEnter={() => setHoverStar(i)} onMouseLeave={() => setHoverStar(0)} onClick={() => setMyRating(i)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 32, color: i <= (hoverStar || myRating) ? '#ffd700' : '#ddd', padding: '0 2px' }}>★</button>
-            ))}
-            {myRating > 0 && <span style={{ alignSelf: 'center', color: '#666', fontSize: 14, marginRight: 8 }}>{['','سيء','مقبول','جيد','ممتاز','رائع'][myRating]}</span>}
-          </div>
-          <textarea value={myComment} onChange={e => setMyComment(e.target.value)} placeholder="اكتب تعليقك..."
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, resize: 'vertical', minHeight: 80, boxSizing: 'border-box', fontFamily: 'inherit' }} />
-          <button onClick={submitReview} disabled={submitting || !myRating}
-            style={{ marginTop: 12, background: myRating ? '#002f34' : '#ccc', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 10, fontWeight: 'bold', cursor: myRating ? 'pointer' : 'not-allowed', fontSize: 15, fontFamily: 'inherit' }}>
-            {submitting ? 'جار الإرسال...' : 'إرسال التقييم'}
-          </button>
-        </div>
-      )}
-
-      {/* Reviews List */}
-      <div>
-        <h2 style={{ fontWeight: 'bold', marginBottom: 12, color: '#002f34', fontSize: 18 }}>💬 التقييمات ({reviewCount})</h2>
-        {reviews.length === 0 ? (
-          <div style={{ background: 'white', borderRadius: 12, padding: 24, textAlign: 'center', color: '#999' }}>لا توجد تقييمات بعد</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {reviews.map(r => (
-              <div key={r._id} style={{ background: 'white', borderRadius: 12, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
-                    {r.buyerId?.name?.[0]?.toUpperCase()}
-                  </div>
-                  <div><p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{r.buyerId?.name}</p><Stars rating={r.rating} /></div>
-                  <span style={{ marginRight: 'auto', color: '#999', fontSize: 12 }}>{new Date(r.createdAt).toLocaleDateString('ar-EG')}</span>
-                </div>
-                {r.comment && <p style={{ margin: 0, color: '#444', fontSize: 14, lineHeight: 1.6 }}>{r.comment}</p>}
-              </div>
-            ))}
-          </div>
-        )}
+      {/* ── Tabbed Navigation ── */}
+      <div style={{
+        display: 'flex',
+        background: '#002f34',
+        borderRadius: 16,
+        padding: 6,
+        marginBottom: 16,
+        gap: 6,
+        boxShadow: '0 2px 10px rgba(0,47,52,0.18)',
+      }}>
+        {TABS.map(tab => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                flex: 1,
+                padding: '10px 8px',
+                borderRadius: 12,
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontWeight: 'bold',
+                fontSize: 14,
+                transition: 'all 0.2s ease',
+                background: isActive ? '#23e5db' : 'transparent',
+                color: isActive ? '#002f34' : '#a0d8d6',
+                boxShadow: isActive ? '0 2px 8px rgba(35,229,219,0.35)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{tab.icon}</span>
+              <span>{tab.labelAr}</span>
+              <span style={{
+                background: isActive ? '#002f34' : '#23e5db22',
+                color: isActive ? '#23e5db' : '#a0d8d6',
+                borderRadius: 20,
+                padding: '1px 8px',
+                fontSize: 12,
+                fontWeight: 'bold',
+                minWidth: 24,
+                textAlign: 'center',
+              }}>
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* ── Tab: Ads ── */}
+      {activeTab === 'ads' && (
+        <div>
+          {ads.length === 0 ? (
+            <div style={{ background: 'white', borderRadius: 16, padding: 40, textAlign: 'center', color: '#999', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 'bold', color: '#002f34' }}>لا توجد إعلانات بعد</p>
+              <p style={{ margin: '8px 0 0', fontSize: 13 }}>لم ينشر هذا البائع أي إعلانات حتى الآن</p>
+            </div>
+          ) : (
+            <>
+              <p style={{ color: '#666', fontSize: 13, marginBottom: 12, marginTop: 0 }}>
+                {ads.length} إعلان منشور
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                {ads.map(ad => (
+                  <a key={ad._id} href={`/ads/${ad._id}`} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit', display: 'block', transition: 'transform 0.15s, box-shadow 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,47,52,0.14)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.08)'; }}>
+                    <div style={{ height: 110, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, overflow: 'hidden', position: 'relative' }}>
+                      {ad.media?.[0] ? (
+                        <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title} />
+                      ) : (
+                        <span>📦</span>
+                      )}
+                      {ad.featured && (
+                        <span style={{ position: 'absolute', top: 6, right: 6, background: '#ffd700', color: '#002f34', fontSize: 10, fontWeight: 'bold', padding: '2px 6px', borderRadius: 6 }}>مميز</span>
+                      )}
+                    </div>
+                    <div style={{ padding: '10px 10px 12px' }}>
+                      <p style={{ fontWeight: 'bold', fontSize: 12, margin: 0, color: '#1a1a1a', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.title}</p>
+                      <p style={{ color: '#002f34', fontWeight: 'bold', fontSize: 14, margin: '6px 0 0' }}>{ad.price?.toLocaleString('ar-EG')} {ad.currency}</p>
+                      {ad.city && <p style={{ color: '#999', fontSize: 11, margin: '3px 0 0' }}>📍 {ad.city}</p>}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab: Reviews ── */}
+      {activeTab === 'reviews' && (
+        <div>
+          {/* Review Form */}
+          {token && !isOwnProfile && (
+            <div style={{ background: 'white', borderRadius: 16, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 16 }}>
+              <h2 style={{ fontWeight: 'bold', marginBottom: 16, color: '#002f34', fontSize: 18, marginTop: 0 }}>⭐ اترك تقييمك</h2>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                {[1,2,3,4,5].map(i => (
+                  <button key={i} onMouseEnter={() => setHoverStar(i)} onMouseLeave={() => setHoverStar(0)} onClick={() => setMyRating(i)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 32, color: i <= (hoverStar || myRating) ? '#ffd700' : '#ddd', padding: '0 2px' }}>★</button>
+                ))}
+                {myRating > 0 && <span style={{ alignSelf: 'center', color: '#666', fontSize: 14, marginRight: 8 }}>{['','سيء','مقبول','جيد','ممتاز','رائع'][myRating]}</span>}
+              </div>
+              <textarea value={myComment} onChange={e => setMyComment(e.target.value)} placeholder="اكتب تعليقك..."
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, resize: 'vertical', minHeight: 80, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+              <button onClick={submitReview} disabled={submitting || !myRating}
+                style={{ marginTop: 12, background: myRating ? '#002f34' : '#ccc', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 10, fontWeight: 'bold', cursor: myRating ? 'pointer' : 'not-allowed', fontSize: 15, fontFamily: 'inherit' }}>
+                {submitting ? 'جار الإرسال...' : 'إرسال التقييم'}
+              </button>
+            </div>
+          )}
+
+          {/* Reviews Summary Bar */}
+          {reviewCount > 0 && (
+            <div style={{ background: 'white', borderRadius: 16, padding: '14px 18px', marginBottom: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 36, fontWeight: 'bold', color: '#002f34', lineHeight: 1 }}>{avgRating}</div>
+                <Stars rating={avgRating} />
+                <div style={{ color: '#999', fontSize: 12, marginTop: 2 }}>{reviewCount} تقييم</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                {[5,4,3,2,1].map(star => {
+                  const cnt = reviews.filter(r => Math.round(r.rating) === star).length;
+                  const pct = reviewCount > 0 ? Math.round((cnt / reviewCount) * 100) : 0;
+                  return (
+                    <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                      <span style={{ fontSize: 11, color: '#666', width: 10, textAlign: 'center' }}>{star}</span>
+                      <span style={{ color: '#ffd700', fontSize: 11 }}>★</span>
+                      <div style={{ flex: 1, height: 6, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: '#23e5db', borderRadius: 4, transition: 'width 0.4s ease' }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: '#999', width: 24 }}>{cnt}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Reviews List */}
+          <div>
+            <h2 style={{ fontWeight: 'bold', marginBottom: 12, color: '#002f34', fontSize: 16, marginTop: 0 }}>💬 جميع التقييمات ({reviewCount})</h2>
+            {reviews.length === 0 ? (
+              <div style={{ background: 'white', borderRadius: 12, padding: 40, textAlign: 'center', color: '#999', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>💬</div>
+                <p style={{ margin: 0, fontWeight: 'bold', color: '#002f34' }}>لا توجد تقييمات بعد</p>
+                <p style={{ margin: '6px 0 0', fontSize: 13 }}>كن أول من يقيّم هذا البائع</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {reviews.map(r => (
+                  <div key={r._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 16, flexShrink: 0 }}>
+                        {r.buyerId?.avatar
+                          ? <img src={r.buyerId.avatar} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} alt="" />
+                          : r.buyerId?.name?.[0]?.toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{r.buyerId?.name}</p>
+                        <Stars rating={r.rating} />
+                      </div>
+                      <span style={{ color: '#bbb', fontSize: 11, flexShrink: 0 }}>{new Date(r.createdAt).toLocaleDateString('ar-EG')}</span>
+                    </div>
+                    {r.comment && (
+                      <p style={{ margin: 0, color: '#444', fontSize: 14, lineHeight: 1.65, borderTop: '1px solid #f5f5f5', paddingTop: 8 }} dir="auto">{r.comment}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
