@@ -9,6 +9,7 @@ function optimizeImage(url, width = 400) {
 import AdDetailSkeleton from '../../components/AdDetailSkeleton';
 import RecentlyViewed, { recordRecentView } from '../../components/RecentlyViewed';
 import ReportAd from '../../components/ReportAd';
+import ReportSeller from '../../components/ReportSeller';
 import MakeOfferModal from '../../components/MakeOfferModal';
 
 const API = 'https://xtox-production.up.railway.app';
@@ -257,6 +258,7 @@ export default function AdPageClient({ params }) {
   const [shareCopied, setShareCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showReportSeller, setShowReportSeller] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
   const [relatedAds, setRelatedAds] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
@@ -462,6 +464,14 @@ export default function AdPageClient({ params }) {
           lang="ar"
         />
       )}
+      {showReportSeller && (
+        <ReportSeller
+          sellerId={ad?.seller?._id || ad?.sellerId}
+          sellerName={ad?.seller?.name || ad?.sellerName || ''}
+          onClose={() => setShowReportSeller(false)}
+          lang={lang || 'ar'}
+        />
+      )}
 
       {/* ── Related Ads ───────────────────────────────────────────── */}
       {(relatedLoading || relatedAds.length > 0) && (
@@ -510,6 +520,14 @@ export default function AdPageClient({ params }) {
         </div>
       )}
       <SellerMiniCard sellerId={ad.seller?._id || ad.sellerId} sellerName={ad.seller?.name || ad.sellerName || ''} lang={lang} />
+      <button
+        onClick={() => setShowReportSeller(true)}
+        className="mt-2 text-xs text-red-500 hover:text-red-700 underline flex items-center gap-1"
+        aria-label={lang === 'ar' ? 'الإبلاغ عن البائع' : 'Report Seller'}
+      >
+        <span>🚩</span>
+        <span>{lang === 'ar' ? 'الإبلاغ عن البائع' : 'Report Seller'}</span>
+      </button>
       <RecentlyViewed currentAdId={ad?._id} lang="ar" />
     </div>
   );
