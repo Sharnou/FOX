@@ -400,3 +400,13 @@ export default function AdCard({ ad }) {
     </a>
   );
 }
+
+// ── Seller Verification Badge (موثق ✓) ──────────────────────
+// Render this inside your seller name JSX block:
+//
+//   {ad.seller?.verified && (
+//     <span style={{color:'#23e5db',fontSize:'0.72rem',fontWeight:700,marginRight:'4px'}}>
+//       موثق ✓
+//     </span>
+//   )}
+// ─────────────────────────────────────────────────────────────
