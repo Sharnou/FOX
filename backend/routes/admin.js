@@ -41,8 +41,47 @@ router.get('/reports', adminAuth, async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    // Keep existing filter (unresolved, newest-first)
-    const filter = { resolved: false };
+    // Build filter — default: unresolved only
+    const filter = {};
+
+    // ?resolved=true|false  (default → false)
+    if (req.query.resolved === 'true')       filter.resolved = true;
+    else if (req.query.resolved === 'false') filter.resolved = false;
+    else                                      filter.resolved = false;
+
+    // ?type=ad|seller  — filter by report type
+    if (req.query.type && ['ad', 'seller'].includes(req.query.type)) {
+      filter.type = req.query.type;
+    }
+
+    // ?q=searchTerm  — search by reporter email OR reported ad title
+    if (req.query.q && req.query.q.trim()) {
+      const q     = req.query.q.trim();
+      const regex = new RegExp(q, 'i');
+
+      // Parallel: find matching users (by email) and ads (by title)
+      const [matchingUsers, matchingAds] = await Promise.all([
+        User.find({ email: regex }, '_id').lean(),
+        Ad.find({ title: regex },   '_id').lean(),
+      ]);
+
+      const orClauses = [];
+      if (matchingUsers.length) orClauses.push({ reportedBy: { $in: matchingUsers.map(u => u._id) } });
+      if (matchingAds.length)   orClauses.push({ adId:       { $in: matchingAds.map(a => a._id)   } });
+
+      // No matches at all → return empty result immediately
+      if (!orClauses.length) {
+        return res.json({
+          reports: [], page, totalPages: 1, total: 0,
+          labels: { page: 'الصفحة', totalPages: 'إجمالي الصفحات', total: 'الإجمالي' },
+          filter: { q, resolved: filter.resolved, type: req.query.type || null },
+        });
+      }
+
+      // Merge $or with existing filter using $and
+      filter.$and = [{ $or: orClauses }];
+    }
+
     const [reports, total] = await Promise.all([
       Report.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
       Report.countDocuments(filter),
@@ -58,6 +97,12 @@ router.get('/reports', adminAuth, async (req, res) => {
       total,
       // Arabic labels for frontend
       labels: { page: 'الصفحة', totalPages: 'إجمالي الصفحات', total: 'الإجمالي' },
+      // Active filters echoed back for frontend awareness
+      filter: {
+        q:        req.query.q    || null,
+        type:     req.query.type || null,
+        resolved: filter.resolved,
+      },
     });
   } catch (e) {
     res.status(500).json({ error: 'خطأ في الخادم', error_en: 'Server error', details: e.message });
