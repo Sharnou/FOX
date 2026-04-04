@@ -6,6 +6,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * run-66: full expansion with RTL, Cairo font, emoji, typing indicator,
  *         file attachments, timestamps, online status, auto-scroll,
  *         character count, and WhatsApp-style message bubbles.
+ * run-104: Quick Reply Templates — pre-set Arabic/English phrases for
+ *          common buyer questions, one tap fills the input bar.
  *
  * Props:
  *   targetId   — seller/buyer user ID
@@ -33,6 +35,7 @@ const TRANSLATIONS = {
     fileSent: '📎 ملف مرفق',
     imageSent: '🖼️ صورة مرفقة',
     charCount: 'حرف',
+    quickReplies: 'ردود سريعة',
   },
   en: {
     typeMessage: 'Type a message...',
@@ -52,12 +55,29 @@ const TRANSLATIONS = {
     fileSent: '📎 File attached',
     imageSent: '🖼️ Image attached',
     charCount: 'chars',
+    quickReplies: 'Quick Replies',
   },
 };
 
 const MAX_CHARS = 500;
 
 const EMOJIS = ['😊', '👍', '❤️', '😂', '🙏', '👋', '💯', '🎉', '😍', '🤝'];
+
+/**
+ * Quick Reply Templates — bilingual preset phrases
+ * Each entry: { ar: '...', en: '...' }
+ * Shown as clickable chips; clicking one fills the textarea instantly.
+ */
+const QUICK_REPLIES = [
+  { ar: 'هل السعر قابل للتفاوض؟', en: 'Is the price negotiable?' },
+  { ar: 'هل لا يزال متاحاً؟', en: 'Is it still available?' },
+  { ar: 'ما هو العنوان بالضبط؟', en: 'What is the exact location?' },
+  { ar: 'هل يمكن التسليم؟', en: 'Can you deliver?' },
+  { ar: 'متى يمكن المعاينة؟', en: 'When can I inspect it?' },
+  { ar: 'هل يوجد ضمان؟', en: 'Is there a warranty?' },
+  { ar: 'ما سبب البيع؟', en: 'Why are you selling?' },
+  { ar: 'هل هناك عيوب؟', en: 'Any defects?' },
+];
 
 function formatTime(date, lang) {
   const d = new Date(date);
@@ -89,11 +109,13 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
   const [isTyping, setIsTyping] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;
   const isRTL = lang === 'ar';
@@ -156,6 +178,7 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
     setInput('');
     setIsSending(true);
     setShowEmoji(false);
+    setShowQuickReplies(false);
 
     // Simulate delivery
     setTimeout(() => {
@@ -206,6 +229,18 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
     }
     setShowEmoji(false);
   };
+
+  /**
+   * Quick reply handler — fills input with the preset phrase
+   * and closes the panel; user can still edit before sending.
+   */
+  const handleQuickReply = useCallback((phrase) => {
+    setInput(phrase);
+    setShowQuickReplies(false);
+    setShowEmoji(false);
+    // Focus textarea so user can immediately hit Enter or edit
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, []);
 
   // Group messages by date
   const groupedMessages = messages.reduce((groups, msg) => {
@@ -279,7 +314,7 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
       <div
         className="flex-1 overflow-y-auto px-3 py-2 space-y-1"
         style={{ background: 'linear-gradient(135deg, #fff8f5 0%, #fff 100%)' }}
-        onClick={() => setShowEmoji(false)}
+        onClick={() => { setShowEmoji(false); setShowQuickReplies(false); }}
       >
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
@@ -358,6 +393,33 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
         <div ref={messagesEndRef} />
       </div>
 
+      {/* ── Quick Reply Templates Panel ─────────────────────────────── */}
+      {showQuickReplies && (
+        <div
+          className="flex-shrink-0 border-t border-orange-100 bg-orange-50 px-3 py-2"
+          dir={isRTL ? 'rtl' : 'ltr'}
+        >
+          <p className="text-[10px] text-orange-500 font-semibold mb-1.5 uppercase tracking-wide">
+            ⚡ {t.quickReplies}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_REPLIES.map((qr, idx) => {
+              const phrase = isRTL ? qr.ar : qr.en;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleQuickReply(phrase)}
+                  className="text-xs bg-white border border-orange-200 text-orange-700 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all px-2.5 py-1 rounded-full shadow-sm active:scale-95"
+                  style={{ fontFamily: isRTL ? "'Cairo', 'Segoe UI', sans-serif" : "'Segoe UI', sans-serif" }}
+                >
+                  {phrase}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Emoji picker ────────────────────────────────────────────── */}
       {showEmoji && (
         <div className="flex flex-wrap gap-2 px-3 py-2 border-t bg-orange-50 flex-shrink-0">
@@ -379,12 +441,24 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
         <div className="flex items-end gap-2">
           {/* Emoji button */}
           <button
-            onClick={(e) => { e.stopPropagation(); setShowEmoji(v => !v); }}
+            onClick={(e) => { e.stopPropagation(); setShowEmoji(v => !v); setShowQuickReplies(false); }}
             className="flex-shrink-0 text-xl text-gray-400 hover:text-orange-500 transition-colors pb-1"
             aria-label="Emoji picker"
             title={isRTL ? 'إيموجي' : 'Emoji'}
           >
             😊
+          </button>
+
+          {/* ⚡ Quick Reply button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowQuickReplies(v => !v); setShowEmoji(false); }}
+            className={`flex-shrink-0 pb-1 transition-colors text-lg ${
+              showQuickReplies ? 'text-orange-500' : 'text-gray-400 hover:text-orange-500'
+            }`}
+            aria-label={t.quickReplies}
+            title={t.quickReplies}
+          >
+            ⚡
           </button>
 
           {/* File attachment */}
@@ -410,6 +484,7 @@ export default function ChatBox({ targetId, adId, otherName = '', otherAvatar = 
           {/* Text input */}
           <div className="flex-1 relative">
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => {
                 if (e.target.value.length <= MAX_CHARS) setInput(e.target.value);
