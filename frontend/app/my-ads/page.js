@@ -11,6 +11,11 @@ export default function MyAdsPage() {
   const [tab, setTab] = useState('active');
   const [token, setToken] = useState('');
 
+  // ── Bulk-delete state ──────────────────────────────────────────────────────
+  const [selectedAds, setSelectedAds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  // ──────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const t = localStorage.getItem('token');
@@ -18,6 +23,11 @@ export default function MyAdsPage() {
     setToken(t);
     fetchMyAds(t);
   }, []);
+
+  // Reset selection when switching tabs
+  useEffect(() => {
+    setSelectedAds(new Set());
+  }, [tab]);
 
   async function fetchMyAds(t) {
     setLoading(true);
@@ -48,8 +58,71 @@ export default function MyAdsPage() {
     } catch { alert('فشل الحذف'); }
   }
 
+  // ── Bulk-delete helpers ────────────────────────────────────────────────────
+  function toggleSelectAd(adId) {
+    setSelectedAds(prev => {
+      const next = new Set(prev);
+      if (next.has(adId)) next.delete(adId);
+      else next.add(adId);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    const currentList = tab === 'active' ? activeAds : expiredAds;
+    if (selectedAds.size === currentList.length && currentList.length > 0) {
+      setSelectedAds(new Set());
+    } else {
+      setSelectedAds(new Set(currentList.map(ad => ad._id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedAds.size === 0) return;
+    const n = selectedAds.size;
+    const confirmed = window.confirm(
+      `هل تريد حذف ${n} إعلان محدد؟\nAre you sure you want to delete ${n} selected ad(s)?\n\nلا يمكن التراجع عن هذا الإجراء.\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setBulkDeleting(true);
+    const ids = Array.from(selectedAds);
+    const failed = [];
+
+    // Delete ads in parallel
+    await Promise.all(
+      ids.map(async (adId) => {
+        try {
+          await axios.delete(`${API}/api/ads/${adId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } catch {
+          failed.push(adId);
+        }
+      })
+    );
+
+    // Remove successfully deleted ads from local state
+    const deletedIds = new Set(ids.filter(id => !failed.includes(id)));
+    setData(prev => ({
+      active: prev.active.filter(ad => !deletedIds.has(ad._id)),
+      expired: prev.expired.filter(ad => !deletedIds.has(ad._id)),
+    }));
+    setSelectedAds(new Set());
+    setBulkDeleting(false);
+
+    if (failed.length > 0) {
+      alert(`فشل حذف ${failed.length} إعلان.\nFailed to delete ${failed.length} ad(s).`);
+    } else {
+      alert(`✅ تم حذف ${ids.length} إعلان بنجاح.\n✅ Successfully deleted ${ids.length} ad(s).`);
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   const activeAds = data.active || [];
   const expiredAds = data.expired || [];
+  const currentList = tab === 'active' ? activeAds : expiredAds;
+  const allSelected = currentList.length > 0 && selectedAds.size === currentList.length;
 
   // Performance stats for active ads
   const totalViews = activeAds.reduce((sum, ad) => sum + (ad.views || 0), 0);
@@ -57,11 +130,11 @@ export default function MyAdsPage() {
   const featuredCount = activeAds.filter(ad => ad.isFeatured).length;
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>
+    <div style={{ maxWidth: 700, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5', direction: 'rtl' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 20, cursor: 'pointer' }}>←</button>
+        <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 20, cursor: 'pointer' }}>→</button>
         <h1 style={{ color: '#002f34', margin: 0, fontSize: 22, fontWeight: 'bold' }}>إعلاناتي</h1>
-        <a href="/sell" style={{ marginRight: 'auto', background: '#002f34', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}>+ إعلان جديد</a>
+        <a href="/sell" style={{ marginLeft: 'auto', background: '#002f34', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}>+ إعلان جديد</a>
       </div>
 
       {/* Performance Stats Banner */}
@@ -69,11 +142,11 @@ export default function MyAdsPage() {
         <div style={{ background: 'linear-gradient(135deg, #002f34 0%, #00514a 100%)', borderRadius: 16, padding: '16px 20px', marginBottom: 20, color: 'white', boxShadow: '0 4px 12px rgba(0,47,52,0.25)' }}>
           <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.85 }}>📊 أداء إعلاناتك النشطة</p>
           <div style={{ display: 'flex', gap: 0, textAlign: 'center' }}>
-            <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.2)' }}>
+            <div style={{ flex: 1, borderRight: '1px solid rgba(255,255,255,0.2)' }}>
               <div style={{ fontSize: 26, fontWeight: 'bold' }}>{activeAds.length}</div>
               <div style={{ fontSize: 12, opacity: 0.8 }}>إعلان نشط</div>
             </div>
-            <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.2)' }}>
+            <div style={{ flex: 1, borderRight: '1px solid rgba(255,255,255,0.2)' }}>
               <div style={{ fontSize: 26, fontWeight: 'bold' }}>{totalViews.toLocaleString('ar-EG')}</div>
               <div style={{ fontSize: 12, opacity: 0.8 }}>مشاهدة إجمالية</div>
             </div>
@@ -101,6 +174,28 @@ export default function MyAdsPage() {
         </button>
       </div>
 
+      {/* ── Bulk-select toolbar ─────────────────────────────────────────────── */}
+      {!loading && currentList.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', borderRadius: 12, padding: '10px 14px', marginBottom: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          <input
+            type="checkbox"
+            id="selectAll"
+            checked={allSelected}
+            onChange={toggleSelectAll}
+            style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#002f34' }}
+          />
+          <label htmlFor="selectAll" style={{ fontSize: 13, fontWeight: 'bold', cursor: 'pointer', color: '#333', userSelect: 'none' }}>
+            {allSelected ? 'إلغاء تحديد الكل | Deselect All' : 'تحديد الكل | Select All'}
+          </label>
+          {selectedAds.size > 0 && (
+            <span style={{ marginRight: 'auto', fontSize: 12, color: '#555' }}>
+              {selectedAds.size} محدد
+            </span>
+          )}
+        </div>
+      )}
+      {/* ──────────────────────────────────────────────────────────────────── */}
+
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>جار التحميل...</div>
       ) : (
@@ -117,8 +212,19 @@ export default function MyAdsPage() {
               {activeAds.map(ad => {
                 const daysLeft = Math.max(0, Math.ceil((new Date(ad.expiresAt) - Date.now()) / (24 * 60 * 60 * 1000)));
                 const expiryPercent = Math.min(100, Math.round((daysLeft / 45) * 100));
+                const isSelected = selectedAds.has(ad._id);
                 return (
-                  <div key={ad._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', gap: 14 }}>
+                  <div key={ad._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', gap: 14, border: isSelected ? '2px solid #002f34' : '2px solid transparent', transition: 'border-color 0.15s' }}>
+                    {/* Checkbox */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 4 }}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectAd(ad._id)}
+                        onClick={e => e.stopPropagation()}
+                        style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#002f34', flexShrink: 0 }}
+                      />
+                    </div>
                     <div style={{ width: 80, height: 80, borderRadius: 10, background: '#f0f0f0', overflow: 'hidden', flexShrink: 0 }}>
                       {ad.media?.[0] ? <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>📦</div>}
                     </div>
@@ -171,8 +277,19 @@ export default function MyAdsPage() {
                 )}
                 {expiredAds.map(ad => {
                   const canReshare = ad.daysLeftToReshare > 0;
+                  const isSelected = selectedAds.has(ad._id);
                   return (
-                    <div key={ad._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', gap: 14, opacity: canReshare ? 1 : 0.6, border: `2px solid ${canReshare ? '#ffd700' : '#eee'}` }}>
+                    <div key={ad._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', gap: 14, opacity: canReshare ? 1 : 0.6, border: isSelected ? '2px solid #002f34' : `2px solid ${canReshare ? '#ffd700' : '#eee'}`, transition: 'border-color 0.15s' }}>
+                      {/* Checkbox */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 4 }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectAd(ad._id)}
+                          onClick={e => e.stopPropagation()}
+                          style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#002f34', flexShrink: 0 }}
+                        />
+                      </div>
                       <div style={{ width: 80, height: 80, borderRadius: 10, background: '#f0f0f0', overflow: 'hidden', flexShrink: 0, filter: 'grayscale(50%)' }}>
                         {ad.media?.[0] ? <img loading="lazy" src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>📦</div>}
                       </div>
@@ -209,6 +326,44 @@ export default function MyAdsPage() {
           )}
         </>
       )}
+
+      {/* ── Sticky bulk-action bar (appears when ≥1 ad selected) ───────────── */}
+      {selectedAds.size > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          background: '#002f34',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.25)',
+          direction: 'rtl',
+        }}>
+          <span style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>
+            {selectedAds.size} إعلان محدد
+          </span>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => setSelectedAds(new Set())}
+              style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit' }}
+            >
+              إلغاء
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              style={{ background: '#e44', color: 'white', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: bulkDeleting ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', opacity: bulkDeleting ? 0.7 : 1 }}
+            >
+              {bulkDeleting ? '⏳ جار الحذف...' : `🗑 حذف المحدد (${selectedAds.size})`}
+            </button>
+          </div>
+        </div>
+      )}
+      {/* ──────────────────────────────────────────────────────────────────── */}
     </div>
   );
 }
