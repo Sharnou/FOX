@@ -85,6 +85,8 @@ export default function AdCard({ ad }) {
   const [shared, setShared] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savingBookmark, setSavingBookmark] = useState(false);
+  // ── Run 94: view counter state — live-updated after PATCH /api/ads/:id/view ──
+  const [viewCount, setViewCount] = useState(ad?.views || 0);
 
   // Load saved state from localStorage wishlist on mount
   useEffect(() => {
@@ -96,6 +98,17 @@ export default function AdCard({ ad }) {
       // ignore parse errors
     }
   }, [ad?._id]);
+
+  // ── Run 94: Increment view count when card mounts (non-blocking, silent fail) ──
+  useEffect(() => {
+    if (!ad?._id) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    fetch(`${apiUrl}/api/ads/${ad._id}/view`, { method: 'PATCH' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.views != null) setViewCount(data.views); })
+      .catch(() => {}); // silent — view count is non-critical
+  }, [ad?._id]);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   if (!ad) return null;
 
@@ -215,6 +228,20 @@ export default function AdCard({ ad }) {
           ⭐ مميز
         </div>
       )}
+      {/* ── Run 94: Trending badge — shown when views exceed 100 ────────────── */}
+      {viewCount > 100 && (
+        <div style={{
+          position:'absolute', top:8, left: ad.isFeatured ? 72 : 8, zIndex:5,
+          background:'linear-gradient(135deg,#ff4500,#ff6b35)',
+          color:'#fff', fontSize:11, fontWeight:700,
+          padding:'3px 10px', borderRadius:10,
+          boxShadow:'0 2px 8px rgba(255,69,0,0.4)',
+          display:'flex', alignItems:'center', gap:4,
+        }}>
+          🔥 رائج
+        </div>
+      )}
+      {/* ──────────────────────────────────────────────────────────────────────── */}
       {/* Share button */}
       <button
         onClick={handleShare}
@@ -280,7 +307,8 @@ export default function AdCard({ ad }) {
           <StarRating rating={rating} count={ratingCount} />
           {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
         </div>
-        <p className="text-xs text-gray-500 mt-1">👁 {ad.views} | {ad.city}</p>
+        {/* Run 94: viewCount from live state (updated by PATCH /api/ads/:id/view) */}
+        <p className="text-xs text-gray-500 mt-1">👁 {viewCount} | {ad.city}</p>
       </div>
     </a>
   );
