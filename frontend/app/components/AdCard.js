@@ -15,6 +15,19 @@ function toArabicNumerals(n) {
   return String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
 }
 
+// ── Run 107: Ad Expiry Countdown — helper ─────────────────────────────────
+// Ads expire 30 days after createdAt; returns days remaining (negative = expired)
+function getDaysLeft(createdAt) {
+  if (!createdAt) return null;
+  const created = new Date(createdAt);
+  const expiry = new Date(created.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const diff = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+// ──────────────────────────────────────────────────────────────────────────
+
+
 // ★ Seller Rating Stars — run 36: switched from inline style to Tailwind className
 function StarRating({ rating, count }) {
   if (rating === null || rating === undefined) {
@@ -274,9 +287,67 @@ export default function AdCard({ ad }) {
             alt={ad.title}
             onLoad={e => e.target.classList.add('loaded')}
           />
+        {/* ── Run 107: Ad Expiry Countdown Badge ── */}
+        {(() => {
+          const daysLeft = getDaysLeft(ad.createdAt);
+          if (daysLeft === null) return null;
+          const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
+          const label = typeof window !== 'undefined' && document.documentElement.dir === 'rtl'
+            ? (daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`)
+            : (daysLeft <= 0 ? 'Expired' : `${daysLeft}d left`);
+          return (
+            <span style={{
+              position: 'absolute',
+              bottom: '8px',
+              left: '8px',
+              background: color,
+              color: '#fff',
+              fontSize: '10px',
+              fontWeight: '700',
+              padding: '2px 7px',
+              borderRadius: '999px',
+              zIndex: 10,
+              letterSpacing: '0.02em',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+              pointerEvents: 'none',
+            }}>
+              {label}
+            </span>
+          );
+        })()}
         </div>
       ) : (
-        <div className="w-full h-44 bg-gray-200 rounded-t-xl flex items-center justify-center text-4xl">📦</div>
+        <div className="relative w-full h-44 bg-gray-200 rounded-t-xl flex items-center justify-center text-4xl">
+          📦
+        {/* ── Run 107: Ad Expiry Countdown Badge ── */}
+        {(() => {
+          const daysLeft = getDaysLeft(ad.createdAt);
+          if (daysLeft === null) return null;
+          const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
+          const label = typeof window !== 'undefined' && document.documentElement.dir === 'rtl'
+            ? (daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`)
+            : (daysLeft <= 0 ? 'Expired' : `${daysLeft}d left`);
+          return (
+            <span style={{
+              position: 'absolute',
+              bottom: '8px',
+              left: '8px',
+              background: color,
+              color: '#fff',
+              fontSize: '10px',
+              fontWeight: '700',
+              padding: '2px 7px',
+              borderRadius: '999px',
+              zIndex: 10,
+              letterSpacing: '0.02em',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+              pointerEvents: 'none',
+            }}>
+              {label}
+            </span>
+          );
+        })()}
+        </div>
       )}
       <div className="p-3">
         <p className="font-bold text-sm line-clamp-2">{ad.title}</p>
