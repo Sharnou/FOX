@@ -60,10 +60,18 @@ import wishlistRouter from '../routes/wishlist.js';
 import reviewsRouter from '../routes/reviews.js';
 import favoritesRouter from '../routes/favorites.js';
 import promoteRouter from '../routes/promote.js';
+import jwt from 'jsonwebtoken';
+
+
+// --- Metrics: request counter ---
+let _metricsRequestCount = 0;
+const _metricsStart = Date.now();
 
 const logger = pino();
 const app = express();
 app.set('trust proxy', 1);
+app.use((req, res, next) => { _metricsRequestCount++; next(); });
+
 
 // Gzip compression — reduces API response size by 60-80% (free)
 if (compression) app.use(compression());
@@ -154,6 +162,29 @@ app.use('/api/wishlist', wishlistRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/promote', promoteRouter);
+
+// GET /api/metrics — admin-only observability endpoint
+app.get('/api/metrics', (req, res) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  let isAdmin = false;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    isAdmin = decoded.role === 'admin' || decoded.email === 'ahmed_sharnou@yahoo.com';
+  } catch (e) { isAdmin = false; }
+  if (!isAdmin) return res.status(403).json({ error: 'Admin only' });
+  const mem = process.memoryUsage();
+  res.json({
+    uptime: Math.floor((Date.now() - _metricsStart) / 1000),
+    memoryUsageMB: Math.round(mem.rss / 1024 / 1024),
+    heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+    totalRequests: _metricsRequestCount,
+    mongoState: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString(),
+    message_ar: 'مقاييس الخادم - للمسؤول فقط',
+    message_en: 'Server metrics - Admin only'
+  });
+});
+
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 app.get('/', (_, res) => {
