@@ -340,8 +340,13 @@ const allMongoVars = [
   process.env.DATABASE_URL,
 ];
 
-// Use first non-Atlas, non-empty URL
+// Prefer non-Atlas Railway-native URLs; fall back to Atlas if that's all we have
 let mongoUri = allMongoVars.find(u => u && u.trim() && !u.includes('cluster0.77mmp6c'));
+// FIX: If no non-Atlas URL found but MONGO_URL is set, use MONGO_URL directly (even if Atlas)
+if (!mongoUri && process.env.MONGO_URL && process.env.MONGO_URL.trim()) {
+  mongoUri = process.env.MONGO_URL.trim();
+  logger.info('[MongoDB] Using MONGO_URL directly (Atlas URL from env): ' + mongoUri.replace(/:([^@]+)@/, ':***@').slice(0, 60));
+}
 
 // If no non-Atlas URL, try constructing from Railway plugin parts
 if (!mongoUri) {
@@ -375,6 +380,7 @@ if (!finalMongoUri) {
     serverSelectionTimeoutMS: 30000,  // 30 seconds to find a server
     socketTimeoutMS: 45000,           // 45 seconds for operations
     connectTimeoutMS: 30000,          // 30 seconds to connect
+    bufferTimeoutMS: 3000,            // FIX: 3s buffer timeout (was 10s) — fail fast
     maxPoolSize: 10,
     retryWrites: true,
     w: 'majority'

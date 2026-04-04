@@ -12,6 +12,7 @@ import { generateQR } from '../server/qr.js';
 import { scoreAdWithAI } from '../server/aiQualityScore.js';
 import { getOrCreateCountry } from '../server/countries.js';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
 
@@ -188,6 +189,16 @@ router.get('/:id', async (req, res) => {
 // ── POST new ad (AI moderation on ALL media) ──
 router.post('/', auth, async (req, res) => {
   try {
+    // ── MONGODB CONNECTION CHECK — return 503 instead of buffering 10s ───────
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        error: 'الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد ثوانٍ',
+        message: 'Database not ready. Please retry in a few seconds.',
+        retryAfter: 5
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── DAILY LIMIT: max 2 ads per user per day ──────────────────────────────
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -488,6 +499,19 @@ router.post('/:id/republish', auth, async (req, res) => {
     await ad.save();
 
     res.json({ ok: true, ad, message: 'Ad republished for 45 more days' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── PATCH /:id/view — increment view count (called by AdCard on mount) ──────
+router.patch('/:id/view', async (req, res) => {
+  try {
+    const ad = await Ad.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { views: 1 } },
+      { new: true, select: 'views _id' }
+    );
+    if (!ad) return res.status(404).json({ error: 'Ad not found' });
+    res.json({ views: ad.views });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
