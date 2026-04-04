@@ -146,8 +146,13 @@ export default function AdminPage() {
         setLoginLoading(false);
         return;
       }
+      // Save to BOTH key sets so rest of app (sell, profile, chat) also sees the session
       localStorage.setItem('xtox_admin_token', data.token);
       localStorage.setItem('xtox_admin_user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('userId', data.user?.id || data.user?._id || '');
+      localStorage.setItem('country', data.user?.country || 'EG');
       setToken(data.token);
       setAuthed(true);
       fetchAll(data.token);

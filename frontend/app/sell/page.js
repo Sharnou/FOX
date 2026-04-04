@@ -202,7 +202,12 @@ export default function SellPage() {
       if (form.phone) localStorage.setItem('last_used_phone', form.phone);
       window.location.href = `/?published=1`;
     } catch (e) {
-      setErrors({ submit: e.arabicMessage || e.message });
+      // 429: daily limit reached — show specific Arabic message
+      if (e.status === 429) {
+        setErrors({ submit: 'لقد وصلت للحد اليومي: يمكنك نشر إعلانين فقط في اليوم الواحد' });
+      } else {
+        setErrors({ submit: e.arabicMessage || e.message });
+      }
     }
     setLoading(false);
   }

@@ -52,15 +52,16 @@ export async function fetchWithRetry(url, options = {}, config = {}) {
       // Success — return response
       if (res.ok) return res;
 
-      // Non-retryable errors: client errors (except 429)
-      if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+      // Non-retryable errors: all 4xx errors (including 429 — intentional limits should not be retried)
+      if (res.status >= 400 && res.status < 500) {
         const err = new Error(`HTTP ${res.status}`);
         err.status = res.status;
+        err.response = res; // attach original response so callers can read body
         err.arabicMessage = getArabicError(res.status, err);
         throw err;
       }
 
-      // Retryable (5xx, 429)
+      // Retryable (5xx only)
       lastError = new Error(`HTTP ${res.status}`);
       lastError.status = res.status;
       lastError.arabicMessage = getArabicError(res.status, lastError);
@@ -73,7 +74,7 @@ export async function fetchWithRetry(url, options = {}, config = {}) {
       }
 
       // Non-retriable: client errors
-      if (e.status >= 400 && e.status < 500 && e.status !== 429) throw e;
+      if (e.status >= 400 && e.status < 500) throw e; // all 4xx including 429 are non-retryable
 
       lastError = e;
     }

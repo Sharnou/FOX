@@ -188,6 +188,29 @@ router.get('/:id', async (req, res) => {
 // ── POST new ad (AI moderation on ALL media) ──
 router.post('/', auth, async (req, res) => {
   try {
+    // ── DAILY LIMIT: max 2 ads per user per day ──────────────────────────────
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayCount = await Ad.countDocuments({
+      userId: req.user.id,
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+      isDeleted: { $ne: true }
+    });
+
+    if (todayCount >= 2) {
+      return res.status(429).json({
+        error: 'لقد وصلت للحد اليومي للإعلانات',
+        message: 'Daily limit reached. Maximum 2 ads per day.',
+        todayCount,
+        limit: 2,
+        resetsAt: endOfDay
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── PRE-PROCESS: Upload base64 images to Cloudinary before sanitization ──
     const rawMedia = Array.isArray(req.body.media) ? req.body.media : [];
     if (rawMedia.some(u => String(u || '').startsWith('data:image/'))) {
