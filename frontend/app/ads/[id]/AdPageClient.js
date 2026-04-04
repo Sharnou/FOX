@@ -158,6 +158,96 @@ function ImageCarousel({ images, title }) {
   );
 }
 
+function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
+  const [seller, setSeller] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const isRTL = ['ar', 'he', 'ur'].includes(lang);
+
+  React.useEffect(() => {
+    if (!sellerId) return;
+    fetch(`https://xtox-production.up.railway.app/api/users/${sellerId}/profile`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setSeller(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [sellerId]);
+
+  const label = {
+    seller: isRTL ? 'معلومات البائع' : 'Seller',
+    viewProfile: isRTL ? 'عرض الملف الشخصي' : 'View Profile',
+    ads: isRTL ? 'إعلان' : 'ads',
+    memberSince: isRTL ? 'عضو منذ' : 'Member since',
+  };
+
+  if (loading) return (
+    <div style={{ background: '#f7f7f7', borderRadius: 14, padding: 16, marginTop: 24 }}>
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+        <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#e0e0e0' }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 15, background: '#e0e0e0', borderRadius: 4, marginBottom: 8, width: '55%' }} />
+          <div style={{ height: 12, background: '#e0e0e0', borderRadius: 4, width: '35%' }} />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!seller) return null;
+
+  const stars = Math.min(5, Math.max(0, Math.round(seller.reputation || seller.rating || 0)));
+
+  return (
+    <div dir={isRTL ? 'rtl' : 'ltr'} style={{
+      background: '#fff',
+      border: '1px solid #ebebeb',
+      borderRadius: 14,
+      padding: '16px 18px',
+      marginTop: 24,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    }}>
+      <h3 style={{ fontSize: 12, fontWeight: 700, color: '#aaa', marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+        {label.seller}
+      </h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <a href={`/profile/${sellerId}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+          {seller.avatar
+            ? <img src={seller.avatar} alt={seller.name} style={{ width: 62, height: 62, borderRadius: '50%', objectFit: 'cover', border: '2px solid #ff6b35' }} />
+            : <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'linear-gradient(135deg,#ff6b35,#f7c59f)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 26, fontWeight: 700 }}>
+                {((seller.name || sellerName || 'U')[0] || 'U').toUpperCase()}
+              </div>
+          }
+        </a>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <a href={`/profile/${sellerId}`} style={{ textDecoration: 'none', color: '#1a1a1a', fontWeight: 700, fontSize: 16, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {seller.name || sellerName}
+          </a>
+          <div style={{ display: 'flex', gap: 2, margin: '5px 0 4px' }}>
+            {[1,2,3,4,5].map(n => (
+              <span key={n} style={{ color: n <= stars ? '#f5a623' : '#ddd', fontSize: 15 }}>★</span>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: '#999' }}>
+            {seller.totalAds != null && <span style={{ marginInlineEnd: 6 }}>{seller.totalAds} {label.ads}</span>}
+            {seller.createdAt && <span>{label.memberSince} {new Date(seller.createdAt).getFullYear()}</span>}
+          </div>
+        </div>
+        <a href={`/profile/${sellerId}`} style={{
+          flexShrink: 0,
+          display: 'inline-block',
+          background: 'linear-gradient(135deg,#ff6b35,#e05a25)',
+          color: '#fff',
+          borderRadius: 9,
+          padding: '9px 16px',
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: 'none',
+          whiteSpace: 'nowrap',
+        }}>
+          {label.viewProfile}
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function AdPageClient({ params }) {
   const [ad, setAd] = useState(null);
   const [callActive, setCallActive] = useState(false);
@@ -419,6 +509,7 @@ export default function AdPageClient({ params }) {
           )}
         </div>
       )}
+      <SellerMiniCard sellerId={ad.seller?._id || ad.sellerId} sellerName={ad.seller?.name || ad.sellerName || ''} lang={lang} />
       <RecentlyViewed currentAdId={ad?._id} lang="ar" />
     </div>
   );
