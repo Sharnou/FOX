@@ -1,4 +1,5 @@
 import Country from '../models/Country.js';
+import { dbState } from './memoryStore.js';
 
 const defaultCountries = [
   { code: 'EG', name: 'Egypt', nameAr: 'مصر', currency: 'EGP', language: 'ar', flag: '🇪🇬' },
@@ -19,6 +20,10 @@ export async function seedCountries() {
 }
 
 export async function getOrCreateCountry(code, name) {
+  // Skip DB when using in-memory store — country validation not needed
+  if (dbState.usingMemoryStore) {
+    return { code, name: name || code, nameAr: name || code, currency: 'USD', language: 'ar', flag: '🌍' };
+  }
   let country = await Country.findOne({ code });
   if (!country) {
     country = await Country.create({

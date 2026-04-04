@@ -73,6 +73,7 @@ import reviewsRouter from '../routes/reviews.js';
 import favoritesRouter from '../routes/favorites.js';
 import promoteRouter from '../routes/promote.js';
 import jwt from 'jsonwebtoken';
+import { initMemoryStore, dbState } from './memoryStore.js';
 
 
 // --- Metrics: request counter ---
@@ -323,6 +324,16 @@ server.listen(PORT, () => {
 });
 // ────────────────────────────────────────────────────────────────────────────
 
+// ── In-memory store fallback: activate if MongoDB not ready within 8s ────────
+setTimeout(async () => {
+  if (mongoose.connection.readyState !== 1 && !dbState.usingMemoryStore) {
+    logger.warn('[DB] MongoDB not connected after 8s — switching to in-memory store');
+    dbState.usingMemoryStore = true;
+    await initMemoryStore();
+  }
+}, 8000);
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Connect MongoDB in background (non-blocking)
 // Log ALL env vars available (helps diagnose Railway setup)
 const mongoEnvVars = Object.keys(process.env).filter(k => 
@@ -447,6 +458,12 @@ if (!finalMongoUri) {
         await runSeedsOnce();
       } catch (e) {
         logger.error('[MongoDB] Retry also failed:', e.message);
+        // Both initial + retry failed — activate in-memory store
+        if (!dbState.usingMemoryStore) {
+          logger.warn('[DB] All MongoDB retries failed — activating in-memory store');
+          dbState.usingMemoryStore = true;
+          await initMemoryStore();
+        }
       }
     }, 10000);
   });

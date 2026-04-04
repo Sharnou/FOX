@@ -1,11 +1,13 @@
 import Ad from '../models/Ad.js';
+import { dbState, MemAd } from './memoryStore.js';
+function getAdModel() { return dbState.usingMemoryStore ? MemAd : Ad; }
 
 // Max 16 featured ads per week per country
 // Sorted: newest featured → top, oldest → bottom
 export async function getFeaturedAds(country) {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const featured = await Ad.find({
+  const featured = await getAdModel().find({
     country,
     isFeatured: true,
     isDeleted: false,
@@ -34,13 +36,13 @@ export async function getFeaturedByCategory(country, category, subcategory) {
   if (category) query.category = category;
   if (subcategory) query.subcategory = subcategory;
 
-  return Ad.find(query).sort({ featuredAt: -1 }).limit(16);
+  return getAdModel().find(query).sort({ featuredAt: -1 }).limit(16);
 }
 
 // Count featured ads this week for country (enforce max 16)
 export async function countFeaturedThisWeek(country) {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  return Ad.countDocuments({
+  return getAdModel().countDocuments({
     country,
     isFeatured: true,
     featuredAt: { $gte: weekAgo }

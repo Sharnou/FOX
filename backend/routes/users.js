@@ -5,6 +5,10 @@ import fetch from 'node-fetch';
 import rateLimit from 'express-rate-limit';
 import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
+import { dbState, MemUser } from '../server/memoryStore.js';
+
+// Use in-memory store when MongoDB is unavailable
+function getUserModel() { return dbState.usingMemoryStore ? MemUser : User; }
 import { detectFraud } from '../server/fraud.js';
 import { getOrCreateCountry } from '../server/countries.js';
 
@@ -146,10 +150,10 @@ async function findOrCreateOAuthUser(provider, profile, ip, country) {
   const { email, name, avatar } = profile;
   const fraud = await detectFraud(ip);
   if (fraud.isFraud) throw new Error('Account creation restricted');
-  let user = await User.findOne({ email });
+  let user = await getUserModel().findOne({ email });
   if (!user) {
     await getOrCreateCountry(country, country);
-    user = await User.create({
+    user = await getUserModel().create({
       email, name, avatar,
       country: country || 'EG',
       registrationIp: ip,
@@ -316,8 +320,8 @@ router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
     otpStore.delete(phone);
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     await getOrCreateCountry(countryCode, countryCode);
-    let user = await User.findOne({ phone });
-    if (!user) user = await User.create({ phone, name: name || phone, country: countryCode, city, registrationIp: ip, isVerified: true });
+    let user = await getUserModel().findOne({ phone });
+    if (!user) user = await getUserModel().create({ phone, name: name || phone, country: countryCode, city, registrationIp: ip, isVerified: true });
     const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
     res.json({ token, user: { id: user._id, name: user.name, country: user.country, role: user.role } });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -355,20 +359,20 @@ router.post('/register', registerLimiter, async (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     // Check MongoDB connection state
     const mongooseReg = await import('mongoose');
-    if (mongooseReg.default.connection.readyState !== 1) {
+    if (mongooseReg.default.connection.readyState !== 1 && !dbState.usingMemoryStore) {
       return res.status(503).json({ error: 'Server starting up — please try again / الخادم يبدأ — حاول مرة أخرى' });
     }
-    const fraud = await detectFraud(ip);
+    const fraud = dbState.usingMemoryStore ? { isFraud: false } : await detectFraud(ip);
     if (fraud.isFraud) return res.status(400).json({ error: 'Account creation restricted' });
-    await getOrCreateCountry(countryCode, countryCode);
-    const existing = await User.findOne({ email });
+    if (!dbState.usingMemoryStore) await getOrCreateCountry(countryCode, countryCode);
+    const existing = await getUserModel().findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already registered' });
     const hash = await bcrypt.hash(password, 10);
     let finalCountry = countryCode;
     if (!finalCountry || finalCountry === 'unknown') {
       try { const g = await (await fetch(`http://ip-api.com/json/${ip}?fields=countryCode`)).json(); finalCountry = g.countryCode || 'EG'; } catch { finalCountry = 'EG'; }
     }
-    const user = await User.create({ email, password: hash, name, country: finalCountry, city, registrationIp: ip });
+    const user = await getUserModel().create({ email, password: hash, name, country: finalCountry, city, registrationIp: ip });
     const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
     res.json({ token, user: { id: user._id, email, name, country: user.country } });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -381,10 +385,10 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
     // Check MongoDB connection state before querying (avoids 30s buffer wait)
     const mongoose = await import('mongoose');
-    if (mongoose.default.connection.readyState !== 1) {
+    if (mongoose.default.connection.readyState !== 1 && !dbState.usingMemoryStore) {
       return res.status(503).json({ error: 'Server starting up — please try again in a few seconds / الخادم يبدأ — حاول مرة أخرى' });
     }
-    const user = await User.findOne({ email });
+    const user = await getUserModel().findOne({ email });
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
     if (user.isBanned && (!user.banExpiresAt || user.banExpiresAt > new Date()))
       return res.status(403).json({ error: 'Banned', until: user.banExpiresAt });
@@ -439,7 +443,7 @@ router.put('/me', auth, async (req, res) => {
     if (showWhatsapp !== undefined) update.showWhatsapp = Boolean(showWhatsapp);
     // ──────────────────────────────────────────────────────────────────────
 
-    const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password -registrationIp');
+    const user = await getUserModel().findByIdAndUpdate(req.user.id, update, { new: true });
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -449,7 +453,7 @@ router.put('/me', auth, async (req, res) => {
 // Used by profile/edit page and other client components
 router.get('/me', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password -registrationIp -fcmToken');
+    const user = await getUserModel().findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }

@@ -1,6 +1,10 @@
 import express from 'express';
 import { writeFile, unlink } from 'fs/promises';
 import Ad from '../models/Ad.js';
+import { dbState, MemAd } from '../server/memoryStore.js';
+
+// Use in-memory store when MongoDB is unavailable
+function getAdModel() { return dbState.usingMemoryStore ? MemAd : Ad; }
 import { auth } from '../middleware/auth.js';
 import { moderateText, moderateImage } from '../server/moderation.js';
 import { checkDuplicate } from '../server/duplicateDetector.js';
@@ -145,7 +149,7 @@ router.get('/', async (req, res) => {
     const regularFilter = { ...filter };
     if (featuredIds.length) regularFilter._id = { $nin: featuredIds };
 
-    const regularAds = await Ad.find(regularFilter)
+    const regularAds = await getAdModel().find(regularFilter)
       .sort({ isFeatured: -1, featuredUntil: -1, visibilityScore: -1, createdAt: -1 })
       .skip(Number(page) * 20)
       .limit(20);
@@ -161,8 +165,8 @@ router.get('/', async (req, res) => {
 // GET user's own ads (active + expired)
 router.get('/my/all', auth, async (req, res) => {
   try {
-    const active = await Ad.find({ userId: req.user.id, isDeleted: false, isExpired: false }).sort({ createdAt: -1 });
-    const expired = await Ad.find({ userId: req.user.id, isDeleted: false, isExpired: true }).sort({ expiredAt: -1 });
+    const active = await getAdModel().find({ userId: req.user.id, isDeleted: false, isExpired: false });
+    const expired = await getAdModel().find({ userId: req.user.id, isDeleted: false, isExpired: true });
     const expiredWithDeadline = expired.map(ad => {
       const expiredAt = ad.expiredAt || ad.expiresAt;
       const deadlineMs = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
@@ -177,7 +181,7 @@ router.get('/my/all', auth, async (req, res) => {
 // ── GET single ad ──
 router.get('/:id', async (req, res) => {
   try {
-    const ad = await Ad.findById(req.params.id).populate('userId', 'name avatar lastActive');
+    const ad = await getAdModel().findById(req.params.id);
     if (!ad) return res.status(404).json({ error: 'Not found' });
     ad.views++; await ad.save();
     await rankAd(ad).catch(() => {});
@@ -190,7 +194,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     // ── MONGODB CONNECTION CHECK — return 503 instead of buffering 10s ───────
-    if (mongoose.connection.readyState !== 1) {
+    if (mongoose.connection.readyState !== 1 && !dbState.usingMemoryStore) {
       return res.status(503).json({
         error: 'الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد ثوانٍ',
         message: 'Database not ready. Please retry in a few seconds.',
@@ -205,7 +209,7 @@ router.post('/', auth, async (req, res) => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    const todayCount = await Ad.countDocuments({
+    const todayCount = await getAdModel().countDocuments({
       userId: req.user.id,
       createdAt: { $gte: startOfDay, $lte: endOfDay },
       isDeleted: { $ne: true }
@@ -285,7 +289,7 @@ router.post('/', auth, async (req, res) => {
     // ENSURE COUNTRY EXISTS
     await getOrCreateCountry(country, country).catch(() => {});
 
-    const ad = await Ad.create({
+    const ad = await getAdModel().create({
       userId: req.user.id,
       title,
       title_original: title,
@@ -422,7 +426,7 @@ router.put('/:id', auth, async (req, res) => {
     const { title, description, category, price, city, currency, media, video, featuredStyle } = sanitized;
 
     // Ownership check — only the original owner may edit
-    const ad = await Ad.findOne({ _id: req.params.id, userId: req.user.id, isDeleted: false });
+    const ad = await getAdModel().findOne({ _id: req.params.id, userId: req.user.id, isDeleted: false });
     if (!ad) return res.status(404).json({ error: 'Ad not found or not owned by you' });
 
     // TEXT MODERATION on updated content
@@ -472,7 +476,7 @@ router.delete('/:id', auth, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' || req.user.role === 'sub_admin';
     const query = isAdmin ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
-    const ad = await Ad.findOne(query);
+    const ad = await getAdModel().findOne(query);
     if (!ad) return res.status(404).json({ error: 'Not found' });
     ad.isDeleted = true; ad.deletedAt = new Date(); await ad.save();
     res.json({ ok: true });
@@ -482,7 +486,7 @@ router.delete('/:id', auth, async (req, res) => {
 // REPUBLISH expired ad (within 7-day grace period only)
 router.post('/:id/republish', auth, async (req, res) => {
   try {
-    const ad = await Ad.findOne({ _id: req.params.id, userId: req.user.id, isExpired: true });
+    const ad = await getAdModel().findOne({ _id: req.params.id, userId: req.user.id, isExpired: true });
     if (!ad) return res.status(404).json({ error: 'Expired ad not found' });
 
     const expiredAt = ad.expiredAt || ad.expiresAt;
@@ -505,10 +509,10 @@ router.post('/:id/republish', auth, async (req, res) => {
 // ── PATCH /:id/view — increment view count (called by AdCard on mount) ──────
 router.patch('/:id/view', async (req, res) => {
   try {
-    const ad = await Ad.findByIdAndUpdate(
+    const ad = await getAdModel().findByIdAndUpdate(
       req.params.id,
       { $inc: { views: 1 } },
-      { new: true, select: 'views _id' }
+      { new: true }
     );
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
     res.json({ views: ad.views });

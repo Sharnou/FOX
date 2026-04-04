@@ -6,6 +6,8 @@
  * Stores score as aiQualityScore on the ad document
  */
 
+import { ollamaScoreAd, isOllamaEnabled } from './ollamaFallback.js';
+
 const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB9gDslfSnbtL5G-yNzrzDs9j3zNN3-Sc8';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
 
@@ -53,8 +55,13 @@ export async function scoreAdWithAI(ad) {
     });
 
     if (!res.ok) {
-      console.warn('[AIQuality] Gemini error:', res.status);
-      return { score: calculateOfflineScore(ad), tips: [] };
+      console.warn('[AIQuality] Gemini HTTP error:', res.status);
+      // Try Ollama fallback
+      if (isOllamaEnabled()) {
+        const ollamaResult = await ollamaScoreAd(ad).catch(() => null);
+        if (ollamaResult) return { score: ollamaResult.score, tips: ollamaResult.tips, source: 'ollama' };
+      }
+      return { score: calculateOfflineScore(ad), tips: [], source: 'rules' };
     }
 
     const data = await res.json();
@@ -66,9 +73,22 @@ export async function scoreAdWithAI(ad) {
     const score = Math.min(100, Math.max(0, Number(result.score) || 0));
     return { score, tips: result.tips || [] };
   } catch (e) {
-    console.warn('[AIQuality] Error:', e.message);
-    // Fallback to offline scoring
-    return { score: calculateOfflineScore(ad), tips: [] };
+    console.warn('[AIQuality] Gemini error:', e.message);
+
+    // Try Ollama fallback (if OLLAMA_URL is configured)
+    if (isOllamaEnabled()) {
+      try {
+        const ollamaResult = await ollamaScoreAd(ad);
+        if (ollamaResult) {
+          return { score: ollamaResult.score, tips: ollamaResult.tips, source: 'ollama' };
+        }
+      } catch (ollamaErr) {
+        console.warn('[AIQuality] Ollama also failed:', ollamaErr.message);
+      }
+    }
+
+    // Final fallback: rule-based offline scoring (always works, no network needed)
+    return { score: calculateOfflineScore(ad), tips: ['أضف صوراً للإعلان', 'اكتب وصفاً مفصلاً', 'حدد سعراً مناسباً'], source: 'rules' };
   }
 }
 
