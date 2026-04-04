@@ -44,6 +44,19 @@ export default function ProfilePage() {
   const [name, setName] = useState(user.name || '');
   const [avatar, setAvatar] = useState(user.avatar || '');
   const [reviewsOpen, setReviewsOpen] = useState(false);
+  // ── FIX 4: Chat toggle state ──────────────────────────────────────────
+  const [chatEnabled, setChatEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      return u.chatEnabled !== false; // default true
+    } catch { return true; }
+  });
+  const [chatToggling, setChatToggling] = useState(false);
+  const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+  const token = typeof window !== 'undefined'
+    ? (localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('xtox_admin_token') || '')
+    : '';
 
   // Seller stats derived from localStorage
   const myAdsCount = typeof window !== 'undefined' ? (() => {
@@ -105,6 +118,56 @@ export default function ProfilePage() {
               <span className="inline-block bg-brand text-white text-xs rounded-full px-1.5 leading-tight">{savedCount}</span>
             )}
           </a>
+        </div>
+      </div>
+
+      {/* ── FIX 4: Chat Enable/Disable Toggle ─────────────────────────────── */}
+      <div className="bg-white rounded-2xl shadow mb-4" dir="rtl">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px' }}>
+          <div>
+            <div style={{ fontWeight: 600, color: '#1a1a2e', fontSize: 14 }}>💬 السماح بالمحادثة</div>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>السماح للمشترين بمراسلتك مباشرة</div>
+          </div>
+          <button
+            disabled={chatToggling}
+            onClick={async () => {
+              if (chatToggling) return;
+              setChatToggling(true);
+              try {
+                const res = await fetch(`${API}/api/users/chat-toggle`, {
+                  method: 'PATCH',
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                const newVal = res.ok ? data.chatEnabled : !chatEnabled;
+                setChatEnabled(newVal);
+                // Update localStorage
+                try {
+                  const u = JSON.parse(localStorage.getItem('user') || '{}');
+                  u.chatEnabled = newVal;
+                  localStorage.setItem('user', JSON.stringify(u));
+                } catch {}
+              } catch {
+                setChatEnabled(prev => !prev); // optimistic fallback
+              } finally {
+                setChatToggling(false);
+              }
+            }}
+            style={{
+              width: 52, height: 28, borderRadius: 14, border: 'none', cursor: chatToggling ? 'not-allowed' : 'pointer',
+              background: chatEnabled ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : '#d1d5db',
+              transition: 'background 0.3s', position: 'relative', opacity: chatToggling ? 0.7 : 1,
+            }}
+            title={chatEnabled ? 'إيقاف المحادثة' : 'تفعيل المحادثة'}
+          >
+            <div style={{
+              width: 22, height: 22, borderRadius: '50%', background: 'white',
+              position: 'absolute', top: 3,
+              right: chatEnabled ? 3 : undefined,
+              left: chatEnabled ? undefined : 3,
+              transition: 'all 0.3s',
+            }} />
+          </button>
         </div>
       </div>
 

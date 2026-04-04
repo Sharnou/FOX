@@ -26,6 +26,7 @@ const UserSchema = new mongoose.Schema(
     isSimulation: Boolean,
     showPhone: { type: Boolean, default: false },
     showWhatsapp: { type: Boolean, default: false },
+    chatEnabled: { type: Boolean, default: true },   // allow buyers to message seller directly
     favorites: [String],
     blockedUsers: [String],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ad' }],

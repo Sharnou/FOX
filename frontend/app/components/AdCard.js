@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import AIQualityBadge from './AIQualityBadge';
 
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality, w_400=resize)
@@ -9,14 +11,12 @@ function optimizeImage(url, width = 400) {
   return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
 }
 
-
 // Convert Western numerals to Arabic-Indic numerals for RTL UI
 function toArabicNumerals(n) {
   return String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
 }
 
 // ── Run 107: Ad Expiry Countdown — helper ─────────────────────────────────
-// Ads expire 30 days after createdAt; returns days remaining (negative = expired)
 function getDaysLeft(createdAt) {
   if (!createdAt) return null;
   const created = new Date(createdAt);
@@ -27,8 +27,6 @@ function getDaysLeft(createdAt) {
 }
 // ──────────────────────────────────────────────────────────────────────────
 
-
-// ★ Seller Rating Stars — run 36: switched from inline style to Tailwind className
 function StarRating({ rating, count }) {
   if (rating === null || rating === undefined) {
     return (
@@ -59,9 +57,6 @@ function StarRating({ rating, count }) {
   );
 }
 
-// ── Run 84: Condition badge ────────────────────────────────────────────────
-// Shows item condition as a colored badge on each AdCard
-// Matches the CONDITIONS enum in sell/page.js and backend/models/Ad.js
 const CONDITION_MAP = {
   new:       { ar: 'جديد',     bg: '#dcfce7', color: '#15803d', icon: '✨' },
   excellent: { ar: 'ممتاز',    bg: '#dbeafe', color: '#1d4ed8', icon: '⭐' },
@@ -92,40 +87,42 @@ function ConditionBadge({ condition }) {
     </span>
   );
 }
-// ──────────────────────────────────────────────────────────────────────────
 
 export default function AdCard({ ad }) {
+  const router = useRouter();
   const [shared, setShared] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savingBookmark, setSavingBookmark] = useState(false);
-  // ── Run 94: view counter state — live-updated after PATCH /api/ads/:id/view ──
   const [viewCount, setViewCount] = useState(ad?.views || 0);
+  // ── FIX 1: track broken image to show placeholder ──────────────────────
+  const [imgError, setImgError] = useState(false);
+
+  // Normalize ad id — MongoDB returns _id, some APIs return id
+  const adId = ad?._id || ad?.id;
 
   // Load saved state from localStorage wishlist on mount
   useEffect(() => {
-    if (!ad?._id) return;
+    if (!adId) return;
     try {
       const wishlist = JSON.parse(localStorage.getItem('xtox_wishlist') || '[]');
-      setSaved(wishlist.includes(String(ad._id)));
+      setSaved(wishlist.includes(String(adId)));
     } catch {
       // ignore parse errors
     }
-  }, [ad?._id]);
+  }, [adId]);
 
-  // ── Run 94: Increment view count when card mounts (non-blocking, silent fail) ──
+  // ── Increment view count when card mounts (non-blocking, silent fail) ──
   useEffect(() => {
-    if (!ad?._id) return;
+    if (!adId) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    fetch(`${apiUrl}/api/ads/${ad._id}/view`, { method: 'PATCH' })
+    fetch(`${apiUrl}/api/ads/${adId}/view`, { method: 'PATCH' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.views != null) setViewCount(data.views); })
       .catch(() => {}); // silent — view count is non-critical
-  }, [ad?._id]);
-  // ─────────────────────────────────────────────────────────────────────────────
+  }, [adId]);
 
   if (!ad) return null;
 
-  // Support sellerRating / rating fields; fall back to reputation for backwards compat
   const rating =
     ad.sellerRating ??
     ad.rating ??
@@ -133,7 +130,6 @@ export default function AdCard({ ad }) {
     ad.reputation ??
     null;
 
-  // Support multiple possible count field names
   const ratingCount =
     ad.ratingCount ??
     ad.ratingsCount ??
@@ -144,7 +140,7 @@ export default function AdCard({ ad }) {
     e.preventDefault();
     e.stopPropagation();
 
-    const adUrl = `${window.location.origin}/ads/${ad._id || ad.id}`;
+    const adUrl = `${window.location.origin}/ads/${adId}`;
     const shareData = {
       title: ad.title,
       text: ad.description || ad.title,
@@ -171,17 +167,16 @@ export default function AdCard({ ad }) {
     const token =
       localStorage.getItem('token') || localStorage.getItem('authToken');
 
-    const adId = String(ad._id);
+    const adIdStr = String(adId);
 
     if (!token) {
-      // Guest mode: toggle localStorage only, no API call
       try {
         const wishlist = JSON.parse(localStorage.getItem('xtox_wishlist') || '[]');
         let updated;
         if (saved) {
-          updated = wishlist.filter((id) => id !== adId);
+          updated = wishlist.filter((id) => id !== adIdStr);
         } else {
-          updated = [...wishlist, adId];
+          updated = [...wishlist, adIdStr];
         }
         localStorage.setItem('xtox_wishlist', JSON.stringify(updated));
         setSaved(!saved);
@@ -191,14 +186,13 @@ export default function AdCard({ ad }) {
       return;
     }
 
-    // Authenticated: optimistic update then API call
     setSavingBookmark(true);
     const prevSaved = saved;
     setSaved(!saved);
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/wishlist/${adId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/wishlist/${adIdStr}`,
         {
           method: saved ? 'DELETE' : 'POST',
           headers: { Authorization: 'Bearer ' + token },
@@ -206,28 +200,53 @@ export default function AdCard({ ad }) {
       );
       if (!res.ok) throw new Error('API error');
 
-      // Sync localStorage
       const wishlist = JSON.parse(localStorage.getItem('xtox_wishlist') || '[]');
       let updated;
       if (prevSaved) {
-        updated = wishlist.filter((id) => id !== adId);
+        updated = wishlist.filter((id) => id !== adIdStr);
       } else {
-        updated = [...wishlist, adId];
+        updated = [...wishlist, adIdStr];
       }
       localStorage.setItem('xtox_wishlist', JSON.stringify(updated));
     } catch {
-      // Revert on error
       setSaved(prevSaved);
     } finally {
       setSavingBookmark(false);
     }
   };
 
+  // ── FIX 3: Chat button handler ──────────────────────────────────────────
+  const handleChat = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const token =
+      localStorage.getItem('token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('xtox_admin_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    const sellerId = ad.userId?._id || ad.userId?.id || ad.userId || ad.sellerId;
+    router.push(`/chat?adId=${adId}&sellerId=${sellerId}`);
+  };
+
+  // ── FIX 1: Get the best image URL with fallback ─────────────────────────
+  const rawImageUrl = ad.media?.[0] || ad.images?.[0] || null;
+  const imageUrl = rawImageUrl ? optimizeImage(rawImageUrl) : null;
+  const showPlaceholder = !imageUrl || imgError;
+
+  // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
+  const adDetailUrl = `/ads/${adId}`;
+
   return (
-    <a href={`/ads/${ad._id}`} className="bg-white rounded-xl transition block slide-in relative"
+    // FIX 2: Use Next.js Link for correct navigation; normalized adId
+    <Link href={adDetailUrl} className="bg-white rounded-xl transition block slide-in relative"
       style={{
         border: ad.isFeatured ? '2px solid #FFD700' : '1px solid #eee',
         boxShadow: ad.isFeatured ? '0 4px 16px rgba(255,165,0,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
+        textDecoration: 'none',
+        color: 'inherit',
       }}>
       {ad.isFeatured && (
         <div style={{
@@ -241,7 +260,6 @@ export default function AdCard({ ad }) {
           ⭐ مميز
         </div>
       )}
-      {/* ── Run 94: Trending badge — shown when views exceed 100 ────────────── */}
       {viewCount > 100 && (
         <div style={{
           position:'absolute', top:8, left: ad.isFeatured ? 72 : 8, zIndex:5,
@@ -254,7 +272,6 @@ export default function AdCard({ ad }) {
           🔥 رائج
         </div>
       )}
-      {/* ──────────────────────────────────────────────────────────────────────── */}
       {/* Share button */}
       <button
         onClick={handleShare}
@@ -278,94 +295,76 @@ export default function AdCard({ ad }) {
         {saved ? '❤️' : '🤍'}
       </button>
 
-      {ad.media?.[0] ? (
+      {/* ── FIX 1: Image with fallback + onError handler ─────────────────── */}
+      {!showPlaceholder ? (
         <div className="relative w-full h-44 overflow-hidden rounded-t-xl">
           <img
             loading="lazy"
-            src={optimizeImage(ad.media[0])}
+            src={imageUrl}
             className="w-full h-full object-cover img-blur-load"
             alt={ad.title}
             onLoad={e => e.target.classList.add('loaded')}
+            onError={() => setImgError(true)}
           />
-        {/* ── Run 107: Ad Expiry Countdown Badge ── */}
-        {(() => {
-          const daysLeft = getDaysLeft(ad.createdAt);
-          if (daysLeft === null) return null;
-          const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
-          const label = typeof window !== 'undefined' && document.documentElement.dir === 'rtl'
-            ? (daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`)
-            : (daysLeft <= 0 ? 'Expired' : `${daysLeft}d left`);
-          return (
-            <span style={{
-              position: 'absolute',
-              bottom: '8px',
-              left: '8px',
-              background: color,
-              color: '#fff',
-              fontSize: '10px',
-              fontWeight: '700',
-              padding: '2px 7px',
-              borderRadius: '999px',
-              zIndex: 10,
-              letterSpacing: '0.02em',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
-              pointerEvents: 'none',
-            }}>
-              {label}
-            </span>
-          );
-        })()}
+          {/* Ad Expiry Countdown Badge */}
+          {(() => {
+            const daysLeft = getDaysLeft(ad.createdAt);
+            if (daysLeft === null) return null;
+            const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
+            const label = daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`;
+            return (
+              <span style={{
+                position: 'absolute', bottom: '8px', left: '8px',
+                background: color, color: '#fff', fontSize: '10px',
+                fontWeight: '700', padding: '2px 7px', borderRadius: '999px',
+                zIndex: 10, letterSpacing: '0.02em',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.18)', pointerEvents: 'none',
+              }}>
+                {label}
+              </span>
+            );
+          })()}
         </div>
       ) : (
-        <div className="relative w-full h-44 bg-gray-200 rounded-t-xl flex items-center justify-center text-4xl">
-          📦
-        {/* ── Run 107: Ad Expiry Countdown Badge ── */}
-        {(() => {
-          const daysLeft = getDaysLeft(ad.createdAt);
-          if (daysLeft === null) return null;
-          const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
-          const label = typeof window !== 'undefined' && document.documentElement.dir === 'rtl'
-            ? (daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`)
-            : (daysLeft <= 0 ? 'Expired' : `${daysLeft}d left`);
-          return (
-            <span style={{
-              position: 'absolute',
-              bottom: '8px',
-              left: '8px',
-              background: color,
-              color: '#fff',
-              fontSize: '10px',
-              fontWeight: '700',
-              padding: '2px 7px',
-              borderRadius: '999px',
-              zIndex: 10,
-              letterSpacing: '0.02em',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
-              pointerEvents: 'none',
-            }}>
-              {label}
-            </span>
-          );
-        })()}
+        <div className="relative w-full h-44 overflow-hidden rounded-t-xl">
+          {/* FIX 1: Show no-image.svg placeholder when image is missing or broken */}
+          <img
+            src="/no-image.svg"
+            className="w-full h-full object-cover"
+            alt="لا توجد صورة"
+          />
+          {/* Ad Expiry Countdown Badge */}
+          {(() => {
+            const daysLeft = getDaysLeft(ad.createdAt);
+            if (daysLeft === null) return null;
+            const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
+            const label = daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`;
+            return (
+              <span style={{
+                position: 'absolute', bottom: '8px', left: '8px',
+                background: color, color: '#fff', fontSize: '10px',
+                fontWeight: '700', padding: '2px 7px', borderRadius: '999px',
+                zIndex: 10, letterSpacing: '0.02em',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.18)', pointerEvents: 'none',
+              }}>
+                {label}
+              </span>
+            );
+          })()}
         </div>
       )}
+
       <div className="p-3">
         <p className="font-bold text-sm line-clamp-2">{ad.title}</p>
-        {/* Run 84: condition badge + negotiable tag */}
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
           <ConditionBadge condition={ad.condition} />
           {ad.negotiable && (
             <span
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 2,
-                padding: '2px 7px',
-                borderRadius: 8,
-                background: '#fff7ed',
-                color: '#c2410c',
-                fontSize: 11,
-                fontWeight: 700,
+                display: 'inline-flex', alignItems: 'center', gap: 2,
+                padding: '2px 7px', borderRadius: 8,
+                background: '#fff7ed', color: '#c2410c',
+                fontSize: 11, fontWeight: 700,
               }}
               aria-label="السعر قابل للتفاوض"
             >
@@ -389,7 +388,7 @@ export default function AdCard({ ad }) {
             </a>
           )}
         </div>
-        {/* ── Price Drop Badge: shown when ad.originalPrice > ad.price ── */}
+        {/* Price with drop badge */}
         <div className="mt-1 flex items-center gap-2 flex-wrap">
           <p className="text-brand font-bold m-0">{ad.price} {ad.currency}</p>
           {ad.originalPrice && ad.originalPrice > ad.price && (() => {
@@ -400,15 +399,10 @@ export default function AdCard({ ad }) {
                   {ad.originalPrice} {ad.currency}
                 </span>
                 <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '2px 7px',
-                  borderRadius: 8,
-                  background: '#fee2e2',
-                  color: '#dc2626',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  marginInlineStart: 2,
+                  display: 'inline-flex', alignItems: 'center',
+                  padding: '2px 7px', borderRadius: 8,
+                  background: '#fee2e2', color: '#dc2626',
+                  fontSize: 11, fontWeight: 700, marginInlineStart: 2,
                 }}>
                   خصم {toArabicNumerals(discountPercent)}٪
                 </span>
@@ -425,9 +419,27 @@ export default function AdCard({ ad }) {
           <StarRating rating={rating} count={ratingCount} />
           {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
         </div>
-        {/* Run 94: viewCount from live state (updated by PATCH /api/ads/:id/view) */}
-        <p className="text-xs text-gray-500 mt-1">👁 {viewCount} | {ad.city}</p>
+        {/* ── FIX 3: Chat button — bottom left of card info ────────────────── */}
+        <div className="mt-2 flex items-center justify-between">
+          <p className="text-xs text-gray-500 m-0">👁 {viewCount} | {ad.city}</p>
+          {/* Show chat button unless seller explicitly disabled it */}
+          {ad.sellerChatEnabled !== false && (
+            <button
+              onClick={handleChat}
+              title="تواصل مع البائع"
+              style={{
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                border: 'none', borderRadius: '50%', width: 36, height: 36,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
+                fontSize: 16, flexShrink: 0,
+              }}
+            >
+              💬
+            </button>
+          )}
+        </div>
       </div>
-    </a>
+    </Link>
   );
 }

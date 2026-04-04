@@ -459,4 +459,19 @@ router.get('/me', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// ── FIX 4: Chat enable/disable toggle for sellers ──────────────────────────
+router.patch('/chat-toggle', auth, async (req, res) => {
+  try {
+    const UserModel = getUserModel();
+    const user = await UserModel.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.chatEnabled = !user.chatEnabled;
+    await user.save();
+    res.json({ chatEnabled: user.chatEnabled });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

@@ -96,13 +96,24 @@ export default function AdminPage() {
   const hasActiveFilters = userSearch || userCountryFilter || adSearch || adCategoryFilter;
 
   useEffect(() => {
+    // ── FIX 5: More robust session restore — check both token key variants ──
     try {
-      const stored = localStorage.getItem('xtox_admin_token');
-      const user = JSON.parse(localStorage.getItem('xtox_admin_user') || '{}');
-      if (stored && ['admin', 'sub_admin', 'superadmin'].includes(user.role)) {
-        setToken(stored);
-        setAuthed(true);
-        fetchAll(stored);
+      const stored =
+        localStorage.getItem('xtox_admin_token') ||
+        localStorage.getItem('token') ||
+        localStorage.getItem('authToken');
+      const userStr =
+        localStorage.getItem('xtox_admin_user') ||
+        localStorage.getItem('user') ||
+        localStorage.getItem('currentUser');
+      if (stored && userStr) {
+        const user = JSON.parse(userStr);
+        const role = user?.role || '';
+        if (['admin', 'sub_admin', 'superadmin'].includes(role)) {
+          setToken(stored);
+          setAuthed(true);
+          fetchAll(stored);
+        }
       }
     } catch {}
   }, []);
@@ -117,39 +128,52 @@ export default function AdminPage() {
   }, [tab, authed, token]);
 
 
-  async function login() {
+  // ── FIX 5: Bulletproof admin login handler ────────────────────────────────
+  async function login(e) {
+    e?.preventDefault?.();
+    if (!loginEmail.trim() || !loginPass) {
+      setLoginErr('يرجى إدخال البريد الإلكتروني وكلمة المرور');
+      return;
+    }
     setLoginErr('');
     setLoginLoading(true);
     try {
-      const res = await fetch(`${RAILWAY}/api/users/login`, {
+      const API = process.env.NEXT_PUBLIC_API_URL || RAILWAY;
+      const res = await fetch(`${API}/api/users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ email: loginEmail.trim().toLowerCase(), password: loginPass })
       });
-      const data = await res.json().catch(() => ({}));
+      let data = {};
+      try { data = await res.json(); } catch {}
       if (!res.ok) {
         setLoginErr(data.error || data.message || `خطأ ${res.status}: ${res.statusText}`);
         setLoginLoading(false);
         return;
       }
-      if (!data.token) { setLoginErr('No token received from server'); setLoginLoading(false); return; }
-      if (!['admin', 'sub_admin', 'superadmin'].includes(data.user?.role)) {
+      const token = data.token;
+      const user = data.user;
+      if (!token) {
+        setLoginErr('لم يتم استقبال رمز المصادقة من الخادم');
+        setLoginLoading(false);
+        return;
+      }
+      const role = user?.role || '';
+      if (!['admin', 'sub_admin', 'superadmin'].includes(role)) {
         setLoginErr('ليس لديك صلاحية الوصول للوحة الإدارة — Admin account required');
         setLoginLoading(false);
         return;
       }
-      // Save to BOTH key sets so rest of app (sell, profile, chat) also sees the session
-      localStorage.setItem('xtox_admin_token', data.token);
-      localStorage.setItem('xtox_admin_user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('userId', data.user?.id || data.user?._id || '');
-      localStorage.setItem('country', data.user?.country || 'EG');
-      setToken(data.token);
+      // Save to ALL possible key variants for maximum compatibility
+      ['xtox_admin_token', 'token', 'authToken'].forEach(k => localStorage.setItem(k, token));
+      ['xtox_admin_user', 'user', 'currentUser'].forEach(k => localStorage.setItem(k, JSON.stringify(user)));
+      localStorage.setItem('userId', user?._id || user?.id || '');
+      localStorage.setItem('country', user?.country || 'EG');
+      setToken(token);
       setAuthed(true);
-      fetchAll(data.token);
+      fetchAll(token);
     } catch (e) {
-      setLoginErr(`Connection failed: ${e.message}. Check Railway is online.`);
+      setLoginErr(`فشل الاتصال: ${e.message}. تحقق من Railway`);
     }
     setLoginLoading(false);
   }
