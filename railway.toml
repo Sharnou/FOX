@@ -1,9 +1,9 @@
 [build]
-builder = "RAILPACK"
-buildCommand = "cd backend && npm install"
+builder = "NIXPACKS"
+buildCommand = "cd backend && npm install --legacy-peer-deps"
 
 [deploy]
-startCommand = "node backend/server/index.js"
+startCommand = "cd backend && node server/index.js"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
