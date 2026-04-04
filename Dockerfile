@@ -1,7 +1,7 @@
 FROM node:22-alpine
 
 # Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init wget
 
 WORKDIR /app
 
@@ -19,6 +19,10 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
+
+# Docker-level healthcheck — confirms server responds on GET /
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget -qO- http://0.0.0.0:${PORT:-3000}/ || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]

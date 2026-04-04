@@ -117,6 +117,32 @@ if (compression) app.use(compression());
 if (helmet) app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: false }));
 
 app.use(express.json({ limit: '10mb' }));
+
+// ─── Health route FIRST — must respond immediately for Railway healthcheck ────
+app.get('/', (_, res) => {
+  const connState = mongoose.connection.readyState;
+  const stateNames = ['disconnected','connected','connecting','disconnecting'];
+  res.json({
+    status: 'XTOX Backend v2.0 ✅',
+    time: new Date().toISOString(),
+    admin: '[REDACTED - set via env vars]',
+    env: {
+      mongoConnected: connState === 1,
+      mongoState: stateNames[connState] || 'unknown',
+      mongoUriSource: process.env.MONGO_URL ? 'MONGO_URL ✅' :
+                      process.env.MONGO_URI ? 'MONGO_URI' :
+                      process.env.MONGODB_URL ? 'MONGODB_URL' :
+                      process.env.MONGOURL ? 'MONGOURL' :
+                      process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' :
+                      process.env.MONGOHOST ? 'CONSTRUCTED' :
+                      'HARDCODED_ATLAS_FALLBACK',
+      jwtSet: !!process.env.JWT_SECRET,
+      couchbaseConnected: couchbaseCluster !== null,
+      frontendUrl: process.env.FRONTEND_URL || 'not set'
+    }
+  });
+});
+// ─────────────────────────────────────────────────────────────────────────────
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
 // ─── Cache-Control Middleware ───────────────────────────────────────────────
@@ -208,29 +234,6 @@ app.get('/api/metrics', (req, res) => {
 
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
-app.get('/', (_, res) => {
-  const connState = mongoose.connection.readyState;
-  const stateNames = ['disconnected','connected','connecting','disconnecting'];
-  res.json({
-    status: 'XTOX Backend v2.0 ✅',
-    time: new Date().toISOString(),
-    admin: '[REDACTED - set via env vars]',
-    env: {
-      mongoConnected: connState === 1,
-      mongoState: stateNames[connState] || 'unknown',
-      mongoUriSource: process.env.MONGO_URL ? 'MONGO_URL ✅' :
-                      process.env.MONGO_URI ? 'MONGO_URI' :
-                      process.env.MONGODB_URL ? 'MONGODB_URL' :
-                      process.env.MONGOURL ? 'MONGOURL' :
-                      process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' :
-                      process.env.MONGOHOST ? 'CONSTRUCTED' :
-                      'HARDCODED_ATLAS_FALLBACK',
-      jwtSet: !!process.env.JWT_SECRET,
-      couchbaseConnected: couchbaseCluster !== null,
-      frontendUrl: process.env.FRONTEND_URL || 'not set'
-    }
-  });
-});
 
 
 // Run seeds only once — check a flag in DB to avoid re-seeding on every restart
@@ -299,8 +302,8 @@ setInterval(async () => {
 
 // ─── Start HTTP server IMMEDIATELY so Railway healthcheck passes ────────────
 // server.listen runs BEFORE MongoDB connects — healthcheck GET / always returns 200
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+const PORT = parseInt(process.env.PORT, 10) || 3000;
+server.listen(PORT, '0.0.0.0', () => {
   logger.info(`XTOX running on port ${PORT}`);
 
   // ── Startup env var check — log what's missing so Railway is easy to configure ──

@@ -2,15 +2,7 @@
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
-[build.nixpacksVariables]
-NIXPACKS_NODE_VERSION = "22"
-
-[variables]
-NIXPACKS_NODE_VERSION = "22"
-NODE_VERSION = "22"
-
 [deploy]
-startCommand = "node server/index.js"
 healthcheckPath = "/"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
