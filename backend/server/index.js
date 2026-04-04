@@ -7,6 +7,18 @@ if (process.env.REDIS_URL &&
   process.env.REDIS_URL = '';
 }
 
+
+// ─── Global crash guards — prevent Railway from restarting on uncaught errors ────
+// Node.js 24.x kills process on unhandledRejection by default; these prevent that
+process.on('uncaughtException', (err) => {
+  console.error('[CRASH] Uncaught Exception:', err.message, err.stack);
+  // Don't exit — let Railway keep the server alive
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRASH] Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit — log and continue
+});
+// ────────────────────────────────────────────────────────────────────────────────
 import 'dotenv/config';
 import express from 'express';
 import http from 'http';
@@ -409,5 +421,5 @@ if (!finalMongoUri) {
 }
 
 
-// redeploy: 1775291619580
+// redeploy: 1775310782345
 
