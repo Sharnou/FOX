@@ -6,7 +6,7 @@ const BASE_URL = process.env.FRONTEND_URL || 'https://fox-kohl-eight.vercel.app'
 
 router.get('/sitemap.xml', async (req, res) => {
   try {
-    const ads = await Ad.find({ isExpired: false, isDeleted: false }).select('_id updatedAt createdAt').limit(1000);
+    const ads = await Ad.find({ isExpired: { $ne: true }, isDeleted: { $ne: true } }).select('_id updatedAt createdAt').limit(1000);
     const staticPages = ['', '/about', '/privacy', '/terms', '/search', '/nearby'];
     const adUrls = ads.map(ad => `
   <url>
