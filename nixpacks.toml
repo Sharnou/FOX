@@ -1,11 +1,8 @@
-[phases.setup]
-nixPkgs = ["nodejs_24"]
-
-[phases.install]
-cmds = ["cd backend && npm install --legacy-peer-deps"]
+[variables]
+NODE_VERSION = "24"
 
 [phases.build]
-cmds = []
+cmds = ["cd backend && npm install --legacy-peer-deps"]
 
 [start]
 cmd = "cd backend && node server/index.js"
