@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import SwipeAdCard from '../components/SwipeAdCard';
+import { detectLang } from '../../lib/lang';
 
 const TRANSLATIONS = {
   ar: {

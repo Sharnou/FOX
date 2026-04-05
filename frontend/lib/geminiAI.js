@@ -4,16 +4,23 @@
  * Uses Gemini 1.5 Flash for fast, cost-effective inference.
  */
 
-const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_KEY || 'AIzaSyB9gDslfSnbtL5G-yNzrzDs9j3zNN3-Sc8';
+const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
 
-async function callGemini(prompt, imageBase64 = null) {
+async function callGemini(prompt, imageBase64 = null, mimeType = 'image/jpeg') {
+  const key = process.env.NEXT_PUBLIC_GEMINI_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+  if (!key) throw new Error('No Gemini API key');
+  
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
   const parts = [{ text: prompt }];
+  
   if (imageBase64) {
     // Strip data URL prefix if present
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-    const mimeType = imageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-    parts.unshift({ inline_data: { mime_type: mimeType, data: base64Data } });
+    const base64Data = imageBase64.replace(/^data:[\w/]+;base64,/, '');
+    const detectedMime = imageBase64.startsWith('data:image/png') ? 'image/png'
+      : imageBase64.startsWith('data:image/webp') ? 'image/webp'
+      : mimeType;
+    parts.unshift({ inline_data: { mime_type: detectedMime, data: base64Data } });
   }
 
   const body = {
@@ -21,7 +28,7 @@ async function callGemini(prompt, imageBase64 = null) {
     generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
   };
 
-  const res = await fetch(GEMINI_URL, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -60,21 +67,21 @@ export async function getSmartSearchSuggestions(query) {
 
 /**
  * AI Image Analysis for Ad Creation
- * Returns suggested title, description, category, price
+ * Returns suggested title, description, category, condition, price
+ * @param {string} base64Image - base64 encoded image or data URL
+ * @param {string} mimeType - image MIME type (default: image/jpeg)
+ * @param {string} lang - language for response ('ar' or 'en')
  */
-export async function analyzeImageForAd(imageBase64) {
-  const prompt = `أنت خبير في تقييم المنتجات للبيع. حلل هذه الصورة وأعطني بيانات إعلان بيع مناسبة.
-أجب بـ JSON فقط (بالعربية):
-{
-  "title": "عنوان إعلان واضح ومحدد (10-60 حرف)",
-  "description": "وصف تفصيلي للمنتج (50-200 حرف)",
-  "category": "إحدى هذه الفئات: Vehicles, Electronics, Real Estate, Jobs, Services, Supermarket, Pharmacy, Fast Food, Fashion, General",
-  "suggestedPrice": رقم_السعر_التقريبي_بالدولار,
-  "condition": "إحدى: new, used, excellent, rent"
-}`;
+export async function analyzeImageForAd(base64Image, mimeType = 'image/jpeg', lang = 'ar') {
+  const key = process.env.NEXT_PUBLIC_GEMINI_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  if (!key) return null;
+
+  const prompt = lang === 'ar'
+    ? 'حلل هذه الصورة وأعطني بيانات الإعلان بالعربية: العنوان (title)، الوصف (description)، الفئة (category من: Vehicles/Electronics/Real Estate/Jobs/Services/Supermarket/Pharmacy/Fast Food/Fashion/General)، الحالة (condition: new/used/excellent/rent)، السعر المقترح (price كرقم). أجب بـ JSON فقط بدون markdown.'
+    : 'Analyze this image and give me ad data in English as JSON only (no markdown): title, description, category (one of: Vehicles/Electronics/Real Estate/Jobs/Services/Supermarket/Pharmacy/Fast Food/Fashion/General), condition (new/used/excellent/rent), price (number suggestion).';
 
   try {
-    const text = await callGemini(prompt, imageBase64);
+    const text = await callGemini(prompt, base64Image, mimeType);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     return JSON.parse(jsonMatch[0]);

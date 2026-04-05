@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import nextDynamic from 'next/dynamic';
 import AdCardSkeleton from '../components/AdCardSkeleton';
+import { detectLang } from '../../lib/lang';
 
 const AdCard = nextDynamic(() => import('../components/AdCard'), { ssr: false });
 
@@ -65,10 +66,7 @@ export default function SavedPage() {
   const t = TRANSLATIONS[lang];
   const isRtl = lang === 'ar';
 
-  useEffect(() => {
-    const stored = localStorage.getItem('xtox_lang');
-    if (stored === 'en' || stored === 'ar') setLang(stored);
-  }, []);
+  useEffect(() => { setLang(detectLang()); }, []);
 
   const toggleLang = () => {
     const next = lang === 'ar' ? 'en' : 'ar';

@@ -3,6 +3,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { detectLang } from '../../lib/lang';
 
 const LABELS = {
   ar: { title: 'الإعلانات الرائجة', hot: '🔥 رائج', noAds: 'لا توجد إعلانات رائجة حالياً', error: 'تعذّر تحميل الإعلانات' },

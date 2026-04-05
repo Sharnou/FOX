@@ -7,6 +7,7 @@ import AISearchBar from '../components/AISearchBar';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
 import SaveSearch from '../components/SaveSearch';
 import PriceAlert from '../components/PriceAlert';
+import { detectLang } from '../../lib/lang';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];

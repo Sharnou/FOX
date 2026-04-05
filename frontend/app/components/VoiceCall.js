@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { detectLang } from '../../lib/lang';
 
 // ── Translations ───────────────────────────────────────────────────────────────
 const TRANSLATIONS = {
