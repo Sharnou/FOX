@@ -6,7 +6,7 @@ const workerTypes = ['Plumber', 'Electrician', 'Carpenter', 'Cleaner', 'Painter'
 router.get('/types', (req, res) => res.json(workerTypes));
 router.get('/', async (req, res) => {
   const country = req.query.country || req.headers['x-user-country'];
-  const services = await Ad.find({ country, category: 'Services', isExpired: { $ne: true }, isDeleted: false }).sort({ createdAt: -1 }).limit(50);
+  const services = await Ad.find({ country, category: 'Services', isExpired: { $ne: true }, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(50);
   res.json(services);
 });
 router.post('/', auth, async (req, res) => {
