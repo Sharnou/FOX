@@ -91,7 +91,10 @@ app.use((req, res, next) => { _metricsRequestCount++; next(); });
 // ─── CORS config — permissive: all Vercel previews, Railway, localhost ──────
 const allowedOrigins = [
   'https://fox-kohl-eight.vercel.app',
+  'https://xtox-production.up.railway.app',
+  'https://xtox.up.railway.app',
   'http://localhost:3000',
+  'http://localhost:3001',
   /\.vercel\.app$/,
   /\.netlify\.app$/,
   /\.railway\.app$/,
@@ -123,6 +126,18 @@ if (helmet) app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPo
 app.use(express.json({ limit: '10mb' }));
 
 // ─── Health route FIRST — must respond immediately for Railway healthcheck ────
+app.get('/api/health', (_, res) => {
+  const connState = mongoose.connection.readyState;
+  const stateNames = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  res.json({
+    status: 'ok',
+    uptime: Math.floor(process.uptime()),
+    db: stateNames[connState] || 'unknown',
+    mongoConnected: connState === 1,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get('/', (_, res) => {
   const connState = mongoose.connection.readyState;
   const stateNames = ['disconnected','connected','connecting','disconnecting'];
@@ -393,7 +408,7 @@ setInterval(async () => {
 
 // ─── Start HTTP server IMMEDIATELY so Railway healthcheck passes ────────────
 // server.listen runs BEFORE MongoDB connects — healthcheck GET / always returns 200
-const PORT = parseInt(process.env.PORT, 10) || 3000;
+const PORT = parseInt(process.env.PORT, 10) || 3001;
 server.listen(PORT, '0.0.0.0', () => {
   logger.info(`XTOX running on port ${PORT}`);
 
@@ -421,6 +436,13 @@ server.listen(PORT, '0.0.0.0', () => {
 // ── DB startup race: MongoDB vs Couchbase — handled by dbManager ─────────────
 // connectDatabases() is called after server.listen (see below)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Global error handler ───────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('[Error]', err.message);
+  res.status(err.status || 500).json({ success: false, error: err.message || 'Internal server error' });
+});
+// ────────────────────────────────────────────────────────────────────────────
 
 // ── DB startup: race MongoDB vs Couchbase (handled by dbManager) ────────────
 connectDatabases().then(async (db) => {

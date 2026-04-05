@@ -210,7 +210,7 @@ router.post('/auth/microsoft', async (req, res) => {
     const user = await findOrCreateOAuthUser('microsoft', profile, ip, country);
     const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
     if (res.headersSent) return;
-    res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role } });
+    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar || null } });
   } catch (e) {
     if (!res.headersSent) res.status(400).json({ error: e.message });
   }
@@ -228,7 +228,7 @@ router.post('/auth/apple', async (req, res) => {
     const user = await findOrCreateOAuthUser('apple', profile, ip, country);
     const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
     if (res.headersSent) return;
-    res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role } });
+    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar || null } });
   } catch (e) {
     if (!res.headersSent) res.status(400).json({ error: e.message });
   }
@@ -407,7 +407,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!valid) return res.status(400).json({ error: 'Invalid credentials' });
     user.lastActive = new Date(); await user.save();
     const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
-    res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role } });
+    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar || null } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

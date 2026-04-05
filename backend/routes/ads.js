@@ -189,8 +189,9 @@ router.get('/', async (req, res) => {
     const normalizedRegular = regularAds.map(normalizeAd);
 
     // Return featured first, then ranked regular
+    const allAds = [...normalizedFeatured, ...normalizedRegular];
     res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
-    res.json([...normalizedFeatured, ...normalizedRegular]);
+    res.json({ success: true, ads: allAds, total: allAds.length, page: Number(page) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -470,7 +471,10 @@ router.post('/', auth, upload.fields([
       language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
       // FIX D: Only save location when coordinates are fully valid numbers and non-zero
       location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
-      visibilityScore: 10
+      visibilityScore: 10,
+      createdAt: new Date(),
+      isExpired: false,
+      isDeleted: false,
     });
 
     await rankAd(ad).catch(() => {});
