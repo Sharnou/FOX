@@ -52,6 +52,13 @@ export default function AdminPage() {
   const [liveLog, setLiveLog] = useState(['[SYSTEM] Admin panel loaded', '[DB] Connecting...']);
   const [stats, setStats] = useState({ users: 0, ads: 0, reports: 0 });
   const [token, setToken] = useState('');
+
+  // Helper: read token from ALL possible localStorage keys
+  const getAdminToken = () =>
+    localStorage.getItem('xtox_admin_token') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('xtox_token') ||
+    localStorage.getItem('authToken') || '';
   const chatRef = useRef(null);
 
   // --- NEW: Search & filter state ---
@@ -103,6 +110,7 @@ export default function AdminPage() {
       const stored =
         localStorage.getItem('xtox_admin_token') ||
         localStorage.getItem('token') ||
+        localStorage.getItem('xtox_token') ||
         localStorage.getItem('authToken');
       const userStr =
         localStorage.getItem('xtox_admin_user') ||
@@ -181,7 +189,8 @@ export default function AdminPage() {
   }
 
   async function fetchAll(tk) {
-    const h = { 'Authorization': `Bearer ${tk || token}`, 'Accept': 'application/json' };
+    const effectiveToken = tk || getAdminToken() || token;
+    const h = { 'Authorization': `Bearer ${effectiveToken}`, 'Accept': 'application/json' };
     // Robust get: handles array or { ads/users/data/results/docs: [] } response shapes
     const get = (url) => fetch(url, { headers: h })
       .then(r => r.ok ? r.json() : null)
@@ -262,8 +271,16 @@ export default function AdminPage() {
   const hideUser = (userId) => post('/api/admin/hide-user', { userId }).then(() => fetchAll());
   const deleteAd = async (adId) => {
     if (!confirm('حذف هذا الإعلان؟')) return;
-    await fetch(`${RAILWAY}/api/ads/${adId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-    fetchAll();
+    const tok = getAdminToken() || token;
+    const res = await fetch(`${RAILWAY}/api/ads/${adId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${tok}` }
+    });
+    if (res.ok) {
+      setAds(prev => prev.filter(a => a._id !== adId));
+    } else {
+      fetchAll(tok);
+    }
   };
   const resolveReport = (reportId) => post('/api/admin/resolve-report', { reportId }).then(() => fetchAll());
 

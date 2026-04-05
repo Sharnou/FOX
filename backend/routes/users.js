@@ -468,10 +468,59 @@ router.put('/me', auth, async (req, res) => {
 // Used by profile/edit page and other client components
 router.get('/me', auth, async (req, res) => {
   try {
-    const user = await getUserModel().findById(req.user.id);
+    const uid = req.user.id || req.user._id || req.user.userId;
+    const user = await getUserModel().findById(uid).lean().catch(() => null)
+      || await getUserModel().findById(uid);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    // Strip password from response
+    const rawUser = user.toObject ? user.toObject() : user;
+    const { password, ...safeUser } = rawUser;
+    res.json({ user: safeUser });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── PATCH current user profile (username, phone, city, bio, chatEnabled) ──────
+router.patch('/me', auth, async (req, res) => {
+  try {
+    const uid = req.user.id || req.user._id || req.user.userId;
+    const { username, phone, city, bio, chatEnabled } = req.body || {};
+    const updates = {};
+
+    if (username !== undefined) {
+      const clean = typeof username === 'string' ? username.trim().slice(0, 100) : null;
+      if (clean !== null && clean.length > 0) {
+        updates.username = clean;
+        updates.name = clean; // keep 'name' field in sync
+      }
+    }
+    if (phone !== undefined) {
+      const clean = typeof phone === 'string' ? phone.trim().replace(/[^+\d\s\-()]/g, '').slice(0, 20) : null;
+      if (clean !== null) updates.phone = clean;
+    }
+    if (city !== undefined) {
+      const clean = typeof city === 'string' ? city.trim().slice(0, 60) : null;
+      if (clean !== null) updates.city = clean;
+    }
+    if (bio !== undefined) {
+      const clean = typeof bio === 'string' ? bio.trim().slice(0, 500) : null;
+      if (clean !== null) updates.bio = clean;
+    }
+    if (chatEnabled !== undefined) updates.chatEnabled = Boolean(chatEnabled);
+
+    const UserModel = getUserModel();
+    const updated = await UserModel.findByIdAndUpdate(
+      uid,
+      { $set: updates },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ message: 'المستخدم غير موجود' });
+    const rawUser = updated.toObject ? updated.toObject() : updated;
+    const { password, ...safeUser } = rawUser;
+    res.json({ user: safeUser, message: 'تم التحديث بنجاح' });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
 });
 
 
