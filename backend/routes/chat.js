@@ -292,10 +292,18 @@ router.post('/:chatId/messages', auth, async (req, res) => {
       read: false,
       createdAt: new Date(),
     };
-    chat.messages.push(message);
-    chat.lastMessage = new Date();
-    await chat.save();
-    res.json({ success: true, message: chat.messages[chat.messages.length - 1] });
+    // Atomic update: $push + $slice prevents the 16MB document limit
+    const updateResult = await Chat.findOneAndUpdate(
+      { _id: chat._id },
+      {
+        $push: { messages: { $each: [message], $slice: -500 } },
+        $set: { lastMessage: new Date(), updatedAt: new Date() },
+        $inc: { messageCount: 1 },
+      },
+      { new: true, select: { messages: { $slice: -1 } } }
+    );
+    const savedMessage = updateResult?.messages?.[0] || message;
+    res.json({ success: true, message: savedMessage });
   } catch (e) {
     console.error('[POST /api/chat/:chatId/messages]', e.message);
     res.status(500).json({ success: false, error: e.message, message: 'حدث خطأ أثناء إرسال الرسالة | Error sending message' });
