@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 // ─── Arabic relative time ────────────────────────────────────────────────────
 function arabicRelTime(ts) {
@@ -214,6 +215,9 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState([]);
   const [unreadCounts, setUnreadCounts]   = useState({});
   const [showConvPanel, setShowConvPanel] = useState(false);
+  const [chatId, setChatId]               = useState('');
+  const [apiChats, setApiChats]           = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   const pcRef            = useRef(null);
   const remoteAudioRef   = useRef(null);
@@ -221,14 +225,19 @@ export default function ChatPage() {
   const messagesEndRef   = useRef(null);
   const typingTimerRef   = useRef(null);
   const socketRef        = useRef(null);
+  const chatIdRef        = useRef('');
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const user   = JSON.parse(localStorage.getItem('user') || '{}');
       const params = new URLSearchParams(window.location.search);
-      setMyId(user.id || user._id || '');
+      const uid    = user.id || user._id || '';
+      const cid    = params.get('chatId') || '';
+      setMyId(uid);
       setTargetId(params.get('target') || '');
+      setChatId(cid);
+      chatIdRef.current = cid;
     }
   }, []);
 
@@ -257,6 +266,71 @@ export default function ChatPage() {
   // ── Join chat when myId is ready ──────────────────────────────────────────
   useEffect(() => {
     if (myId && !joined) joinChat();
+  }, [myId]);
+
+  // ── Fetch conversations from API + handle ?chatId= auto-open ─────────────
+  useEffect(() => {
+    if (!myId) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+
+    fetch(`${API_URL}/api/chat`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(async (data) => {
+        if (!data) return;
+        const chatList = data.chats || (Array.isArray(data) ? data : []);
+        setApiChats(chatList);
+
+        // Merge API chats into conversations panel
+        const apiConvs = chatList.map(c => {
+          const otherId = (c.users || []).find(u => u !== myId) || '';
+          const lastMsg  = c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1] : null;
+          return {
+            id: otherId,
+            chatId: c._id,
+            lastMessage: lastMsg?.text || '',
+            lastTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0,
+          };
+        }).filter(c => c.id);
+
+        setConversations(prev => {
+          const merged = [...apiConvs];
+          prev.forEach(c => { if (!merged.find(m => m.id === c.id)) merged.push(c); });
+          return merged.sort((a, b) => (b.lastTime || 0) - (a.lastTime || 0));
+        });
+
+        // If chatId in URL, find chat, set targetId, load message history
+        const urlChatId = new URLSearchParams(window.location.search).get('chatId');
+        if (urlChatId) {
+          const chat = chatList.find(c => String(c._id) === urlChatId);
+          if (chat) {
+            const otherId = (chat.users || []).find(u => u !== myId);
+            if (otherId) setTargetId(prev => prev || otherId);
+            setChatId(urlChatId);
+            chatIdRef.current = urlChatId;
+            // Load message history from API
+            try {
+              const msgRes = await fetch(`${API_URL}/api/chat/${urlChatId}/messages?limit=50`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (msgRes.ok) {
+                const msgData = await msgRes.json();
+                const msgs = (msgData.messages || []).slice().reverse(); // API returns newest first
+                setMessages(msgs.map(m => ({
+                  from: m.sender === myId ? 'me' : m.sender,
+                  text: m.text || '',
+                  type: m.type || 'text',
+                  time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(),
+                })));
+                setHistoryLoaded(true);
+              }
+            } catch {}
+          }
+        }
+      })
+      .catch(() => {});
   }, [myId]);
 
   // ── Socket setup ──────────────────────────────────────────────────────────
@@ -431,21 +505,32 @@ export default function ChatPage() {
   // ── Send message ──────────────────────────────────────────────────────────
   function sendMessage() {
     if (!msg.trim() || !socketRef.current || !targetId) return;
-    const now = Date.now();
-    socketRef.current.emit('send_message', { from: myId, to: targetId, text: msg, time: now });
-    setMessages(prev => [...prev, { from: 'me', text: msg, time: now }]);
-    // Update conversation list with sent message
+    const now  = Date.now();
+    const text = msg;
+    setMsg('');
+    // Optimistic update
+    setMessages(prev => [...prev, { from: 'me', text, time: now }]);
+    // Socket.IO real-time delivery
+    socketRef.current.emit('send_message', { from: myId, to: targetId, text, time: now });
+    // Update conversation list
     setConversations(prev => {
       const exists = prev.find(c => c.id === targetId);
       const updated = exists
-        ? prev.map(c => c.id === targetId
-            ? { ...c, lastMessage: msg, lastTime: now }
-            : c)
-        : [{ id: targetId, lastMessage: msg, lastTime: now }, ...prev.slice(0, 49)];
+        ? prev.map(c => c.id === targetId ? { ...c, lastMessage: text, lastTime: now } : c)
+        : [{ id: targetId, lastMessage: text, lastTime: now }, ...prev.slice(0, 49)];
       localStorage.setItem('xtox_conversations', JSON.stringify(updated));
       return updated;
     });
-    setMsg('');
+    // Persist via REST API (fire-and-forget)
+    const currentChatId = chatIdRef.current;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token && currentChatId) {
+      fetch(`${API_URL}/api/chat/${currentChatId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text }),
+      }).catch(() => {});
+    }
   }
 
   // ── Emit typing event ─────────────────────────────────────────────────────
@@ -606,7 +691,11 @@ export default function ChatPage() {
                           return updated;
                         });
                         setShowConvPanel(false);
-                        window.location.href = `/chat?target=${encodeURIComponent(conv.id)}`;
+                        // Use chatId if available (from API), fall back to target param
+                        const dest = conv.chatId
+                          ? `/chat?chatId=${encodeURIComponent(conv.chatId)}&target=${encodeURIComponent(conv.id)}`
+                          : `/chat?target=${encodeURIComponent(conv.id)}`;
+                        window.location.href = dest;
                       }}
                       style={{
                         width: '100%',
