@@ -74,7 +74,7 @@ import favoritesRouter from '../routes/favorites.js';
 import promoteRouter from '../routes/promote.js';
 import jwt from 'jsonwebtoken';
 import { initMemoryStore, dbState } from './memoryStore.js';
-import { connectDatabases, getActiveDB } from './dbManager.js';
+import { connectDatabases, getActiveDB, getCouchbaseError } from './dbManager.js';
 
 
 // --- Metrics: request counter ---
@@ -140,6 +140,7 @@ app.get('/', (_, res) => {
                       'HARDCODED_ATLAS_FALLBACK',
       jwtSet: !!process.env.JWT_SECRET,
       couchbaseConnected: couchbaseCluster !== null,
+      couchbaseError: getCouchbaseError() || null,
       frontendUrl: process.env.FRONTEND_URL || 'not set'
     }
   });

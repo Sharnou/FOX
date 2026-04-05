@@ -10,6 +10,7 @@ let activeDB = 'memory'; // default until a connection resolves
 let couchbaseCluster = null;
 let couchbaseBucket = null;
 let couchbaseCollection = null;
+let couchbaseError = null;
 
 // ── Attempt MongoDB connection (10s timeout) ─────────────────────────────────
 async function tryMongoDB() {
@@ -35,7 +36,6 @@ async function tryCouchbase() {
   const password = process.env.COUCHBASE_PASSWORD  || '#N^wx+uO^70G';
   const bucketName = process.env.COUCHBASE_BUCKET || 'xtox';
 
-
   console.log(`[DB] Connecting to Couchbase: ${url} as ${username}`);
 
   // Dynamic import — won't crash if SDK not installed
@@ -44,24 +44,35 @@ async function tryCouchbase() {
 
   const couchbase = couchbaseMod.default || couchbaseMod;
 
-  couchbaseCluster = await couchbase.connect(url, {
-    username,
-    password,
-    timeouts: {
-      connectTimeout: 10000,
-      kvTimeout: 5000,
-      queryTimeout: 10000,
-    },
-  });
+  try {
+    couchbaseCluster = await couchbase.connect(url, {
+      username,
+      password,
+      timeouts: {
+        connectTimeout: 10000,
+        kvTimeout: 5000,
+        queryTimeout: 10000,
+      },
+    });
 
-  couchbaseBucket     = couchbaseCluster.bucket(bucketName);
-  couchbaseCollection = couchbaseBucket.defaultCollection();
+    // Ping to verify the connection is actually working
+    // Without this, connect() can succeed but queries still fail
+    await couchbaseCluster.ping();
 
-  // Quick probe to verify the bucket is accessible
-  await couchbaseBucket.waitUntilReady(5000);
+    couchbaseBucket     = couchbaseCluster.bucket(bucketName);
+    couchbaseCollection = couchbaseBucket.defaultCollection();
 
-  console.log('[DB] Couchbase connected — set as PRIMARY');
-  return 'couchbase';
+    // Quick probe to verify the bucket is accessible
+    await couchbaseBucket.waitUntilReady(5000);
+
+    console.log('[DB] Couchbase connected — set as PRIMARY');
+    return 'couchbase';
+  } catch (e) {
+    couchbaseError = e.message || String(e);
+    console.error('[DB] Couchbase connection error:', e.message);
+    console.error('[DB] Couchbase error code:', e.code || e.cause?.code || 'N/A');
+    throw e;
+  }
 }
 
 // ── Race: whichever DB connects first wins ───────────────────────────────────
@@ -106,3 +117,4 @@ export async function connectDatabases() {
 export function getActiveDB()             { return activeDB; }
 export function getCouchbaseCollection()  { return couchbaseCollection; }
 export function getCouchbaseCluster()     { return couchbaseCluster; }
+export function getCouchbaseError()       { return couchbaseError; }
