@@ -192,7 +192,7 @@ router.post('/auth/google', async (req, res) => {
     // JWT_SECRET fallback ensures sign() never throws on missing env var
     const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
     if (res.headersSent) return;
-    res.json({ token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar } });
+    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar } });
   } catch (e) {
     if (!res.headersSent) res.status(400).json({ error: e.message });
   }
