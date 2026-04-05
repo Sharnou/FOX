@@ -10,8 +10,8 @@ export async function getFeaturedAds(country) {
   const featured = await getAdModel().find({
     country,
     isFeatured: true,
-    isDeleted: false,
-    isExpired: false,
+    isDeleted: { $ne: true },
+    isExpired: { $ne: true },
     visibilityScore: { $gt: 0 },
     $or: [
       { featuredUntil: { $gt: new Date() } },
@@ -29,8 +29,8 @@ export async function getFeaturedByCategory(country, category, subcategory) {
   const query = {
     country,
     isFeatured: true,
-    isDeleted: false,
-    isExpired: false,
+    isDeleted: { $ne: true },
+    isExpired: { $ne: true },
     $or: [{ featuredUntil: { $gt: new Date() } }]
   };
   if (category) query.category = category;
