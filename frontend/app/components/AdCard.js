@@ -232,9 +232,10 @@ export default function AdCard({ ad }) {
   };
 
   // ── FIX 1: Get the best image URL with fallback ─────────────────────────
-  const rawImageUrl = ad.media?.[0] || ad.images?.[0] || ad.photos?.[0] || ad.photo || ad.image || ad.thumbnail || null;
+  // FIX 4: Check images before media — seeded ads use 'images' field; uploaded ads use 'media'
+  const rawImageUrl = ad?.images?.[0] || ad?.image || ad?.media?.[0] || ad?.photos?.[0] || ad?.photo || ad?.thumbnail || 'https://via.placeholder.com/300x200?text=No+Image';
   const imageUrl = rawImageUrl ? optimizeImage(rawImageUrl) : null;
-  const showPlaceholder = !imageUrl || imgError;
+  const showPlaceholder = imgError; // rawImageUrl now always has a fallback
 
   // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
   const adDetailUrl = `/ads/${adId}`;

@@ -88,7 +88,8 @@ export async function scoreAdWithAI(ad) {
     }
 
     // Final fallback: rule-based offline scoring (always works, no network needed)
-    return { score: calculateOfflineScore(ad), tips: ['أضف صوراً للإعلان', 'اكتب وصفاً مفصلاً', 'حدد سعراً مناسباً'], source: 'rules' };
+    const rbResult = ruleBasedScore(ad?.title, ad?.description);
+    return { score: Math.max(rbResult.score, calculateOfflineScore(ad)), tips: ['أضف صوراً للإعلان', 'اكتب وصفاً مفصلاً', 'حدد سعراً مناسباً'], feedback: rbResult.feedback, source: 'rules' };
   }
 }
 
@@ -128,6 +129,19 @@ function calculateOfflineScore(ad) {
   score += infoScore;
 
   return Math.min(100, score);
+}
+
+
+/**
+ * Rule-based scoring fallback — used when Gemini API is unavailable
+ * Simple but reliable score based on title/description quality
+ */
+function ruleBasedScore(title, description) {
+  let score = 50;
+  if (title?.length > 10) score += 10;
+  if (description?.length > 50) score += 15;
+  if (description?.length > 150) score += 10;
+  return { score: Math.min(score, 95), feedback: 'Auto-scored based on content quality' };
 }
 
 export default scoreAdWithAI;

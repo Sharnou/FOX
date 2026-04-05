@@ -234,6 +234,17 @@ router.post('/', auth, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── PRE-PROCESS: Normalize media sources from multiple field names ────────
+    // Frontend may send 'images', 'imageUrl', or 'media' — unify to 'media'
+    if (!req.body.media?.length) {
+      if (Array.isArray(req.body.images) && req.body.images.length > 0) {
+        req.body.media = req.body.images; // images field → media
+      } else if (req.body.imageUrl && String(req.body.imageUrl).startsWith('http')) {
+        req.body.media = [req.body.imageUrl]; // imageUrl → media array
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── PRE-PROCESS: Upload base64 images to Cloudinary before sanitization ──
     const rawMedia = Array.isArray(req.body.media) ? req.body.media : [];
     if (rawMedia.some(u => String(u || '').startsWith('data:image/'))) {

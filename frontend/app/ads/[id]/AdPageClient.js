@@ -12,7 +12,7 @@ import ReportAd from '../../components/ReportAd';
 import ReportSeller from '../../components/ReportSeller';
 import MakeOfferModal from '../../components/MakeOfferModal';
 
-const API = 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox.up.railway.app';
 
 function AITranslate({ title, description }) {
@@ -268,13 +268,21 @@ export default function AdPageClient({ params }) {
 
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') || 'guest_' + Date.now() : '';
 
+  const [adNotFound, setAdNotFound] = useState(false);
   useEffect(() => {
     if (params?.id) {
-      const RAILWAY = 'https://xtox.up.railway.app';
+      const RAILWAY = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
       fetch(`${RAILWAY}/api/ads/${params.id}`)
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) { setAd(data); recordRecentView(data._id || params.id); } })
-        .catch(() => {});
+        .then(data => {
+          if (data && !data.error) {
+            setAd(data);
+            recordRecentView(data._id || params.id);
+          } else {
+            setAdNotFound(true);
+          }
+        })
+        .catch(() => { setAdNotFound(true); });
     }
   }, [params?.id]);
 
@@ -313,7 +321,7 @@ export default function AdPageClient({ params }) {
   useEffect(() => {
     if (!ad) return;
     setRelatedLoading(true);
-    const RAILWAY = 'https://xtox.up.railway.app';
+    const RAILWAY = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
     const qs = new URLSearchParams({ limit: '6', exclude: ad._id || '' });
     if (ad.category) qs.set('category', ad.category);
     if (ad.country) qs.set('country', ad.country);
@@ -398,6 +406,14 @@ export default function AdPageClient({ params }) {
     setSaved(!saved);
   }
 
+  if (adNotFound) return (
+    <div style={{ textAlign: 'center', padding: 40, fontFamily: "'Cairo', system-ui, sans-serif" }}>
+      <p style={{ fontSize: 24 }}>😕</p>
+      <h2 style={{ color: '#002f34' }}>الإعلان غير موجود</h2>
+      <p style={{ color: '#666' }}>ربما تم حذف هذا الإعلان أو انتهت صلاحيته</p>
+      <a href="/" style={{ color: '#002f34', fontWeight: 'bold' }}>← العودة للرئيسية</a>
+    </div>
+  );
   if (!ad) return <AdDetailSkeleton />;
 
   const rawMedia = ad.media || ad.images || [];

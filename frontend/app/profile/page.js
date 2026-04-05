@@ -79,10 +79,13 @@ export default function ProfilePage() {
         setAvatar(stored.avatar || '');
       }
     } catch {}
-    const t = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('xtox_admin_token');
-    if (!t) return;
+    const t = localStorage.getItem('token') || localStorage.getItem('xtox_token') || localStorage.getItem('xtox_admin_token') || localStorage.getItem('authToken');
+    if (!t) { window.location.href = '/login'; return; }
     fetch(`${API}/api/users/me`, { headers: { Authorization: `Bearer ${t}` } })
-      .then(r => r.ok ? r.json() : null)
+      .then(r => {
+        if (r.status === 401) { window.location.href = '/login'; return null; }
+        return r.ok ? r.json() : null;
+      })
       .then(data => {
         if (data && !data.error) {
           const u = data.user || data;
