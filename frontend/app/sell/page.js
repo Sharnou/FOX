@@ -79,6 +79,12 @@ export default function SellPage() {
   const [mediaFiles, setMediaFiles] = useState([]); // up to 5 images OR 1 video
   const [mediaType, setMediaType] = useState(null); // 'images' | 'video'
   const [mediaPreviews, setMediaPreviews] = useState([]); // object URLs for display
+
+  // Revoke object URLs on component unmount to prevent memory leaks
+  useEffect(() => {
+    const urls = mediaPreviews;
+    return () => { urls.forEach(url => { try { URL.revokeObjectURL(url); } catch {} }); };
+  }, [mediaPreviews]);
   const [videoFile, setVideoFile] = useState(null);
   // ──────────────────────────────────────────────────────────────────────────
 
