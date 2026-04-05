@@ -30,6 +30,8 @@ const UserSchema = new mongoose.Schema(
     favorites: [String],
     blockedUsers: [String],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ad' }],
+    // Capped at 50 most recent — use $push + $slice: -50 on every insert
+    // Example: User.updateOne({ _id }, { $push: { notifications: { $each: [n], $slice: -50 } }, $inc: { notificationCount: 1 } })
     notifications: [{
       _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
       type: { type: String, enum: ['chat', 'ad', 'system', 'review', 'featured', 'broadcast'], default: 'system' },
