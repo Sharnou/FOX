@@ -269,7 +269,7 @@ export default function AdPageClient({ params }) {
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
-  const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') || 'guest_' + Date.now() : '';
+  const [userId, setUserId] = React.useState('');
 
   const [user, setUser] = useState(null);
   const [adNotFound, setAdNotFound] = useState(false);
@@ -300,6 +300,9 @@ export default function AdPageClient({ params }) {
   useEffect(() => {
     const u = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
     if (u) { try { setUser(JSON.parse(u)); } catch {} }
+    // Set userId from localStorage (avoids hydration mismatch)
+    const uid = localStorage.getItem('userId') || '';
+    setUserId(uid);
   }, []);
 
   useEffect(() => {
