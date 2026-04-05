@@ -238,7 +238,7 @@ app.get('/api/metrics', (req, res) => {
   let isAdmin = false;
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fox-default-secret');
-    isAdmin = decoded.role === 'admin' || decoded.email === 'ahmed_sharnou@yahoo.com';
+    isAdmin = decoded.role === 'admin';
   } catch (e) { isAdmin = false; }
   if (!isAdmin) return res.status(403).json({ error: 'Admin only' });
   const mem = process.memoryUsage();
@@ -435,6 +435,12 @@ server.listen(PORT, '0.0.0.0', () => {
 
 // ── DB startup race: MongoDB vs Couchbase — handled by dbManager ─────────────
 // connectDatabases() is called after server.listen (see below)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── 404 handler — must be AFTER all routes ──────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Route not found', path: req.path });
+});
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Global error handler ───────────────────────────────────────────────────
