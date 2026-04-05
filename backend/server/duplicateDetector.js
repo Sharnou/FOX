@@ -71,7 +71,7 @@ const LOOKBACK_DAYS        = 30;    // only compare against last 30 days of ads
 export async function checkDuplicate(title, category, city, userId) {
   // 1. Exact match (O(log n) via compound index)
   const exact = await getAdModel().findOne(
-    { userId, title, category, city, isExpired: false, isDeleted: false },
+    { userId, title, category, city, isExpired: { $ne: true }, isDeleted: { $ne: true } },
     { _id: 1 }
   ).lean();
   if (exact) return true;
@@ -79,7 +79,7 @@ export async function checkDuplicate(title, category, city, userId) {
   // 2. Fuzzy match among recent ads from the same user / category / city
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   const bucket = await getAdModel().find(
-    { userId, category, city, isExpired: false, isDeleted: false, createdAt: { $gte: since } },
+    { userId, category, city, isExpired: { $ne: true }, isDeleted: { $ne: true }, createdAt: { $gte: since } },
     { title: 1, _id: 0 }
   ).limit(200).lean();
 
