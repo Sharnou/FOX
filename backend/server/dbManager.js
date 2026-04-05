@@ -14,18 +14,22 @@ let couchbaseError = null;
 
 // ── Attempt MongoDB connection (10s timeout) ─────────────────────────────────
 async function tryMongoDB() {
-  // Honour all the same env vars that index.js uses
-  const uri =
-    process.env.MONGO_URL ||
-    process.env.MONGODB_URL ||
-    process.env.MONGOURL ||
-    process.env.MONGO_PUBLIC_URL ||
-    process.env.DATABASE_URL ||
-    process.env.MONGO_URI ||
-    'mongodb+srv://ahmedsharnou_db_user:MiqAQuCFW080G6u9@cluster0.77mmp6c.mongodb.net/xtox';
-
+  let uri = process.env.MONGODB_URI 
+    || process.env.MONGO_URL 
+    || 'mongodb+srv://ahmedsharnou_db_user:MiqAQuCFW080G6u9@cluster0.77mmp6c.mongodb.net/xtox';
+  
+  // Ensure database name is 'xtox' — fix URIs that don't specify a DB or specify 'test'
+  if (!uri.includes('/xtox')) {
+    // Strip any existing db name after the last '/' before '?' and replace with 'xtox'
+    uri = uri.replace(/\/([^/?]+)(\?|$)/, '/xtox$2');
+    // If no db path at all (ends with hostname), append /xtox
+    if (!uri.includes('/xtox')) {
+      uri = uri.replace(/(\?|$)/, '/xtox$1');
+    }
+  }
+  
   await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
-  console.log('[DB] MongoDB connected — set as PRIMARY');
+  console.log('[DB] MongoDB connected to xtox database — set as PRIMARY');
   return 'mongodb';
 }
 
