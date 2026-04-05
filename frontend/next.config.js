@@ -14,8 +14,8 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          { key: 'X-Frame-Options', value: 'ALLOWALL' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors *" },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
           { key: 'Content-Language', value: 'ar' },
         ],
       },
