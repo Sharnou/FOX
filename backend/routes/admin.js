@@ -6,11 +6,28 @@ import Report from '../models/Report.js';
 import AILog from '../models/AILog.js';
 import { adminAuth, superAdminAuth } from '../middleware/auth.js';
 import { dbState, MemAd, MemUser, MemReport } from '../server/memoryStore.js';
+import { getActiveDB } from '../server/dbManager.js';
+import { CouchbaseAd, CouchbaseUser, CouchbaseReport } from '../server/couchbaseModels.js';
 
-// Memory store helpers — used when MongoDB is unavailable
-function getAdModel()     { return dbState.usingMemoryStore ? MemAd     : Ad; }
-function getUserModel()   { return dbState.usingMemoryStore ? MemUser   : User; }
-function getReportModel() { return dbState.usingMemoryStore ? MemReport : Report; }
+// Smart model selector: MongoDB → Couchbase → in-memory
+function getAdModel()     {
+  const db = getActiveDB();
+  if (db === 'mongodb')   return Ad;
+  if (db === 'couchbase') return CouchbaseAd;
+  return MemAd;
+}
+function getUserModel()   {
+  const db = getActiveDB();
+  if (db === 'mongodb')   return User;
+  if (db === 'couchbase') return CouchbaseUser;
+  return MemUser;
+}
+function getReportModel() {
+  const db = getActiveDB();
+  if (db === 'mongodb')   return Report;
+  if (db === 'couchbase') return CouchbaseReport;
+  return MemReport;
+}
 import { createBackup } from '../server/backup.js';
 import { sendWeeklyBroadcast } from '../server/broadcast.js';
 import { requestRepair, approveRepair, executeRepair } from '../server/aiRepair.js';

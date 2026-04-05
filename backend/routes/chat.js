@@ -3,10 +3,15 @@ import mongoose from 'mongoose';
 import Chat from '../models/Chat.js';
 import { auth } from '../middleware/auth.js';
 import { MemChat, dbState } from '../server/memoryStore.js';
+import { getActiveDB } from '../server/dbManager.js';
+import { CouchbaseChat } from '../server/couchbaseModels.js';
 
-// Use in-memory Chat when MongoDB is unavailable
+// Smart model selector: MongoDB → Couchbase → in-memory
 function getChat() {
-  return dbState.usingMemoryStore ? MemChat : Chat;
+  const db = getActiveDB();
+  if (db === 'mongodb')   return Chat;
+  if (db === 'couchbase') return CouchbaseChat;
+  return MemChat;
 }
 
 const router = express.Router();

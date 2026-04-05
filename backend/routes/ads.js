@@ -2,9 +2,16 @@ import express from 'express';
 import { writeFile, unlink } from 'fs/promises';
 import Ad from '../models/Ad.js';
 import { dbState, MemAd } from '../server/memoryStore.js';
+import { getActiveDB } from '../server/dbManager.js';
+import { CouchbaseAd } from '../server/couchbaseModels.js';
 
-// Use in-memory store when MongoDB is unavailable
-function getAdModel() { return dbState.usingMemoryStore ? MemAd : Ad; }
+// Smart model selector: MongoDB → Couchbase → in-memory
+function getAdModel() {
+  const db = getActiveDB();
+  if (db === 'mongodb')   return Ad;
+  if (db === 'couchbase') return CouchbaseAd;
+  return MemAd;
+}
 import { auth } from '../middleware/auth.js';
 import { moderateText, moderateImage } from '../server/moderation.js';
 import { checkDuplicate } from '../server/duplicateDetector.js';
@@ -193,8 +200,9 @@ router.get('/:id', async (req, res) => {
 // ── POST new ad (AI moderation on ALL media) ──
 router.post('/', auth, async (req, res) => {
   try {
-    // ── MONGODB CONNECTION CHECK — return 503 instead of buffering 10s ───────
-    if (mongoose.connection.readyState !== 1 && !dbState.usingMemoryStore) {
+    // ── DB CONNECTION CHECK — return 503 if no DB is ready yet ──────────────
+    const _activeDB = getActiveDB();
+    if (_activeDB === 'mongodb' && mongoose.connection.readyState !== 1) {
       return res.status(503).json({
         error: 'الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد ثوانٍ',
         message: 'Database not ready. Please retry in a few seconds.',

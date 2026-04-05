@@ -6,9 +6,16 @@ import rateLimit from 'express-rate-limit';
 import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
 import { dbState, MemUser } from '../server/memoryStore.js';
+import { getActiveDB } from '../server/dbManager.js';
+import { CouchbaseUser } from '../server/couchbaseModels.js';
 
-// Use in-memory store when MongoDB is unavailable
-function getUserModel() { return dbState.usingMemoryStore ? MemUser : User; }
+// Smart model selector: MongoDB → Couchbase → in-memory
+function getUserModel() {
+  const db = getActiveDB();
+  if (db === 'mongodb')   return User;
+  if (db === 'couchbase') return CouchbaseUser;
+  return MemUser;
+}
 import { detectFraud } from '../server/fraud.js';
 import { getOrCreateCountry } from '../server/countries.js';
 
@@ -358,13 +365,15 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     // Check MongoDB connection state
-    const mongooseReg = await import('mongoose');
-    if (mongooseReg.default.connection.readyState !== 1 && !dbState.usingMemoryStore) {
-      return res.status(503).json({ error: 'Server starting up — please try again / الخادم يبدأ — حاول مرة أخرى' });
+    if (getActiveDB() === 'mongodb') {
+      const mongooseReg = await import('mongoose');
+      if (mongooseReg.default.connection.readyState !== 1) {
+        return res.status(503).json({ error: 'Server starting up — please try again / الخادم يبدأ — حاول مرة أخرى' });
+      }
     }
-    const fraud = dbState.usingMemoryStore ? { isFraud: false } : await detectFraud(ip);
+    const fraud = getActiveDB() !== 'mongodb' ? { isFraud: false } : await detectFraud(ip);
     if (fraud.isFraud) return res.status(400).json({ error: 'Account creation restricted' });
-    if (!dbState.usingMemoryStore) await getOrCreateCountry(countryCode, countryCode);
+    if (getActiveDB() === 'mongodb') await getOrCreateCountry(countryCode, countryCode);
     const existing = await getUserModel().findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already registered' });
     const hash = await bcrypt.hash(password, 10);
@@ -383,10 +392,12 @@ router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-    // Check MongoDB connection state before querying (avoids 30s buffer wait)
-    const mongoose = await import('mongoose');
-    if (mongoose.default.connection.readyState !== 1 && !dbState.usingMemoryStore) {
-      return res.status(503).json({ error: 'Server starting up — please try again in a few seconds / الخادم يبدأ — حاول مرة أخرى' });
+    // Check connection state before querying (avoids 30s buffer wait)
+    if (getActiveDB() === 'mongodb') {
+      const mongoose = await import('mongoose');
+      if (mongoose.default.connection.readyState !== 1) {
+        return res.status(503).json({ error: 'Server starting up — please try again in a few seconds / الخادم يبدأ — حاول مرة أخرى' });
+      }
     }
     const user = await getUserModel().findOne({ email });
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });

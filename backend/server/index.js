@@ -74,6 +74,7 @@ import favoritesRouter from '../routes/favorites.js';
 import promoteRouter from '../routes/promote.js';
 import jwt from 'jsonwebtoken';
 import { initMemoryStore, dbState } from './memoryStore.js';
+import { connectDatabases, getActiveDB } from './dbManager.js';
 
 
 // --- Metrics: request counter ---
@@ -127,6 +128,7 @@ app.get('/', (_, res) => {
     time: new Date().toISOString(),
     admin: '[REDACTED - set via env vars]',
     env: {
+      activeDB: getActiveDB(),
       mongoConnected: connState === 1,
       mongoState: stateNames[connState] || 'unknown',
       mongoUriSource: process.env.MONGO_URL ? 'MONGO_URL ✅' :
@@ -327,90 +329,28 @@ server.listen(PORT, '0.0.0.0', () => {
 });
 // ────────────────────────────────────────────────────────────────────────────
 
-// ── In-memory store fallback: activate if MongoDB not ready within 8s ────────
-setTimeout(async () => {
-  if (mongoose.connection.readyState !== 1 && !dbState.usingMemoryStore) {
-    logger.warn('[DB] MongoDB not connected after 8s — switching to in-memory store');
-    dbState.usingMemoryStore = true;
-    await initMemoryStore();
-  }
-}, 8000);
+// ── DB startup race: MongoDB vs Couchbase — handled by dbManager ─────────────
+// connectDatabases() is called after server.listen (see below)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Connect MongoDB in background (non-blocking)
-// Log ALL env vars available (helps diagnose Railway setup)
-const mongoEnvVars = Object.keys(process.env).filter(k => 
-  k.toLowerCase().includes('mongo') || k.toLowerCase().includes('database')
-);
-logger.info(`[MongoDB] Available env vars: ${mongoEnvVars.join(', ') || 'NONE'}`);
-mongoEnvVars.forEach(k => {
-  const val = process.env[k];
-  const masked = val ? val.replace(/:([^@]+)@/, ':***@').slice(0, 80) : 'empty';
-  logger.info(`[MongoDB] ${k} = ${masked}`);
-});
+// ── DB startup: race MongoDB vs Couchbase (handled by dbManager) ────────────
+connectDatabases().then(async (db) => {
+  console.log(`[DB] Active database: ${db}`);
 
-// Railway MongoDB plugin primary variable = MONGO_URL
-// Skip Atlas URLs (IP blocked) unless no other option
-const allMongoVars = [
-  process.env.MONGO_URL,
-  process.env.MONGODB_URL,
-  process.env.MONGOURL,
-  process.env.MONGO_PUBLIC_URL,
-  process.env.MONGO_URL_PRIVATE,
-  process.env.MONGO_URL_Private,
-  process.env.DATABASE_URL,
-];
-
-// Prefer non-Atlas Railway-native URLs; fall back to Atlas if that's all we have
-let mongoUri = allMongoVars.find(u => u && u.trim() && !u.includes('cluster0.77mmp6c'));
-// FIX: If no non-Atlas URL found but MONGO_URL is set, use MONGO_URL directly (even if Atlas)
-if (!mongoUri && process.env.MONGO_URL && process.env.MONGO_URL.trim()) {
-  mongoUri = process.env.MONGO_URL.trim();
-  logger.info('[MongoDB] Using MONGO_URL directly (Atlas URL from env): ' + mongoUri.replace(/:([^@]+)@/, ':***@').slice(0, 60));
-}
-
-// If no non-Atlas URL, try constructing from Railway plugin parts
-if (!mongoUri) {
-  const host = process.env.MONGOHOST || process.env.MONGOHOST_Railway;
-  const port = process.env.MONGOPORT || process.env.MONGOPORT_MongoDB || '27017';
-  const user = process.env.MONGOUSER || process.env.MONGOUSER_Mongodb || 
-                process.env.MONGO_INITDB_ROOT_USERNAME || 'root';
-  const pass = process.env.MONGOPASSWORD || process.env.MONGOPASSWORD_Root || 
-                process.env.MONGO_INITDB_ROOT_PASSWORD;
-  if (host && pass) {
-    mongoUri = `mongodb://${user}:${encodeURIComponent(String(pass))}@${host}:${port}/?authSource=admin`;
-    logger.info(`[MongoDB] Constructed: ${user}@${host}:${port}`);
+  if (db === 'memory') {
+    // Both DBs unavailable — activate in-memory store
+    dbState.usingMemoryStore = true;
+    await initMemoryStore();
+    return;
   }
-}
 
-// Atlas fallback (0.0.0.0/0 whitelist active - safe to hardcode)
-if (!mongoUri) {
-  mongoUri = process.env.MONGO_URI ||
-                 // Atlas fallback (0.0.0.0/0 whitelist active - safe to hardcode)
-                 'mongodb+srv://ahmedsharnou_db_user:MiqAQuCFW080G6u9@cluster0.77mmp6c.mongodb.net/?appName=Cluster0';
-}
+  if (db === 'mongodb') {
+    // ── Connect Couchbase for backup/cache (non-fatal) ─────────────────────
+    if (connectCouchbase) {
+      connectCouchbase().catch(e => logger.warn('[COUCHBASE] cache init failed:', e.message));
+    }
 
-const finalMongoUri = mongoUri;
-
-if (!finalMongoUri) {
-  logger.warn('[MongoDB] No env var found - using hardcoded Atlas URL (0.0.0.0/0 whitelist active)');
-} else {
-  logger.info('MongoDB URI: ' + finalMongoUri.replace(/:([^@]+)@/, ':***@'));
-  logger.info(`[MongoDB] Attempting connection... (timeout: 30s)`);
-  mongoose.connect(finalMongoUri, {
-    serverSelectionTimeoutMS: 30000,  // 30 seconds to find a server
-    socketTimeoutMS: 45000,           // 45 seconds for operations
-    connectTimeoutMS: 30000,          // 30 seconds to connect
-    bufferTimeoutMS: 30000, // Increased from 3s to 30s — Atlas needs time to connect
-    maxPoolSize: 10,
-    retryWrites: true,
-    w: 'majority'
-  })
-    .then(async () => {
-    logger.info('MongoDB connected');
-    // Connect Couchbase (non-fatal — app works without it)
-    if (connectCouchbase) connectCouchbase().catch(e => logger.warn('[COUCHBASE] Startup connection failed:', e.message));
-    // Auto-delete old errors after 7 days
+    // ── Error TTL index ──────────────────────────────────────────────────
     try {
       const ErrorModel = mongoose.models.Error || mongoose.models.AppError;
       if (ErrorModel) {
@@ -418,8 +358,9 @@ if (!finalMongoUri) {
         console.log('[DB] Error TTL index set (7 days)');
       }
     } catch(e) {}
+
+    // ── Run seeds + cleanup ─────────────────────────────────────────────
     await runSeedsOnce();
-    // Auto-cleanup duplicate seed data (safe, runs on each startup)
     await (async function cleanupDuplicates() {
       try {
         const Country = mongoose.models.Country;
@@ -434,7 +375,6 @@ if (!finalMongoUri) {
           const dupeCount = all.length - seen.size;
           if (dupeCount > 0) logger.info(`[CLEANUP] Removed ${dupeCount} duplicate countries`);
         }
-        // Delete errors older than 7 days
         const ErrModel = mongoose.models.Error || mongoose.models.AppError || mongoose.models.ErrorLog;
         if (ErrModel) {
           const r = await ErrModel.deleteMany({ createdAt: { $lt: new Date(Date.now() - 7 * 86400000) } });
@@ -444,34 +384,18 @@ if (!finalMongoUri) {
         logger.warn('[CLEANUP] Skipped:', e.message);
       }
     })();
-  })
-  .catch(err => {
-    logger.error('[MongoDB] Connection failed:', err.message);
-    logger.error('[MongoDB] Check: 1) MONGO_URL in Railway env, 2) Atlas IP whitelist 0.0.0.0/0');
-    // Retry after 10 seconds
-    setTimeout(async () => {
-      logger.info('[MongoDB] Retrying connection...');
-      try {
-        await mongoose.connect(finalMongoUri, {
-          serverSelectionTimeoutMS: 30000,
-          socketTimeoutMS: 45000,
-          connectTimeoutMS: 30000
-        });
-        logger.info('[MongoDB] Retry successful ✅');
-        await runSeedsOnce();
-      } catch (e) {
-        logger.error('[MongoDB] Retry also failed:', e.message);
-        // Both initial + retry failed — activate in-memory store
-        if (!dbState.usingMemoryStore) {
-          logger.warn('[DB] All MongoDB retries failed — activating in-memory store');
-          dbState.usingMemoryStore = true;
-          await initMemoryStore();
-        }
-      }
-    }, 10000);
-  });
-}
+  }
 
+  if (db === 'couchbase') {
+    // Couchbase won the race — memory store not needed
+    console.log('[DB] Couchbase is PRIMARY — in-memory store not activated');
+  }
+}).catch(e => {
+  logger.error('[DB] connectDatabases() failed:', e.message);
+  // Safety net: fall back to memory store
+  dbState.usingMemoryStore = true;
+  initMemoryStore().catch(() => {});
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
-// redeploy: 1775337592000
 
