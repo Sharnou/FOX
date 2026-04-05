@@ -134,7 +134,8 @@ export default function Home() {
       const res = await fetch(`${API}/api/ads`);
       if (!res.ok) return;
       const all = await res.json();
-      const featured = all.filter(a => a.isFeatured);
+      const allList = Array.isArray(all) ? all : (all.ads || all.data || all.results || []);
+      const featured = allList.filter(a => a.isFeatured);
       if (featured.length > 0) {
         setPopup({ ad: featured[Math.floor(Math.random() * featured.length)], cartoon: CARTOONS[Math.floor(Math.random() * CARTOONS.length)] });
         localStorage.setItem('lastPopup', Date.now().toString());
