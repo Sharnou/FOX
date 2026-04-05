@@ -337,7 +337,7 @@ router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
 // ── Email Register ──
 router.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { email: rawEmail, password: rawPassword, name: rawName, country: countryCode, city } = req.body;
+    const { email: rawEmail, password: rawPassword, name: rawName, country: countryCode, city, phone: rawPhone } = req.body;
 
     // ── Input Validation & Sanitization ───────────────────────────────────
     const email    = typeof rawEmail    === 'string' ? rawEmail.trim().toLowerCase()   : '';
@@ -381,9 +381,11 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (!finalCountry || finalCountry === 'unknown') {
       try { const g = await (await fetch(`http://ip-api.com/json/${ip}?fields=countryCode`)).json(); finalCountry = g.countryCode || 'EG'; } catch { finalCountry = 'EG'; }
     }
-    const user = await getUserModel().create({ email, password: hash, name, country: finalCountry, city, registrationIp: ip });
+    const user = await getUserModel().create({ email, password: hash, name, country: finalCountry, city,
+      phone: rawPhone ? String(rawPhone).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined,
+      registrationIp: ip });
     const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
-    res.json({ token, user: { id: user._id, email, name, country: user.country } });
+    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role || 'user', avatar: user.avatar || null, phone: user.phone || null } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

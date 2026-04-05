@@ -96,7 +96,7 @@ export default function EditProfilePage() {
     // Then fetch fresh data from server
     fetch(`${API}/api/users/me`, { headers: { Authorization: `Bearer ${t}` } })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) { hydrateForm(data); localStorage.setItem('user', JSON.stringify(data)); } })
+      .then(data => { if (data) { const u = data.user || data; hydrateForm(u); localStorage.setItem('user', JSON.stringify(u)); } })
       .catch(() => {})
       .finally(() => setFetching(false));
   }, []);

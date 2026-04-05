@@ -82,4 +82,21 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+
+// PUT /api/notifications/:id/read — alias for PATCH (some frontends use PUT)
+router.put('/:id/read', auth, async (req, res) => {
+  try {
+    const User = await getUserModel();
+    if (!User) return res.json({ success: true });
+    await User.updateOne(
+      { _id: req.user.id, 'notifications._id': req.params.id },
+      { $set: { 'notifications.$.read': true } }
+    );
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[Notifications] PUT read error:', e.message);
+    res.json({ success: true });
+  }
+});
+
 export default router;

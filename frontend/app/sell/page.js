@@ -230,8 +230,11 @@ export default function SellPage() {
         return;
       }
 
+      const resData = await res.json().catch(() => ({}));
       if (form.phone) localStorage.setItem('last_used_phone', form.phone);
-      window.location.href = `/?published=1`;
+      // Redirect to the new ad if we got an ID, otherwise to homepage
+      const newAdId = resData?.ad?._id || resData?._id || resData?.id;
+      window.location.href = newAdId ? `/ads/${newAdId}?published=1` : `/?published=1`;
     } catch (e) {
       setErrors({ submit: e.message || 'خطأ في الاتصال بالخادم' });
     }

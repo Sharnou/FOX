@@ -410,6 +410,8 @@ router.post('/', auth, upload.fields([
     const { errors, sanitized } = sanitizeAdFields(body);
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
     const { title, description, category, subcategory, price, city, currency, media, video, featuredStyle, condition, phone } = sanitized;
+    const whatsapp = body.whatsapp ? String(body.whatsapp).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined;
+    const tags = body.tags ? (Array.isArray(body.tags) ? body.tags.slice(0,20).map(t=>String(t).trim()) : String(body.tags).split(',').map(t=>t.trim()).slice(0,20)) : [];
     // FIX D: Extract and validate coordinates — parseFloat + isNaN + non-zero check
     const lng = parseFloat(body.lng);
     const lat = parseFloat(body.lat);
@@ -468,6 +470,8 @@ router.post('/', auth, upload.fields([
       condition: condition || null,
       featuredStyle: featuredStyle || 'normal',
       phone: phone || undefined,
+      whatsapp: whatsapp || undefined,
+      tags: tags || [],
       language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
       // FIX D: Only save location when coordinates are fully valid numbers and non-zero
       location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
@@ -502,7 +506,7 @@ router.post('/', auth, upload.fields([
       }
     });
 
-    res.status(201).json(ad);
+    res.status(201).json({ success: true, ad, _id: ad._id });
   } catch (e) {
     console.error('[POST /api/ads] crash:', e.stack || e.message);
     return res.status(500).json({
@@ -597,6 +601,8 @@ router.put('/:id', auth, async (req, res) => {
     const { errors, sanitized } = sanitizeAdFields(req.body);
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
     const { title, description, category, price, city, currency, media, video, featuredStyle } = sanitized;
+    const updateWhatsapp = req.body.whatsapp ? String(req.body.whatsapp).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined;
+    const updateTags = req.body.tags ? (Array.isArray(req.body.tags) ? req.body.tags.slice(0,20).map(t=>String(t).trim()) : String(req.body.tags).split(',').map(t=>t.trim()).slice(0,20)) : undefined;
 
     // Ownership check — only the original owner may edit
     const ad = await getAdModel().findOne({ _id: req.params.id, userId: req.user.id, isDeleted: false });
@@ -616,6 +622,8 @@ router.put('/:id', auth, async (req, res) => {
     ad.media = media.length ? media : ad.media;
     if (video !== undefined) ad.video = video;
     if (featuredStyle && featuredStyle !== 'normal') ad.featuredStyle = featuredStyle;
+    if (updateWhatsapp !== undefined) ad.whatsapp = updateWhatsapp;
+    if (updateTags !== undefined) ad.tags = updateTags;
     ad.editedAt = new Date();
     ad.language = /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en';
 

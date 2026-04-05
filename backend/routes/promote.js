@@ -20,7 +20,7 @@ router.post('/', auth, async (req, res) => {
 
     const ad = await Ad.findById(adId);
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
-    if (String(ad.userId) !== String(req.user._id) && req.user.role !== 'admin')
+    if (String(ad.userId) !== String(req.user.id) && req.user.role !== 'admin')
       return res.status(403).json({ error: 'Not your ad' });
 
     const planConfig = PLANS[plan] || PLANS.free;
@@ -37,7 +37,7 @@ router.post('/', auth, async (req, res) => {
 
     // Log promotion request for manual follow-up (for paid plans)
     if (planConfig.price > 0) {
-      console.log(`[PROMOTE] Ad ${adId} by user ${req.user._id}: plan=${plan}, payment=${payment}, price=$${planConfig.price}`);
+      console.log(`[PROMOTE] Ad ${adId} by user ${req.user.id}: plan=${plan}, payment=${payment}, price=$${planConfig.price}`);
     }
 
     res.json({ 

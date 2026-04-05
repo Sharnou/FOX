@@ -198,11 +198,24 @@ export default function RegisterPage() {
       });
       const data = await res.json();
       if (res.ok && data.token) {
+        // Save token under all keys read by other pages
         localStorage.setItem('xtox_token', data.token);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('fox_token', data.token);
+        // Save user object so sell/profile/admin pages can read role, phone, etc.
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.setItem('userId', data.user.id || '');
+          localStorage.setItem('country', data.user.country || 'EG');
+          if (data.user.role === 'admin' || data.user.role === 'sub_admin') {
+            localStorage.setItem('xtox_admin_token', data.token);
+            localStorage.setItem('xtox_admin_user', JSON.stringify(data.user));
+          }
+        }
         showToast(t.success, 'success');
         setTimeout(() => router.push('/'), 1500);
       } else {
-        showToast(data.message || t.errorGeneric, 'error');
+        showToast(data.error || data.message || t.errorGeneric, 'error');
       }
     } catch (err) {
       showToast(t.errorGeneric, 'error');

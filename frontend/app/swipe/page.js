@@ -120,9 +120,13 @@ export default function SwipePage() {
     setSavingId(ad._id);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-      const res = await fetch(`${apiUrl}/api/wishlist/${ad._id}`, {
+      const res = await fetch(`${apiUrl}/api/wishlist`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ adId: ad._id }),
       });
       if (res.ok) {
         setSavedIds(prev => new Set([...prev, ad._id]));
