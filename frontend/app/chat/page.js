@@ -267,6 +267,13 @@ export default function ChatPage() {
   // ── Join chat when myId is ready ──────────────────────────────────────────
   useEffect(() => {
     if (myId && !joined) joinChat();
+    // Cleanup: disconnect socket on unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
   }, [myId]);
 
   // ── Fetch conversations from API + handle ?chatId= auto-open ─────────────
