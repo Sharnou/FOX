@@ -12,6 +12,7 @@ import RecentlyViewed, { recordRecentView } from '../../components/RecentlyViewe
 import ReportAd from '../../components/ReportAd';
 import ReportSeller from '../../components/ReportSeller';
 import MakeOfferModal from '../../components/MakeOfferModal';
+import ChatBox from '../../components/ChatBox';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox-production.up.railway.app';
@@ -272,6 +273,7 @@ export default function AdPageClient({ params }) {
   const [userId, setUserId] = React.useState('');
 
   const [user, setUser] = useState(null);
+  const [showChatBox, setShowChatBox] = useState(false);
   const [adNotFound, setAdNotFound] = useState(false);
   useEffect(() => {
     if (params?.id) {
@@ -417,30 +419,10 @@ export default function AdPageClient({ params }) {
     setSaved(!saved);
   }
 
-  const handleStartChat = async () => {
+  const handleStartChat = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) { window.location.href = "/login"; return; }
-    const targetSellerId = ad && (ad.userId ? (ad.userId._id || ad.userId) : (ad.seller ? (ad.seller._id || ad.seller) : null));
-    try {
-      const chatAPIUrl = API + "/api/chat/start";
-      const res = await fetch(chatAPIUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token,
-        },
-        body: JSON.stringify({ targetId: targetSellerId, adId: ad && ad._id }),
-      });
-      const data = await res.json();
-      const chatId = data.chatId || data._id || (data.chat && data.chat._id);
-      if (chatId) {
-        window.location.href = "/chat?chatId=" + chatId;
-      } else {
-        window.location.href = "/chat";
-      }
-    } catch (e) {
-      window.location.href = "/chat";
-    }
+    setShowChatBox(true);
   }
 
   if (adNotFound) return (
@@ -506,6 +488,16 @@ export default function AdPageClient({ params }) {
           <button onClick={endCall} style={{ background: '#cc0000', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', animation: 'pulse 1s infinite' }}>⛔ إنهاء المكالمة</button>
         )}
       </div>
+      {showChatBox && ad && (
+        <div id="chat" style={{ marginTop: 16 }}>
+          <ChatBox
+            targetId={ad.userId ? (typeof ad.userId === 'object' ? (ad.userId._id || String(ad.userId)) : String(ad.userId)) : (ad.seller ? (typeof ad.seller === 'object' ? (ad.seller._id || String(ad.seller)) : String(ad.seller)) : '')}
+            adId={ad._id}
+            otherName={ad.userId ? (typeof ad.userId === 'object' ? (ad.userId.name || '') : '') : ''}
+            otherAvatar={ad.userId ? (typeof ad.userId === 'object' ? (ad.userId.avatar || '') : '') : ''}
+          />
+        </div>
+      )}
       {phone && (<button onClick={copyPhone} dir="rtl" style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: copied ? '2px solid #00aa44' : '2px solid #e0e0e0', background: copied ? '#e8f8e8' : '#f8f8f8', color: copied ? '#00aa44' : '#002f34', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
         {copied ? (<><span style={{ fontSize: 18 }}>✓</span><span>تم النسخ</span></>) : (<><span style={{ fontSize: 16 }}>📋</span><span>نسخ الرقم</span><span style={{ color: '#666', fontWeight: 'normal', fontSize: 13 }}>{phone}</span></>)}
       </button>)}
