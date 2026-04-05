@@ -41,8 +41,9 @@ export function adminAuth(req, res, next) {
 }
 
 export function superAdminAuth(req, res, next) {
+  // Bug 3 fix: was checking role === 'admin' only; now allows 'superadmin' role too
   auth(req, res, () => {
-    if (req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Super admin only' });
+    if (!['admin', 'superadmin'].includes(req.user.role)) return res.status(403).json({ success: false, error: 'Super admin only' });
     next();
   });
 }
