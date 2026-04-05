@@ -5,7 +5,7 @@ import { createBackup } from './backup.js';
 export async function archiveExpiredAds() {
   const now = new Date();
   const result = await Ad.updateMany(
-    { expiresAt: { $lt: now }, isExpired: false, isDeleted: false },
+    { expiresAt: { $lt: now }, isExpired: { $ne: true }, isDeleted: { $ne: true } },
     { $set: { isExpired: true, expiredAt: now } }
   );
   console.log(`[ARCHIVE] Expired ${result.modifiedCount} ads (7-day reshare grace started)`);
@@ -16,7 +16,7 @@ export async function deleteOldArchives() {
   const gracePeriod = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const result = await Ad.deleteMany({
     isExpired: true,
-    isDeleted: false,
+    isDeleted: { $ne: true },
     expiredAt: { $lt: gracePeriod }
   });
   console.log(`[CLEANUP] Permanently deleted ${result.deletedCount} ads (grace period over)`);
