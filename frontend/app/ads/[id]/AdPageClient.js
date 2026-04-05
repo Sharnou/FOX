@@ -298,7 +298,7 @@ export default function AdPageClient({ params }) {
     import('socket.io-client').then(({ io }) => {
       s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('token') || 'guest' : 'guest' } });
       s.emit('join', userId);
-      s.on('call_offer', async (data) => {
+      s.on('incoming_call', async (data) => {
         setCallStatus('مكالمة واردة...');
         const pc = await createPeer(s, data.from);
         await pc.setRemoteDescription(data.offer);

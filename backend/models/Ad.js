@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 const AdSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // alias for userId
   title: String, title_original: String, language: String,
   translations: { en: String, ar: String, de: String, fr: String },
   description: String, category: String, subcategory: String, subcategory2: String, subcategory3: String,
@@ -41,8 +42,13 @@ const AdSchema = new mongoose.Schema({
     default: null
   },
   negotiable: { type: Boolean, default: false },
+  // AI quality scoring
+  aiQualityScore: { type: Number, default: null },
+  aiQualityTips: [String],
   // Contact phone number (optional, provided by seller)
   phone: { type: String, default: null },
+  whatsapp: { type: String, default: null }, // separate WhatsApp contact
+  tags: [String], // searchable tags array
   // ──────────────────────────────────────────────────────────────────────────
   createdAt: { type: Date, default: Date.now }
 });
