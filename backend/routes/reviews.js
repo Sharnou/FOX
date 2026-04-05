@@ -4,7 +4,7 @@ import { db, makeId } from "../lib/store.js";
 
 const router = Router();
 
-// Use req.user.id (from JWT) instead of req.user.email (not in JWT)
+// Use req.user.id (from JWT) instead of req.user.id (not in JWT)
 router.post("/", requireAuth, (req, res) => {
   const { seller_id, rating, comment } = req.body;
   const userId = req.user.id;
