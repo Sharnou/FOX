@@ -200,8 +200,8 @@ router.get('/', async (req, res) => {
 // GET user's own ads (active + expired)
 router.get('/my/all', auth, async (req, res) => {
   try {
-    const active = await getAdModel().find({ userId: req.user.id, isDeleted: false, isExpired: false });
-    const expired = await getAdModel().find({ userId: req.user.id, isDeleted: false, isExpired: true });
+    const active = await getAdModel().find({ userId: req.user.id, isDeleted: { $ne: true }, isExpired: { $ne: true } }).lean();
+    const expired = await getAdModel().find({ userId: req.user.id, isDeleted: { $ne: true }, isExpired: true }).lean();
     const expiredWithDeadline = expired.map(ad => {
       const expiredAt = ad.expiredAt || ad.expiresAt;
       const deadlineMs = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
@@ -605,7 +605,7 @@ router.put('/:id', auth, async (req, res) => {
     const updateTags = req.body.tags ? (Array.isArray(req.body.tags) ? req.body.tags.slice(0,20).map(t=>String(t).trim()) : String(req.body.tags).split(',').map(t=>t.trim()).slice(0,20)) : undefined;
 
     // Ownership check — only the original owner may edit
-    const ad = await getAdModel().findOne({ _id: req.params.id, userId: req.user.id, isDeleted: false });
+    const ad = await getAdModel().findOne({ _id: req.params.id, userId: req.user.id, isDeleted: { $ne: true } });
     if (!ad) return res.status(404).json({ error: 'Ad not found or not owned by you' });
 
     // TEXT MODERATION on updated content
