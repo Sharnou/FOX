@@ -111,7 +111,7 @@ export default function Home() {
         onRetry: (attempt) => console.log(`[XTOX] Retry ${attempt}/3 for ads...`),
       });
       const data = await res.json();
-      setAds(Array.isArray(data) ? data : []);
+      setAds(Array.isArray(data) ? data : (data.ads || data.data || data.results || []));
       setError(null);
     } catch (e) {
       setAds([]);

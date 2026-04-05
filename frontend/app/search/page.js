@@ -82,7 +82,9 @@ export default function SearchPage() {
       if (category !== 'الكل') params.category = CAT_MAP[category] || category;
       if (city) params.city = city;
       const res = await axios.get(`${API}/api/ads`, { params });
-      const filtered = (res.data || []).filter(ad =>
+      const _searchData = res.data;
+      const _searchAds = Array.isArray(_searchData) ? _searchData : (_searchData.ads || _searchData.data || []);
+      const filtered = (_searchAds || []).filter(ad =>
         !q.trim() ||
         ad.title?.toLowerCase().includes(q.toLowerCase()) ||
         ad.description?.toLowerCase().includes(q.toLowerCase()) ||
