@@ -4,7 +4,7 @@ import { db, makeId } from "../lib/store.js";
 
 const router = Router();
 
-// Use req.user.id (from JWT) instead of req.user.email (not in JWT)
+// Use req.user.id (from JWT) instead of req.user.id (not in JWT)
 router.get("/", requireAuth, (req, res) => {
   const userId = req.user.id;
   const favs = db.favorites.filter((f) => f.user_id === userId);
