@@ -276,7 +276,7 @@ export const MemAd = {
     const id = newId();
     const doc = {
       ...data, _id: id, id,
-      isDeleted: false, isExpired: false, isFeatured: false,
+      isDeleted: { $ne: true }, isExpired: { $ne: true }, isFeatured: false,
       visibilityScore: 10, views: 0,
       createdAt: now(), updatedAt: now(),
     };
