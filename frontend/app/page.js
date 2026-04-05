@@ -179,7 +179,7 @@ export default function Home() {
         '@type': 'Product',
         name: ad.title,
         url: `https://xtox.app/ads/${ad._id}`,
-        image: ad.media?.[0] || undefined,
+        image: ad.media?.[0] || ad.images?.[0] || undefined,
         offers: {
           '@type': 'Offer',
           price: ad.price,
@@ -807,8 +807,8 @@ export default function Home() {
                   </div>
                 )}
                 <div style={{ height: 115, background: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, position: 'relative' }}>
-                  {ad.media?.[0]
-                    ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title || ''} loading="lazy" />
+                  {(ad.media?.[0] || ad.images?.[0])
+                    ? <img src={ad.media?.[0] || ad.images?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title || ''} loading="lazy" />
                     : <span aria-hidden="true">📦</span>}
                 </div>
                 <div style={{ padding: '10px 12px' }}>
@@ -930,8 +930,8 @@ export default function Home() {
                 }}>
                   {ad.video
                     ? <video src={ad.video} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay muted loop playsInline aria-hidden="true" />
-                    : ad.media?.[0]
-                      ? <img src={ad.media[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" loading="lazy" />
+                    : (ad.media?.[0] || ad.images?.[0])
+                      ? <img src={ad.media?.[0] || ad.images?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" loading="lazy" />
                       : <span aria-hidden="true">📦</span>}
                   {/* Category badge on image */}
                   {ad.category && (
@@ -1155,8 +1155,8 @@ export default function Home() {
                   boxShadow: '0 4px 14px rgba(99,102,241,0.1)',
                 }}
               >
-                {popup.ad.media?.[0] && (
-                  <img src={popup.ad.media[0]} style={{ width: '100%', height: 148, objectFit: 'cover' }} alt={popup.ad.title || ''} loading="lazy" />
+                {(popup.ad.media?.[0] || popup.ad.images?.[0]) && (
+                  <img src={popup.ad.media?.[0] || popup.ad.images?.[0]} style={{ width: '100%', height: 148, objectFit: 'cover' }} alt={popup.ad.title || ''} loading="lazy" />
                 )}
                 <div style={{ padding: '12px 16px', textAlign: isRTL ? 'right' : 'left' }}>
                   <p style={{ fontWeight: 700, margin: '0 0 6px', color: '#1e293b' }}>{popup.ad.title}</p>

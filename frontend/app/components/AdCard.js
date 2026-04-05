@@ -94,8 +94,6 @@ export default function AdCard({ ad }) {
   const [saved, setSaved] = useState(false);
   const [savingBookmark, setSavingBookmark] = useState(false);
   const [viewCount, setViewCount] = useState(ad?.views || 0);
-  // ── FIX 1: track broken image to show placeholder ──────────────────────
-  const [imgError, setImgError] = useState(false);
   // ── Media carousel state ──────────────────────────────────────────────────
   const [imgIndex, setImgIndex] = useState(0);
 
@@ -233,17 +231,16 @@ export default function AdCard({ ad }) {
     router.push(`/chat?adId=${adId}&sellerId=${sellerId}`);
   };
 
-  // ── FIX 1: Get the best image URL with fallback ─────────────────────────
-  // FIX 4: Check images before media — seeded ads use 'images' field; uploaded ads use 'media'
-  const rawImageUrl = ad?.images?.[0] || ad?.image || ad?.media?.[0] || ad?.photos?.[0] || ad?.photo || ad?.thumbnail || 'https://via.placeholder.com/300x200?text=No+Image';
-  const imageUrl = rawImageUrl ? optimizeImage(rawImageUrl) : null;
-  const showPlaceholder = imgError; // rawImageUrl now always has a fallback
+  // ── FIX: Comprehensive image resolution — try ALL field names, handle base64 ─
+  // Get all available images from any field name the API might return
+  const allImages = [
+    ...(Array.isArray(ad?.images) ? ad.images : []),
+    ...(Array.isArray(ad?.media) ? ad.media : []),
+    ...(Array.isArray(ad?.photos) ? ad.photos : []),
+    ad?.image, ad?.imageUrl, ad?.thumbnail, ad?.photo
+  ].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i); // dedupe
 
-
-  // ── Media carousel helpers ────────────────────────────────────────────────
-  const allImages = ad?.images?.length ? ad.images :
-                    ad?.media?.length ? ad.media :
-                    ad?.photos?.length ? ad.photos : [];
+  const firstImage = allImages[0] || null;
   const videoUrl = ad?.videoUrl || ad?.video || null;
   const hasVideo = !!videoUrl;
   const hasMultipleImages = allImages.length > 1;
@@ -313,13 +310,17 @@ export default function AdCard({ ad }) {
         {hasVideo ? (
           <video src={videoUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             muted loop autoPlay playsInline />
-        ) : allImages.length > 0 ? (
+        ) : firstImage ? (
           <img
             loading="lazy"
-            src={optimizeImage(allImages[imgIndex])}
-            alt={ad.title}
+            src={optimizeImage(allImages[imgIndex] || firstImage)}
+            alt={ad?.title || 'إعلان'}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={e => { e.target.src = '/no-image.svg'; }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.style.display = 'none';
+              e.target.parentElement.innerHTML += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;color:#ccc">📷</div>';
+            }}
           />
         ) : (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 40 }}>📷</div>

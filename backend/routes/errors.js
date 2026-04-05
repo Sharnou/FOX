@@ -45,7 +45,16 @@ const knownFixes = {
   },
 };
 
-function analyzeError(message, stack) {
+function analyzeError(message, stack, type) {
+  // Handle manually marked issues with high priority
+  if (type === 'marked_issue' || message?.includes('[MARKED]')) {
+    return {
+      analysis: `تم تمييز هذا العنصر يدوياً من قِبَل المالك: ${message}`,
+      fix: 'مراجعة العنصر المحدد وإصلاح المشكلة المذكورة.',
+      severity: 'high',
+      pattern: 'marked_issue',
+    };
+  }
   for (const [pattern, fix] of Object.entries(knownFixes)) {
     if (message?.includes(pattern) || stack?.includes(pattern)) {
       return { ...fix, pattern };
@@ -67,7 +76,7 @@ router.post('/', async (req, res) => {
     const { message, stack, url, component, type, userAgent } = req.body || {};
     if (!message) return res.status(400).json({ error: 'message required' });
 
-    const analysis = analyzeError(message, stack);
+    const analysis = analyzeError(message, stack, type);
     
     // Deduplicate — increment count if same error seen before
     const existing = await ErrorLog.findOne({ message: { $regex: message.slice(0, 100), $options: 'i' } });

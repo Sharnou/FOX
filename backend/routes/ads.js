@@ -166,11 +166,24 @@ router.get('/', async (req, res) => {
     const regularAds = await getAdModel().find(regularFilter)
       .sort({ isFeatured: -1, featuredUntil: -1, visibilityScore: -1, createdAt: -1 })
       .skip(Number(page) * 20)
-      .limit(20);
+      .limit(20)
+      .lean();
+
+    // Normalize: ensure both 'images' and 'media' fields exist on every ad
+    function normalizeAd(ad) {
+      const obj = ad.toObject ? ad.toObject() : ad;
+      return {
+        ...obj,
+        images: obj.images?.length ? obj.images : (obj.media?.length ? obj.media : []),
+        media: obj.media?.length ? obj.media : (obj.images?.length ? obj.images : []),
+      };
+    }
+    const normalizedFeatured = featuredAds.map(normalizeAd);
+    const normalizedRegular = regularAds.map(normalizeAd);
 
     // Return featured first, then ranked regular
     res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
-    res.json([...featuredAds, ...regularAds]);
+    res.json([...normalizedFeatured, ...normalizedRegular]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

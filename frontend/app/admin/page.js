@@ -549,6 +549,9 @@ export default function AdminPage() {
                   <div key={err._id} style={{ background: '#161b22', border: `1px solid ${err.severity === 'high' || err.severity === 'critical' ? '#ff4444' : '#ffd700'}`, borderRadius: 8, padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
                       <span style={{ background: '#3d1a1a', color: '#ff4444', padding: '1px 7px', borderRadius: 10, fontSize: 10 }}>{err.severity}</span>
+                      {(err.type === 'marked_issue' || err.message?.includes('[MARKED]')) && (
+                        <span style={{ background: '#7c3aed', color: 'white', padding: '1px 7px', borderRadius: 10, fontSize: 10, fontWeight: 'bold' }}>📍 مميز</span>
+                      )}
                       <span style={{ color: '#00d4ff', fontSize: 11 }}>{err.page}</span>
                       <span style={{ color: '#8b949e', fontSize: 10, marginLeft: 'auto' }}>{new Date(err.createdAt).toLocaleString()}</span>
                       {!err.resolved && <button onClick={() => resolveError(err._id)} style={{ background: '#1f3a1f', color: '#00ff41', border: '1px solid #00ff41', padding: '1px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontFamily: 'monospace' }}>resolve</button>}
@@ -626,6 +629,12 @@ export default function AdminPage() {
                         padding: '2px 8px', fontSize: 11, fontWeight: 'bold', marginLeft: 8 }}>
                         {err.severity?.toUpperCase()}
                       </span>
+                      {(err.type === 'marked_issue' || err.message?.includes('[MARKED]')) && (
+                        <span style={{ background: '#7c3aed', color: 'white', borderRadius: 6,
+                          padding: '2px 8px', fontSize: 11, fontWeight: 'bold', marginLeft: 4 }}>
+                          📍 مميز بالمالك
+                        </span>
+                      )}
                       <span style={{ fontSize: 12, color: '#8b949e' }}>× {err.count} مرة</span>
                       <p style={{ margin: '8px 0 4px', fontFamily: 'monospace', fontSize: 13, color: '#ff7b72', wordBreak: 'break-all' }}>
                         {err.message}
