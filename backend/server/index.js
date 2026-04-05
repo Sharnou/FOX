@@ -92,7 +92,7 @@ app.use((req, res, next) => { _metricsRequestCount++; next(); });
 const allowedOrigins = [
   'https://fox-kohl-eight.vercel.app',
   'https://xtox-production.up.railway.app',
-  'https://xtox.up.railway.app',
+  'https://xtox-production.up.railway.app',
   'http://localhost:3000',
   'http://localhost:3001',
   /\.vercel\.app$/,
