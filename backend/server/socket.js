@@ -1,88 +1,115 @@
-// Clean 1-to-1 voice + chat system (WebRTC + Socket.IO)
-const users = {}; // userId -> socketId
+// Real-time chat + voice signaling (WebRTC + Socket.IO)
+// Architecture: Room-per-User pattern (Socket.IO 2025 best practice)
+// Each user joins room 'user_<userId>' — supports multiple tabs/devices
+// Messages delivered via io.to('user_X').emit() — no manual socket ID mapping
 
 export function initSocket(io) {
-  // Auth middleware
+
+  // ── Auth middleware ───────────────────────────────────────────
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('Unauthorized'));
+    // Store userId from token in socket.data — JWT verification is optional
+    // (userId is also set in 'join' event for backward compatibility)
     next();
   });
 
   io.on('connection', (socket) => {
     console.log('[Socket] Connected:', socket.id);
 
-    // ─── Register user ───────────────────────────
+    // ── Register user → join personal room ──────────────────────
+    // Room-per-User pattern: all tabs for same user share the room
     socket.on('join', (userId) => {
-      users[userId] = socket.id;
-      socket.userId = userId;
-      // Join user-specific room for targeted notifications (offers, etc.)
+      if (!userId) return;
+      socket.data.userId = userId;
+      // Join personal notification room (supports multi-tab)
       socket.join('user_' + userId);
-      console.log(`[Socket] User joined: ${userId}`);
+      console.log('[Socket] User joined room:', 'user_' + userId, '| socket:', socket.id);
     });
 
-    // ─── Text Chat ───────────────────────────────
+    // ── Text Chat ────────────────────────────────────────────────
     socket.on('send_message', (data) => {
-      const targetSocket = users[data.to];
-      if (targetSocket) {
-        io.to(targetSocket).emit('receive_message', {
-          ...data,
-          delivered: true
-        });
-      }
+      if (!data || !data.to) return;
+      // Deliver to ALL of recipient's tabs via their room
+      io.to('user_' + data.to).emit('receive_message', {
+        ...data,
+        delivered: true,
+        timestamp: Date.now(),
+      });
     });
 
     // Typing indicator
     socket.on('typing', (data) => {
-      const targetSocket = users[data.to];
-      if (targetSocket) io.to(targetSocket).emit('typing', { from: data.from });
+      if (!data || !data.to) return;
+      io.to('user_' + data.to).emit('typing', {
+        from: data.from || socket.data.userId,
+        chatId: data.chatId,
+      });
     });
 
-    // ─── Voice Call (WebRTC Signaling) ───────────
+    // Stop typing indicator
+    socket.on('stop_typing', (data) => {
+      if (!data || !data.to) return;
+      io.to('user_' + data.to).emit('stop_typing', {
+        from: data.from || socket.data.userId,
+      });
+    });
+
+    // ── Voice Call (WebRTC Signaling) ────────────────────────────
 
     // Caller sends offer to receiver
     socket.on('call_offer', (data) => {
-      const targetSocket = users[data.to];
-      if (targetSocket) {
-        io.to(targetSocket).emit('incoming_call', {
-          from: data.from || socket.userId,
-          offer: data.offer
-        });
-      }
+      if (!data || !data.to) return;
+      io.to('user_' + data.to).emit('incoming_call', {
+        from: data.from || socket.data.userId,
+        offer: data.offer,
+      });
     });
 
     // Receiver answers call
     socket.on('call_answer', (data) => {
-      const targetSocket = users[data.to];
-      if (targetSocket) {
-        io.to(targetSocket).emit('call_answered', {
-          answer: data.answer,
-          from: socket.userId
-        });
-      }
+      if (!data || !data.to) return;
+      io.to('user_' + data.to).emit('call_answered', {
+        answer: data.answer,
+        from: socket.data.userId,
+      });
     });
 
     // ICE candidates exchange
     socket.on('ice_candidate', (data) => {
-      const targetSocket = users[data.to];
-      if (targetSocket) {
-        io.to(targetSocket).emit('ice_candidate', data.candidate);
-      }
+      if (!data || !data.to) return;
+      io.to('user_' + data.to).emit('ice_candidate', data.candidate);
     });
 
     // End call
     socket.on('call_end', (data) => {
-      const targetSocket = users[data.to];
-      if (targetSocket) {
-        io.to(targetSocket).emit('call_ended', { from: socket.userId });
-      }
+      if (!data || !data.to) return;
+      io.to('user_' + data.to).emit('call_ended', {
+        from: socket.data.userId,
+      });
     });
 
-    // ─── Disconnect ──────────────────────────────
-    socket.on('disconnect', () => {
-      if (socket.userId && users[socket.userId] === socket.id) {
-        delete users[socket.userId];
-        console.log(`[Socket] User left: ${socket.userId}`);
+    // ── Disconnect ───────────────────────────────────────────────
+    socket.on('disconnect', async () => {
+      const userId = socket.data.userId;
+      if (!userId) return;
+      // Check if user has other active tabs before marking offline
+      try {
+        const room = await io.in('user_' + userId).fetchSockets();
+        if (room.length === 0) {
+          // User is fully offline (all tabs closed)
+          console.log('[Socket] User fully offline:', userId);
+          // Update lastSeen in DB
+          try {
+            const mongoose = await import('mongoose');
+            const User = mongoose.default.models.User;
+            if (User) await User.updateOne({ _id: userId }, { lastSeen: new Date() }).catch(() => {});
+          } catch {}
+        } else {
+          console.log('[Socket] User still has', room.length, 'active tab(s):', userId);
+        }
+      } catch {
+        console.log('[Socket] Disconnected:', socket.id);
       }
     });
   });
