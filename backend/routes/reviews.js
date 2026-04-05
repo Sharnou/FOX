@@ -7,7 +7,7 @@ const router = Router();
 // Use req.user.id (from JWT) instead of req.user.email (not in JWT)
 router.post("/", requireAuth, (req, res) => {
   const { seller_id, rating, comment } = req.body;
-  const userId = req.user.id || req.user._id;
+  const userId = req.user.id;
   if (!seller_id || !rating) return res.status(400).json({ error: "seller_id and rating required" });
   const ratingNum = Number(rating);
   if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
