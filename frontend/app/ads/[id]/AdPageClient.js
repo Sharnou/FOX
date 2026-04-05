@@ -415,32 +415,30 @@ export default function AdPageClient({ params }) {
   }
 
   const handleStartChat = async () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) { window.location.href = '/login'; return; }
-    const targetSellerId = ad?.userId?._id || ad?.userId || ad?.seller?._id || ad?.seller;
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) { window.location.href = "/login"; return; }
+    const targetSellerId = ad && (ad.userId ? (ad.userId._id || ad.userId) : (ad.seller ? (ad.seller._id || ad.seller) : null));
     try {
-      const chatAPI = API + '/api/chat/start';
-      const res = await fetch(chatAPI, {
-        method: 'POST',
+      const chatAPIUrl = API + "/api/chat/start";
+      const res = await fetch(chatAPIUrl, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + token,
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
         },
-        body: JSON.stringify({ targetId: targetSellerId, adId: ad?._id }),
+        body: JSON.stringify({ targetId: targetSellerId, adId: ad && ad._id }),
       });
       const data = await res.json();
-      const chatId = data.chatId || data._id || data.chat?._id;
+      const chatId = data.chatId || data._id || (data.chat && data.chat._id);
       if (chatId) {
-        window.location.href = '/chat?chatId=' + chatId;
+        window.location.href = "/chat?chatId=" + chatId;
       } else {
-        window.location.href = '/chat';
+        window.location.href = "/chat";
       }
     } catch (e) {
-      window.location.href = '/chat';
+      window.location.href = "/chat";
     }
-  };
-
-  if (adNotFound)
+  }
 
   if (adNotFound) return (
     <div style={{ textAlign: 'center', padding: 40, fontFamily: "'Cairo', system-ui, sans-serif" }}>
