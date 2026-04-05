@@ -1,3 +1,4 @@
+// AI Error Scanner v2 — auto-analysis, Gemini diagnosis, pattern learning
 import express from 'express';
 import ErrorLog from '../models/ErrorLog.js';
 import { adminAuth } from '../middleware/auth.js';
