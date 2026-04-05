@@ -126,7 +126,8 @@ function sanitizeAdFields({ title, description, category, subcategory, price, ci
 router.get('/', async (req, res) => {
   try {
     const { category, city, page = 0, q, userId } = req.query;
-    const countryParam = req.query.country || req.headers['x-country'] || req.user?.country || null;
+    // FIX: Do NOT use req.user.country — logged-in users from different countries would see 0 ads
+    const countryParam = req.query.country || req.headers['x-country'] || null;
 
     const filter = {
       isExpired: { $ne: true },   // matches false, null, undefined — new ads have no isExpired set
