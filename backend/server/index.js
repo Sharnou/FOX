@@ -266,6 +266,35 @@ async function runSeedsOnce() {
     console.error('[SEED] Error:', e.message);
   }
 }
+
+// ── FIX 1: Seed xtox admin user on startup ───────────────────────────────
+async function seedXtoxAdmin() {
+  try {
+    const UserModel = mongoose.models.User || (await import('../models/User.js')).default;
+    const bcrypt = await import('bcryptjs');
+    const existing = await UserModel.findOne({ username: 'xtox' });
+    if (!existing) {
+      const hash = await bcrypt.default.hash('xtoxxtox', 10);
+      const admin = new UserModel({
+        username: 'xtox',
+        email: 'xtox@xtox.com',
+        password: hash,
+        role: 'admin',
+        chatEnabled: true,
+        name: 'XTOX Admin',
+        country: 'EG',
+        city: 'Cairo',
+      });
+      await admin.save();
+      console.log('[Seed] Admin user created: xtox / xtoxxtox');
+    } else {
+      console.log('[Seed] Admin xtox already exists');
+    }
+  } catch (e) {
+    console.error('[Seed] Admin seed failed:', e.message);
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 const server = http.createServer(app);
 const io = new Server(server, { cors: corsOptions });
 initSocket(io);
@@ -361,6 +390,7 @@ connectDatabases().then(async (db) => {
 
     // ── Run seeds + cleanup ─────────────────────────────────────────────
     await runSeedsOnce();
+    await seedXtoxAdmin();
     await (async function cleanupDuplicates() {
       try {
         const Country = mongoose.models.Country;

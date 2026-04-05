@@ -6,8 +6,9 @@ const SITE_URL = 'https://xtox.app';
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
 export async function generateMetadata({ params }) {
+  const { id } = await params;
   try {
-    const res = await fetch(`${API}/api/ads/${params.id}`, {
+    const res = await fetch(`${API}/api/ads/${id}`, {
       next: { revalidate: 3600 },
     });
     if (!res.ok) throw new Error('Ad not found');
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }) {
       ? rawDescription.slice(0, 157) + '...'
       : rawDescription || 'اعثر على أفضل العروض في سوق XTOX المحلي';
     const image = (ad.media && ad.media[0]) || DEFAULT_OG_IMAGE;
-    const url = `${SITE_URL}/ads/${params.id}`;
+    const url = `${SITE_URL}/ads/${id}`;
 
     return {
       title,
@@ -102,7 +103,8 @@ async function getAdJsonLd(id) {
 }
 
 export default async function AdPage({ params }) {
-  const jsonLd = await getAdJsonLd(params.id);
+  const { id } = await params;
+  const jsonLd = await getAdJsonLd(id);
   return (
     <>
       {jsonLd && (
@@ -111,7 +113,7 @@ export default async function AdPage({ params }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <AdPageClient params={params} />
+      <AdPageClient params={{ id }} />
     </>
   );
 }
