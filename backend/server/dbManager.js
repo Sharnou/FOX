@@ -30,14 +30,14 @@ async function tryMongoDB() {
 
 // ── Attempt Couchbase connection (10s timeout) ───────────────────────────────
 async function tryCouchbase() {
-  const url      = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST;
-  const username = process.env.COUCHBASE_USER || process.env.COUCHBASE_USERNAME;
-  const password = process.env.COUCHBASE_PASS || process.env.COUCHBASE_PASSWORD;
+  const url = process.env.COUCHBASE_URL || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
+  const username = process.env.COUCHBASE_USERNAME || 'xtox';
+  const password = process.env.COUCHBASE_PASSWORD; // no hardcoded default — must be set
   const bucketName = process.env.COUCHBASE_BUCKET || 'xtox';
 
-  if (!url || !username || !password) {
-    throw new Error('Couchbase env vars not set (COUCHBASE_URL / COUCHBASE_USER / COUCHBASE_PASS)');
-  }
+  if (!password) throw new Error('COUCHBASE_PASSWORD env var not set');
+
+  console.log(`[DB] Connecting to Couchbase: ${url} as ${username}`);
 
   // Dynamic import — won't crash if SDK not installed
   const couchbaseMod = await import('couchbase').catch(() => null);
@@ -48,8 +48,11 @@ async function tryCouchbase() {
   couchbaseCluster = await couchbase.connect(url, {
     username,
     password,
-    timeouts: { connectTimeout: 10000, kvTimeout: 5000 },
-    configProfile: 'wanDevelopment', // required for Capella cloud
+    timeouts: {
+      connectTimeout: 10000,
+      kvTimeout: 5000,
+      queryTimeout: 10000,
+    },
   });
 
   couchbaseBucket     = couchbaseCluster.bucket(bucketName);
