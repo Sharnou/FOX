@@ -35,7 +35,7 @@ export function optionalAuth(req, res, next) {
 
 export function adminAuth(req, res, next) {
   auth(req, res, () => {
-    if (!['admin', 'sub_admin'].includes(req.user.role)) return res.status(403).json({ success: false, error: 'Forbidden' });
+    if (!['admin', 'sub_admin', 'superadmin'].includes(req.user.role)) return res.status(403).json({ success: false, error: 'Forbidden' });
     next();
   });
 }
