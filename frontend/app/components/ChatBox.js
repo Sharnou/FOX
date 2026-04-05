@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { detectLang } from '../../lib/lang';
 
 /**
  * ChatBox — Full bilingual Arabic/English WhatsApp-style chat component

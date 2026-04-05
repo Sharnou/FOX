@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { detectLang } from '../../../lib/lang';
 
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality)
 function optimizeImage(url, width = 400) {
@@ -250,6 +251,8 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
 }
 
 export default function AdPageClient({ params }) {
+  const [lang, setLang] = useState('ar');
+  useEffect(() => { setLang(detectLang()); }, []);
   const [ad, setAd] = useState(null);
   const [callActive, setCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState('');
@@ -416,11 +419,11 @@ export default function AdPageClient({ params }) {
     if (!token) { window.location.href = '/login'; return; }
     const targetSellerId = ad?.userId?._id || ad?.userId || ad?.seller?._id || ad?.seller;
     try {
-      const res = await fetch(\`\${API}/api/chat/start\`, {
+      const res = await fetch(`${API}/api/chat/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: \`Bearer \${token}\`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           targetId: targetSellerId,
@@ -430,12 +433,12 @@ export default function AdPageClient({ params }) {
       const data = await res.json();
       const chatId = data.chatId || data._id || data.chat?._id;
       if (chatId) {
-        window.location.href = \`/chat?chatId=\${chatId}&target=\${targetSellerId}\`;
+        window.location.href = `/chat?chatId=${chatId}&target=${targetSellerId}`;
       } else {
-        window.location.href = \`/chat?target=\${targetSellerId}\`;
+        window.location.href = `/chat?target=${targetSellerId}`;
       }
     } catch {
-      window.location.href = \`/chat?target=\${targetSellerId || ''}\`;
+      window.location.href = `/chat?target=${targetSellerId || ''}`;
     }
   };
 

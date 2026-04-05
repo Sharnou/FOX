@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import { analyzeImageForAd, checkAdSimilarity } from '../../lib/geminiAI';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
+import { detectLang, detectCurrency } from '../../lib/lang';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -86,7 +87,11 @@ export default function SellPage() {
     const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token');
     if (!t) { window.location.href = '/login'; return; }
     setToken(t);
-    setCountry(localStorage.getItem('country') || 'EG');
+    const detectedCountry = localStorage.getItem('country') || localStorage.getItem('xtox_country') || 'EG';
+    setCountry(detectedCountry);
+    // Auto-detect currency based on user's country
+    const currency = detectCurrency();
+    setForm(f => ({ ...f, currency: currency.code }));
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (user.phone) setForm(f => ({ ...f, phone: user.phone }));
     const lastPhone = localStorage.getItem('last_used_phone');

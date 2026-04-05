@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { detectLang } from '../../lib/lang';
 
 /**
  * UnifiedNotificationPrompt — Full Bilingual RTL Overhaul [run 72]

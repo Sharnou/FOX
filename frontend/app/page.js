@@ -7,6 +7,7 @@ import AdCardSkeleton from './components/AdCardSkeleton';
 import CartoonMoodPopup from './components/CartoonMoodPopup';
 import BannerAds from './components/BannerAds';
 import AISearchBar from './components/AISearchBar';
+import { detectLang } from '../lib/lang';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
