@@ -24,9 +24,10 @@ router.get('/', auth, async (req, res) => {
     const chats = await getChat().find({ users: req.user.id })
       .sort({ lastMessage: -1 })
       .lean();
-    res.json(chats);
+    res.json({ success: true, chats });
   } catch (e) {
     res.status(500).json({
+      success: false,
       error: e.message,
       message: 'حدث خطأ أثناء جلب المحادثات | Error fetching chats',
     });
@@ -38,27 +39,42 @@ router.get('/', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.post('/start', auth, async (req, res) => {
   try {
-    const { targetId, adId } = req.body;
-    if (!targetId) {
+    // Accept sellerId OR targetId for compatibility
+    const { sellerId, targetId, adId } = req.body;
+    const otherId = sellerId || targetId;
+    if (!otherId) {
       return res.status(400).json({
-        error: 'targetId is required',
-        message: 'معرّف المستخدم المستهدف مطلوب | targetId is required',
+        success: false,
+        error: 'sellerId is required',
+        message: 'معرّف البائع مطلوب | sellerId is required',
+      });
+    }
+    if (req.user.id === otherId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot chat with yourself',
+        message: 'لا يمكنك التواصل مع نفسك | Cannot chat with yourself',
       });
     }
     let chat = await getChat().findOne({
-      users: { $all: [req.user.id, targetId] },
-      adId,
+      $or: [
+        { users: { $all: [req.user.id, otherId] }, adId: adId || { $exists: true } },
+        { users: { $all: [req.user.id, otherId] } },
+      ],
     });
     if (!chat) {
       chat = await getChat().create({
-        users: [req.user.id, targetId],
-        adId,
+        users: [req.user.id, otherId],
+        adId: adId || null,
         messages: [],
+        lastMessage: new Date(),
       });
     }
-    res.json(chat);
+    res.json({ success: true, chatId: chat._id, _id: chat._id, chat });
   } catch (e) {
+    console.error('[POST /api/chat/start]', e.message);
     res.status(500).json({
+      success: false,
       error: e.message,
       message: 'حدث خطأ أثناء إنشاء المحادثة | Error creating chat',
     });
@@ -252,6 +268,37 @@ router.delete('/:chatId/messages/:messageId', auth, async (req, res) => {
       error: e.message,
       message: 'حدث خطأ أثناء حذف الرسالة | Error deleting message',
     });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/:chatId/messages  — send a message via REST
+// ─────────────────────────────────────────────────────────────
+router.post('/:chatId/messages', auth, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { text, type = 'text' } = req.body;
+    if (!text) {
+      return res.status(400).json({ success: false, error: 'text is required', message: 'نص الرسالة مطلوب | text is required' });
+    }
+    const chat = await getChat().findOne({ _id: chatId, users: req.user.id });
+    if (!chat) {
+      return res.status(404).json({ success: false, error: 'Chat not found or access denied', message: 'المحادثة غير موجودة | Chat not found' });
+    }
+    const message = {
+      sender: req.user.id,
+      text,
+      type,
+      read: false,
+      createdAt: new Date(),
+    };
+    chat.messages.push(message);
+    chat.lastMessage = new Date();
+    await chat.save();
+    res.json({ success: true, message: chat.messages[chat.messages.length - 1] });
+  } catch (e) {
+    console.error('[POST /api/chat/:chatId/messages]', e.message);
+    res.status(500).json({ success: false, error: e.message, message: 'حدث خطأ أثناء إرسال الرسالة | Error sending message' });
   }
 });
 

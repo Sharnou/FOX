@@ -222,20 +222,11 @@ export default function AdCard({ ad }) {
     }
   };
 
-  // ── FIX 3: Chat button handler ──────────────────────────────────────────
+  // ── Chat button handler: deep-link to ad page where full chat flow is handled ──
   const handleChat = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const token =
-      localStorage.getItem('token') ||
-      localStorage.getItem('authToken') ||
-      localStorage.getItem('xtox_admin_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    const sellerId = ad.userId?._id || ad.userId?.id || ad.userId || ad.sellerId;
-    router.push(`/chat?adId=${adId}&sellerId=${sellerId}`);
+    window.location.href = `/ads/${adId}#chat`;
   };
 
   // ── FIX: Comprehensive image resolution — try ALL field names, handle base64 ─

@@ -268,6 +268,7 @@ export default function AdPageClient({ params }) {
 
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') || 'guest_' + Date.now() : '';
 
+  const [user, setUser] = useState(null);
   const [adNotFound, setAdNotFound] = useState(false);
   useEffect(() => {
     if (params?.id) {
@@ -291,6 +292,12 @@ export default function AdPageClient({ params }) {
       setSaved(savedAds.includes(params.id));
     }
   }, [params?.id]);
+
+  // Load user from localStorage for chat button
+  useEffect(() => {
+    const u = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+    if (u) { try { setUser(JSON.parse(u)); } catch {} }
+  }, []);
 
   useEffect(() => {
     if (!SOCKET_URL || !userId) return;
@@ -404,6 +411,34 @@ export default function AdPageClient({ params }) {
     setSaved(!saved);
   }
 
+  const handleStartChat = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) { window.location.href = '/login'; return; }
+    const targetSellerId = ad?.userId?._id || ad?.userId || ad?.seller?._id || ad?.seller;
+    try {
+      const res = await fetch(\`\${API}/api/chat/start\`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: \`Bearer \${token}\`,
+        },
+        body: JSON.stringify({
+          targetId: targetSellerId,
+          adId: ad._id,
+        }),
+      });
+      const data = await res.json();
+      const chatId = data.chatId || data._id || data.chat?._id;
+      if (chatId) {
+        window.location.href = \`/chat?chatId=\${chatId}&target=\${targetSellerId}\`;
+      } else {
+        window.location.href = \`/chat?target=\${targetSellerId}\`;
+      }
+    } catch {
+      window.location.href = \`/chat?target=\${targetSellerId || ''}\`;
+    }
+  };
+
   if (adNotFound) return (
     <div style={{ textAlign: 'center', padding: 40, fontFamily: "'Cairo', system-ui, sans-serif" }}>
       <p style={{ fontSize: 24 }}>😕</p>
@@ -444,7 +479,23 @@ export default function AdPageClient({ params }) {
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
-        <a href={`/chat?target=${sellerId}&ad=${ad._id}`} style={{ background: '#002f34', color: 'white', textAlign: 'center', padding: '14px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15 }}>💬 محادثة</a>
+        {user && String(ad.userId?._id || ad.userId) !== String(user.id || user._id) ? (
+          <button
+            onClick={handleStartChat}
+            style={{ background: '#7c3aed', color: '#fff', border: 'none', textAlign: 'center', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          >
+            💬 راسل البائع
+          </button>
+        ) : !user ? (
+          <button
+            onClick={() => { window.location.href = '/login'; }}
+            style={{ background: '#7c3aed', color: '#fff', border: 'none', textAlign: 'center', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}
+          >
+            💬 تواصل مع البائع
+          </button>
+        ) : (
+          <a href="/" style={{ background: '#e2e8f0', color: '#64748b', textAlign: 'center', padding: '14px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🏠 الرئيسية</a>
+        )}
         {!callActive ? (
           <button onClick={startCall} style={{ background: '#00aa44', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>📞 مكالمة مباشرة</button>
         ) : (
