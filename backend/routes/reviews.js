@@ -1,19 +1,25 @@
 import { Router } from "express";
 import { auth as requireAuth } from "../middleware/auth.js";
-import { countryLock } from "../middleware/countryLock.js";
 import { db, makeId } from "../lib/store.js";
 
 const router = Router();
 
-router.post("/", requireAuth, countryLock, (req, res) => {
+// Use req.user.id (from JWT) instead of req.user.email (not in JWT)
+router.post("/", requireAuth, (req, res) => {
   const { seller_id, rating, comment } = req.body;
+  const userId = req.user.id || req.user._id;
   if (!seller_id || !rating) return res.status(400).json({ error: "seller_id and rating required" });
+  const ratingNum = Number(rating);
+  if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+    return res.status(400).json({ error: "Rating must be 1-5" });
+  }
+  if (!db.seller_reviews) db.seller_reviews = [];
   const review = {
     id: makeId(),
     seller_id,
-    rating,
+    rating: ratingNum,
     comment: comment || "",
-    user_email: req.user.email,
+    user_id: userId,
     created_at: new Date().toISOString(),
   };
   db.seller_reviews.push(review);
@@ -21,6 +27,7 @@ router.post("/", requireAuth, countryLock, (req, res) => {
 });
 
 router.get("/seller/:id/reviews", (req, res) => {
+  if (!db.seller_reviews) db.seller_reviews = [];
   const items = db.seller_reviews.filter((r) => r.seller_id === req.params.id);
   res.json(items);
 });

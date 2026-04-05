@@ -72,6 +72,7 @@ import wishlistRouter from '../routes/wishlist.js';
 import reviewsRouter from '../routes/reviews.js';
 import favoritesRouter from '../routes/favorites.js';
 import promoteRouter from '../routes/promote.js';
+import notificationRoutes from '../routes/notifications.js';
 import jwt from 'jsonwebtoken';
 import { initMemoryStore, dbState } from './memoryStore.js';
 import { connectDatabases, getActiveDB, getCouchbaseError } from './dbManager.js';
@@ -214,6 +215,7 @@ app.use('/api/wishlist', wishlistRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/promote', promoteRouter);
+app.use('/api/notifications', notificationRoutes);
 
 // GET /api/metrics — admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {

@@ -1,4 +1,6 @@
 'use client';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
@@ -30,7 +32,7 @@ export default function TrendingAdsWidget({ lang = 'ar', countryCode = 'EG', cur
     let cancelled = false;
     setLoading(true);
     setError(false);
-    fetch(`/api/ads?sort=trending&limit=6&country=${countryCode}`)
+    fetch(`${API_URL}/api/ads?limit=6${countryCode ? '&country=' + countryCode : ''}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         if (!cancelled) {

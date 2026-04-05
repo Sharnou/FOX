@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { analyzeImageForAd, checkAdSimilarity } from '../../lib/geminiAI';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 // Arabic category names mapped to English backend values
 const CATS = [

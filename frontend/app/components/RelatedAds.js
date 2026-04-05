@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 // Reuse the same Cloudinary optimiser pattern used across XTOX components
 function optimizeImage(url, width = 300) {

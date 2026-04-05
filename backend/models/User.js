@@ -30,6 +30,17 @@ const UserSchema = new mongoose.Schema(
     favorites: [String],
     blockedUsers: [String],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ad' }],
+    notifications: [{
+      _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
+      type: { type: String, enum: ['chat', 'ad', 'system', 'review', 'featured', 'broadcast'], default: 'system' },
+      title: String,
+      body: String,
+      link: String,
+      read: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now },
+    }],
+    username: { type: String, sparse: true },
+    bio: { type: String, maxlength: 500 },
     lastSeen: { type: Date, default: null },   // updated on each authenticated request
     lastActive: Date,                           // kept for backward compat
     createdAt: { type: Date, default: Date.now },

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 const REPORT_REASONS = [
   { id: "spam",          ar: "بريد مزعج",      en: "Spam",              icon: "🚫" },

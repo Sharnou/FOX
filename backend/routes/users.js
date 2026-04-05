@@ -415,7 +415,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 // Update own profile (phone, whatsapp, avatar, name, city, visibility)
 router.put('/me', auth, async (req, res) => {
   try {
-    const { name, city, avatar, phone, whatsapp, showPhone, showWhatsapp } = req.body;
+    const { name, city, avatar, phone, whatsapp, showPhone, showWhatsapp, bio, username } = req.body;
 
     // ── Input Validation & Sanitization ───────────────────────────────────
     const update = {};
@@ -456,6 +456,19 @@ router.put('/me', auth, async (req, res) => {
 
     if (showPhone !== undefined) update.showPhone = Boolean(showPhone);
     if (showWhatsapp !== undefined) update.showWhatsapp = Boolean(showWhatsapp);
+
+    if (bio !== undefined) {
+      const cleanBio = typeof bio === 'string' ? bio.trim().slice(0, 500) : null;
+      if (cleanBio !== null) update.bio = cleanBio;
+    }
+
+    if (username !== undefined) {
+      const cleanUsername = typeof username === 'string' ? username.trim().slice(0, 100) : null;
+      if (cleanUsername !== null && cleanUsername.length > 0) {
+        update.username = cleanUsername;
+        update.name = cleanUsername; // keep name in sync
+      }
+    }
     // ──────────────────────────────────────────────────────────────────────
 
     const user = await getUserModel().findByIdAndUpdate(req.user.id, update, { new: true });
