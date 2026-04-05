@@ -478,16 +478,26 @@ router.post('/', auth, upload.fields([
       location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
       visibilityScore: 10,
       createdAt: new Date(),
-      isExpired: { $ne: true },
-      isDeleted: { $ne: true },
+      isExpired: false,
+      isDeleted: false,
     });
 
     await rankAd(ad).catch(() => {});
     await indexAd(ad).catch(() => {});
 
-    // AUTO-LEARN local language from this ad
-    const { learnFromAd } = await import('../server/languageLearner.js');
-    learnFromAd(title, description, country).catch(() => {});
+    // AUTO-LEARN local language from this ad — wrapped in try/catch
+    // to prevent sync crashes (e.g. undefined.media) from reaching the outer
+    // try/catch and returning a 500 instead of the 201 success response.
+    try {
+      const { learnFromAd } = await import('../server/languageLearner.js');
+      const _learnResult = learnFromAd(title, description, country);
+      // Handle both sync (no .catch) and async (has .catch) functions safely
+      if (_learnResult && typeof _learnResult.catch === 'function') {
+        _learnResult.catch(() => {});
+      }
+    } catch (_learnErr) {
+      console.warn('[learnFromAd] non-critical error ignored:', _learnErr.message);
+    }
 
     // AI QUALITY SCORE — async, non-blocking (run after response)
     setImmediate(async () => {
@@ -507,7 +517,16 @@ router.post('/', auth, upload.fields([
       }
     });
 
-    res.status(201).json({ success: true, ad, _id: ad._id });
+    // Normalize response — always include both 'images' and 'media' as arrays
+    // to prevent "Cannot read properties of undefined (reading 'media')" on client
+    const _adObj = ad.toObject ? ad.toObject() : (typeof ad === 'object' ? { ...ad } : {});
+    const _normalizedAd = {
+      ..._adObj,
+      _id: _adObj._id || ad._id,
+      images: (_adObj.images && _adObj.images.length) ? _adObj.images : ((_adObj.media && _adObj.media.length) ? _adObj.media : []),
+      media: (_adObj.media && _adObj.media.length) ? _adObj.media : ((_adObj.images && _adObj.images.length) ? _adObj.images : []),
+    };
+    res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
   } catch (e) {
     console.error('[POST /api/ads] crash:', e.stack || e.message);
     return res.status(500).json({
@@ -657,7 +676,7 @@ router.put('/:id', auth, async (req, res) => {
 // ── DELETE ad ──
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'sub_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'sub_admin' || req.user.role === 'superadmin';
     const query = isAdmin ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
     const ad = await getAdModel().findOne(query);
     if (!ad) return res.status(404).json({ error: 'Not found' });
