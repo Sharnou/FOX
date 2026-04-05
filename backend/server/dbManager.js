@@ -38,7 +38,7 @@ async function tryCouchbase() {
   const url = process.env.COUCHBASE_URL || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
   const username = process.env.COUCHBASE_USERNAME || 'xtox';
   const password = process.env.COUCHBASE_PASSWORD  || '#N^wx+uO^70G';
-  const bucketName = process.env.COUCHBASE_BUCKET || 'xtox';
+  const bucketName = process.env.COUCHBASE_BUCKET || 'XTOX';
 
   console.log(`[DB] Connecting to Couchbase: ${url} as ${username}`);
 

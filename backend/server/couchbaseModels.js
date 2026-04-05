@@ -5,7 +5,7 @@
 import { randomUUID } from 'crypto';
 import { getCouchbaseCollection, getCouchbaseCluster } from './dbManager.js';
 
-const BUCKET = process.env.COUCHBASE_BUCKET || 'xtox';
+const BUCKET = process.env.COUCHBASE_BUCKET || 'XTOX';
 
 // ── Doc-key helpers ──────────────────────────────────────────────────────────
 const adKey    = id => `ad::${id}`;
