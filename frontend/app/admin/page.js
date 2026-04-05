@@ -353,8 +353,8 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 53px)' }}>
-        <div style={{ width: 190, background: '#161b22', borderRight: '1px solid #30363d', padding: '12px 0', flexShrink: 0 }}>
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 53px)', overflowX: 'auto' }}>
+        <div style={{ width: 190, minWidth: 150, background: '#161b22', borderRight: '1px solid #30363d', padding: '12px 0', flexShrink: 0, overflowY: 'auto' }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 18px', background: tab === t.id ? '#21262d' : 'transparent', color: tab === t.id ? '#00ff41' : '#8b949e', border: 'none', cursor: 'pointer', fontSize: 12, borderLeft: tab === t.id ? '2px solid #00ff41' : '2px solid transparent' }}>

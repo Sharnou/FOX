@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AIQualityBadge from './AIQualityBadge';
@@ -96,6 +96,7 @@ export default function AdCard({ ad }) {
   const [viewCount, setViewCount] = useState(ad?.views || 0);
   // ── Media carousel state ──────────────────────────────────────────────────
   const [imgIndex, setImgIndex] = useState(0);
+  const touchStartX = useRef(null);
 
   // Normalize ad id — MongoDB returns _id, some APIs return id
   const adId = ad?._id || ad?.id;
@@ -120,6 +121,7 @@ export default function AdCard({ ad }) {
       .then(data => { if (data?.views != null) setViewCount(data.views); })
       .catch(() => {}); // silent — view count is non-critical
   }, [adId]);
+
 
   if (!ad) return null;
 
@@ -244,6 +246,19 @@ export default function AdCard({ ad }) {
   const videoUrl = ad?.videoUrl || ad?.video || null;
   const hasVideo = !!videoUrl;
   const hasMultipleImages = allImages.length > 1;
+
+  // ── Touch swipe support for mobile image carousel ──────────────────────────
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) { setImgIndex(prev => (prev + 1) % allImages.length); }
+      else { setImgIndex(prev => (prev - 1 + allImages.length) % allImages.length); }
+    }
+    touchStartX.current = null;
+  };
+  // ──────────────────────────────────────────────────────────────────────────
   // ──────────────────────────────────────────────────────────────────────────
 
   // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
@@ -306,13 +321,16 @@ export default function AdCard({ ad }) {
       </button>
 
       {/* ── Media Carousel: video > multiple images > single image > placeholder ── */}
-      <div style={{ position: 'relative', width: '100%', paddingBottom: '65%', background: '#f0f0f0', borderRadius: '12px 12px 0 0', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', width: '100%', paddingBottom: '65%', background: '#f0f0f0', borderRadius: '12px 12px 0 0', overflow: 'hidden' }}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}>
         {hasVideo ? (
           <video src={videoUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             muted loop autoPlay playsInline />
         ) : firstImage ? (
           <img
             loading="lazy"
+            decoding="async"
             src={optimizeImage(allImages[imgIndex] || firstImage)}
             alt={ad?.title || 'إعلان'}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
@@ -331,7 +349,7 @@ export default function AdCard({ ad }) {
           <div style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 4 }}>
             {allImages.map((_, i) => (
               <div key={i} onClick={e => { e.stopPropagation(); setImgIndex(i); }}
-                style={{ width: 6, height: 6, borderRadius: '50%', background: i === imgIndex ? 'white' : 'rgba(255,255,255,0.5)', cursor: 'pointer' }} />
+                style={{ width: 8, height: 8, borderRadius: '50%', background: i === imgIndex ? 'white' : 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: 4, boxSizing: 'content-box', WebkitTapHighlightColor: 'transparent' }} />
             ))}
           </div>
         )}
@@ -340,9 +358,9 @@ export default function AdCard({ ad }) {
         {hasMultipleImages && (
           <>
             <button onClick={e => { e.stopPropagation(); setImgIndex(prev => (prev - 1 + allImages.length) % allImages.length); }}
-              style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: 12 }}>‹</button>
+              style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}>‹</button>
             <button onClick={e => { e.stopPropagation(); setImgIndex(prev => (prev + 1) % allImages.length); }}
-              style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: 12 }}>›</button>
+              style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}>›</button>
           </>
         )}
 

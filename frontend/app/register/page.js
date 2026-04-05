@@ -238,7 +238,7 @@ export default function RegisterPage() {
           border: 1px solid rgba(255,255,255,0.15);
           border-radius: 10px;
           color: #fff;
-          font-size: 14px;
+          font-size: 16px;
           font-family: inherit;
           outline: none;
           transition: border-color 0.2s, background 0.2s;

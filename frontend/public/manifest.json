@@ -1,0 +1,28 @@
+{
+  "name": "XTOX Marketplace",
+  "short_name": "XTOX",
+  "description": "السوق المحلي الذكي — إعلانات قريبة منك",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#002f34",
+  "theme_color": "#002f34",
+  "categories": ["shopping", "lifestyle"],
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "share_target": {
+    "action": "/sell",
+    "method": "GET",
+    "params": { "title": "title", "text": "description", "url": "url" }
+  },
+  "shortcuts": [
+    { "name": "بيع إعلان", "url": "/sell", "description": "انشر إعلان جديد" },
+    { "name": "قريب منك", "url": "/nearby", "description": "إعلانات في منطقتك" },
+    { "name": "إعلاناتي", "url": "/my-ads", "description": "إدارة إعلاناتك" }
+  ]
+}

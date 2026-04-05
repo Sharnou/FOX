@@ -35,7 +35,7 @@ export const metadata = {
   description: 'XTOX Marketplace — السوق المحلي الذكي',
   keywords: ['سوق', 'بيع', 'شراء', 'إعلانات مجانية', 'marketplace', 'XTOX', 'سيارات', 'عقارات', 'إلكترونيات', 'وظائف', 'مصر', 'السعودية'],
   robots: { index: true, follow: true },
-  manifest: '/manifest.webmanifest',
+  manifest: '/manifest.json',
   openGraph: {
     type: 'website',
     siteName: 'XTOX',
@@ -52,15 +52,26 @@ export const metadata = {
 
 export const viewport = {
   themeColor: '#002f34',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 };
-
 
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
       <head>
         <link rel="icon" href="/favicon.svg" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Viewport — maximum-scale=5 prevents iOS auto-zoom while allowing user zoom */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        {/* PWA / mobile web app */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="XTOX" />
+        <meta name="theme-color" content="#002f34" />
+        {/* PWA manifest */}
+        <link rel="manifest" href="/manifest.json" />
         {/* dns-prefetch as fallback for browsers that don't support preconnect */}
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
@@ -76,9 +87,14 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
         <link rel="preconnect" href="https://xtox.up.railway.app" />
         <link rel="dns-prefetch" href="https://xtox.up.railway.app" />
-        <meta name="theme-color" content="#002f34" />
       </head>
-      <body style={{ margin: 0, padding: 0, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", background: '#f5f5f5' }}>
+      <body style={{
+        margin: 0,
+        padding: 0,
+        fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif",
+        background: '#f5f5f5',
+        overflowX: 'hidden',
+      }}>
         <ErrorCapture />
         <MarkPoint />
         {children}

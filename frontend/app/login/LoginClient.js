@@ -412,7 +412,7 @@ export default function LoginPage() {
                 <button
                   onClick={loginWithEmail}
                   aria-label="تسجيل الدخول"
-                  style={{ padding: '12px', background: '#002f34', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15 }}>
+                  style={{ padding: '12px', background: '#002f34', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 16, minHeight: 44, WebkitTapHighlightColor: 'transparent' }}>
                   دخول
                 </button>
                 <button

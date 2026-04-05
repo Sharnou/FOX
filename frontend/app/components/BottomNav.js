@@ -32,8 +32,9 @@ export default function BottomNav() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-around',
-        padding: '6px 0 8px',
+        padding: '6px 0',
         boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
         fontFamily: 'Cairo, sans-serif',
         direction: 'rtl',
       }}>
@@ -47,6 +48,7 @@ export default function BottomNav() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
+                WebkitTapHighlightColor: 'transparent',
                 background: '#002f34',
                 border: 'none',
                 borderRadius: '50%',

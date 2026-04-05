@@ -241,7 +241,7 @@ export default function SellPage() {
   const inputStyle = (field) => ({
     width: '100%', padding: '11px 14px', borderRadius: 10,
     border: `1.5px solid ${errors[field] ? '#e53e3e' : '#e0e0e0'}`,
-    fontSize: 15, boxSizing: 'border-box',
+    fontSize: 16, boxSizing: 'border-box',
     fontFamily: "'Cairo', 'Tajawal', system-ui",
     direction: 'rtl', background: errors[field] ? '#fff5f5' : '#fff',
     outline: 'none', transition: 'border-color 0.2s',
@@ -550,7 +550,7 @@ export default function SellPage() {
                 </select>
                 <input id="sell-price" value={form.price}
                   onChange={e => { setForm(p => ({ ...p, price: e.target.value })); if (errors.price) setErrors(p => ({ ...p, price: '' })); }}
-                  type="number" min="0" placeholder="0"
+                  type="number" min="0" placeholder="0" inputMode="numeric"
                   style={{ ...inputStyle('price'), flex: 1, direction: 'ltr' }} />
               </div>
               {errors.price && (
@@ -573,7 +573,7 @@ export default function SellPage() {
             <div style={{ marginBottom: 20 }}>
               <label style={labelStyle} htmlFor="sell-phone">رقم التواصل</label>
               <input id="sell-phone" value={form.phone}
-                onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); if (errors.phone) setErrors(p => ({ ...p, phone: '' })); }}
+                onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); if (errors.phone) setErrors(p => ({ ...p, phone: '' })); }} inputMode="tel" autoComplete="tel"
                 type="tel" placeholder="مثال: +201012345678"
                 style={{ ...inputStyle('phone'), direction: 'ltr' }} />
               {errors.phone && (

@@ -19,7 +19,7 @@ export default function ScrollToTop() {
       title="العودة للأعلى"
       style={{
         position: 'fixed',
-        bottom: '80px',
+        bottom: 'max(80px, calc(80px + env(safe-area-inset-bottom)))',
         insetInlineEnd: '16px',
         zIndex: 50,
         background: 'linear-gradient(135deg, #6C63FF, #48CAE4)',
@@ -30,6 +30,7 @@ export default function ScrollToTop() {
         height: '44px',
         fontSize: '20px',
         cursor: 'pointer',
+        WebkitTapHighlightColor: 'transparent',
         boxShadow: '0 4px 12px rgba(108, 99, 255, 0.4)',
         display: 'flex',
         alignItems: 'center',

@@ -994,8 +994,12 @@ export default function ChatPage() {
       {targetId && (
         <footer
           style={{
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 100,
             background: '#ffffff',
             padding: '10px 14px',
+            paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
             display: 'flex',
             gap: 10,
             alignItems: 'center',
@@ -1037,7 +1041,7 @@ export default function ChatPage() {
               padding: '11px 16px',
               borderRadius: 24,
               border: '1.5px solid #e2e8f0',
-              fontSize: 15,
+              fontSize: 16,
               fontFamily: 'inherit',
               outline: 'none',
               background: '#f8fafc',
