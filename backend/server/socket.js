@@ -16,6 +16,8 @@ export function initSocket(io) {
     socket.on('join', (userId) => {
       users[userId] = socket.id;
       socket.userId = userId;
+      // Join user-specific room for targeted notifications (offers, etc.)
+      socket.join('user_' + userId);
       console.log(`[Socket] User joined: ${userId}`);
     });
 

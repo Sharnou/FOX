@@ -49,7 +49,7 @@ export default function QRCode({ adId, adTitle, adUrl, showModal = false, onClos
   const isRTL = lang === 'ar';
 
   // Build the QR URL — use the adUrl prop or fallback
-  const targetUrl = adUrl || (adId ? `https://xtox.up.railway.app/ads/${adId}` : '');
+  const targetUrl = adUrl || (adId ? `https://fox-kohl-eight.vercel.app/ads/${adId}` : '');
   const qrImageUrl = targetUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(targetUrl)}&color=FF6B35&bgcolor=ffffff&margin=10`
     : null;

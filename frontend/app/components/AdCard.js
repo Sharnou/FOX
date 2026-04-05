@@ -115,7 +115,7 @@ export default function AdCard({ ad }) {
   // ── Increment view count when card mounts (non-blocking, silent fail) ──
   useEffect(() => {
     if (!adId) return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
     fetch(`${apiUrl}/api/ads/${adId}/view`, { method: 'PATCH' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.views != null) setViewCount(data.views); })
@@ -193,13 +193,18 @@ export default function AdCard({ ad }) {
     setSaved(!saved);
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "https://xtox.up.railway.app"}/api/wishlist/${adIdStr}`,
-        {
-          method: saved ? 'DELETE' : 'POST',
-          headers: { Authorization: 'Bearer ' + token },
-        }
-      );
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://xtox-production.up.railway.app";
+      const wishlistUrl = saved
+        ? `${apiBase}/api/wishlist/${adIdStr}`
+        : `${apiBase}/api/wishlist`;
+      const res = await fetch(wishlistUrl, {
+        method: saved ? 'DELETE' : 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          ...(saved ? {} : { 'Content-Type': 'application/json' }),
+        },
+        ...(saved ? {} : { body: JSON.stringify({ adId: adIdStr }) }),
+      });
       if (!res.ok) throw new Error('API error');
 
       const wishlist = JSON.parse(localStorage.getItem('xtox_wishlist') || '[]');

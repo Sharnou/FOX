@@ -53,7 +53,7 @@ export default function SwipePage() {
     if (page === 1) { setLoading(true); setError(null); }
     else setLoadingMore(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
       const res = await fetch(`${apiUrl}/api/ads?page=${page}&limit=${PAGE_SIZE}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -119,7 +119,7 @@ export default function SwipePage() {
 
     setSavingId(ad._id);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
       const res = await fetch(`${apiUrl}/api/wishlist/${ad._id}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },

@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 // ─── Arabic constants & labels ───────────────────────────────────────────────
 const LABELS = {
@@ -308,7 +308,7 @@ export default function NearbyPage() {
     setFetchError(null);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const res   = await fetch(`${API}/api/ads?lat=${lat}&lng=${lng}&radius=${radius}`, {
+      const res   = await fetch(`${API}/api/geo/nearby?lat=${lat}&lng=${lng}&radius=${radius}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

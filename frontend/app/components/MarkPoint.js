@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const OWNER_EMAIL = 'ahmed_sharnou@yahoo.com';
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 // Get a readable CSS selector path for an element
 function getSelectorPath(el) {

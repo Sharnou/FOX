@@ -1,6 +1,6 @@
 'use client';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 

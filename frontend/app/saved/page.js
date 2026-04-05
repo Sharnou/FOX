@@ -7,7 +7,7 @@ import AdCardSkeleton from '../components/AdCardSkeleton';
 
 const AdCard = nextDynamic(() => import('../components/AdCard'), { ssr: false });
 
-const BACKEND = 'https://xtox.up.railway.app';
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 const TRANSLATIONS = {
   ar: {

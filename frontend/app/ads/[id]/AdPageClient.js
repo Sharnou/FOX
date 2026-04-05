@@ -12,8 +12,8 @@ import ReportAd from '../../components/ReportAd';
 import ReportSeller from '../../components/ReportSeller';
 import MakeOfferModal from '../../components/MakeOfferModal';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox-production.up.railway.app';
 
 function AITranslate({ title, description }) {
   const [translated, setTranslated] = useState(null);
@@ -166,7 +166,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
 
   React.useEffect(() => {
     if (!sellerId) return;
-    fetch(`${API}/api/users/${sellerId}/profile`)
+    fetch(`${API}/api/profile/${sellerId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSeller(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -271,8 +271,7 @@ export default function AdPageClient({ params }) {
   const [adNotFound, setAdNotFound] = useState(false);
   useEffect(() => {
     if (params?.id) {
-      const RAILWAY = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
-      fetch(`${RAILWAY}/api/ads/${params.id}`)
+      fetch(`${API}/api/ads/${params.id}`)
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data && !data.error) {
@@ -321,11 +320,10 @@ export default function AdPageClient({ params }) {
   useEffect(() => {
     if (!ad) return;
     setRelatedLoading(true);
-    const RAILWAY = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
     const qs = new URLSearchParams({ limit: '6', exclude: ad._id || '' });
     if (ad.category) qs.set('category', ad.category);
     if (ad.country) qs.set('country', ad.country);
-    fetch(`${RAILWAY}/api/ads?${qs}`)
+    fetch(`${API}/api/ads?${qs}`)
       .then(r => r.ok ? r.json() : [])
       .then(data => {
         const list = Array.isArray(data) ? data : (data.ads || data.data || []);

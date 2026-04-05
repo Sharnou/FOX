@@ -8,7 +8,7 @@ import CartoonMoodPopup from './components/CartoonMoodPopup';
 import BannerAds from './components/BannerAds';
 import AISearchBar from './components/AISearchBar';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
 const CAT_VALS = ['', 'Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion'];
 const CAT_ICONS = ['🌐', '🚗', '📱', '🏠', '💼', '🔧', '🛒', '💊', '🍕', '👗'];

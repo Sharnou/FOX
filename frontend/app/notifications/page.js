@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || '';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 /* ─── Arabic relative-time helper ─────────────────────────────── */
 function arabicRelTime(isoString) {

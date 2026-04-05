@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 const MAX_ITEMS = 6;
 const STORAGE_KEY = 'xtox_recently_viewed';
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 function optimizeImage(url, width = 200) {
   if (!url || !url.includes('cloudinary.com')) return url;

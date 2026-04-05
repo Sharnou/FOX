@@ -85,8 +85,8 @@ export default function RootLayout({ children }) {
         />
         <link rel="preconnect" href="https://res.cloudinary.com" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-        <link rel="preconnect" href="https://xtox.up.railway.app" />
-        <link rel="dns-prefetch" href="https://xtox.up.railway.app" />
+        <link rel="preconnect" href="https://xtox-production.up.railway.app" />
+        <link rel="dns-prefetch" href="https://xtox-production.up.railway.app" />
       </head>
       <body style={{
         margin: 0,
