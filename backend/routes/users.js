@@ -483,7 +483,7 @@ router.put('/me', auth, async (req, res) => {
 // Used by profile/edit page and other client components
 router.get('/me', auth, async (req, res) => {
   try {
-    const uid = req.user.id || req.user.id || req.user.userId;
+    const uid = req.user.id;
     const user = await getUserModel().findById(uid).lean().catch(() => null)
       || await getUserModel().findById(uid);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -497,7 +497,7 @@ router.get('/me', auth, async (req, res) => {
 // ── PATCH current user profile (username, phone, city, bio, chatEnabled) ──────
 router.patch('/me', auth, async (req, res) => {
   try {
-    const uid = req.user.id || req.user.id || req.user.userId;
+    const uid = req.user.id;
     const { username, phone, city, bio, chatEnabled } = req.body || {};
     const updates = {};
 
