@@ -293,4 +293,49 @@ router.post('/fix-all-ads', adminAuth, async (req, res) => {
   }
 });
 
+// Bug 3 fix: resolve-report endpoint — was missing, frontend calls POST /api/admin/resolve-report
+router.post('/resolve-report', adminAuth, async (req, res) => {
+  try {
+    const { reportId } = req.body;
+    if (!reportId) return res.status(400).json({ error: 'reportId is required' });
+    const ReportModel = getReportModel();
+    const report = await ReportModel.findByIdAndUpdate(
+      reportId,
+      { resolved: true, resolvedAt: new Date(), resolvedBy: req.user.id },
+      { new: true }
+    );
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    res.json({ ok: true, report });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete user (admin only)
+router.delete('/users/:id', adminAuth, async (req, res) => {
+  try {
+    const UserModel = getUserModel();
+    const deleted = await UserModel.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'User not found' });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Change user role (promote-user alias for non-superAdmin scope)
+router.post('/users/:id/role', adminAuth, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const ALLOWED_ROLES = ['user', 'admin', 'sub_admin'];
+    if (!ALLOWED_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role' });
+    const UserModel = getUserModel();
+    const user = await UserModel.findByIdAndUpdate(req.params.id, { role }, { new: true });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ ok: true, user });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
