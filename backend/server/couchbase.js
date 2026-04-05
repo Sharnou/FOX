@@ -69,7 +69,7 @@ async function applyRetentionPolicy(type) {
     const now = Date.now();
     const DAY = 86400000;
     const result = await _cluster.query(
-      `SELECT META().id as id, createdAt FROM \`${BUCKET_NAME}\` WHERE type = $1 ORDER BY createdAt DESC`,
+      `SELECT META().id as id, createdAt FROM `${BUCKET_NAME}` WHERE type = $1 ORDER BY createdAt DESC`,
       { parameters: [type] }
     );
     const backups = result.rows;
