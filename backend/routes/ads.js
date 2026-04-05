@@ -212,6 +212,40 @@ router.get('/my/all', auth, async (req, res) => {
 });
 
 
+
+// ── GET price suggestion for a category+city ──────────────────────────────────
+router.get('/price-suggest', async (req, res) => {
+  try {
+    const { category, city } = req.query;
+    if (!category || !city) return res.status(400).json(null);
+
+    const AdModel = getAdModel();
+    const ads = await AdModel.find({
+      category: { $regex: new RegExp(category, 'i') },
+      city:     { $regex: new RegExp(city,     'i') },
+      status:   'active',
+      price:    { $gt: 0 },
+    })
+      .select('price currency')
+      .limit(150)
+      .lean();
+
+    if (!ads || ads.length < 2) return res.json(null);
+    const prices = ads.map(a => Number(a.price)).filter(p => p > 0);
+    if (prices.length < 2) return res.json(null);
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const avg = Math.round(prices.reduce((s, p) => s + p, 0) / prices.length);
+    const currency = ads[0]?.currency || 'ج.م';
+
+    res.json({ min, avg, max, count: prices.length, currency });
+  } catch (err) {
+    console.error('[price-suggest]', err.message);
+    res.status(500).json(null);
+  }
+});
+
 // ── GET single ad ──
 router.get('/:id', async (req, res) => {
   try {
