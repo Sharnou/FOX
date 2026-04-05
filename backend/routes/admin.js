@@ -214,7 +214,7 @@ router.post('/backup', adminAuth, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/fix-categories', adminAuth, async (req, res) => {
-  const ads = await Ad.find({ isExpired: false, isDeleted: false });
+  const ads = await Ad.find({ isExpired: { $ne: true }, isDeleted: { $ne: true } });
   let fixed = 0;
   for (const ad of ads) {
     const det = detectCategoryOffline(`${ad.title} ${ad.description || ''}`);
