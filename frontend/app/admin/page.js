@@ -43,6 +43,8 @@ export default function AdminPage() {
   const [reports, setReports] = useState([]);
   const [logs, setLogs] = useState([]);
   const [errors, setErrors] = useState([]);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState(null);
   const [broadcast, setBroadcast] = useState('');
   const [aiChat, setAiChat] = useState([{ role: 'system', text: 'XTOX AI Developer ready.' }]);
   const [aiInput, setAiInput] = useState('');
@@ -223,7 +225,39 @@ export default function AdminPage() {
   const backup = () => window.open(`${RAILWAY}/api/admin/backup`, '_blank');
   const sendBroadcast = () => post('/api/admin/broadcast', { message: broadcast }).then(r => { if (r.error) alert('Error: ' + r.error); else { alert('Sent!'); setBroadcast(''); } });
   const requestRepair = () => post('/api/admin/ai-repair/request', { problem: repairProblem }).then(r => { setLogs(l => [r, ...l]); setRepairProblem(''); alert('Repair requested'); });
-  const resolveError = (id) => fetch(`${RAILWAY}/api/errors/${id}/resolve`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}` } }).then(() => fetchAll());
+  const resolveError = (id) => fetch(`${RAILWAY}/api/errors/${id}/resolve`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).then(() => fetchAll());
+  const scanErrors = async () => {
+    setScanLoading(true);
+    try {
+      const res = await fetch(`${RAILWAY}/api/errors`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setErrors(data.errors || []);
+    } finally { setScanLoading(false); }
+  };
+
+  const analyzeError = async (id) => {
+    setAnalyzingId(id);
+    try {
+      const res = await fetch(`${RAILWAY}/api/errors/${id}/analyze`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setErrors(prev => prev.map(e => e._id === id ? { ...e, aiAnalysis: data.aiAnalysis, aiFixSuggestion: data.aiFixSuggestion } : e));
+    } finally { setAnalyzingId(null); }
+  };
+
+  const resolveErrorScanner = async (id) => {
+    await fetch(`${RAILWAY}/api/errors/${id}/resolve`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }
+    });
+    setErrors(prev => prev.filter(e => e._id !== id));
+  };
+
+  const severityColor = { low: '#10b981', medium: '#f59e0b', high: '#ef4444', critical: '#7c3aed' };
+
   const muteUser = (userId) => post('/api/admin/mute', { userId }).then(() => fetchAll());
   const hideUser = (userId) => post('/api/admin/hide-user', { userId }).then(() => fetchAll());
   const deleteAd = async (adId) => {
@@ -243,6 +277,7 @@ export default function AdminPage() {
     { id: 'errors',    icon: '🔴', en: 'Errors',    ar: 'الأخطاء' },
     { id: 'broadcast', icon: '📢', en: 'Broadcast', ar: 'الإذاعة' },
     { id: 'system',    icon: '⚙️', en: 'System',    ar: 'النظام' },
+    { id: 'scanner',   icon: '🔍', en: 'Error Scanner', ar: 'فحص الأخطاء' },
     { id: 'language',  icon: '🌐', en: 'Language',  ar: 'لغة' },
   ];
 
@@ -560,6 +595,77 @@ export default function AdminPage() {
                   BROADCAST →
                 </button>
               </AITerminal>
+            </div>
+          )}
+
+          {tab === 'scanner' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <h2 style={{ margin: 0, color: '#00ff41', fontSize: 16 }}>🔍 فحص الأخطاء التلقائي</h2>
+                <button onClick={scanErrors} disabled={scanLoading}
+                  style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: 8,
+                    padding: '8px 18px', cursor: 'pointer', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                  {scanLoading ? '⏳ جاري الفحص...' : '🔍 فحص الآن'}
+                </button>
+              </div>
+
+              {errors.length === 0 && !scanLoading && (
+                <div style={{ textAlign: 'center', padding: 40, color: '#8b949e' }}>
+                  <div style={{ fontSize: 40 }}>✅</div>
+                  <p>لا توجد أخطاء مكتشفة. اضغط &quot;فحص الآن&quot; لبدء الفحص.</p>
+                </div>
+              )}
+
+              {errors.map(err => (
+                <div key={err._id} style={{ background: '#161b22', borderRadius: 12, padding: 16, marginBottom: 12,
+                  border: `2px solid ${severityColor[err.severity] || '#30363d'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ background: severityColor[err.severity] || '#888', color: 'white', borderRadius: 6,
+                        padding: '2px 8px', fontSize: 11, fontWeight: 'bold', marginLeft: 8 }}>
+                        {err.severity?.toUpperCase()}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#8b949e' }}>× {err.count} مرة</span>
+                      <p style={{ margin: '8px 0 4px', fontFamily: 'monospace', fontSize: 13, color: '#ff7b72', wordBreak: 'break-all' }}>
+                        {err.message}
+                      </p>
+                      {err.url && <p style={{ margin: 0, fontSize: 11, color: '#8b949e' }}>📍 {err.url}</p>}
+                    </div>
+                  </div>
+
+                  {err.aiAnalysis && (
+                    <div style={{ background: '#0d1117', border: '1px solid #1e40af', borderRadius: 8, padding: 10, marginTop: 10 }}>
+                      <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 'bold', color: '#60a5fa' }}>🧠 تحليل الذكاء الاصطناعي:</p>
+                      <p style={{ margin: '0 0 4px', fontSize: 13, color: '#e6edf3' }}>{err.aiAnalysis}</p>
+                      <p style={{ margin: 0, fontSize: 13, color: '#00ff41', fontWeight: 'bold' }}>🔧 الإصلاح: {err.aiFixSuggestion}</p>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <button onClick={() => analyzeError(err._id)} disabled={analyzingId === err._id}
+                      style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: 6,
+                        padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace' }}>
+                      {analyzingId === err._id ? '⏳ يحلل...' : '🤖 تحليل AI'}
+                    </button>
+                    <button onClick={() => resolveErrorScanner(err._id)}
+                      style={{ background: '#1f3a1f', color: '#00ff41', border: '1px solid #00ff41', borderRadius: 6,
+                        padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace' }}>
+                      ✅ تم الإصلاح
+                    </button>
+                    {err.stack && (
+                      <details style={{ fontSize: 11 }}>
+                        <summary style={{ cursor: 'pointer', color: '#8b949e' }}>Stack Trace</summary>
+                        <pre style={{ overflow: 'auto', maxHeight: 150, fontSize: 10, marginTop: 4, color: '#ff7b72', background: '#0d1117', padding: 8, borderRadius: 4 }}>{err.stack}</pre>
+                      </details>
+                    )}
+                  </div>
+
+                  <p style={{ margin: '6px 0 0', fontSize: 11, color: '#8b949e' }}>
+                    آخر ظهور: {new Date(err.lastSeen || err.updatedAt || err.createdAt).toLocaleString('ar-EG')}
+                  </p>
+                </div>
+              ))}
             </div>
           )}
 

@@ -211,6 +211,8 @@ export default function SellPage() {
       }
 
       const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
+      // FIX E: Debug FormData before submit — visible in browser console
+      console.log('Submitting FormData entries:', [...formData.entries()].map(([k,v]) => [k, typeof v === 'string' ? v.slice(0,50) : v.name]));
       const res = await fetch(`${API}/api/ads`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${t}` }, // NO Content-Type — FormData sets it

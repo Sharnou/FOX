@@ -69,7 +69,7 @@ const ALLOWED_CURRENCIES = new Set([
   'EUR','GBP','TRY','CAD','AUD','CHF'
 ]);
 
-function sanitizeAdFields({ title, description, category, subcategory, price, city, currency, media, video, featuredStyle, condition, phone }) {
+function sanitizeAdFields({ title, description, category, subcategory, price, city, currency, media, video, featuredStyle, condition, phone } = {}) {
   const errors = [];
 
   // title — required, 3–120 chars
@@ -210,6 +210,8 @@ router.post('/', auth, upload.fields([
   { name: 'video', maxCount: 1 }
 ]), async (req, res) => {
   try {
+    // FIX A: null-safe body — multer may leave req.body undefined if Content-Type is wrong
+    const body = req.body || {};
     // ── DB CONNECTION CHECK — return 503 if no DB is ready yet ──────────────
     const _activeDB = getActiveDB();
     if (_activeDB === 'mongodb' && mongoose.connection.readyState !== 1) {
@@ -271,9 +273,9 @@ router.post('/', auth, upload.fields([
         }
       }
       // Inject into req.body.media so existing pipeline sees them
-      req.body.media = _uploadedImages;
-    } else if (req.body.imageUrl) {
-      _uploadedImages = [req.body.imageUrl];
+      body.media = _uploadedImages;
+    } else if (body.imageUrl) {
+      _uploadedImages = [body.imageUrl];
     }
 
     if (req.files?.video?.[0]) {
@@ -296,17 +298,17 @@ router.post('/', auth, upload.fields([
 
     // ── PRE-PROCESS: Normalize media sources from multiple field names ────────
     // Frontend may send 'images', 'imageUrl', or 'media' — unify to 'media'
-    if (!req.body.media?.length) {
-      if (Array.isArray(req.body.images) && req.body.images.length > 0) {
-        req.body.media = req.body.images; // images field → media
-      } else if (req.body.imageUrl && String(req.body.imageUrl).startsWith('http')) {
-        req.body.media = [req.body.imageUrl]; // imageUrl → media array
+    if (!body.media?.length) {
+      if (Array.isArray(body.images) && body.images.length > 0) {
+        body.media = body.images; // images field → media
+      } else if (body.imageUrl && String(body.imageUrl).startsWith('http')) {
+        body.media = [body.imageUrl]; // imageUrl → media array
       }
     }
     // ─────────────────────────────────────────────────────────────────────────
 
     // ── PRE-PROCESS: Upload base64 images to Cloudinary before sanitization ──
-    const rawMedia = Array.isArray(req.body.media) ? req.body.media : [];
+    const rawMedia = Array.isArray(body.media) ? body.media : [];
     if (rawMedia.some(u => String(u || '').startsWith('data:image/'))) {
       try {
         const { default: cloudinaryClient } = await import('../server/cloudinary.js');
@@ -320,22 +322,22 @@ router.post('/', auth, upload.fields([
             processedMedia.push(url);
           }
         }
-        req.body.media = processedMedia;
+        body.media = processedMedia;
       } catch (uploadErr) {
         // Cloudinary unavailable — strip base64 (do not store in DB)
         // Keep base64 for prototype — do NOT strip files that were already uploaded by multer
-        req.body.media = rawMedia; // keep all (including base64 data: URLs)
+        body.media = rawMedia; // keep all (including base64 data: URLs)
         console.warn('[ads] Cloudinary upload failed, keeping images as-is:', uploadErr.message);
       }
     }
 
     // ── FIELD-LEVEL SANITIZATION (run before anything else) ──
-    const { errors, sanitized } = sanitizeAdFields(req.body);
+    const { errors, sanitized } = sanitizeAdFields(body);
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
     const { title, description, category, subcategory, price, city, currency, media, video, featuredStyle, condition, phone } = sanitized;
     // FIX D: Extract and validate coordinates — parseFloat + isNaN + non-zero check
-    const lng = parseFloat(req.body.lng);
-    const lat = parseFloat(req.body.lat);
+    const lng = parseFloat(body.lng);
+    const lat = parseFloat(body.lat);
     const validLocation = !isNaN(lng) && !isNaN(lat) && lng !== 0 && lat !== 0;
 
     // COUNTRY LOCK: always use country from JWT token — user cannot override
@@ -423,7 +425,13 @@ router.post('/', auth, upload.fields([
     });
 
     res.status(201).json(ad);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error('[POST /api/ads] crash:', e.stack || e.message);
+    return res.status(500).json({
+      message: e.message,
+      stack: process.env.NODE_ENV === 'development' ? e.stack : undefined
+    });
+  }
 });
 
 // ── AI Generate ad from media ──
