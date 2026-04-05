@@ -11,8 +11,8 @@ router.get('/nearby', async (req, res) => {
 
     const ads = await Ad.find({
       country,
-      isExpired: false,
-      isDeleted: false,
+      isExpired: { $ne: true },
+      isDeleted: { $ne: true },
       visibilityScore: { $gt: 0 },
       'location.coordinates': { $exists: true }
     }).limit(50);
