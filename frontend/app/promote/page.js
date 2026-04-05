@@ -2,6 +2,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 const PLANS = [
   {
     id: 'free',
@@ -97,7 +99,7 @@ function PromotePageInner() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('https://xtox.up.railway.app/api/promote', {
+      const res = await fetch(`${API}/api/promote`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

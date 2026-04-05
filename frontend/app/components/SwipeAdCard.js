@@ -1,4 +1,6 @@
 'use client';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 
@@ -54,7 +56,7 @@ export default function SwipeAdCard({ ads = [], token, onWishlistUpdate }) {
     if (!ad) return;
     if (direction === 'right' && token) {
       try {
-        await fetch('/api/wishlist', {
+        await fetch(`${API_BASE}/api/wishlist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ adId: ad._id })

@@ -88,18 +88,20 @@ app.use((req, res, next) => { _metricsRequestCount++; next(); });
 
 // CORS must be FIRST — before any other middleware, before body parsers
 // ─── CORS config — permissive: all Vercel previews, Railway, localhost ──────
+const allowedOrigins = [
+  'https://fox-kohl-eight.vercel.app',
+  'http://localhost:3000',
+  /\.vercel\.app$/,
+  /\.netlify\.app$/,
+  /\.railway\.app$/,
+];
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow non-browser (mobile/curl)
-    const allowed =
-      origin.includes('localhost') ||
-      origin.includes('vercel.app') ||
-      origin.includes('railway.app') ||
-      origin.includes('netlify.app') ||
-      origin.includes('blogspot.com') ||
-      origin.includes('xtox') ||
-      origin === process.env.FRONTEND_URL;
-    callback(allowed ? null : new Error('CORS blocked: ' + origin), allowed);
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow non-browser (curl, mobile)
+    const allowed = allowedOrigins.some(o =>
+      typeof o === 'string' ? o === origin : o.test(origin)
+    );
+    cb(allowed ? null : new Error('CORS blocked: ' + origin), allowed);
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
@@ -107,7 +109,7 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
-app.options(/\/(.*)/, cors(corsOptions)); // preflight for ALL routes
+app.options('*', cors(corsOptions)); // preflight for all routes
 
 
 
@@ -345,7 +347,14 @@ async function seedFakeAd() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 const server = http.createServer(app);
-const io = new Server(server, { cors: corsOptions });
+const io = new Server(server, {
+  cors: {
+    origin: ['https://fox-kohl-eight.vercel.app', 'http://localhost:3000', /\.vercel\.app$/, /\.railway\.app$/],
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'],
+});
 initSocket(io);
 
 // Daily cron: archive expired ads, cleanup old

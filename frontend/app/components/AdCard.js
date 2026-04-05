@@ -114,7 +114,7 @@ export default function AdCard({ ad }) {
   // ── Increment view count when card mounts (non-blocking, silent fail) ──
   useEffect(() => {
     if (!adId) return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
     fetch(`${apiUrl}/api/ads/${adId}/view`, { method: 'PATCH' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.views != null) setViewCount(data.views); })
@@ -192,7 +192,7 @@ export default function AdCard({ ad }) {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/wishlist/${adIdStr}`,
+        `${process.env.NEXT_PUBLIC_API_URL || "https://xtox.up.railway.app"}/api/wishlist/${adIdStr}`,
         {
           method: saved ? 'DELETE' : 'POST',
           headers: { Authorization: 'Bearer ' + token },

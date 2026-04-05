@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import AdPageClient from './AdPageClient';
 
-const API = 'https://xtox.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 const SITE_URL = 'https://xtox.app';
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 

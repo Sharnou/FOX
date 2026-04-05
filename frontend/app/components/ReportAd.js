@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
+
 const REPORT_REASONS = [
   {
     id: "spam",
@@ -137,7 +139,7 @@ export default function ReportAd({ adId, adTitle, onClose, lang = "ar" }) {
     setError("");
     setStatus("submitting");
     try {
-      const response = await fetch("/api/reports", {
+      const response = await fetch(`${API_BASE}/api/reports`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

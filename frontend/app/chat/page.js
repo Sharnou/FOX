@@ -267,7 +267,7 @@ export default function ChatPage() {
       ? (localStorage.getItem('token') || 'guest')
       : 'guest';
 
-    const s = io(SOCKET_URL, { auth: { token }, transports: ['websocket', 'polling'] });
+    const s = io(SOCKET_URL, { auth: { token }, transports: ['websocket', 'polling'], withCredentials: true });
     socketRef.current = s;
 
     s.emit('join', myId);

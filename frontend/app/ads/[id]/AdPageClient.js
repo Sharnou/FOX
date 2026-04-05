@@ -166,7 +166,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
 
   React.useEffect(() => {
     if (!sellerId) return;
-    fetch(`https://xtox.up.railway.app/api/users/${sellerId}/profile`)
+    fetch(`${API}/api/users/${sellerId}/profile`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSeller(data); setLoading(false); })
       .catch(() => setLoading(false));
