@@ -51,7 +51,7 @@ function match(doc, filter = {}) {
 // ── KV fetch all docs of a given type ────────────────────────────────────────
 async function fetchAllByType(type) {
   const rows = await n1ql(
-    `SELECT META().id as _cbid, \`${BUCKET}\`.* FROM \`${BUCKET}\` WHERE type = $type`,
+    `SELECT META().id as _cbid, `${BUCKET}`.* FROM `${BUCKET}` WHERE type = $type`,
     { type }
   ).catch(() => []);
   return rows.map(r => {
@@ -196,8 +196,8 @@ export const CouchbaseAd = {
       ...data,
       _id: id,
       type: 'ad',
-      isDeleted: false,
-      isExpired: false,
+      isDeleted: { $ne: true },
+      isExpired: { $ne: true },
       isFeatured: false,
       visibilityScore: data.visibilityScore ?? 10,
       views: 0,
