@@ -518,7 +518,7 @@ router.post('/', auth, upload.fields([
 });
 
 // ── AI Generate ad from media ──
-router.post('/ai-generate', async (req, res) => {
+router.post('/ai-generate', auth, async (req, res) => {
   res.setTimeout(35000, () => {
     if (!res.headersSent) res.status(504).json({ error: 'AI timeout — try again' });
   });
