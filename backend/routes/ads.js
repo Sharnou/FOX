@@ -125,7 +125,7 @@ function sanitizeAdFields({ title, description, category, subcategory, price, ci
 // ── GET all ads (country from JWT — locked, user cannot override) ──
 router.get('/', async (req, res) => {
   try {
-    const { category, city, page = 0, q } = req.query;
+    const { category, city, page = 0, q, userId } = req.query;
     const countryParam = req.query.country || req.headers['x-country'] || req.user?.country || null;
 
     const filter = {
@@ -133,8 +133,15 @@ router.get('/', async (req, res) => {
       isDeleted: { $ne: true },   // matches false, null, undefined — new ads have no isDeleted set
       visibilityScore: { $gte: 0 }
     };
-    // Country filter is OPTIONAL — only apply if a country param was provided
-    if (countryParam) filter.country = countryParam;
+    // If userId specified, show that user's own ads (including deleted/expired for owner viewing)
+    if (userId) {
+      delete filter.isDeleted;
+      delete filter.isExpired;
+      filter.userId = userId;
+    }
+
+    // Country filter is OPTIONAL — only apply if a country param was provided (not when filtering by userId)
+    if (countryParam && !userId) filter.country = countryParam;
     if (category && category !== 'الكل' && category !== 'All') {
       filter.category = { $regex: new RegExp('^' + category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') };
     }
@@ -208,13 +215,33 @@ router.get('/my/all', auth, async (req, res) => {
 // ── GET single ad ──
 router.get('/:id', async (req, res) => {
   try {
-    const ad = await getAdModel().findById(req.params.id);
-    if (!ad) return res.status(404).json({ error: 'Not found' });
-    ad.views++; await ad.save();
-    await rankAd(ad).catch(() => {});
-    const qr = await generateQR(`${process.env.FRONTEND_URL}/ads/${ad._id}`).catch(() => null);
-    res.json({ ...ad.toObject(), qrCode: qr });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const AdModel = getAdModel();
+    const ad = await AdModel.findById(req.params.id).lean();
+
+    if (!ad) return res.status(404).json({ message: 'الإعلان غير موجود' });
+
+    // Increment views safely — never block the response on this
+    try {
+      await AdModel.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+      ad.views = (ad.views || 0) + 1;
+    } catch {}
+
+    // Normalize media — ensure both images and media fields are populated
+    const normalized = {
+      ...ad,
+      images: ad.images?.length ? ad.images : (ad.media?.length ? ad.media : []),
+      media: ad.media?.length ? ad.media : (ad.images?.length ? ad.images : []),
+    };
+
+    // QR code — non-blocking
+    const qr = await generateQR(`${process.env.FRONTEND_URL || 'https://xtox.app'}/ads/${ad._id}`).catch(() => null);
+
+    res.json({ ...normalized, qrCode: qr });
+  } catch (err) {
+    console.error('[GET /api/ads/:id]', err.message);
+    if (err.name === 'CastError') return res.status(404).json({ message: 'معرّف الإعلان غير صحيح' });
+    res.status(500).json({ message: err.message });
+  }
 });
 
 // ── POST new ad (AI moderation on ALL media) ──
