@@ -478,8 +478,8 @@ router.post('/', auth, upload.fields([
       location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
       visibilityScore: 10,
       createdAt: new Date(),
-      isExpired: false,
-      isDeleted: false,
+      isExpired: { $ne: true },
+      isDeleted: { $ne: true },
     });
 
     await rankAd(ad).catch(() => {});
