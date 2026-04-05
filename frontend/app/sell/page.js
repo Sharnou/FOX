@@ -3,6 +3,10 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import { analyzeImageForAd, checkAdSimilarity } from '../../lib/geminiAI';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
+import nextDynamic from 'next/dynamic';
+
+// Offline image analysis — loaded dynamically to avoid SSR issues
+const ImageAnalyzer = nextDynamic(() => import('../components/ImageAnalyzer'), { ssr: false });
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 
@@ -91,6 +95,7 @@ export default function SellPage() {
   const fileInputRef = useRef(null);
   const [aiDebounce, setAiDebounce] = useState(null);
   const [duplicateWarning, setDuplicateWarning] = useState(null); // AI duplicate detection
+  const [imageUrl, setImageUrl] = useState(''); // Alternative: image URL text input
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -233,6 +238,7 @@ export default function SellPage() {
           price: Number(form.price) || 0,
           country,
           media: preview ? [preview] : [],
+          images: imageUrl ? [imageUrl] : (preview ? [preview] : []),
         }),
       }, { retries: 2 });
       const data = await res.json();
@@ -462,6 +468,45 @@ export default function SellPage() {
         {/* Step 2: Form */}
         {step === 'form' && (
           <div style={{ background: 'white', borderRadius: 18, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+
+            {/* ── Offline AI Image Analyzer (TF.js MobileNet + Tesseract OCR) ── */}
+            <ImageAnalyzer
+              onResult={(res) => {
+                setForm(f => ({
+                  ...f,
+                  title: res.title || f.title,
+                  description: res.description || f.description,
+                  category: res.category || f.category,
+                }));
+                if (res.title) setAiStatus('✅ تم تحليل الصورة بالذكاء الاصطناعي المحلي (Offline AI)');
+              }}
+            />
+
+            {/* Image URL text input — alternative to file upload */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 13, color: '#555' }}>
+                🔗 رابط الصورة (اختياري — بديل لرفع الملف)
+              </label>
+              <input
+                type="url"
+                placeholder="أو أدخل رابط الصورة مباشرة (URL)"
+                value={imageUrl}
+                onChange={e => {
+                  setImageUrl(e.target.value);
+                  if (e.target.value && !preview) setPreview(e.target.value);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: 8,
+                  border: '1px solid #ddd',
+                  fontSize: 13,
+                  boxSizing: 'border-box',
+                  direction: 'ltr',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
 
             {/* Image preview */}
             {preview && (

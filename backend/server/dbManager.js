@@ -1,6 +1,7 @@
 // backend/server/dbManager.js
-// Smart dual-DB: MongoDB + Couchbase race on startup.
-// Whichever connects first becomes PRIMARY. Both fail → in-memory fallback.
+// Smart dual-DB: MongoDB primary, Couchbase optional.
+// MongoDB becomes PRIMARY immediately upon connecting — never blocked by Couchbase.
+// Both fail → in-memory fallback.
 // Uses ES module syntax (project has "type": "module").
 
 import mongoose from 'mongoose';
@@ -33,7 +34,7 @@ async function tryMongoDB() {
   return 'mongodb';
 }
 
-// ── Attempt Couchbase connection (10s timeout) ───────────────────────────────
+// ── Attempt Couchbase connection (5s timeout — reduced, fire-and-forget) ─────
 async function tryCouchbase() {
   const url = process.env.COUCHBASE_URL || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
   const username = process.env.COUCHBASE_USERNAME || 'xtox';
@@ -53,8 +54,8 @@ async function tryCouchbase() {
       username,
       password,
       timeouts: {
-        connectTimeout: 10000,
-        kvTimeout: 5000,
+        connectTimeout: 5000,  // reduced from 10000
+        kvTimeout: 3000,       // reduced from 5000
         queryTimeout: 10000,
       },
     });
@@ -69,7 +70,7 @@ async function tryCouchbase() {
     // Quick probe to verify the bucket is accessible
     await couchbaseBucket.waitUntilReady(5000);
 
-    console.log('[DB] Couchbase connected — set as PRIMARY');
+    console.log('[DB] Couchbase connected — available as secondary');
     return 'couchbase';
   } catch (e) {
     couchbaseError = e.message || String(e);
@@ -79,38 +80,35 @@ async function tryCouchbase() {
   }
 }
 
-// ── Race: whichever DB connects first wins ───────────────────────────────────
+// ── MongoDB first: becomes PRIMARY immediately, Couchbase is fire-and-forget ──
 export async function connectDatabases() {
-  const mongoPromise = tryMongoDB().catch(e => {
+  // STEP 1: Try MongoDB first — it MUST become primary without waiting for Couchbase
+  const mongoResult = await tryMongoDB().catch(e => {
     console.warn('[DB] MongoDB failed:', e.message);
     return null;
   });
 
-  const couchbasePromise = tryCouchbase().catch(e => {
+  if (mongoResult) {
+    activeDB = mongoResult;
+    console.log(`[DB] Active database: ${activeDB}`);
+    // Fire Couchbase in background — NEVER blocks MongoDB from being primary
+    tryCouchbase().catch(e => {
+      console.warn('[DB] Couchbase background attempt failed (non-fatal):', e.message);
+    });
+    return activeDB;
+  }
+
+  // STEP 2: MongoDB failed — try Couchbase as fallback
+  const couchbaseResult = await tryCouchbase().catch(e => {
     console.warn('[DB] Couchbase failed:', e.message);
     return null;
   });
 
-  // Convert null-resolving promises to forever-pending ones so Promise.race
-  // only picks up a real winner.  A 12-second safety timeout breaks the stall
-  // if both DBs fail before their own timeouts fire.
-  const raceResult = await Promise.race([
-    mongoPromise.then(r     => (r ? r : new Promise(() => {}))),
-    couchbasePromise.then(r => (r ? r : new Promise(() => {}))),
-    new Promise(resolve => setTimeout(() => resolve(null), 12000)),
-  ]).catch(() => null);
-
-  if (raceResult) {
-    activeDB = raceResult;
+  if (couchbaseResult) {
+    activeDB = couchbaseResult;
   } else {
-    // Both timed-out or failed — pick whichever settled successfully
-    const [m, c] = await Promise.all([mongoPromise, couchbasePromise]);
-    if (m)      activeDB = 'mongodb';
-    else if (c) activeDB = 'couchbase';
-    else {
-      activeDB = 'memory';
-      console.warn('[DB] Both databases unavailable — using in-memory store');
-    }
+    activeDB = 'memory';
+    console.warn('[DB] Both databases unavailable — using in-memory store');
   }
 
   console.log(`[DB] Active database: ${activeDB}`);
