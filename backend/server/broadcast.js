@@ -10,7 +10,7 @@ export async function sendWeeklyBroadcast(adminId, message) {
     throw new Error('Broadcast already sent this week. Wait until: ' + new Date(last.sentAt.getTime() + ONE_WEEK_MS).toISOString());
   }
 
-  const users = await User.find({ isBanned: false }, '_id fcmToken');
+  const users = await User.find({ isBanned: { $ne: true } }, '_id fcmToken');
   const broadcast = await Broadcast.create({ adminId, message, sentAt: new Date(), recipientCount: users.length });
 
   for (const u of users) {
