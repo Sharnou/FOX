@@ -27,8 +27,16 @@ export default function ProfilePage({ params }) {
   const [activeTab, setActiveTab] = useState('ads');
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
-  const myUserId = typeof window !== 'undefined' ? localStorage.getItem('userId') || '' : '';
+  const [myUserId, setMyUserId] = React.useState('');
+  const [token, setToken] = React.useState('');
+
+  useEffect(() => {
+    // Initialize from localStorage (avoids hydration mismatch)
+    if (typeof window !== 'undefined') {
+      setToken(localStorage.getItem('token') || '');
+      setMyUserId(localStorage.getItem('userId') || '');
+    }
+  }, []);
 
   useEffect(() => {
     if (params?.id) {
