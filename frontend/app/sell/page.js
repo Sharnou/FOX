@@ -3,10 +3,6 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import { analyzeImageForAd, checkAdSimilarity } from '../../lib/geminiAI';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
-import nextDynamic from 'next/dynamic';
-
-// Offline image analysis — loaded dynamically to avoid SSR issues
-const ImageAnalyzer = nextDynamic(() => import('../components/ImageAnalyzer'), { ssr: false });
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
 
@@ -33,7 +29,6 @@ const CONDITIONS = [
   { ar: 'للإيجار',    en: 'rent',      icon: '🔑' },
 ];
 
-// Category-based price hints for Arab marketplace (Run 115)
 const CATEGORY_PRICE_HINTS = {
   'Vehicles':    { min: 5000,    max: 500000,  symbol: 'ج.م' },
   'Electronics': { min: 100,     max: 50000,   symbol: 'ج.م' },
@@ -51,19 +46,12 @@ function CategoryPriceHint({ category }) {
   const hint = CATEGORY_PRICE_HINTS[category];
   if (!hint) return null;
   return (
-    <div
-      style={{
-        marginTop: 6,
-        padding: '7px 12px',
-        borderRadius: 8,
-        background: 'rgba(99,102,241,0.07)',
-        border: '1px solid rgba(99,102,241,0.18)',
-        direction: 'rtl',
-        textAlign: 'right',
-        fontSize: 13,
-      }}
-    >
-      <span style={{ color: '#6366f1', fontWeight: 700 }}>💡 نطاق السعر المقترح: </span>
+    <div style={{
+      marginTop: 6, padding: '7px 12px', borderRadius: 8,
+      background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.18)',
+      direction: 'rtl', textAlign: 'right', fontSize: 13,
+    }}>
+      <span style={{ color: '#6366f1', fontWeight: 700 }}>💡 نطاق السعر المقترح: </span>
       <span style={{ color: '#374151' }}>
         {hint.min.toLocaleString('ar-EG')} – {hint.max.toLocaleString('ar-EG')} {hint.symbol}
       </span>
@@ -72,45 +60,37 @@ function CategoryPriceHint({ category }) {
 }
 
 export default function SellPage() {
-  const [step, setStep] = useState('start'); // start | form | review
+  const [step, setStep] = useState('start'); // start | form
   const [form, setForm] = useState({
-    title: '',
-    description: '',
-    category: '',
-    subcategory: '',
-    price: '',
-    city: '',
-    phone: '',
-    currency: 'EGP',
-    condition: '',
+    title: '', description: '', category: '', subcategory: '',
+    price: '', city: '', phone: '', currency: 'EGP', condition: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState('');
-  const [preview, setPreview] = useState(null);
   const [token, setToken] = useState('');
   const [country, setCountry] = useState('EG');
   const [charCount, setCharCount] = useState(0);
-  const fileInputRef = useRef(null);
   const [aiDebounce, setAiDebounce] = useState(null);
-  const [duplicateWarning, setDuplicateWarning] = useState(null); // AI duplicate detection
-  const [imageUrl, setImageUrl] = useState(''); // Alternative: image URL text input
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+
+  // ── Multi-media state ──────────────────────────────────────────────────────
+  const [mediaFiles, setMediaFiles] = useState([]); // up to 5 images OR 1 video
+  const [mediaType, setMediaType] = useState(null); // 'images' | 'video'
+  const [mediaPreviews, setMediaPreviews] = useState([]); // object URLs for display
+  const [videoFile, setVideoFile] = useState(null);
+  // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // FIX 1: Try multiple token keys
     const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token');
     if (!t) { window.location.href = '/login'; return; }
     setToken(t);
     setCountry(localStorage.getItem('country') || 'EG');
-    // Pre-fill phone from profile if available
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (user.phone) setForm(f => ({ ...f, phone: user.phone }));
-    // FIX 3: Also try last used phone number
     const lastPhone = localStorage.getItem('last_used_phone');
-    if (lastPhone && !form.phone) setForm(f => ({ ...f, phone: lastPhone }));
-    // FIX 2: Read AI-generated data from ai-generate page if redirected
+    if (lastPhone) setForm(f => ({ ...f, phone: f.phone || lastPhone }));
     const aiData = sessionStorage.getItem('ai_generated_listing');
     if (aiData) {
       try {
@@ -122,72 +102,53 @@ export default function SellPage() {
           category: parsed.category || f.category,
           price: parsed.price ? String(parsed.price) : f.price,
         }));
-        if (parsed.imageUrl) setPreview(parsed.imageUrl);
         sessionStorage.removeItem('ai_generated_listing');
       } catch {}
     }
   }, []);
 
-  async function aiFromImage(e) {
+  // ── handlePhotoSelect — max 5, silent auto-analysis on first photo ─────────
+  const handlePhotoSelect = async (e) => {
+    const files = Array.from(e.target.files).slice(0, 5);
+    if (!files.length) return;
+    setMediaType('images');
+    setMediaFiles(files);
+    setVideoFile(null);
+    const previews = files.map(f => URL.createObjectURL(f));
+    setMediaPreviews(previews);
+
+    // Silent auto-analysis on first image
+    try {
+      const { analyzeImageFile } = await import('../components/ImageAnalyzer');
+      const result = await analyzeImageFile(files[0]);
+      if (result) {
+        if (!form.title || form.title.length < 3) setForm(f => ({ ...f, title: result.title }));
+        if (!form.description || form.description.length < 10) setForm(f => ({ ...f, description: result.description }));
+        if (result.category && !form.category) setForm(f => ({ ...f, category: result.category }));
+      }
+    } catch {}
+  };
+
+  // ── handleVideoSelect — validate 30s max ──────────────────────────────────
+  const handleVideoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAiLoading(true);
-    setAiStatus('جارٍ تحليل الصورة بالذكاء الاصطناعي Gemini...');
-    setErrors({});
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const dataUrl = ev.target.result;
-      setPreview(dataUrl);
-      let data = null;
 
-      // PHASE 1: Try Gemini Vision directly (faster, no backend needed)
-      try {
-        setAiStatus('✨ Gemini Vision يحلل صورتك...');
-        const geminiResult = await analyzeImageForAd(dataUrl);
-        if (geminiResult?.title) {
-          data = geminiResult;
-          setAiStatus('✅ Gemini Vision نجح في تحليل الصورة!');
-        }
-      } catch (geminiErr) {
-        console.warn('[Gemini Vision] failed, trying backend:', geminiErr.message);
-      }
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.src = URL.createObjectURL(file);
+    await new Promise(r => { video.onloadedmetadata = r; video.onerror = r; });
 
-      // PHASE 2: Fallback to backend AI if Gemini Vision failed
-      if (!data?.title) {
-        try {
-          setAiStatus('جارٍ تحليل الصورة عبر الخادم...');
-          const base64 = dataUrl.split(',')[1];
-          const res = await fetchWithRetry(`${API}/api/ads/ai-generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ image: base64, text: form.title + ' ' + form.description }),
-          }, { retries: 2 });
-          data = await res.json();
-        } catch (err) {
-          console.warn('[AI backend] failed, proceeding without AI:', err);
-        }
-      }
+    if (video.duration > 30) {
+      alert('⚠️ الفيديو يجب أن يكون 30 ثانية كحد أقصى');
+      return;
+    }
 
-      if (data?.title) {
-        setForm(f => ({
-          ...f,
-          title: data.title || f.title,
-          description: data.description || f.description,
-          category: data.category || f.category,
-          subcategory: data.subcategory || f.subcategory || '',
-          price: data.suggestedPrice ? String(data.suggestedPrice) : f.price,
-          condition: data.condition || f.condition || '',
-        }));
-        setCharCount((data.description || '').length);
-        setAiStatus('✅ تم تحليل الصورة بنجاح — راجع البيانات أدناه');
-      } else {
-        setAiStatus('⚠️ لم يتم التعرف على المنتج، يمكنك إدخال البيانات يدوياً');
-      }
-      setStep('form');
-      setAiLoading(false);
-    };
-    reader.readAsDataURL(file);
-  }
+    setMediaType('video');
+    setVideoFile(file);
+    setMediaFiles([]);
+    setMediaPreviews([URL.createObjectURL(file)]);
+  };
 
   function validate() {
     const e = {};
@@ -203,7 +164,7 @@ export default function SellPage() {
   async function submit(forceDuplicate = false) {
     if (!validate()) return;
 
-    // DUPLICATE DETECTION: Check user's existing ads for similarity (unless user confirmed)
+    // DUPLICATE DETECTION
     if (!forceDuplicate && form.title.trim().length >= 5) {
       try {
         const myAdsRes = await fetchWithRetry(`${API}/api/ads/my/all`, {
@@ -222,99 +183,89 @@ export default function SellPage() {
             return;
           }
         }
-      } catch {
-        // Silently ignore duplicate check errors
-      }
+      } catch {}
     }
 
     setDuplicateWarning(null);
     setLoading(true);
+
     try {
-      const res = await fetchWithRetry(`${API}/api/ads`, {
+      // ── Build FormData ─────────────────────────────────────────────────────
+      const formData = new FormData();
+      formData.append('title', form.title);
+      formData.append('description', form.description);
+      formData.append('price', form.price || '0');
+      formData.append('category', form.category);
+      formData.append('city', form.city || '');
+      formData.append('country', country || 'EG');
+      formData.append('phone', form.phone || '');
+      formData.append('currency', form.currency || 'EGP');
+      formData.append('condition', form.condition || '');
+      formData.append('subcategory', form.subcategory || '');
+
+      // Attach media files
+      if (mediaType === 'images' && mediaFiles.length > 0) {
+        mediaFiles.forEach((file) => formData.append('images', file));
+      } else if (mediaType === 'video' && videoFile) {
+        formData.append('video', videoFile);
+      }
+
+      const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
+      const res = await fetch(`${API}/api/ads`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          ...form,
-          price: Number(form.price) || 0,
-          country,
-          media: preview ? [preview] : [],
-          images: imageUrl ? [imageUrl] : (preview ? [preview] : []),
-        }),
-      }, { retries: 2 });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل النشر');
+        headers: { Authorization: `Bearer ${t}` }, // NO Content-Type — FormData sets it
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          setErrors({ submit: 'لقد وصلت للحد اليومي: يمكنك نشر إعلانين فقط في اليوم الواحد' });
+        } else {
+          setErrors({ submit: err.message || err.error || 'خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+        }
+        setLoading(false);
+        return;
+      }
+
       if (form.phone) localStorage.setItem('last_used_phone', form.phone);
       window.location.href = `/?published=1`;
     } catch (e) {
-      // 429: daily limit reached — show specific Arabic message
-      if (e.status === 429) {
-        setErrors({ submit: 'لقد وصلت للحد اليومي: يمكنك نشر إعلانين فقط في اليوم الواحد' });
-      } else {
-        setErrors({ submit: e.arabicMessage || e.message });
-      }
+      setErrors({ submit: e.message || 'خطأ في الاتصال بالخادم' });
     }
     setLoading(false);
   }
 
-  function clearImage() {
-    setPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
   const inputStyle = (field) => ({
-    width: '100%',
-    padding: '11px 14px',
-    borderRadius: 10,
+    width: '100%', padding: '11px 14px', borderRadius: 10,
     border: `1.5px solid ${errors[field] ? '#e53e3e' : '#e0e0e0'}`,
-    fontSize: 15,
-    boxSizing: 'border-box',
+    fontSize: 15, boxSizing: 'border-box',
     fontFamily: "'Cairo', 'Tajawal', system-ui",
-    direction: 'rtl',
-    background: errors[field] ? '#fff5f5' : '#fff',
-    outline: 'none',
-    transition: 'border-color 0.2s',
+    direction: 'rtl', background: errors[field] ? '#fff5f5' : '#fff',
+    outline: 'none', transition: 'border-color 0.2s',
   });
 
   const labelStyle = {
-    display: 'block',
-    fontWeight: 'bold',
-    marginBottom: 6,
-    fontSize: 14,
-    color: '#333',
+    display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 14, color: '#333',
   };
 
   const stepCount = step === 'start' ? 1 : 2;
 
   return (
-    <div
-      dir="rtl"
-      lang="ar"
-      style={{
-        maxWidth: 540,
-        margin: '0 auto',
-        padding: '0 0 32px',
-        fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif",
-        minHeight: '100vh',
-        background: '#f5f5f5',
-      }}
-    >
+    <div dir="rtl" lang="ar" style={{
+      maxWidth: 540, margin: '0 auto', padding: '0 0 32px',
+      fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif",
+      minHeight: '100vh', background: '#f5f5f5',
+    }}>
       {/* Header */}
       <div style={{
-        background: '#002f34',
-        color: 'white',
-        padding: '14px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
+        background: '#002f34', color: 'white', padding: '14px 16px',
+        display: 'flex', alignItems: 'center', gap: 12,
+        position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <button
-          onClick={() => step === 'form' ? setStep('start') : history.back()}
+        <button onClick={() => step === 'form' ? setStep('start') : history.back()}
           aria-label="رجوع"
-          style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'bold', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}
-        >
+          style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'bold', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>
           →
         </button>
         <div style={{ flex: 1 }}>
@@ -322,9 +273,7 @@ export default function SellPage() {
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
             {[1, 2].map(n => (
               <div key={n} style={{
-                height: 4,
-                flex: 1,
-                borderRadius: 4,
+                height: 4, flex: 1, borderRadius: 4,
                 background: n <= stepCount ? '#c8f5c5' : 'rgba(255,255,255,0.3)',
                 transition: 'background 0.3s',
               }} />
@@ -334,38 +283,26 @@ export default function SellPage() {
       </div>
 
       <div style={{ padding: '20px 16px' }}>
-        {/* Duplicate ad warning */}
+        {/* Duplicate warning */}
         {duplicateWarning && (
           <div role="alert" style={{
-            background: '#fffbeb',
-            border: '1.5px solid #f59e0b',
-            borderRadius: 12,
-            padding: '14px 16px',
-            marginBottom: 16,
-            direction: 'rtl',
-            fontFamily: 'Cairo, sans-serif',
+            background: '#fffbeb', border: '1.5px solid #f59e0b',
+            borderRadius: 12, padding: '14px 16px', marginBottom: 16,
+            direction: 'rtl', fontFamily: 'Cairo, sans-serif',
           }}>
             <p style={{ margin: '0 0 10px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>
               {duplicateWarning.message}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setDuplicateWarning(null)}
-                style={{
-                  padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db',
-                  background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Cairo, sans-serif',
-                }}
-              >
+              <button onClick={() => setDuplicateWarning(null)}
+                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db',
+                  background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>
                 ✏️ تعديل الإعلان
               </button>
-              <button
-                onClick={() => submit(true)}
-                style={{
-                  padding: '7px 14px', borderRadius: 8, border: 'none',
+              <button onClick={() => submit(true)}
+                style={{ padding: '7px 14px', borderRadius: 8, border: 'none',
                   background: '#002f34', color: '#fff', fontSize: 13, fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'Cairo, sans-serif',
-                }}
-              >
+                  cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>
                 نشر على أي حال
               </button>
             </div>
@@ -375,13 +312,8 @@ export default function SellPage() {
         {/* Submit error */}
         {errors.submit && (
           <div role="alert" style={{
-            background: '#fff0f0',
-            border: '1px solid #fcc',
-            borderRadius: 10,
-            padding: '12px 14px',
-            marginBottom: 16,
-            color: '#c00',
-            fontSize: 14,
+            background: '#fff0f0', border: '1px solid #fcc',
+            borderRadius: 10, padding: '12px 14px', marginBottom: 16, color: '#c00', fontSize: 14,
           }}>
             ⚠️ {errors.submit}
           </div>
@@ -393,72 +325,27 @@ export default function SellPage() {
             <p style={{ textAlign: 'center', color: '#555', fontSize: 15, margin: '0 0 8px' }}>
               كيف تريد إضافة إعلانك؟
             </p>
-
-            {/* AI Photo upload */}
-            <label
+            <button onClick={() => setStep('form')}
               style={{
-                display: 'block',
-                background: '#002f34',
-                color: 'white',
-                textAlign: 'center',
-                padding: '28px 20px',
-                borderRadius: 18,
-                cursor: 'pointer',
-                fontSize: 17,
-                fontWeight: 'bold',
-                boxShadow: '0 4px 12px rgba(0,47,52,0.2)',
-              }}
-              aria-label="صوّر المنتج وسيملأ الذكاء الاصطناعي التفاصيل"
-            >
-              <div style={{ fontSize: 44, marginBottom: 10 }}>📸</div>
-              <div>صوّر المنتج</div>
-              <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6, fontWeight: 'normal' }}>
-                الذكاء الاصطناعي يملأ التفاصيل تلقائياً ✨
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                style={{ display: 'none' }}
-                onChange={aiFromImage}
-                aria-hidden="true"
-              />
-            </label>
-
-            {aiLoading && (
-              <div style={{
-                textAlign: 'center',
-                padding: '20px',
-                background: 'white',
-                borderRadius: 14,
-                color: '#555',
+                display: 'block', background: '#002f34', color: 'white',
+                textAlign: 'center', padding: '28px 20px', borderRadius: 18,
+                cursor: 'pointer', fontSize: 17, fontWeight: 'bold',
+                boxShadow: '0 4px 12px rgba(0,47,52,0.2)', border: 'none',
+                fontFamily: 'inherit', width: '100%',
               }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🤖</div>
-                <p style={{ margin: 0, fontWeight: 'bold' }}>الذكاء الاصطناعي يحلل الصورة...</p>
-                <p style={{ margin: '6px 0 0', fontSize: 13, color: '#888' }}>يرجى الانتظار لحظة</p>
+              <div style={{ fontSize: 44, marginBottom: 10 }}>📸</div>
+              <div>أضف إعلانك</div>
+              <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6, fontWeight: 'normal' }}>
+                صور + فيديو + تحليل تلقائي بالذكاء الاصطناعي ✨
               </div>
-            )}
-
-            <button
-              onClick={() => setStep('form')}
+            </button>
+            <button onClick={() => setStep('form')}
               style={{
-                background: 'white',
-                color: '#002f34',
-                padding: '20px',
-                borderRadius: 18,
-                cursor: 'pointer',
-                fontSize: 16,
-                fontWeight: 'bold',
-                border: '2px solid #002f34',
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-              }}
-              aria-label="إضافة إعلان يدوياً"
-            >
+                background: 'white', color: '#002f34', padding: '20px', borderRadius: 18,
+                cursor: 'pointer', fontSize: 16, fontWeight: 'bold',
+                border: '2px solid #002f34', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              }}>
               <span style={{ fontSize: 24 }}>✍️</span>
               إضافة يدوياً
             </button>
@@ -469,118 +356,66 @@ export default function SellPage() {
         {step === 'form' && (
           <div style={{ background: 'white', borderRadius: 18, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
-            {/* ── Offline AI Image Analyzer (TF.js MobileNet + Tesseract OCR) ── */}
-            <ImageAnalyzer
-              onResult={(res) => {
-                setForm(f => ({
-                  ...f,
-                  title: res.title || f.title,
-                  description: res.description || f.description,
-                  category: res.category || f.category,
-                }));
-                if (res.title) setAiStatus('✅ تم تحليل الصورة بالذكاء الاصطناعي المحلي (Offline AI)');
-              }}
-            />
+            {/* ── Media picker — Photos OR Video ─────────────────────────── */}
+            {/* Photo picker */}
+            <input type="file" accept="image/*" multiple capture="environment"
+              onChange={handlePhotoSelect} style={{ display: 'none' }} id="photo-input" />
+            {/* Video picker */}
+            <input type="file" accept="video/*" capture="environment"
+              onChange={handleVideoSelect} style={{ display: 'none' }} id="video-input" />
 
-            {/* Image URL text input — alternative to file upload */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 13, color: '#555' }}>
-                🔗 رابط الصورة (اختياري — بديل لرفع الملف)
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <label htmlFor="photo-input" style={{
+                flex: 1, padding: '10px', background: '#6366f1', color: 'white',
+                borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 14,
+              }}>
+                📷 إضافة صور
               </label>
-              <input
-                type="url"
-                placeholder="أو أدخل رابط الصورة مباشرة (URL)"
-                value={imageUrl}
-                onChange={e => {
-                  setImageUrl(e.target.value);
-                  if (e.target.value && !preview) setPreview(e.target.value);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: 8,
-                  border: '1px solid #ddd',
-                  fontSize: 13,
-                  boxSizing: 'border-box',
-                  direction: 'ltr',
-                  fontFamily: 'inherit',
-                }}
-              />
+              <label htmlFor="video-input" style={{
+                flex: 1, padding: '10px', background: '#8b5cf6', color: 'white',
+                borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 14,
+              }}>
+                🎥 فيديو 30 ثانية
+              </label>
             </div>
 
-            {/* Image preview */}
-            {preview && (
-              <div style={{ position: 'relative', marginBottom: 16 }}>
-                <img
-                  src={preview}
-                  alt="صورة الإعلان"
-                  style={{ maxHeight: 200, borderRadius: 12, width: '100%', objectFit: 'cover' }}
-                />
-                <button
-                  onClick={clearImage}
-                  aria-label="حذف الصورة"
-                  style={{
-                    position: 'absolute',
-                    top: 8,
-                    left: 8,
-                    background: 'rgba(0,0,0,0.6)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: 30,
-                    height: 30,
-                    cursor: 'pointer',
-                    fontSize: 16,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  ✕
-                </button>
+            {/* Media previews */}
+            {mediaPreviews.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                {mediaType === 'images' && mediaPreviews.map((src, i) => (
+                  <div key={i} style={{ position: 'relative' }}>
+                    <img src={src} alt={`صورة ${i + 1}`}
+                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }} />
+                    <button onClick={() => {
+                      const newFiles = mediaFiles.filter((_, idx) => idx !== i);
+                      const newPreviews = mediaPreviews.filter((_, idx) => idx !== i);
+                      setMediaFiles(newFiles);
+                      setMediaPreviews(newPreviews);
+                      if (!newFiles.length) setMediaType(null);
+                    }} style={{
+                      position: 'absolute', top: -6, right: -6, background: 'red', color: 'white',
+                      border: 'none', borderRadius: '50%', width: 20, height: 20,
+                      cursor: 'pointer', fontSize: 12,
+                    }}>×</button>
+                  </div>
+                ))}
+                {mediaType === 'video' && (
+                  <video src={mediaPreviews[0]} controls
+                    style={{ width: '100%', borderRadius: 10, maxHeight: 200 }} />
+                )}
               </div>
             )}
 
-            {/* FIX 6: Show AI status message */}
+            {/* AI status */}
             {aiStatus && (
               <div style={{
-                padding: '10px 16px',
-                borderRadius: '8px',
-                marginBottom: '12px',
+                padding: '10px 16px', borderRadius: 8, marginBottom: 12,
                 background: aiStatus.includes('✅') ? '#e8f5e9' : '#fff8e1',
                 color: aiStatus.includes('✅') ? '#2e7d32' : '#f57f17',
-                fontSize: '14px',
-                textAlign: 'center'
+                fontSize: 14, textAlign: 'center',
               }}>
                 {aiStatus}
               </div>
-            )}
-
-            {!preview && (
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                padding: '14px',
-                border: '2px dashed #ccc',
-                borderRadius: 12,
-                cursor: 'pointer',
-                color: '#888',
-                fontSize: 14,
-                marginBottom: 16,
-              }}>
-                <span style={{ fontSize: 22 }}>📷</span>
-                إضافة صورة (اختياري)
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={aiFromImage}
-                  aria-label="رفع صورة"
-                />
-              </label>
             )}
 
             {/* Title */}
@@ -588,14 +423,11 @@ export default function SellPage() {
               <label style={labelStyle} htmlFor="sell-title">
                 عنوان الإعلان <span style={{ color: '#e53e3e' }}>*</span>
               </label>
-              <input
-                id="sell-title"
-                value={form.title}
+              <input id="sell-title" value={form.title}
                 onChange={e => {
                   const value = e.target.value;
                   setForm(p => ({ ...p, title: value }));
                   if (errors.title) setErrors(p => ({ ...p, title: '' }));
-                  // Auto-analyze title for category/price suggestions
                   if (aiDebounce) clearTimeout(aiDebounce);
                   const timeout = setTimeout(async () => {
                     if (value.length < 5) return;
@@ -604,13 +436,12 @@ export default function SellPage() {
                       const r = await fetch(`${API}/api/ads/ai-generate`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-                        body: JSON.stringify({ text: value })
+                        body: JSON.stringify({ text: value }),
                       });
                       const data = await r.json();
                       if (data.category && data.category !== 'General') {
                         setForm(f => ({
-                          ...f,
-                          category: data.category || f.category,
+                          ...f, category: data.category || f.category,
                           subcategory: data.subcategory || f.subcategory,
                           price: data.suggestedPrice && !f.price ? String(data.suggestedPrice) : f.price,
                           condition: data.condition || f.condition,
@@ -623,13 +454,10 @@ export default function SellPage() {
                   setAiDebounce(timeout);
                 }}
                 placeholder="مثال: آيفون 14 برو ماكس بحالة ممتازة"
-                style={inputStyle('title')}
-                maxLength={100}
-                aria-required="true"
-                aria-describedby={errors.title ? 'title-error' : undefined}
-              />
+                style={inputStyle('title')} maxLength={100}
+                aria-required="true" />
               {errors.title && (
-                <p id="title-error" role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
+                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
                   ⚠️ {errors.title}
                 </p>
               )}
@@ -637,24 +465,15 @@ export default function SellPage() {
 
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="sell-desc">
-                الوصف
-              </label>
-              <textarea
-                id="sell-desc"
-                value={form.description}
+              <label style={labelStyle} htmlFor="sell-desc">الوصف</label>
+              <textarea id="sell-desc" value={form.description}
                 onChange={e => {
                   setForm(p => ({ ...p, description: e.target.value }));
                   setCharCount(e.target.value.length);
                 }}
-                placeholder="اكتب وصفاً تفصيلياً للمنتج: الحالة، المميزات، سبب البيع..."
-                style={{
-                  ...inputStyle('description'),
-                  resize: 'vertical',
-                  minHeight: 90,
-                }}
-                maxLength={1000}
-              />
+                placeholder="اكتب وصفاً تفصيلياً للمنتج..."
+                style={{ ...inputStyle('description'), resize: 'vertical', minHeight: 90 }}
+                maxLength={1000} />
               <p style={{ textAlign: 'left', fontSize: 11, color: '#aaa', margin: '3px 0 0' }}>
                 {charCount}/1000
               </p>
@@ -665,38 +484,20 @@ export default function SellPage() {
               <label style={labelStyle}>
                 الفئة <span style={{ color: '#e53e3e' }}>*</span>
               </label>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 8,
-              }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {CATS.map(cat => (
-                  <button
-                    key={cat.en}
-                    type="button"
-                    onClick={() => {
-                      setForm(p => ({ ...p, category: cat.en }));
-                      if (errors.category) setErrors(p => ({ ...p, category: '' }));
-                    }}
+                  <button key={cat.en} type="button"
+                    onClick={() => { setForm(p => ({ ...p, category: cat.en })); if (errors.category) setErrors(p => ({ ...p, category: '' })); }}
                     aria-pressed={form.category === cat.en}
                     style={{
-                      padding: '10px 6px',
-                      borderRadius: 10,
+                      padding: '10px 6px', borderRadius: 10,
                       border: `2px solid ${form.category === cat.en ? '#002f34' : '#e0e0e0'}`,
                       background: form.category === cat.en ? '#002f34' : '#fafafa',
                       color: form.category === cat.en ? 'white' : '#444',
-                      cursor: 'pointer',
-                      fontSize: 12,
-                      fontWeight: 'bold',
-                      fontFamily: 'inherit',
-                      textAlign: 'center',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 3,
-                      transition: 'all 0.15s',
-                    }}
-                  >
+                      cursor: 'pointer', fontSize: 12, fontWeight: 'bold', fontFamily: 'inherit',
+                      textAlign: 'center', display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', gap: 3, transition: 'all 0.15s',
+                    }}>
                     <span style={{ fontSize: 20 }}>{cat.icon}</span>
                     <span>{cat.ar}</span>
                   </button>
@@ -715,24 +516,17 @@ export default function SellPage() {
               <label style={labelStyle}>حالة المنتج</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {CONDITIONS.map(c => (
-                  <button
-                    key={c.en}
-                    type="button"
+                  <button key={c.en} type="button"
                     onClick={() => setForm(p => ({ ...p, condition: c.en }))}
                     aria-pressed={form.condition === c.en}
                     style={{
-                      padding: '8px 14px',
-                      borderRadius: 20,
+                      padding: '8px 14px', borderRadius: 20,
                       border: `2px solid ${form.condition === c.en ? '#002f34' : '#e0e0e0'}`,
                       background: form.condition === c.en ? '#002f34' : '#fafafa',
                       color: form.condition === c.en ? 'white' : '#444',
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 'bold',
-                      fontFamily: 'inherit',
-                      transition: 'all 0.15s',
-                    }}
-                  >
+                      cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
+                      fontFamily: 'inherit', transition: 'all 0.15s',
+                    }}>
                     {c.icon} {c.ar}
                   </button>
                 ))}
@@ -743,38 +537,22 @@ export default function SellPage() {
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle} htmlFor="sell-price">السعر</label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <select
-                  value={form.currency}
+                <select value={form.currency}
                   onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}
                   aria-label="العملة"
                   style={{
-                    padding: '11px 10px',
-                    borderRadius: 10,
-                    border: '1.5px solid #e0e0e0',
-                    fontSize: 14,
-                    fontFamily: 'inherit',
-                    background: '#fff',
-                    direction: 'ltr',
-                  }}
-                >
+                    padding: '11px 10px', borderRadius: 10, border: '1.5px solid #e0e0e0',
+                    fontSize: 14, fontFamily: 'inherit', background: '#fff', direction: 'ltr',
+                  }}>
                   {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <input
-                  id="sell-price"
-                  value={form.price}
-                  onChange={e => {
-                    setForm(p => ({ ...p, price: e.target.value }));
-                    if (errors.price) setErrors(p => ({ ...p, price: '' }));
-                  }}
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  style={{ ...inputStyle('price'), flex: 1, direction: 'ltr' }}
-                  aria-describedby={errors.price ? 'price-error' : undefined}
-                />
+                <input id="sell-price" value={form.price}
+                  onChange={e => { setForm(p => ({ ...p, price: e.target.value })); if (errors.price) setErrors(p => ({ ...p, price: '' })); }}
+                  type="number" min="0" placeholder="0"
+                  style={{ ...inputStyle('price'), flex: 1, direction: 'ltr' }} />
               </div>
               {errors.price && (
-                <p id="price-error" role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
+                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
                   ⚠️ {errors.price}
                 </p>
               )}
@@ -783,65 +561,38 @@ export default function SellPage() {
             {/* City */}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle} htmlFor="sell-city">المدينة</label>
-              <input
-                id="sell-city"
-                value={form.city}
+              <input id="sell-city" value={form.city}
                 onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
                 placeholder="مثال: القاهرة، الرياض، دبي..."
-                style={inputStyle('city')}
-              />
+                style={inputStyle('city')} />
             </div>
 
             {/* Phone */}
             <div style={{ marginBottom: 20 }}>
               <label style={labelStyle} htmlFor="sell-phone">رقم التواصل</label>
-              <input
-                id="sell-phone"
-                value={form.phone}
-                onChange={e => {
-                  setForm(p => ({ ...p, phone: e.target.value }));
-                  if (errors.phone) setErrors(p => ({ ...p, phone: '' }));
-                }}
-                type="tel"
-                placeholder="مثال: +201012345678"
-                style={{ ...inputStyle('phone'), direction: 'ltr' }}
-                aria-describedby={errors.phone ? 'phone-error' : undefined}
-              />
+              <input id="sell-phone" value={form.phone}
+                onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); if (errors.phone) setErrors(p => ({ ...p, phone: '' })); }}
+                type="tel" placeholder="مثال: +201012345678"
+                style={{ ...inputStyle('phone'), direction: 'ltr' }} />
               {errors.phone && (
-                <p id="phone-error" role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
+                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
                   ⚠️ {errors.phone}
                 </p>
               )}
             </div>
 
             {/* Submit */}
-            <button
-              onClick={submit}
-              disabled={loading}
-              aria-busy={loading}
+            <button onClick={() => submit()} disabled={loading} aria-busy={loading}
               style={{
-                width: '100%',
-                padding: '14px',
-                background: loading ? '#aaa' : '#002f34',
-                color: 'white',
-                border: 'none',
-                borderRadius: 14,
-                fontWeight: 'bold',
-                fontSize: 17,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                transition: 'background 0.2s',
-              }}
-            >
+                width: '100%', padding: '14px',
+                background: loading ? '#aaa' : '#002f34', color: 'white',
+                border: 'none', borderRadius: 14, fontWeight: 'bold', fontSize: 17,
+                cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 10, transition: 'background 0.2s',
+              }}>
               {loading ? (
-                <>
-                  <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span>
-                  جار النشر...
-                </>
+                <><span style={{ display: 'inline-block' }}>⏳</span> جار النشر...</>
               ) : (
                 <>🚀 نشر الإعلان</>
               )}

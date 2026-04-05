@@ -5,7 +5,7 @@ const AdSchema = new mongoose.Schema({
   translations: { en: String, ar: String, de: String, fr: String },
   description: String, category: String, subcategory: String, subcategory2: String, subcategory3: String,
   price: Number, currency: String, city: String, country: { type: String, required: true },
-  media: [String], video: String, mediaType: { type: String, enum: ['image', 'video', 'mixed'] },
+  media: [String], images: [String], video: String, videoUrl: { type: String, default: null }, mediaType: { type: String, enum: ['image', 'video', 'mixed'] },
   imageVector: [Number],
   views: { type: Number, default: 0 }, chatCount: { type: Number, default: 0 },
   isFeatured: { type: Boolean, default: false },

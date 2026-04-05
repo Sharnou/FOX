@@ -24,6 +24,13 @@ import { scoreAdWithAI } from '../server/aiQualityScore.js';
 import { getOrCreateCountry } from '../server/countries.js';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import multer from 'multer';
+
+// Multer: memory storage, max 50MB (for video)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
 
@@ -89,12 +96,12 @@ function sanitizeAdFields({ title, description, category, subcategory, price, ci
 
   // media — array of URL strings, max 10 items
   const cleanMedia = Array.isArray(media)
-    ? media.slice(0, 10).map(u => String(u || '').trim()).filter(u => u.startsWith('http'))
+    ? media.slice(0, 10).map(u => String(u || '').trim()).filter(u => u.startsWith('http') || u.startsWith('data:image/'))
     : [];
 
   // video — optional URL string
   const cleanVideo = video ? String(video).trim() : undefined;
-  if (cleanVideo && !cleanVideo.startsWith('http')) errors.push('video must be a valid URL');
+  if (cleanVideo && !cleanVideo.startsWith('http') && !cleanVideo.startsWith('data:')) errors.push('video must be a valid URL');
 
   // featuredStyle — whitelist
   const STYLES = new Set(['normal', 'cartoon', 'gold', 'banner']);
@@ -198,7 +205,10 @@ router.get('/:id', async (req, res) => {
 });
 
 // ── POST new ad (AI moderation on ALL media) ──
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, upload.fields([
+  { name: 'images', maxCount: 5 },
+  { name: 'video', maxCount: 1 }
+]), async (req, res) => {
   try {
     // ── DB CONNECTION CHECK — return 503 if no DB is ready yet ──────────────
     const _activeDB = getActiveDB();
@@ -234,6 +244,56 @@ router.post('/', auth, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+
+    // ── PROCESS UPLOADED FILES (multer) — convert to base64 or Cloudinary ────
+    let _uploadedImages = [];
+    let _uploadedVideoUrl = null;
+
+    if (req.files?.images?.length) {
+      _uploadedImages = req.files.images.map(f =>
+        `data:${f.mimetype};base64,${f.buffer.toString('base64')}`
+      );
+      // Try Cloudinary for uploaded images
+      if (process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
+        try {
+          const { default: cloudinaryClient } = await import('../server/cloudinary.js');
+          const processed = [];
+          for (const img of _uploadedImages) {
+            try {
+              const result = await cloudinaryClient.uploader.upload(img, { folder: 'xtox_ads' });
+              processed.push(result.secure_url);
+            } catch { processed.push(img); } // keep base64 on per-image failure
+          }
+          _uploadedImages = processed;
+        } catch (uploadErr) {
+          console.warn('[POST /api/ads] Cloudinary failed, keeping base64:', uploadErr.message);
+          // Keep as base64 for prototype — do NOT strip
+        }
+      }
+      // Inject into req.body.media so existing pipeline sees them
+      req.body.media = _uploadedImages;
+    } else if (req.body.imageUrl) {
+      _uploadedImages = [req.body.imageUrl];
+    }
+
+    if (req.files?.video?.[0]) {
+      const v = req.files.video[0];
+      _uploadedVideoUrl = `data:${v.mimetype};base64,${v.buffer.toString('base64')}`;
+      // Try Cloudinary for video
+      if (process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
+        try {
+          const { default: cloudinaryClient } = await import('../server/cloudinary.js');
+          const result = await cloudinaryClient.uploader.upload(_uploadedVideoUrl, {
+            resource_type: 'video', folder: 'xtox_ads'
+          });
+          _uploadedVideoUrl = result.secure_url;
+        } catch (e) {
+          console.warn('[POST /api/ads] Cloudinary video failed, keeping base64:', e.message);
+        }
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────────
+
     // ── PRE-PROCESS: Normalize media sources from multiple field names ────────
     // Frontend may send 'images', 'imageUrl', or 'media' — unify to 'media'
     if (!req.body.media?.length) {
@@ -263,8 +323,9 @@ router.post('/', auth, async (req, res) => {
         req.body.media = processedMedia;
       } catch (uploadErr) {
         // Cloudinary unavailable — strip base64 (do not store in DB)
-        req.body.media = rawMedia.filter(u => String(u || '').startsWith('http'));
-        console.warn('[ads] Cloudinary upload failed, images stripped:', uploadErr.message);
+        // Keep base64 for prototype — do NOT strip files that were already uploaded by multer
+        req.body.media = rawMedia; // keep all (including base64 data: URLs)
+        console.warn('[ads] Cloudinary upload failed, keeping images as-is:', uploadErr.message);
       }
     }
 
@@ -308,6 +369,10 @@ router.post('/', auth, async (req, res) => {
     // ENSURE COUNTRY EXISTS
     await getOrCreateCountry(country, country).catch(() => {});
 
+    // Merge: prefer multer-uploaded images, fallback to sanitized media from body
+    const finalMedia = _uploadedImages.length ? _uploadedImages : (media || []);
+    const finalVideoUrl = _uploadedVideoUrl || null;
+
     const ad = await getAdModel().create({
       userId: req.user.id,
       title,
@@ -317,9 +382,11 @@ router.post('/', auth, async (req, res) => {
       subcategory: finalSubcategory,
       price,
       city,
-      currency: currency || 'USD',
-      media: media || [],
+      currency: currency || 'EGP',
+      media: finalMedia,
+      images: finalMedia,
       video,
+      videoUrl: finalVideoUrl,
       country, // LOCKED from JWT
       condition: condition || null,
       featuredStyle: featuredStyle || 'normal',
@@ -339,6 +406,7 @@ router.post('/', auth, async (req, res) => {
 
     // AI QUALITY SCORE — async, non-blocking (run after response)
     setImmediate(async () => {
+      let aiScore = 70;
       try {
         const { score, tips } = await scoreAdWithAI({
           title, description, category: finalCategory,
@@ -471,6 +539,7 @@ router.put('/:id', auth, async (req, res) => {
 
     // AI QUALITY SCORE on update — async, non-blocking
     setImmediate(async () => {
+      let aiScore = 70;
       try {
         const { score, tips } = await scoreAdWithAI({
           title: ad.title, description: ad.description,

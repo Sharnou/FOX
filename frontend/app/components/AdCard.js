@@ -96,6 +96,8 @@ export default function AdCard({ ad }) {
   const [viewCount, setViewCount] = useState(ad?.views || 0);
   // ── FIX 1: track broken image to show placeholder ──────────────────────
   const [imgError, setImgError] = useState(false);
+  // ── Media carousel state ──────────────────────────────────────────────────
+  const [imgIndex, setImgIndex] = useState(0);
 
   // Normalize ad id — MongoDB returns _id, some APIs return id
   const adId = ad?._id || ad?.id;
@@ -237,6 +239,16 @@ export default function AdCard({ ad }) {
   const imageUrl = rawImageUrl ? optimizeImage(rawImageUrl) : null;
   const showPlaceholder = imgError; // rawImageUrl now always has a fallback
 
+
+  // ── Media carousel helpers ────────────────────────────────────────────────
+  const allImages = ad?.images?.length ? ad.images :
+                    ad?.media?.length ? ad.media :
+                    ad?.photos?.length ? ad.photos : [];
+  const videoUrl = ad?.videoUrl || ad?.video || null;
+  const hasVideo = !!videoUrl;
+  const hasMultipleImages = allImages.length > 1;
+  // ──────────────────────────────────────────────────────────────────────────
+
   // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
   const adDetailUrl = `/ads/${adId}`;
 
@@ -296,64 +308,67 @@ export default function AdCard({ ad }) {
         {saved ? '❤️' : '🤍'}
       </button>
 
-      {/* ── FIX 1: Image with fallback + onError handler ─────────────────── */}
-      {!showPlaceholder ? (
-        <div className="relative w-full h-44 overflow-hidden rounded-t-xl">
+      {/* ── Media Carousel: video > multiple images > single image > placeholder ── */}
+      <div style={{ position: 'relative', width: '100%', paddingBottom: '65%', background: '#f0f0f0', borderRadius: '12px 12px 0 0', overflow: 'hidden' }}>
+        {hasVideo ? (
+          <video src={videoUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            muted loop autoPlay playsInline />
+        ) : allImages.length > 0 ? (
           <img
             loading="lazy"
-            src={imageUrl}
-            className="w-full h-full object-cover img-blur-load"
+            src={optimizeImage(allImages[imgIndex])}
             alt={ad.title}
-            onLoad={e => e.target.classList.add('loaded')}
-            onError={() => setImgError(true)}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={e => { e.target.src = '/no-image.svg'; }}
           />
-          {/* Ad Expiry Countdown Badge */}
-          {(() => {
-            const daysLeft = getDaysLeft(ad.createdAt);
-            if (daysLeft === null) return null;
-            const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
-            const label = daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`;
-            return (
-              <span style={{
-                position: 'absolute', bottom: '8px', left: '8px',
-                background: color, color: '#fff', fontSize: '10px',
-                fontWeight: '700', padding: '2px 7px', borderRadius: '999px',
-                zIndex: 10, letterSpacing: '0.02em',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.18)', pointerEvents: 'none',
-              }}>
-                {label}
-              </span>
-            );
-          })()}
-        </div>
-      ) : (
-        <div className="relative w-full h-44 overflow-hidden rounded-t-xl">
-          {/* FIX 1: Show no-image.svg placeholder when image is missing or broken */}
-          <img
-            src="/no-image.svg"
-            className="w-full h-full object-cover"
-            alt="لا توجد صورة"
-          />
-          {/* Ad Expiry Countdown Badge */}
-          {(() => {
-            const daysLeft = getDaysLeft(ad.createdAt);
-            if (daysLeft === null) return null;
-            const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
-            const label = daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`;
-            return (
-              <span style={{
-                position: 'absolute', bottom: '8px', left: '8px',
-                background: color, color: '#fff', fontSize: '10px',
-                fontWeight: '700', padding: '2px 7px', borderRadius: '999px',
-                zIndex: 10, letterSpacing: '0.02em',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.18)', pointerEvents: 'none',
-              }}>
-                {label}
-              </span>
-            );
-          })()}
-        </div>
-      )}
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 40 }}>📷</div>
+        )}
+
+        {/* Navigation dots for multiple images */}
+        {hasMultipleImages && (
+          <div style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 4 }}>
+            {allImages.map((_, i) => (
+              <div key={i} onClick={e => { e.stopPropagation(); setImgIndex(i); }}
+                style={{ width: 6, height: 6, borderRadius: '50%', background: i === imgIndex ? 'white' : 'rgba(255,255,255,0.5)', cursor: 'pointer' }} />
+            ))}
+          </div>
+        )}
+
+        {/* Prev/Next arrows for multiple images */}
+        {hasMultipleImages && (
+          <>
+            <button onClick={e => { e.stopPropagation(); setImgIndex(prev => (prev - 1 + allImages.length) % allImages.length); }}
+              style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: 12 }}>‹</button>
+            <button onClick={e => { e.stopPropagation(); setImgIndex(prev => (prev + 1) % allImages.length); }}
+              style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: 12 }}>›</button>
+          </>
+        )}
+
+        {/* Video badge */}
+        {hasVideo && (
+          <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', color: 'white', borderRadius: 6, padding: '2px 6px', fontSize: 11 }}>🎥 فيديو</div>
+        )}
+
+        {/* Ad Expiry Countdown Badge */}
+        {(() => {
+          const daysLeft = getDaysLeft(ad.createdAt);
+          if (daysLeft === null) return null;
+          const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
+          const label = daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`;
+          return (
+            <span style={{
+              position: 'absolute', bottom: '8px', left: '8px',
+              background: color, color: '#fff', fontSize: '10px',
+              fontWeight: '700', padding: '2px 7px', borderRadius: '999px',
+              zIndex: 10, letterSpacing: '0.02em',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.18)', pointerEvents: 'none',
+            }}>
+              {label}
+            </span>
+          );
+        })()}
+      </div>
 
       <div className="p-3">
         <p className="font-bold text-sm line-clamp-2">{ad.title}</p>
