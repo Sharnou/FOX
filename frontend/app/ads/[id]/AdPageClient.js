@@ -419,28 +419,28 @@ export default function AdPageClient({ params }) {
     if (!token) { window.location.href = '/login'; return; }
     const targetSellerId = ad?.userId?._id || ad?.userId || ad?.seller?._id || ad?.seller;
     try {
-      const res = await fetch(`${API}/api/chat/start`, {
+      const chatAPI = API + '/api/chat/start';
+      const res = await fetch(chatAPI, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: 'Bearer ' + token,
         },
-        body: JSON.stringify({
-          targetId: targetSellerId,
-          adId: ad._id,
-        }),
+        body: JSON.stringify({ targetId: targetSellerId, adId: ad?._id }),
       });
       const data = await res.json();
       const chatId = data.chatId || data._id || data.chat?._id;
       if (chatId) {
-        window.location.href = `/chat?chatId=${chatId}&target=${targetSellerId}`;
+        window.location.href = '/chat?chatId=' + chatId;
       } else {
-        window.location.href = `/chat?target=${targetSellerId}`;
+        window.location.href = '/chat';
       }
-    } catch {
-      window.location.href = `/chat?target=${targetSellerId || ''}`;
+    } catch (e) {
+      window.location.href = '/chat';
     }
   };
+
+  if (adNotFound)
 
   if (adNotFound) return (
     <div style={{ textAlign: 'center', padding: 40, fontFamily: "'Cairo', system-ui, sans-serif" }}>
