@@ -4,7 +4,7 @@ import { auth } from '../middleware/auth.js';
 const router = express.Router();
 router.get('/', async (req, res) => {
   const country = req.query.country || req.headers['x-user-country'];
-  res.json(await Ad.find({ country, category: 'Pharmacy', isExpired: false, isDeleted: false }).sort({ createdAt: -1 }).limit(100));
+  res.json(await Ad.find({ country, category: 'Pharmacy', isExpired: { $ne: true }, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(100));
 });
 router.post('/', auth, async (req, res) => {
   try {
