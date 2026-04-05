@@ -1,5 +1,5 @@
 [variables]
-NODE_VERSION = "24"
+NODE_VERSION = "22"
 
 [phases.build]
 cmds = ["cd backend && npm install --legacy-peer-deps"]
