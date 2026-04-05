@@ -287,29 +287,32 @@ async function runSeedsOnce() {
   }
 }
 
-// ── FIX 1: Seed xtox admin user on startup ───────────────────────────────
+// ── FIX 2: Seed xtox admin user on startup — safe upsert (Bug 2 fix) ───────
+// Uses findOneAndUpdate+upsert to avoid E11000 duplicate key crash on re-deploy.
+// Previously used findOne+save which crashed when email existed with diff username.
 async function seedXtoxAdmin() {
   try {
     const UserModel = mongoose.models.User || (await import('../models/User.js')).default;
-    const bcrypt = await import('bcryptjs');
-    const existing = await UserModel.findOne({ username: 'xtox' });
-    if (!existing) {
-      const hash = await bcrypt.default.hash('xtoxxtox', 10);
-      const admin = new UserModel({
-        username: 'xtox',
-        email: 'xtox@xtox.com',
-        password: hash,
-        role: 'admin',
-        chatEnabled: true,
-        name: 'XTOX Admin',
-        country: 'EG',
-        city: 'Cairo',
-      });
-      await admin.save();
-      console.log('[Seed] Admin user created: xtox / xtoxxtox');
-    } else {
-      console.log('[Seed] Admin xtox already exists');
-    }
+    const bcryptModule = await import('bcryptjs');
+    const bcrypt = bcryptModule.default || bcryptModule;
+    const hash = await bcrypt.hash('xtoxxtox', 10);
+    await UserModel.findOneAndUpdate(
+      { email: 'xtox@xtox.com' },
+      {
+        $setOnInsert: {
+          username: 'xtox',
+          email: 'xtox@xtox.com',
+          password: hash,
+          role: 'admin',
+          chatEnabled: true,
+          name: 'XTOX Admin',
+          country: 'EG',
+          city: 'Cairo',
+        }
+      },
+      { upsert: true, new: true }
+    );
+    console.log('[Seed] Admin user xtox@xtox.com ensured (upsert — no crash on re-deploy)');
   } catch (e) {
     console.error('[Seed] Admin seed failed:', e.message);
   }
