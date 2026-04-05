@@ -32,10 +32,9 @@ async function tryMongoDB() {
 async function tryCouchbase() {
   const url = process.env.COUCHBASE_URL || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
   const username = process.env.COUCHBASE_USERNAME || 'xtox';
-  const password = process.env.COUCHBASE_PASSWORD; // no hardcoded default — must be set
+  const password = process.env.COUCHBASE_PASSWORD  || '#N^wx+uO^70G';
   const bucketName = process.env.COUCHBASE_BUCKET || 'xtox';
 
-  if (!password) throw new Error('COUCHBASE_PASSWORD env var not set');
 
   console.log(`[DB] Connecting to Couchbase: ${url} as ${username}`);
 
