@@ -1,3 +1,15 @@
+export const metadata = {
+  title: 'سياسة الخصوصية | XTOX',
+  description: 'سياسة الخصوصية لسوق XTOX - اعرف كيف نحمي بياناتك',
+  openGraph: {
+    title: 'سياسة الخصوصية | XTOX',
+    description: 'سياسة الخصوصية لسوق XTOX - اعرف كيف نحمي بياناتك',
+    siteName: 'XTOX',
+    locale: 'ar_EG',
+    type: 'website',
+  },
+};
+
 export default function PrivacyPage() {
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', padding: 24, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>

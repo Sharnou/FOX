@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithRetry } from '../lib/fetchWithRetry';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';

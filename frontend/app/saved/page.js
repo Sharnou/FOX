@@ -1,10 +1,11 @@
 'use client';
+export const dynamic = 'force-dynamic';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import AdCardSkeleton from '../components/AdCardSkeleton';
 
-const AdCard = dynamic(() => import('../components/AdCard'), { ssr: false });
+const AdCard = nextDynamic(() => import('../components/AdCard'), { ssr: false });
 
 const BACKEND = 'https://xtox.up.railway.app';
 

@@ -80,7 +80,7 @@ function PromotePageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const adTitle = searchParams.get('title') || 'إعلانك';
-  const adId = searchParams.get('id') || '';
+  const adId = searchParams.get('adId') || searchParams.get('id') || '';
   const [lang, setLang] = useState('ar');
   const [selected, setSelected] = useState('featured');
   const [paymentMethod, setPaymentMethod] = useState('cash');

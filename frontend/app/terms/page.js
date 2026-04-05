@@ -1,3 +1,15 @@
+export const metadata = {
+  title: 'شروط الاستخدام | XTOX',
+  description: 'شروط الاستخدام لسوق XTOX - اقرأ قواعد الاستخدام',
+  openGraph: {
+    title: 'شروط الاستخدام | XTOX',
+    description: 'شروط الاستخدام لسوق XTOX - اقرأ قواعد الاستخدام',
+    siteName: 'XTOX',
+    locale: 'ar_EG',
+    type: 'website',
+  },
+};
+
 export default function TermsPage() {
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', padding: 24, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", minHeight: '100vh', background: '#f5f5f5' }}>

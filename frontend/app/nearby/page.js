@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox.up.railway.app';
