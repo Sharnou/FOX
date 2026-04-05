@@ -13,7 +13,7 @@ function requireAuth(req, res, next) {
         message: 'يجب تسجيل الدخول أولاً | Authentication required'
       });
     }
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'fox-default-secret');
     next();
   } catch {
     res.status(401).json({
