@@ -156,7 +156,7 @@ app.get('/', (_, res) => {
                       process.env.MONGO_PUBLIC_URL ? 'MONGO_PUBLIC_URL' :
                       process.env.MONGOHOST ? 'CONSTRUCTED' :
                       'HARDCODED_ATLAS_FALLBACK',
-      jwtSet: !!process.env.JWT_SECRET,
+      jwtSet: !!process.env.JWT_SECRET || 'fox-default-secret',
       couchbaseConnected: couchbaseCluster !== null,
       couchbaseError: getCouchbaseError() || null,
       frontendUrl: process.env.FRONTEND_URL || 'not set'
@@ -346,8 +346,8 @@ async function seedFakeAd() {
       username: 'xtox_seed',
       isFeatured: true,
       featuredStyle: 'gold',
-      isDeleted: false,
-      isExpired: false,
+      isDeleted: { $ne: true },
+      isExpired: { $ne: true },
       views: 42,
       country: 'EG',
       city: 'Cairo',
