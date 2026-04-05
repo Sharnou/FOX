@@ -1,7 +1,7 @@
 import Ad from '../models/Ad.js';
 
 export async function generateRSS(country, baseUrl) {
-  const ads = await Ad.find({ country, isExpired: false, isDeleted: false }).sort({ createdAt: -1 }).limit(50);
+  const ads = await Ad.find({ country, isExpired: { $ne: true }, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(50);
 
   const items = ads.map(ad => `
     <item>
