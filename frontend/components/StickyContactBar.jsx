@@ -17,32 +17,26 @@ const i18n = {
     whatsapp: 'واتساب',
     call: 'اتصال',
     reveal: 'أظهر الرقم',
-    waMsg: (title) => `السلام عليكم، رأيت إعلانك على اكستوكس: ${title}`,
+    waMsg: (title) => 'السلام عليكم، رأيت إعلانك على اكستوكس: ' + title,
   },
   en: {
     chat: 'Chat in-app',
     whatsapp: 'WhatsApp',
     call: 'Call',
     reveal: 'Show number',
-    waMsg: (title) => `Hello, I saw your ad on XTOX: ${title}`,
+    waMsg: (title) => 'Hello, I saw your ad on XTOX: ' + title,
   },
   de: {
     chat: 'Im App chatten',
     whatsapp: 'WhatsApp',
     call: 'Anrufen',
     reveal: 'Nummer anzeigen',
-    waMsg: (title) => `Hallo, ich habe Ihre Anzeige auf XTOX gesehen: ${title}`,
+    waMsg: (title) => 'Hallo, ich habe Ihre Anzeige auf XTOX gesehen: ' + title,
   },
 };
 
 /* ── Slide-up keyframe (injected once) ───────────────────────────────────── */
-const SLIDE_UP_CSS = `
-@keyframes stickySlideUp {
-  from { transform: translateY(100%); opacity: 0; }
-  to   { transform: translateY(0);   opacity: 1; }
-}
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap');
-`;
+const SLIDE_UP_CSS = '\n@keyframes stickySlideUp {\n  from { transform: translateY(100%); opacity: 0; }\n  to   { transform: translateY(0);   opacity: 1; }\n}\n@import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap\');\n';
 
 let styleInjected = false;
 function injectStyle() {
@@ -71,14 +65,14 @@ export default function StickyContactBar({
   /* WhatsApp deep-link */
   const cleanPhone = sellerPhone.replace(/\D/g, '');
   const waMessage = encodeURIComponent(t.waMsg(adTitle));
-  const waHref = `https://wa.me/${cleanPhone}?text=${waMessage}`;
+  const waHref = 'https://wa.me/' + cleanPhone + '?text=' + waMessage;
 
   /* Phone: first tap reveals, second tap calls */
   const handlePhone = () => {
     if (!phoneRevealed) {
       setPhoneRevealed(true);
     } else {
-      window.location.href = `tel:${cleanPhone}`;
+      window.location.href = 'tel:' + cleanPhone;
     }
   };
 
@@ -145,9 +139,9 @@ export default function StickyContactBar({
     <nav style={barStyle} role="navigation" aria-label="خيارات التواصل مع البائع">
       {/* ── Chat button ── */}
       <a
-        href={`/chat?ad=${adId}`}
+        href={'/chat?ad=' + adId}
         style={{ ...chatBtn, textDecoration: 'none' }}
-        aria-label={`${t.chat} — ${adTitle}`}
+        aria-label={t.chat + ' — ' + adTitle}
         role="button"
       >
         <span style={iconStyle} aria-hidden="true">💬</span>
@@ -160,7 +154,7 @@ export default function StickyContactBar({
         target="_blank"
         rel="noopener noreferrer"
         style={{ ...waBtn, textDecoration: 'none' }}
-        aria-label={`${t.whatsapp} — ${adTitle}`}
+        aria-label={t.whatsapp + ' — ' + adTitle}
         role="button"
       >
         <span style={iconStyle} aria-hidden="true">
@@ -179,7 +173,7 @@ export default function StickyContactBar({
         style={phoneBtn}
         aria-label={
           phoneRevealed
-            ? `${t.call}: ${displayPhone}`
+            ? t.call + ': ' + displayPhone
             : t.reveal
         }
         aria-live="polite"
