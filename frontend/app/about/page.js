@@ -208,14 +208,14 @@ export default function AboutPage() {
                 key={v.key}
                 style={{
                   background: 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${v.color}33`,
+                  border: '1px solid ' + v.color + '33',
                   borderRadius: '16px',
                   padding: '24px',
                   transition: 'transform 0.2s, box-shadow 0.2s',
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = `0 8px 32px ${v.color}22`;
+                  e.currentTarget.style.boxShadow = '0 8px 32px ' + v.color + '22';
                 }}
                 onMouseLeave={e => {
                   e.currentTarget.style.transform = 'none';
@@ -224,10 +224,10 @@ export default function AboutPage() {
               >
                 <div style={{ fontSize: '32px', marginBottom: '12px' }}>{v.icon}</div>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: v.color }}>
-                  {t[`${v.key}Title`]}
+                  {t[v.key + 'Title']}
                 </h3>
                 <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0, lineHeight: '1.6' }}>
-                  {t[`${v.key}Desc`]}
+                  {t[v.key + 'Desc']}
                 </p>
               </div>
             ))}
@@ -249,8 +249,8 @@ export default function AboutPage() {
                 href={link.href}
                 style={{
                   display: 'inline-block',
-                  background: `${link.color}22`,
-                  border: `1px solid ${link.color}55`,
+                  background: link.color + '22',
+                  border: '1px solid ' + link.color + '55',
                   color: link.color,
                   padding: '12px 28px',
                   borderRadius: '12px',
@@ -259,8 +259,8 @@ export default function AboutPage() {
                   fontWeight: 600,
                   transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => e.target.style.background = `${link.color}44`}
-                onMouseLeave={e => e.target.style.background = `${link.color}22`}
+                onMouseEnter={e => e.target.style.background = link.color + '44'}
+                onMouseLeave={e => e.target.style.background = link.color + '22'}
               >
                 {link.label}
               </a>
