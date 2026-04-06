@@ -27,7 +27,7 @@ export default function SwipeAdCard({ ads = [], token, onWishlistUpdate }) {
     currentX.current = e.touches[0].clientX - startX.current;
     if (cardRef.current) {
       const rotate = currentX.current * 0.08;
-      cardRef.current.style.transform = `translateX(${currentX.current}px) rotate(${rotate}deg)`;
+      cardRef.current.style.transform = 'translateX(' + currentX.current + 'px) rotate(' + rotate + 'deg)';
       cardRef.current.style.transition = 'none';
     }
     if (currentX.current > 50) setSwipeDir('right');
@@ -56,9 +56,9 @@ export default function SwipeAdCard({ ads = [], token, onWishlistUpdate }) {
     if (!ad) return;
     if (direction === 'right' && token) {
       try {
-        await fetch(`${API_BASE}/api/wishlist`, {
+        await fetch(API_BASE + '/api/wishlist', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
           body: JSON.stringify({ adId: ad._id })
         });
         if (onWishlistUpdate) onWishlistUpdate(ad._id);
