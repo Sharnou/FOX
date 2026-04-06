@@ -5,13 +5,13 @@
  */
 
 const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY;
 
 async function callGemini(prompt, imageBase64 = null, mimeType = 'image/jpeg') {
   const key = process.env.NEXT_PUBLIC_GEMINI_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
   if (!key) throw new Error('No Gemini API key');
   
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key;
   const parts = [{ text: prompt }];
   
   if (imageBase64) {
@@ -34,7 +34,7 @@ async function callGemini(prompt, imageBase64 = null, mimeType = 'image/jpeg') {
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) throw new Error(`Gemini API error ${res.status}`);
+  if (!res.ok) throw new Error('Gemini API error ' + res.status);
   const data = await res.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
@@ -46,14 +46,7 @@ async function callGemini(prompt, imageBase64 = null, mimeType = 'image/jpeg') {
 export async function getSmartSearchSuggestions(query) {
   if (!query || query.trim().length < 2) return null;
 
-  const prompt = `أنت مساعد ذكي لتطبيق إعلانات مبوبة عربي (مثل OLX). المستخدم يبحث عن: "${query}"
-
-قم بالتالي (بالعربية فقط، أجب بـ JSON فقط بدون أي نص إضافي):
-{
-  "corrected": "الكلمة المصححة إذا فيها أخطاء إملائية، وإلا نفس الكلمة",
-  "suggestions": ["اقتراح 1", "اقتراح 2", "اقتراح 3"],
-  "category": "الفئة المكتشفة من: مركبات، إلكترونيات، عقارات، وظائف، خدمات، عام"
-}`;
+  const prompt = 'أنت مساعد ذكي لتطبيق إعلانات مبوبة عربي (مثل OLX). المستخدم يبحث عن: "' + query + '"\n\nقم بالتالي (بالعربية فقط، أجب بـ JSON فقط بدون أي نص إضافي):\n{\n  "corrected": "الكلمة المصححة إذا فيها أخطاء إملائية، وإلا نفس الكلمة",\n  "suggestions": ["اقتراح 1", "اقتراح 2", "اقتراح 3"],\n  "category": "الفئة المكتشفة من: مركبات، إلكترونيات، عقارات، وظائف، خدمات، عام"\n}';
 
   try {
     const text = await callGemini(prompt);
@@ -99,22 +92,10 @@ export async function checkAdSimilarity(newTitle, existingAds) {
 
   const existingList = existingAds
     .slice(0, 10)
-    .map((a, i) => `${i + 1}. "${a.title}" (${a.category})`)
+    .map((a, i) => i + 1 + '. "' + a.title + '" (' + a.category + ')')
     .join('\n');
 
-  const prompt = `قارن هذا الإعلان الجديد مع الإعلانات الموجودة وأعطني نسبة التشابه.
-
-الإعلان الجديد: "${newTitle}"
-الإعلانات الموجودة:
-${existingList}
-
-أجب بـ JSON فقط:
-{
-  "duplicates": [
-    {"index": رقم_الإعلان, "similarity": نسبة_التشابه_0_إلى_100, "reason": "سبب التشابه بالعربية"}
-  ]
-}
-فقط أدرج الإعلانات التي تشابهها أكثر من 70%.`;
+  const prompt = 'قارن هذا الإعلان الجديد مع الإعلانات الموجودة وأعطني نسبة التشابه.\n\nالإعلان الجديد: "' + newTitle + '"\nالإعلانات الموجودة:\n' + existingList + '\n\nأجب بـ JSON فقط:\n{\n  "duplicates": [\n    {"index": رقم_الإعلان, "similarity": نسبة_التشابه_0_إلى_100, "reason": "سبب التشابه بالعربية"}\n  ]\n}\nفقط أدرج الإعلانات التي تشابهها أكثر من 70%.';
 
   try {
     const text = await callGemini(prompt);
