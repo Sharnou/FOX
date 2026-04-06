@@ -100,11 +100,11 @@ function PromotePageInner() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API}/api/promote`, {
+      const res = await fetch(API + '/api/promote', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('fox_token') || ''}`
+          'Authorization': 'Bearer ' + (localStorage.getItem('token') || localStorage.getItem('fox_token') || '')
         },
         body: JSON.stringify({ adId, plan: selected, payment: paymentMethod, days: selectedPlan?.days }),
       });
@@ -131,11 +131,11 @@ function PromotePageInner() {
     padding: '18px 20px',
     marginBottom: 12,
     cursor: 'pointer',
-    border: `2px solid ${isSelected ? color : '#e5e7eb'}`,
+    border: '2px solid ' + (isSelected ? color : '#e5e7eb'),
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    boxShadow: isSelected ? `0 6px 20px ${color}44` : '0 1px 4px rgba(0,0,0,0.06)',
+    boxShadow: isSelected ? '0 6px 20px ' + color + '44' : '0 1px 4px rgba(0,0,0,0.06)',
     transition: 'all 0.25s ease',
     position: 'relative',
   });
@@ -359,7 +359,7 @@ function PromotePageInner() {
               }}>
               {selectedPlan?.id === 'free'
                 ? t('تفعيل مجاناً ✅', 'Activate Free ✅')
-                : t(`التالي — ${selectedPlan?.price} →`, `Next — ${selectedPlan?.price} →`)}
+                : t('التالي — ' + selectedPlan?.price + ' →', 'Next — ' + selectedPlan?.price + ' →')}
             </button>
           </>
         )}
@@ -373,8 +373,8 @@ function PromotePageInner() {
 
             {/* Selected Plan Summary */}
             <div style={{
-              background: `${selectedPlan?.color}22`,
-              border: `1px solid ${selectedPlan?.color}55`,
+              background: selectedPlan?.color + '22',
+              border: '1px solid ' + selectedPlan?.color + '55',
               borderRadius: 14,
               padding: '14px 18px',
               marginBottom: 18,
@@ -403,7 +403,7 @@ function PromotePageInner() {
                 onClick={() => setPaymentMethod(pm.id)}
                 style={{
                   background: paymentMethod === pm.id ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)',
-                  border: `2px solid ${paymentMethod === pm.id ? '#F59E0B' : 'rgba(255,255,255,0.1)'}`,
+                  border: '2px solid ' + (paymentMethod === pm.id ? '#F59E0B' : 'rgba(255,255,255,0.1)'),
                   borderRadius: 14,
                   padding: '16px 20px',
                   marginBottom: 10,
@@ -428,7 +428,7 @@ function PromotePageInner() {
                 <div style={{ marginRight: isRTL ? 'auto' : 0, marginLeft: isRTL ? 0 : 'auto' }}>
                   <div style={{
                     width: 22, height: 22, borderRadius: '50%',
-                    border: `2px solid ${paymentMethod === pm.id ? '#F59E0B' : '#555'}`,
+                    border: '2px solid ' + (paymentMethod === pm.id ? '#F59E0B' : '#555'),
                     background: paymentMethod === pm.id ? '#F59E0B' : 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
@@ -499,7 +499,7 @@ function PromotePageInner() {
                   cursor: loading ? 'not-allowed' : 'pointer',
                   boxShadow: loading ? 'none' : '0 4px 20px rgba(245,158,11,0.35)',
                 }}>
-                {loading ? '⏳ ...' : t(`تأكيد الطلب — ${selectedPlan?.price} ✅`, `Confirm — ${selectedPlan?.price} ✅`)}
+                {loading ? '⏳ ...' : t('تأكيد الطلب — ' + selectedPlan?.price + ' ✅', 'Confirm — ' + selectedPlan?.price + ' ✅')}
               </button>
             </div>
           </>
@@ -521,8 +521,8 @@ function PromotePageInner() {
             </h2>
             <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.8, margin: '0 0 20px' }}>
               {t(
-                `طلبك لترويج "${adTitle}" بخطة ${selectedPlan?.labelAr} لمدة ${selectedPlan?.days} يوم وصلنا بنجاح. سيتواصل معك فريقنا قريباً.`,
-                `Your request to promote "${adTitle}" with ${selectedPlan?.labelEn} plan for ${selectedPlan?.days} days was received. Our team will contact you soon.`
+                'طلبك لترويج "' + adTitle + '" بخطة ' + selectedPlan?.labelAr + ' لمدة ' + selectedPlan?.days + ' يوم وصلنا بنجاح. سيتواصل معك فريقنا قريباً.',
+                'Your request to promote "' + adTitle + '" with ' + selectedPlan?.labelEn + ' plan for ' + selectedPlan?.days + ' days was received. Our team will contact you soon.'
               )}
             </p>
 
@@ -537,7 +537,7 @@ function PromotePageInner() {
             }}>
               {[
                 { labelAr: 'الخطة', labelEn: 'Plan', val: isRTL ? selectedPlan?.labelAr : selectedPlan?.labelEn },
-                { labelAr: 'المدة', labelEn: 'Duration', val: `${selectedPlan?.days} ${t('يوم', 'days')}` },
+                { labelAr: 'المدة', labelEn: 'Duration', val: selectedPlan?.days + ' ' + t('يوم', 'days') },
                 { labelAr: 'السعر', labelEn: 'Price', val: selectedPlan?.price },
                 { labelAr: 'طريقة الدفع', labelEn: 'Payment', val: isRTL ? PAYMENT_METHODS.find(p => p.id === paymentMethod)?.labelAr : PAYMENT_METHODS.find(p => p.id === paymentMethod)?.labelEn },
               ].map((row, i) => (
