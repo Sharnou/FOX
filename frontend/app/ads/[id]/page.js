@@ -3,24 +3,24 @@ import AdPageClient from './AdPageClient';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const SITE_URL = 'https://xtox.app';
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+const DEFAULT_OG_IMAGE = SITE_URL + '/og-default.png';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
   try {
-    const res = await fetch(`${API}/api/ads/${id}`, {
+    const res = await fetch(API + '/api/ads/' + id, {
       next: { revalidate: 3600 },
     });
     if (!res.ok) throw new Error('Ad not found');
     const ad = await res.json();
 
-    const title = ad.title ? `${ad.title} — XTOX` : 'XTOX Marketplace';
+    const title = ad.title ? ad.title + ' — XTOX' : 'XTOX Marketplace';
     const rawDescription = ad.description || '';
     const description = rawDescription.length > 160
       ? rawDescription.slice(0, 157) + '...'
       : rawDescription || 'اعثر على أفضل العروض في سوق XTOX المحلي';
     const image = (ad.media && ad.media[0]) || DEFAULT_OG_IMAGE;
-    const url = `${SITE_URL}/ads/${id}`;
+    const url = SITE_URL + '/ads/' + id;
 
     return {
       title,
@@ -66,13 +66,13 @@ export async function generateMetadata({ params }) {
 
 async function getAdJsonLd(id) {
   try {
-    const res = await fetch(`${API}/api/ads/${id}`, {
+    const res = await fetch(API + '/api/ads/' + id, {
       next: { revalidate: 3600 },
     });
     if (!res.ok) return null;
     const ad = await res.json();
 
-    const url = `${SITE_URL}/ads/${id}`;
+    const url = SITE_URL + '/ads/' + id;
     const images = ad.media && ad.media.length > 0 ? ad.media : [DEFAULT_OG_IMAGE];
 
     return {
