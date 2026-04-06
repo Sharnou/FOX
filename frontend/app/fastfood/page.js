@@ -32,7 +32,7 @@ export default function FastFoodPage() {
   const country = typeof window !== 'undefined' ? localStorage.getItem('country') || 'EG' : 'EG';
 
   useEffect(() => {
-    axios.get(`${API}/api/fastfood`, { params: { country } })
+    axios.get(API + '/api/fastfood', { params: { country } })
       .then(r => setItems(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
