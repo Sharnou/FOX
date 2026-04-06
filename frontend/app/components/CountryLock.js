@@ -45,7 +45,7 @@ function Toast({ msg, show }) {
       aria-live="polite"
       style={{
         position: 'fixed', bottom: 32, left: '50%',
-        transform: `translateX(-50%) translateY(${show ? '0' : '60px'})`,
+        transform: 'translateX(-50%) translateY(' + (show ? '0' : '60px') + ')',
         opacity: show ? 1 : 0,
         transition: 'all 0.35s cubic-bezier(.21,1.02,.73,1)',
         background: '#002f34', color: '#fff',
@@ -136,7 +136,7 @@ export default function CountryLock({ children }) {
     setSaving(false);
     setShow(false);
     setReady(true);
-    showToast(`${country.flag} تم اختيار ${country.nameAr}`);
+    showToast(country.flag + ' تم اختيار ' + country.nameAr);
   }, [showToast]);
 
   /* ── Keyboard navigation within list ── */
@@ -164,7 +164,7 @@ export default function CountryLock({ children }) {
           animation: 'spin 0.8s linear infinite',
         }} />
         <p style={{ color: '#002f34', fontWeight: 700, fontSize: 16 }}>جار التحميل...</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
       </div>
     );
   }
@@ -218,26 +218,7 @@ export default function CountryLock({ children }) {
               animation: 'slideUp 0.4s cubic-bezier(.21,1.02,.73,1) both',
               overflow: 'hidden',
             }}>
-              <style>{`
-                @keyframes slideUp {
-                  from { transform: translateY(100%); opacity: 0; }
-                  to   { transform: translateY(0);    opacity: 1; }
-                }
-                @keyframes pulse {
-                  0%,100% { transform: scale(1); }
-                  50%     { transform: scale(1.04); }
-                }
-                .country-item:hover,
-                .country-item:focus {
-                  background: #f0f7f7 !important;
-                  outline: none;
-                }
-                .country-item:focus-visible {
-                  outline: 2px solid #002f34;
-                  outline-offset: -2px;
-                  border-radius: 14px;
-                }
-              `}</style>
+              <style>{'\r\n                @keyframes slideUp {\r\n                  from { transform: translateY(100%); opacity: 0; }\r\n                  to   { transform: translateY(0);    opacity: 1; }\r\n                }\r\n                @keyframes pulse {\r\n                  0%,100% { transform: scale(1); }\r\n                  50%     { transform: scale(1.04); }\r\n                }\r\n                .country-item:hover,\r\n                .country-item:focus {\r\n                  background: #f0f7f7 !important;\r\n                  outline: none;\r\n                }\r\n                .country-item:focus-visible {\r\n                  outline: 2px solid #002f34;\r\n                  outline-offset: -2px;\r\n                  border-radius: 14px;\r\n                }\r\n              '}</style>
 
               {/* ── Drag handle ── */}
               <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 4px' }}>
@@ -266,7 +247,7 @@ export default function CountryLock({ children }) {
                   <button
                     onClick={() => selectCountry(detected)}
                     disabled={saving}
-                    aria-label={`استخدام موقعك المكتشف: ${detected.nameAr}`}
+                    aria-label={'استخدام موقعك المكتشف: ' + detected.nameAr}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       width: '100%', marginTop: 14,
@@ -349,7 +330,7 @@ export default function CountryLock({ children }) {
                           key={c.code}
                           role="option"
                           aria-selected={false}
-                          aria-label={`${c.nameAr} ${c.flag}`}
+                          aria-label={c.nameAr + ' ' + c.flag}
                           className="country-item"
                           onClick={() => !saving && selectCountry(c)}
                           onKeyDown={e => handleListKey(e, c)}
@@ -398,14 +379,14 @@ export default function CountryLock({ children }) {
                         key={c.code}
                         role="option"
                         aria-selected={false}
-                        aria-label={`اختر ${c.nameAr}`}
+                        aria-label={'اختر ' + c.nameAr}
                         className="country-item"
                         onClick={() => !saving && selectCountry(c)}
                         onKeyDown={e => handleListKey(e, c)}
                         disabled={saving}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 14,
-                          background: hovered === `list-${c.code}` ? '#f0f7f7' : 'transparent',
+                          background: hovered === 'list-' + c.code ? '#f0f7f7' : 'transparent',
                           border: 'none',
                           borderRadius: 14, padding: '12px 14px',
                           cursor: saving ? 'not-allowed' : 'pointer',
@@ -413,7 +394,7 @@ export default function CountryLock({ children }) {
                           transition: 'background 0.15s ease',
                           width: '100%', textAlign: 'right',
                         }}
-                        onMouseEnter={() => setHovered(`list-${c.code}`)}
+                        onMouseEnter={() => setHovered('list-' + c.code)}
                         onMouseLeave={() => setHovered(null)}
                       >
                         <span style={{ fontSize: 28, flexShrink: 0 }}>{c.flag}</span>
@@ -447,7 +428,7 @@ export default function CountryLock({ children }) {
                     animation: 'spin 0.7s linear infinite',
                   }} />
                   <p style={{ color: '#002f34', fontWeight: 700, fontSize: 16, margin: 0 }}>جار الحفظ...</p>
-                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                  <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
                 </div>
               )}
             </div>
