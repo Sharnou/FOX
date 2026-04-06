@@ -41,7 +41,7 @@ export default function BuyerProtectionBadge({ lang = 'ar', priceThreshold = 500
 
   return (
     <div
-      className={`relative inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2 cursor-pointer select-none ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}
+      className={'relative inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2 cursor-pointer select-none ' + (isRTL ? 'flex-row-reverse' : 'flex-row')}
       dir={isRTL ? 'rtl' : 'ltr'}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
@@ -72,7 +72,7 @@ export default function BuyerProtectionBadge({ lang = 'ar', priceThreshold = 500
       {/* Tooltip */}
       {showTooltip && (
         <div
-          className={`absolute z-50 bottom-full mb-2 ${isRTL ? 'right-0' : 'left-0'} bg-white border border-green-200 rounded-lg shadow-lg p-3 text-xs text-gray-700 w-64`}
+          className={'absolute z-50 bottom-full mb-2 ' + (isRTL ? 'right-0' : 'left-0') + ' bg-white border border-green-200 rounded-lg shadow-lg p-3 text-xs text-gray-700 w-64'}
           dir={isRTL ? 'rtl' : 'ltr'}
         >
           {t.tooltip}
