@@ -67,7 +67,7 @@ export default function ShippingBadge({ type = 'pickup', locale = 'ar' }) {
         fontFamily:     isRTL ? '\'Cairo\', \'Tajawal\', sans-serif' : 'inherit',
         background:     colors.bg,
         color:          colors.text,
-        border:         `1px solid ${colors.border}`,
+        border:         '1px solid ' + colors.border,
         whiteSpace:     'nowrap',
         userSelect:     'none',
         flexDirection:  isRTL ? 'row-reverse' : 'row',
