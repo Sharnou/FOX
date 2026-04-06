@@ -6,7 +6,7 @@ const LABELS = {
   ar: {
     title: "الإعلانات القريبة منك",
     searching: "جاري البحث...",
-    found: (n, r) => `${n} إعلان ضمن ${r} كم`,
+    found: (n, r) => n + ' إعلان ضمن ' + r + ' كم',
     noAds: "لا توجد إعلانات قريبة منك",
     expandSearch: "جرّب توسيع نطاق البحث",
     viewAd: "عرض الإعلان",
@@ -15,7 +15,7 @@ const LABELS = {
   en: {
     title: "Nearby Listings",
     searching: "Searching...",
-    found: (n, r) => `${n} listings within ${r} km`,
+    found: (n, r) => n + ' listings within ' + r + ' km',
     noAds: "No nearby listings found",
     expandSearch: "Try expanding your search radius",
     viewAd: "View Listing",
@@ -24,7 +24,7 @@ const LABELS = {
   de: {
     title: "Angebote in der Nähe",
     searching: "Suche läuft...",
-    found: (n, r) => `${n} Angebote in ${r} km Umkreis`,
+    found: (n, r) => n + ' Angebote in ' + r + ' km Umkreis',
     noAds: "Keine Angebote in der Nähe",
     expandSearch: "Suchradius vergrößern",
     viewAd: "Angebot ansehen",
@@ -88,7 +88,7 @@ export default function NearbyListingsMapView({
       ...(category && { category }),
     });
     setLoading(true);
-    fetch(`/api/ads/nearby?${params}`)
+    fetch('/api/ads/nearby?' + params)
       .then((r) => r.json())
       .then((data) => {
         const ads = (data.ads || []).map((ad) => ({
@@ -106,11 +106,11 @@ export default function NearbyListingsMapView({
       lang === "ar"
         ? toArabicNumerals(price.toLocaleString("ar-SA"))
         : price.toLocaleString();
-    return `${formatted} ${currency || ""}`;
+    return formatted + ' ' + (currency || '');
   };
 
   const formatDistance = (km) => {
-    const rounded = km < 1 ? `${Math.round(km * 1000)}م` : `${km.toFixed(1)} ${L.km}`;
+    const rounded = km < 1 ? (Math.round(km * 1000) + 'م') : (km.toFixed(1) + ' ' + L.km);
     return lang === "ar" ? toArabicNumerals(rounded) : rounded;
   };
 
@@ -194,8 +194,8 @@ export default function NearbyListingsMapView({
               onClick={() => setSelectedAd(ad)}
               style={{
                 position: "absolute",
-                left: `${20 + (i % 3) * 30}%`,
-                top: `${25 + Math.floor(i / 3) * 35}%`,
+                left: (20 + (i % 3) * 30) + '%',
+                top: (25 + Math.floor(i / 3) * 35) + '%',
               }}
               className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg hover:bg-blue-700 transition-colors border-2 border-white"
             >
@@ -238,7 +238,7 @@ export default function NearbyListingsMapView({
             listings.map((ad) => (
               <a
                 key={ad._id}
-                href={`/ad/${ad._id}`}
+                href={'/ads/' + ad._id}
                 className="flex gap-3 bg-white border border-gray-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
               >
                 <img
@@ -275,7 +275,7 @@ export default function NearbyListingsMapView({
       {selectedAd && (
         <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl p-4 z-10 border-t">
           <div className="w-8 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
-          <div className={`flex gap-3 ${isRTL ? "flex-row-reverse text-right" : ""}`}>
+          <div className={'flex gap-3 ' + (isRTL ? 'flex-row-reverse text-right' : '')}>
             <img
               src={selectedAd.images?.[0] || "/placeholder.jpg"}
               alt={selectedAd.title}
@@ -294,7 +294,7 @@ export default function NearbyListingsMapView({
           </div>
           <div className="flex gap-2 mt-3">
             <a
-              href={`/ad/${selectedAd._id}`}
+              href={'/ads/' + selectedAd._id}
               className="flex-1 bg-blue-600 text-white text-center py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors"
             >
               {L.viewAd}
