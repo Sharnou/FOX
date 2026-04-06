@@ -12,23 +12,7 @@ export default function AIFraudAlert({ title, description, price, category }) {
     setLoading(true);
     try {
       const response = await FOX.integrations.Core.InvokeLLM({
-        prompt: `You are a fraud detection AI for FOX classified marketplace.
-Analyze this listing for potential fraud, scams, or policy violations:
-
-Title: "${title}"
-Description: "${description || ""}"
-Price: ${price || "not set"}
-Category: ${category || "unknown"}
-
-Common fraud patterns: unrealistically low prices, advance payment requests, duplicate content, illegal items, misleading descriptions, spam keywords.
-
-Return a JSON object with exactly these fields:
-- risk_level: "low", "medium", or "high" (string)
-- is_suspicious: true or false (boolean)
-- flags: array of specific concerns (max 3, empty array if clean)
-- verdict: one sentence summary (string)
-
-Respond ONLY with valid JSON.`,
+        prompt: 'You are a fraud detection AI for FOX classified marketplace.\nAnalyze this listing for potential fraud, scams, or policy violations:\n\nTitle: "' + title + '"\nDescription: "' + (description || "") + '"\nPrice: ' + (price || "not set") + '\nCategory: ' + (category || "unknown") + '\n\nCommon fraud patterns: unrealistically low prices, advance payment requests, duplicate content, illegal items, misleading descriptions, spam keywords.\n\nReturn a JSON object with exactly these fields:\n- risk_level: "low", "medium", or "high" (string)\n- is_suspicious: true or false (boolean)\n- flags: array of specific concerns (max 3, empty array if clean)\n- verdict: one sentence summary (string)\n\nRespond ONLY with valid JSON.',
       });
 
       let parsed = null;
