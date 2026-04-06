@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { detectLang } from '../../lib/lang';
 
@@ -460,7 +461,7 @@ export default function RegisterPage() {
                 <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '14px' }}>
                   {t.haveAccount}{' '}
                 </span>
-                <a
+                <Link
                   href="/login"
                   style={{
                     color: '#a78bfa',
@@ -473,7 +474,7 @@ export default function RegisterPage() {
                   onMouseLeave={(e) => (e.target.style.color = '#a78bfa')}
                 >
                   {t.signIn}
-                </a>
+                </Link>
               </div>
             </form>
           </div>
