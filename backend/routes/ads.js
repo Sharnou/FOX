@@ -283,6 +283,7 @@ router.get('/:id', async (req, res) => {
 // ── POST new ad (AI moderation on ALL media) ──
 router.post('/', auth, upload.fields([
   { name: 'images', maxCount: 5 },
+  { name: 'media', maxCount: 10 },
   { name: 'video', maxCount: 1 }
 ]), async (req, res) => {
   try {
@@ -327,10 +328,16 @@ router.post('/', auth, upload.fields([
     let _uploadedImages = [];
     let _uploadedVideoUrl = null;
 
-    if (req.files?.images?.length) {
-      _uploadedImages = req.files.images.map(f =>
-        `data:${f.mimetype};base64,${f.buffer.toString('base64')}`
-      );
+    // FIX: null-safe access — multer may not populate req.files if Content-Type mismatch
+    // Accept both 'images' and 'media' field names (frontend may use either)
+    const _imageFiles = (req.files && req.files.images) ? req.files.images : [];
+    const _mediaFiles = (req.files && req.files.media) ? req.files.media : [];
+    const _allUploadedFiles = _imageFiles.concat(_mediaFiles);
+
+    if (_allUploadedFiles.length) {
+      _uploadedImages = _allUploadedFiles.map(function(f) {
+        return 'data:' + f.mimetype + ';base64,' + f.buffer.toString('base64');
+      });
       // Try Cloudinary for uploaded images
       if (process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
         try {
@@ -340,12 +347,11 @@ router.post('/', auth, upload.fields([
             try {
               const result = await cloudinaryClient.uploader.upload(img, { folder: 'xtox_ads' });
               processed.push(result.secure_url);
-            } catch { processed.push(img); } // keep base64 on per-image failure
+            } catch (_imgErr) { processed.push(img); }
           }
           _uploadedImages = processed;
         } catch (uploadErr) {
           console.warn('[POST /api/ads] Cloudinary failed, keeping base64:', uploadErr.message);
-          // Keep as base64 for prototype — do NOT strip
         }
       }
       // Inject into req.body.media so existing pipeline sees them
@@ -354,9 +360,11 @@ router.post('/', auth, upload.fields([
       _uploadedImages = [body.imageUrl];
     }
 
-    if (req.files?.video?.[0]) {
-      const v = req.files.video[0];
-      _uploadedVideoUrl = `data:${v.mimetype};base64,${v.buffer.toString('base64')}`;
+    // FIX: null-safe video file access
+    const _rawVideoFile = (req.files && req.files.video && req.files.video[0]) ? req.files.video[0] : null;
+    if (_rawVideoFile) {
+      const v = _rawVideoFile;
+      _uploadedVideoUrl = 'data:' + v.mimetype + ';base64,' + v.buffer.toString('base64');
       // Try Cloudinary for video
       if (process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
         try {
