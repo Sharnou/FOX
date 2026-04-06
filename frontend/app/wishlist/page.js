@@ -159,12 +159,12 @@ export default function WishlistPage() {
           <div className="flex flex-col items-center justify-center py-28 text-center gap-4">
             <span className="text-6xl select-none">🔒</span>
             <p className="text-gray-600 text-base font-medium">{t.loginRequired}</p>
-            <a
+            <Link
               href="/login"
               className="px-8 py-2.5 bg-[#002f34] text-white rounded-full font-bold hover:bg-[#004a52] transition-colors text-sm"
             >
               {t.login}
-            </a>
+            </Link>
           </div>
         )}
 
@@ -197,12 +197,12 @@ export default function WishlistPage() {
             <span className="text-7xl select-none">❤️</span>
             <h2 className="text-xl font-bold text-gray-700">{t.empty}</h2>
             <p className="text-gray-400 text-sm max-w-xs leading-relaxed">{t.emptyDesc}</p>
-            <a
+            <Link
               href="/"
               className="mt-2 px-7 py-2.5 bg-[#002f34] text-white rounded-full font-bold text-sm hover:bg-[#004a52] transition-colors"
             >
               {t.browse}
-            </a>
+            </Link>
           </div>
         )}
 
