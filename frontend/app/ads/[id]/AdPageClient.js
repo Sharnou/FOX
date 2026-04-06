@@ -29,7 +29,7 @@ function AITranslate({ title, description }) {
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (process.env.NEXT_PUBLIC_OPENAI_KEY || '') },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: 'Translate this marketplace ad to ' + (lang === 'en' ? 'English' : lang === 'ar' ? 'Arabic' : lang === 'fr' ? 'French' : 'German') + ':\nTitle: ' + title + '\nDescription: ' + description + '\n\nReturn JSON: {"title":"...","description":"..."}' }],
+          messages: [{ role: 'user', content: 'Translate this marketplace ad to ' + (lang === 'en' ? 'English' : lang === 'ar' ? 'Arabic' : lang === 'fr' ? 'French' : 'German') + '. Title: ' + title + '. Description: ' + description + '. Return only JSON: {"title":"...","description":"..."}' }],
           max_tokens: 300
         })
       });
