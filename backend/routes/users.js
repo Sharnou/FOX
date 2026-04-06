@@ -417,6 +417,10 @@ router.post('/login', loginLimiter, async (req, res) => {
 // Update own profile (phone, whatsapp, avatar, name, city, visibility)
 router.put('/me', auth, async (req, res) => {
   try {
+    // Immutable fields — never allow updating _id or email (primary identifier)
+    delete req.body._id;
+    delete req.body.email;
+    delete req.body.createdAt;
     const { name, city, avatar, phone, whatsapp, showPhone, showWhatsapp, bio, username } = req.body;
 
     // ── Input Validation & Sanitization ───────────────────────────────────
