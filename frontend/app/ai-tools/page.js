@@ -109,9 +109,7 @@ export default function AIToolsPage() {
             لتفعيل الميزات الكاملة، أضف مفتاح API واحداً على الأقل في ملف .env:
           </p>
           <pre style={{ background: '#f3f4f6', borderRadius: 8, padding: 12, fontSize: 12, color: '#374151', overflow: 'auto' }}>
-{`NEXT_PUBLIC_GEMINI_API_KEY=your_key_here
-NEXT_PUBLIC_GROQ_API_KEY=your_key_here
-NEXT_PUBLIC_OPENAI_API_KEY=your_key_here`}
+{'NEXT_PUBLIC_GEMINI_API_KEY=your_key_here\nNEXT_PUBLIC_GROQ_API_KEY=your_key_here\nNEXT_PUBLIC_OPENAI_API_KEY=your_key_here'}
           </pre>
           <p style={{ fontSize: 13, color: '#9ca3af', margin: '12px 0 0' }}>
             بدون مفتاح API، تعمل الأدوات بوضع محاكاة للعرض التوضيحي.
