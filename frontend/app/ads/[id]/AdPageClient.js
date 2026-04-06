@@ -5,7 +5,7 @@ import { detectLang } from '../../../lib/lang';
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality)
 function optimizeImage(url, width = 400) {
   if (!url || !url.includes('cloudinary.com')) return url;
-  return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
+  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
 }
 import AdDetailSkeleton from '../../components/AdDetailSkeleton';
 import RecentlyViewed, { recordRecentView } from '../../components/RecentlyViewed';
@@ -27,10 +27,14 @@ function AITranslate({ title, description }) {
     try {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_KEY || ''}` },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (process.env.NEXT_PUBLIC_OPENAI_KEY || '') },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: `Translate this marketplace ad to ${lang === 'en' ? 'English' : lang === 'ar' ? 'Arabic' : lang === 'fr' ? 'French' : 'German'}:\nTitle: ${title}\nDescription: ${description}\n\nReturn JSON: {"title":"...","description":"..."}` }],
+          messages: [{ role: 'user', content: 'Translate this marketplace ad to ' + (lang === 'en' ? 'English' : lang === 'ar' ? 'Arabic' : lang === 'fr' ? 'French' : 'German') + ':
+Title: ' + title + '
+Description: ' + description + '
+
+Return JSON: {"title":"...","description":"..."}' }],
           max_tokens: 300
         })
       });
@@ -140,7 +144,7 @@ function ImageCarousel({ images, title }) {
       {count > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 10 }}>
           {images.map((_, i) => (
-            <button key={i} aria-label={`الصورة ${i + 1}`} onClick={() => goTo(i)}
+            <button key={i} aria-label={'الصورة ' + (i + 1)} onClick={() => goTo(i)}
               style={{ width: i === idx ? 22 : 8, height: 8, borderRadius: 4,
                 background: i === idx ? '#002f34' : '#ccc', border: 'none', cursor: 'pointer',
                 padding: 0, transition: 'all 0.25s ease' }} />
@@ -150,7 +154,7 @@ function ImageCarousel({ images, title }) {
       {count > 1 && (
         <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
           {images.map((src, i) => (
-            <img key={i} src={optimizeImage(src, 800)} onClick={() => goTo(i)} loading="lazy" alt={`صورة ${i + 1}`}
+            <img key={i} src={optimizeImage(src, 800)} onClick={() => goTo(i)} loading="lazy" alt={'صورة ' + (i + 1)}
               style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, cursor: 'pointer',
                 border: i === idx ? '2px solid #002f34' : '2px solid #eee', flexShrink: 0,
                 transition: 'border-color 0.2s' }} />
@@ -168,7 +172,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
 
   React.useEffect(() => {
     if (!sellerId) return;
-    fetch(`${API}/api/profile/${sellerId}`)
+    fetch(API + '/api/profile/' + sellerId)
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSeller(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -210,7 +214,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
         {label.seller}
       </h3>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <a href={`/profile/${sellerId}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <a href={'/profile/' + sellerId} style={{ textDecoration: 'none', flexShrink: 0 }}>
           {seller.avatar
             ? <img src={seller.avatar} alt={seller.name} style={{ width: 62, height: 62, borderRadius: '50%', objectFit: 'cover', border: '2px solid #ff6b35' }} />
             : <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'linear-gradient(135deg,#ff6b35,#f7c59f)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 26, fontWeight: 700 }}>
@@ -219,7 +223,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
           }
         </a>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <a href={`/profile/${sellerId}`} style={{ textDecoration: 'none', color: '#1a1a1a', fontWeight: 700, fontSize: 16, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <a href={'/profile/' + sellerId} style={{ textDecoration: 'none', color: '#1a1a1a', fontWeight: 700, fontSize: 16, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {seller.name || sellerName}
           </a>
           <div style={{ display: 'flex', gap: 2, margin: '5px 0 4px' }}>
@@ -232,7 +236,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
             {seller.createdAt && <span>{label.memberSince} {new Date(seller.createdAt).getFullYear()}</span>}
           </div>
         </div>
-        <a href={`/profile/${sellerId}`} style={{
+        <a href={'/profile/' + sellerId} style={{
           flexShrink: 0,
           display: 'inline-block',
           background: 'linear-gradient(135deg,#ff6b35,#e05a25)',
@@ -276,8 +280,8 @@ export default function AdPageClient({ params }) {
   const [showChatBox, setShowChatBox] = useState(false);
   const [adNotFound, setAdNotFound] = useState(false);
   useEffect(() => {
-    if (params?.id) {
-      fetch(`${API}/api/ads/${params.id}`)
+    if (params && params.id) {
+      fetch(API + '/api/ads/' + params.id)
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data && !data.error) {
@@ -289,14 +293,14 @@ export default function AdPageClient({ params }) {
         })
         .catch(() => { setAdNotFound(true); });
     }
-  }, [params?.id]);
+  }, [params && params.id]);
 
   useEffect(() => {
-    if (params?.id && typeof window !== 'undefined') {
+    if (params && params.id && typeof window !== 'undefined') {
       const savedAds = JSON.parse(localStorage.getItem('xtox_saved_ads') || '[]');
       setSaved(savedAds.includes(params.id));
     }
-  }, [params?.id]);
+  }, [params && params.id]);
 
   // Load user from localStorage for chat button
   useEffect(() => {
@@ -323,12 +327,12 @@ export default function AdPageClient({ params }) {
         setCallActive(true);
         setCallStatus('متصل 🟢');
       });
-      s.on('call_answer', async (data) => { await pcRef.current?.setRemoteDescription(data.answer); setCallStatus('متصل 🟢'); });
-      s.on('ice_candidate', async (data) => { await pcRef.current?.addIceCandidate(data.candidate); });
+      s.on('call_answer', async (data) => { if (pcRef.current) { await pcRef.current.setRemoteDescription(data.answer); } setCallStatus('متصل 🟢'); });
+      s.on('ice_candidate', async (data) => { if (pcRef.current) { await pcRef.current.addIceCandidate(data.candidate); } });
       s.on('call_end', () => { endCall(); setCallStatus('انتهت المكالمة'); });
       setSocket(s);
     });
-    return () => s?.disconnect();
+    return () => { if (s) s.disconnect(); };
   }, [userId]);
 
 
@@ -338,7 +342,7 @@ export default function AdPageClient({ params }) {
     const qs = new URLSearchParams({ limit: '6', exclude: ad._id || '' });
     if (ad.category) qs.set('category', ad.category);
     if (ad.country) qs.set('country', ad.country);
-    fetch(`${API}/api/ads?${qs}`)
+    fetch(API + '/api/ads?' + qs)
       .then(r => r.ok ? r.json() : [])
       .then(data => {
         const list = Array.isArray(data) ? data : (data.ads || data.data || []);
@@ -346,11 +350,11 @@ export default function AdPageClient({ params }) {
       })
       .catch(() => {})
       .finally(() => setRelatedLoading(false));
-  }, [ad?._id]);
+  }, [ad && ad._id]);
 
   // Animated view counter: counts up from 0 to actual views on load
   useEffect(() => {
-    const target = ad?.views || ad?.viewCount || 0;
+    const target = (ad && ad.views) || (ad && ad.viewCount) || 0;
     if (!target) { setDisplayedViews(0); return; }
     let start = 0;
     const duration = 1000;
@@ -365,7 +369,7 @@ export default function AdPageClient({ params }) {
       }
     }, 16);
     return () => clearInterval(timer);
-  }, [ad?.views, ad?.viewCount]);
+  }, [ad && ad.views, ad && ad.viewCount]);
 
   async function createPeer(s, targetId) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -378,8 +382,8 @@ export default function AdPageClient({ params }) {
   }
 
   async function startCall() {
-    if (!ad?.userId?._id && !ad?.userId) return alert('لا يمكن الاتصال الآن');
-    const targetId = ad.userId?._id || ad.userId;
+    if (!(ad && ad.userId && ad.userId._id) && !(ad && ad.userId)) return alert('لا يمكن الاتصال الآن');
+    const targetId = (ad.userId && ad.userId._id) || ad.userId;
     setCallStatus('جار الاتصال...');
     try {
       const pc = await createPeer(socket, targetId);
@@ -391,16 +395,16 @@ export default function AdPageClient({ params }) {
   }
 
   function endCall() {
-    const targetId = ad?.userId?._id || ad?.userId;
-    socket?.emit('call_end', { to: targetId });
-    pcRef.current?.close();
+    const targetId = (ad && ad.userId && ad.userId._id) || (ad && ad.userId);
+    if (socket) socket.emit('call_end', { to: targetId });
+    if (pcRef.current) pcRef.current.close();
     pcRef.current = null;
     setCallActive(false);
     setCallStatus('');
   }
 
   function copyPhone() {
-    const phone = ad?.phone || ad?.userId?.phone;
+    const phone = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone);
     if (!phone) return alert('رقم الهاتف غير متاح');
     navigator.clipboard.writeText(phone).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2000);
@@ -437,8 +441,8 @@ export default function AdPageClient({ params }) {
 
   const rawMedia = ad.media || ad.images || [];
   const media = Array.isArray(rawMedia) ? rawMedia : [rawMedia].filter(Boolean);
-  const sellerId = ad.userId?._id || ad.userId;
-  const phone = ad?.phone || ad?.userId?.phone;
+  const sellerId = (ad.userId && ad.userId._id) || ad.userId;
+  const phone = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone);
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
@@ -460,12 +464,12 @@ export default function AdPageClient({ params }) {
         <span style={{ color: '#e44' }}>⏰ ينتهي {ad.expiresAt ? new Date(ad.expiresAt).toLocaleDateString('ar-EG') : ''}</span>
       </div>
       {callStatus && (
-        <div style={{ background: callActive ? '#e8f8e8' : '#fff8e0', border: `1px solid ${callActive ? '#00aa44' : '#ffcc00'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12, color: '#333', fontSize: 14, textAlign: 'center' }}>
+        <div style={{ background: callActive ? '#e8f8e8' : '#fff8e0', border: '1px solid ' + (callActive ? '#00aa44' : '#ffcc00'), borderRadius: 10, padding: '10px 14px', marginBottom: 12, color: '#333', fontSize: 14, textAlign: 'center' }}>
           {callStatus}
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
-        {user && String(ad.userId?._id || ad.userId) !== String(user.id || user._id) ? (
+        {user && String((ad.userId && ad.userId._id) || ad.userId) !== String(user.id || user._id) ? (
           <button
             onClick={handleStartChat}
             style={{ background: '#7c3aed', color: '#fff', border: 'none', textAlign: 'center', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
@@ -501,17 +505,17 @@ export default function AdPageClient({ params }) {
       {phone && (<button onClick={copyPhone} dir="rtl" style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: copied ? '2px solid #00aa44' : '2px solid #e0e0e0', background: copied ? '#e8f8e8' : '#f8f8f8', color: copied ? '#00aa44' : '#002f34', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
         {copied ? (<><span style={{ fontSize: 18 }}>✓</span><span>تم النسخ</span></>) : (<><span style={{ fontSize: 16 }}>📋</span><span>نسخ الرقم</span><span style={{ color: '#666', fontWeight: 'normal', fontSize: 13 }}>{phone}</span></>)}
       </button>)}
-      {phone && (<a href={`https://wa.me/${(phone || '').replace(/\D/g, '').replace(/^0/, '20')}`} target="_blank" rel="noopener noreferrer" dir="rtl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, background: '#25D366', color: 'white', fontWeight: 'bold', fontSize: 15, textDecoration: 'none', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", boxSizing: 'border-box' }}>
+      {phone && (<a href={'https://wa.me/' + (phone || '').replace(/\D/g, '').replace(/^0/, '20')} target="_blank" rel="noopener noreferrer" dir="rtl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, background: '#25D366', color: 'white', fontWeight: 'bold', fontSize: 15, textDecoration: 'none', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", boxSizing: 'border-box' }}>
         <span style={{ fontSize: 18 }}>💬</span><span>واتساب</span>
       </a>)}
-      <button onClick={async () => { if (navigator.share) { try { await navigator.share({ title: ad?.title || 'إعلان XTOX', text: ad?.description || '', url: window.location.href }); } catch (e) {} } else { navigator.clipboard.writeText(window.location.href); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); } }} style={{ display: 'block', width: '100%', padding: '12px', marginTop: '8px', background: shareCopied ? '#16a34a' : '#1877F2', color: '#fff', fontWeight: 'bold', fontSize: '16px', borderRadius: '10px', border: 'none', cursor: 'pointer', transition: 'background 0.3s' }}>
+      <button onClick={async () => { if (navigator.share) { try { await navigator.share({ title: (ad && ad.title) || 'إعلان XTOX', text: (ad && ad.description) || '', url: window.location.href }); } catch (e) {} } else { navigator.clipboard.writeText(window.location.href); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); } }} style={{ display: 'block', width: '100%', padding: '12px', marginTop: '8px', background: shareCopied ? '#16a34a' : '#1877F2', color: '#fff', fontWeight: 'bold', fontSize: '16px', borderRadius: '10px', border: 'none', cursor: 'pointer', transition: 'background 0.3s' }}>
         {shareCopied ? '✓ تم نسخ الرابط' : '📤 مشاركة'}
       </button>
       <button onClick={toggleSave} dir="rtl" style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: saved ? '2px solid #e44' : '2px solid #e0e0e0', background: saved ? '#fff0f0' : '#f8f8f8', color: saved ? '#cc2200' : '#555', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
         <span style={{ fontSize: 18 }}>{saved ? '❤️' : '🤍'}</span>
         <span>{saved ? 'محفوظ ✓' : 'احفظ الإعلان'}</span>
       </button>
-      {ad?.negotiable && userId !== sellerId && (
+      {(ad && ad.negotiable) && userId !== sellerId && (
         <button
           onClick={() => setOfferOpen(true)}
           style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: '2px solid #1877F2', background: '#f0f6ff', color: '#1877F2', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}
@@ -523,32 +527,32 @@ export default function AdPageClient({ params }) {
       {offerOpen && ad && (
         <MakeOfferModal ad={ad} user={{ _id: userId }} onClose={() => setOfferOpen(false)} />
       )}
-      {sellerId && (<a href={`/profile/${sellerId}`} style={{ display: 'block', marginTop: 16, background: '#f8f8f8', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textDecoration: 'none', color: '#002f34' }}>
+      {sellerId && (<a href={'/profile/' + sellerId} style={{ display: 'block', marginTop: 16, background: '#f8f8f8', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textDecoration: 'none', color: '#002f34' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>{ad.userId?.name?.[0]?.toUpperCase() || '?'}</div>
-          <div><p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{ad.userId?.name || 'البائع'}</p><p style={{ margin: 0, color: '#666', fontSize: 12 }}>عرض الملف الشخصي والتقييمات →</p></div>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>{(ad.userId && ad.userId.name && ad.userId.name[0] && ad.userId.name[0].toUpperCase()) || '?'}</div>
+          <div><p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{(ad.userId && ad.userId.name) || 'البائع'}</p><p style={{ margin: 0, color: '#666', fontSize: 12 }}>عرض الملف الشخصي والتقييمات →</p></div>
         </div>
       </a>)}
       <AITranslate title={ad.title} description={ad.description} />
       {ad.hashtags && ad.hashtags.length > 0 && (<div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {ad.hashtags.map((tag, i) => (<a key={i} href={`/search?q=${tag}`} style={{ padding: '4px 12px', background: '#e8f4f8', color: '#002f34', borderRadius: 20, fontSize: 12, textDecoration: 'none', fontWeight: 'bold' }}>#{tag}</a>))}
+        {ad.hashtags.map((tag, i) => (<a key={i} href={'/search?q=' + tag} style={{ padding: '4px 12px', background: '#e8f4f8', color: '#002f34', borderRadius: 20, fontSize: 12, textDecoration: 'none', fontWeight: 'bold' }}>#{tag}</a>))}
       </div>)}
       <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
-        <button onClick={() => navigator.share?.({ title: ad.title, url: window.location.href }) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))} style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔗 مشاركة الإعلان</button>
+        <button onClick={() => (navigator.share ? navigator.share({ title: ad.title, url: window.location.href }) : null) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))} style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔗 مشاركة الإعلان</button>
         <button onClick={() => setShowReport(true)} style={{ background: 'none', border: '1px solid #ffccbc', color: '#e64a19', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }} title="Report Ad / الإبلاغ عن الإعلان">🚩 الإبلاغ</button>
       </div>
       {showReport && (
         <ReportAd
-          adId={ad?._id || params?.id}
-          adTitle={ad?.title}
+          adId={(ad && ad._id) || (params && params.id)}
+          adTitle={ad && ad.title}
           onClose={() => setShowReport(false)}
           lang="ar"
         />
       )}
       {showReportSeller && (
         <ReportSeller
-          sellerId={ad?.seller?._id || ad?.sellerId}
-          sellerName={ad?.seller?.name || ad?.sellerName || ''}
+          sellerId={(ad && ad.seller && ad.seller._id) || (ad && ad.sellerId)}
+          sellerName={(ad && ad.seller && ad.seller.name) || (ad && ad.sellerName) || ''}
           onClose={() => setShowReportSeller(false)}
           lang={lang || 'ar'}
         />
@@ -579,7 +583,7 @@ export default function AdPageClient({ params }) {
                 const itemMedia = item.media || item.images || [];
                 const itemImg = Array.isArray(itemMedia) ? itemMedia[0] : itemMedia;
                 return (
-                  <a key={item._id} href={`/ads/${item._id}`} style={{ textDecoration: 'none', color: 'inherit', borderRadius: 10, overflow: 'hidden', border: '1px solid #eee', background: 'white', display: 'block', transition: 'box-shadow 0.2s' }}
+                  <a key={item._id} href={'/ads/' + item._id} style={{ textDecoration: 'none', color: 'inherit', borderRadius: 10, overflow: 'hidden', border: '1px solid #eee', background: 'white', display: 'block', transition: 'box-shadow 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.12)'}
                     onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
                     {itemImg ? (
@@ -600,7 +604,7 @@ export default function AdPageClient({ params }) {
           )}
         </div>
       )}
-      <SellerMiniCard sellerId={ad.seller?._id || ad.sellerId} sellerName={ad.seller?.name || ad.sellerName || ''} lang={lang} />
+      <SellerMiniCard sellerId={(ad.seller && ad.seller._id) || ad.sellerId} sellerName={(ad.seller && ad.seller.name) || ad.sellerName || ''} lang={lang} />
       <button
         onClick={() => setShowReportSeller(true)}
         className="mt-2 text-xs text-red-500 hover:text-red-700 underline flex items-center gap-1"
@@ -609,7 +613,7 @@ export default function AdPageClient({ params }) {
         <span>🚩</span>
         <span>{lang === 'ar' ? 'الإبلاغ عن البائع' : 'Report Seller'}</span>
       </button>
-      <RecentlyViewed currentAdId={ad?._id} lang="ar" />
+      <RecentlyViewed currentAdId={ad && ad._id} lang="ar" />
     </div>
   );
 }
