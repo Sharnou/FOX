@@ -12,9 +12,9 @@ function arabicRelTime(isoString) {
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
   if (mins  < 1)  return 'الآن';
-  if (mins  < 60) return `منذ ${mins} دقيقة`;
-  if (hours < 24) return `منذ ${hours} ساعة`;
-  if (days  < 7)  return `منذ ${days} يوم`;
+  if (mins  < 60) return 'منذ ' + mins + ' دقيقة';
+  if (hours < 24) return 'منذ ' + hours + ' ساعة';
+  if (days  < 7)  return 'منذ ' + days + ' يوم';
   return new Date(isoString).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
 }
 
@@ -80,8 +80,8 @@ export default function NotificationsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(API + '/api/notifications', {
+        headers: { Authorization: 'Bearer ' + token },
       });
       const data = await res.json();
       setNotifications(Array.isArray(data) ? data : []);
@@ -109,9 +109,9 @@ export default function NotificationsPage() {
   /* ── actions ── */
   const markAllRead = async () => {
     try {
-      await fetch(`${API}/api/notifications/read-all`, {
+      await fetch(API + '/api/notifications/read-all', {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Bearer ' + token },
       });
     } catch { /* optimistic */ }
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -120,9 +120,9 @@ export default function NotificationsPage() {
 
   const markOneRead = async (id) => {
     try {
-      await fetch(`${API}/api/notifications/${id}/read`, {
+      await fetch(API + '/api/notifications/' + id + '/read', {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Bearer ' + token },
       });
     } catch { /* optimistic */ }
     setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));
@@ -130,9 +130,9 @@ export default function NotificationsPage() {
 
   const deleteNotif = async (id) => {
     try {
-      await fetch(`${API}/api/notifications/${id}`, {
+      await fetch(API + '/api/notifications/' + id, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Bearer ' + token },
       });
     } catch { /* optimistic */ }
     setNotifications(prev => prev.filter(n => n._id !== id));
@@ -159,15 +159,7 @@ export default function NotificationsPage() {
       }}
     >
       {/* ── Pulse keyframes ── */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.5; }
-        }
-        .notif-item { transition: background 0.2s; }
-        .notif-item:hover { background: #f9fafb !important; }
-        .tab-btn { transition: all 0.2s; }
-      `}</style>
+      <style>{'\n        @keyframes pulse {\n          0%, 100% { opacity: 1; }\n          50%       { opacity: 0.5; }\n        }\n        .notif-item { transition: background 0.2s; }\n        .notif-item:hover { background: #f9fafb !important; }\n        .tab-btn { transition: all 0.2s; }\n      '}</style>
 
       {/* ── Sticky Header ── */}
       <header
@@ -205,7 +197,7 @@ export default function NotificationsPage() {
               🔔 الإشعارات
               {unreadCount > 0 && (
                 <span
-                  aria-label={`${unreadCount} إشعار غير مقروء`}
+                  aria-label={unreadCount + ' إشعار غير مقروء'}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -253,7 +245,7 @@ export default function NotificationsPage() {
         <div style={{ display: 'flex', gap: 6, paddingBottom: 1 }}>
           {[
             { key: 'all',    label: 'الكل' },
-            { key: 'unread', label: `غير مقروء (${unreadCount})` },
+            { key: 'unread', label: 'غير مقروء (' + unreadCount + ')' },
           ].map(tab => (
             <button
               key={tab.key}
@@ -324,7 +316,7 @@ export default function NotificationsPage() {
                   role={!n.read ? 'button' : undefined}
                   tabIndex={!n.read ? 0 : undefined}
                   onKeyDown={e => e.key === 'Enter' && !n.read && markOneRead(n._id)}
-                  aria-label={`${cfg.label}: ${n.message}`}
+                  aria-label={cfg.label + ': ' + n.message}
                   style={{
                     background: n.read ? '#fff' : '#f5f3ff',
                     borderRadius: 14,
@@ -333,7 +325,7 @@ export default function NotificationsPage() {
                     display: 'flex',
                     gap: 12,
                     alignItems: 'flex-start',
-                    borderRight: n.read ? 'none' : `3px solid ${cfg.color}`,
+                    borderRight: n.read ? 'none' : '3px solid ' + cfg.color,
                     cursor: !n.read ? 'pointer' : 'default',
                     position: 'relative',
                   }}
@@ -399,7 +391,7 @@ export default function NotificationsPage() {
                   {/* Delete button */}
                   <button
                     onClick={e => { e.stopPropagation(); deleteNotif(n._id); }}
-                    aria-label={`حذف: ${n.message}`}
+                    aria-label={'حذف: ' + n.message}
                     style={{
                       position: 'absolute',
                       bottom: 10,
