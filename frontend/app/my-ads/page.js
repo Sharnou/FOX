@@ -32,8 +32,8 @@ export default function MyAdsPage() {
   async function fetchMyAds(t) {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/api/ads/my/all`, {
-        headers: { Authorization: `Bearer ${t || token}` }
+      const res = await axios.get(API + '/api/ads/my/all', {
+        headers: { Authorization: 'Bearer ' + (t || token) }
       });
       setData(res.data);
     } catch { setData({ active: [], expired: [] }); }
@@ -42,8 +42,8 @@ export default function MyAdsPage() {
 
   async function republish(adId) {
     try {
-      await axios.post(`${API}/api/ads/${adId}/republish`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
+      await axios.post(API + '/api/ads/' + adId + '/republish', {}, {
+        headers: { Authorization: 'Bearer ' + token }
       });
       alert('✅ تم إعادة نشر الإعلان لمدة 45 يوم إضافية!');
       fetchMyAds(token);
@@ -53,7 +53,7 @@ export default function MyAdsPage() {
   async function deleteAd(adId) {
     if (!confirm('هل تريد حذف هذا الإعلان؟')) return;
     try {
-      await axios.delete(`${API}/api/ads/${adId}`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(API + '/api/ads/' + adId, { headers: { Authorization: 'Bearer ' + token } });
       fetchMyAds(token);
     } catch { alert('فشل الحذف'); }
   }
@@ -81,7 +81,7 @@ export default function MyAdsPage() {
     if (selectedAds.size === 0) return;
     const n = selectedAds.size;
     const confirmed = window.confirm(
-      `هل تريد حذف ${n} إعلان محدد؟\nAre you sure you want to delete ${n} selected ad(s)?\n\nلا يمكن التراجع عن هذا الإجراء.\nThis action cannot be undone.`
+      'هل تريد حذف ' + n + ' إعلان محدد؟\nAre you sure you want to delete ' + n + ' selected ad(s)?\n\nلا يمكن التراجع عن هذا الإجراء.\nThis action cannot be undone.'
     );
     if (!confirmed) return;
 
@@ -93,8 +93,8 @@ export default function MyAdsPage() {
     await Promise.all(
       ids.map(async (adId) => {
         try {
-          await axios.delete(`${API}/api/ads/${adId}`, {
-            headers: { Authorization: `Bearer ${token}` }
+          await axios.delete(API + '/api/ads/' + adId, {
+            headers: { Authorization: 'Bearer ' + token }
           });
         } catch {
           failed.push(adId);
@@ -112,9 +112,9 @@ export default function MyAdsPage() {
     setBulkDeleting(false);
 
     if (failed.length > 0) {
-      alert(`فشل حذف ${failed.length} إعلان.\nFailed to delete ${failed.length} ad(s).`);
+      alert('فشل حذف ' + failed.length + ' إعلان.\nFailed to delete ' + failed.length + ' ad(s).');
     } else {
-      alert(`✅ تم حذف ${ids.length} إعلان بنجاح.\n✅ Successfully deleted ${ids.length} ad(s).`);
+      alert('✅ تم حذف ' + ids.length + ' إعلان بنجاح.\n✅ Successfully deleted ' + ids.length + ' ad(s).');
     }
   }
   // ──────────────────────────────────────────────────────────────────────────
@@ -238,13 +238,13 @@ export default function MyAdsPage() {
                       </div>
                       {/* Expiry Progress Bar */}
                       <div style={{ background: '#f0f0f0', borderRadius: 4, height: 4, marginBottom: 8, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${expiryPercent}%`, background: daysLeft <= 7 ? '#e44' : daysLeft <= 15 ? '#ffd700' : '#00aa44', borderRadius: 4, transition: 'width 0.3s' }} />
+                        <div style={{ height: '100%', width: expiryPercent + '%', background: daysLeft <= 7 ? '#e44' : daysLeft <= 15 ? '#ffd700' : '#00aa44', borderRadius: 4, transition: 'width 0.3s' }} />
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <a href={`/ads/${ad._id}`} style={{ background: '#f0f0f0', color: '#333', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>👁 عرض</a>
-                        <a href={`/sell?edit=${ad._id}`} style={{ background: '#e8f0fe', color: '#1a56db', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>✏️ تعديل</a>
+                        <a href={'/ads/' + ad._id} style={{ background: '#f0f0f0', color: '#333', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>👁 عرض</a>
+                        <a href={'/sell?edit=' + ad._id} style={{ background: '#e8f0fe', color: '#1a56db', padding: '4px 12px', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>✏️ تعديل</a>
                         <button onClick={() => deleteAd(ad._id)} style={{ background: '#fff0f0', color: '#e44', border: 'none', padding: '4px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 'bold', fontFamily: 'inherit' }}>حذف</button>
-                        <a href={`/promote?adId=${ad._id}&title=${encodeURIComponent(ad.title)}`}
+                        <a href={'/promote?adId=' + ad._id + '&title=' + encodeURIComponent(ad.title)}
                           style={{
                             display:'inline-block', background: ad.isFeatured ? '#FFD700' : '#002f34',
                             color: ad.isFeatured ? '#000' : '#fff',
@@ -279,7 +279,7 @@ export default function MyAdsPage() {
                   const canReshare = ad.daysLeftToReshare > 0;
                   const isSelected = selectedAds.has(ad._id);
                   return (
-                    <div key={ad._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', gap: 14, opacity: canReshare ? 1 : 0.6, border: isSelected ? '2px solid #002f34' : `2px solid ${canReshare ? '#ffd700' : '#eee'}`, transition: 'border-color 0.15s' }}>
+                    <div key={ad._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', gap: 14, opacity: canReshare ? 1 : 0.6, border: isSelected ? '2px solid #002f34' : '2px solid ' + (canReshare ? '#ffd700' : '#eee'), transition: 'border-color 0.15s' }}>
                       {/* Checkbox */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 4 }}>
                         <input
@@ -358,7 +358,7 @@ export default function MyAdsPage() {
               disabled={bulkDeleting}
               style={{ background: '#e44', color: 'white', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: bulkDeleting ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', opacity: bulkDeleting ? 0.7 : 1 }}
             >
-              {bulkDeleting ? '⏳ جار الحذف...' : `🗑 حذف المحدد (${selectedAds.size})`}
+              {bulkDeleting ? '⏳ جار الحذف...' : '🗑 حذف المحدد (' + selectedAds.size + ')'}
             </button>
           </div>
         </div>
