@@ -51,7 +51,7 @@ export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
             className="flex-shrink-0 w-32 snap-start rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-white hover:shadow-md transition-shadow">
             <div className="w-full h-20 bg-gray-100 overflow-hidden">
               {ad.images?.[0]
-                ? <img src={optimizeImage(ad.images[0])} alt={ad.title} className="w-full h-full object-cover" loading="lazy" />
+                ? <img src={ad.images && ad.images[0] ? optimizeImage(ad.images[0]) : '/placeholder.png'} alt={ad.title} className="w-full h-full object-cover" loading="lazy" />
                 : <div className="w-full h-full flex items-center justify-center text-2xl">\ud83c\udff7\ufe0f</div>}
             </div>
             <div className="p-1.5">
