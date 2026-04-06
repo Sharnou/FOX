@@ -33,9 +33,9 @@ function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
   if (diff < 60) return 'الآن';
-  if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
-  if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;
-  return `منذ ${Math.floor(diff / 86400)} يوم`;
+  if (diff < 3600) return 'منذ ' + Math.floor(diff / 60) + ' دقيقة';
+  if (diff < 86400) return 'منذ ' + Math.floor(diff / 3600) + ' ساعة';
+  return 'منذ ' + Math.floor(diff / 86400) + ' يوم';
 }
 
 export default function ServicesPage() {
@@ -54,8 +54,8 @@ export default function ServicesPage() {
     setLoading(true);
     setError(false);
     Promise.all([
-      axios.get(`${API}/api/services`, { params: { country } }),
-      axios.get(`${API}/api/services/types`),
+      axios.get(API + '/api/services', { params: { country } }),
+      axios.get(API + '/api/services/types'),
     ])
       .then(([r1, r2]) => {
         setServices(r1.data || []);
@@ -144,11 +144,9 @@ export default function ServicesPage() {
               role="tab"
               aria-selected={filter === t}
               onClick={() => setFilter(t)}
-              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap font-medium transition-colors duration-150 ${
-                filter === t
+              className={'px-4 py-2 rounded-full text-sm whitespace-nowrap font-medium transition-colors duration-150 ' + (filter === t
                   ? 'bg-[#002f34] text-white shadow'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
-              }`}
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100')}
             >
               {WORKER_ICONS[t] || '👷'} {ARABIC_TYPES[t] || t}
             </button>
@@ -179,7 +177,7 @@ export default function ServicesPage() {
             <p className="text-4xl mb-3">🔍</p>
             <p className="text-gray-600 text-lg font-semibold">
               {citySearch.trim()
-                ? `لا توجد خدمات في "${citySearch.trim()}"`
+                ? 'لا توجد خدمات في "' + citySearch.trim() + '"'
                 : 'لا توجد خدمات في هذه الفئة حالياً'}
             </p>
             <p className="text-gray-400 text-sm mt-1">جرّب تغيير الفلتر أو البحث بمدينة مختلفة</p>
@@ -218,14 +216,14 @@ export default function ServicesPage() {
                 {/* Action Buttons */}
                 <div className="flex gap-2 mt-1">
                   <a
-                    href={`/chat?target=${s.userId}`}
+                    href={'/chat?target=' + s.userId}
                     className="flex-1 bg-[#002f34] text-white text-center py-2 rounded-xl text-sm font-medium hover:opacity-90 transition"
                   >
                     💬 تواصل
                   </a>
                   {s.phone && (
                     <a
-                      href={`https://wa.me/${s.phone.replace(/\D/g,'')}?text=${encodeURIComponent(`مرحباً، رأيت إعلانك "${s.title}" على XTOX`)}`}
+                      href={'https://wa.me/' + s.phone.replace(/\D/g,'') + '?text=' + encodeURIComponent('مرحباً، رأيت إعلانك "' + s.title + '" على XTOX' + '" على XTOX')}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="واتساب"
