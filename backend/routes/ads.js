@@ -444,7 +444,23 @@ router.post('/', auth, upload.fields([
     // AUTO CATEGORY DETECTION (offline first)
     const detected = detectCategoryOffline(`${title} ${description || ''}`);
     const finalCategory = category || detected.main;
-    const finalSubcategory = detected.sub || subcategory || '';
+    let finalSubcategory = detected.sub || subcategory || '';
+    // Auto-assign subcategory via keyword matching if not provided or is 'Other'
+    if (!finalSubcategory || finalSubcategory === 'Other') {
+      const _subText = ((title || '') + ' ' + (description || '')).toLowerCase();
+      const _subMap = {
+        Vehicles: [{kw:['سيارة','عربية','car','sedan','suv'],v:'Cars'},{kw:['موتور','motorcycle','bike'],v:'Motorcycles'},{kw:['شاحنة','truck'],v:'Trucks'},{kw:['قطع غيار','spare parts'],v:'SpareParts'},{kw:['قارب','boat'],v:'Boats'}],
+        Electronics: [{kw:['موبايل','iphone','samsung','phone'],v:'MobilePhones'},{kw:['لابتوب','laptop','macbook'],v:'Laptops'},{kw:['تابلت','ipad','tablet'],v:'Tablets'},{kw:['تليفزيون','tv','شاشة'],v:'TVs'},{kw:['كاميرا','camera'],v:'Cameras'},{kw:['بلايستيشن','xbox','gaming'],v:'Gaming'},{kw:['سماعات','speaker','headphone'],v:'Audio'}],
+        'Real Estate': [{kw:['شقة','apartment','flat'],v:'Apartments'},{kw:['فيلا','villa','منزل'],v:'Villas'},{kw:['أرض','land'],v:'Land'},{kw:['محل','commercial','shop'],v:'Commercial'},{kw:['مكتب','office'],v:'Offices'}],
+        Jobs: [{kw:['full time','دوام كامل'],v:'FullTime'},{kw:['part time','دوام جزئي'],v:'PartTime'},{kw:['freelance','فريلانس'],v:'Freelance'},{kw:['تدريب','internship'],v:'Internship'},{kw:['remote','عن بعد'],v:'Remote'}],
+        Services: [{kw:['سباك','كهربائي','نجار'],v:'HomeServices'},{kw:['تنظيف','cleaning'],v:'Cleaning'},{kw:['تصليح','صيانة','repair'],v:'Repairs'},{kw:['مدرس','دروس','tutor'],v:'Education'},{kw:['صحة','health','تجميل'],v:'Health'},{kw:['نقل','شحن','delivery'],v:'Transport'},{kw:['تصميم','design'],v:'Design'}],
+      };
+      const _catHints = _subMap[finalCategory] || [];
+      for (const _hint of _catHints) {
+        if (_hint.kw.some(function(k) { return _subText.includes(k); })) { finalSubcategory = _hint.v; break; }
+      }
+      if (!finalSubcategory) finalSubcategory = 'Other';
+    }
 
     // ENSURE COUNTRY EXISTS
     await getOrCreateCountry(country, country).catch(() => {});
@@ -617,6 +633,11 @@ router.post('/ai-generate', auth, async (req, res) => {
 // ── PUT update ad (owner only, full field-level sanitization) ──
 router.put('/:id', auth, async (req, res) => {
   try {
+    // Immutable fields — strip them from any update payload
+    delete req.body._id;
+    delete req.body.userId;
+    delete req.body.seller;
+    delete req.body.createdAt;
     // ── FIELD-LEVEL SANITIZATION (mirrors POST validation) ──
     const { errors, sanitized } = sanitizeAdFields(req.body);
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
