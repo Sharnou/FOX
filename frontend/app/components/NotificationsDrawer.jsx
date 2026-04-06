@@ -76,11 +76,11 @@ export default function NotificationsDrawer({
     const diff = Math.floor((Date.now() - new Date(isoTime).getTime()) / 1000);
     if (diff < 60) return tx.justNow;
     const min = Math.floor(diff / 60);
-    if (min < 60) return lang === 'de' ? `${tx.ago} ${toLocalNum(min)} ${tx.min}` : `${tx.ago} ${toLocalNum(min)} ${tx.min}`;
+    if (min < 60) return tx.ago + ' ' + toLocalNum(min) + ' ' + tx.min;
     const hr = Math.floor(min / 60);
-    if (hr < 24) return lang === 'de' ? `${tx.ago} ${toLocalNum(hr)} ${tx.hr}` : `${tx.ago} ${toLocalNum(hr)} ${tx.hr}`;
+    if (hr < 24) return tx.ago + ' ' + toLocalNum(hr) + ' ' + tx.hr;
     const day = Math.floor(hr / 24);
-    return lang === 'de' ? `${tx.ago} ${toLocalNum(day)} ${tx.day}` : `${tx.ago} ${toLocalNum(day)} ${tx.day}`;
+    return tx.ago + ' ' + toLocalNum(day) + ' ' + tx.day;
   }
 
   const typeIcon = { chat: '💬', offer: '🤝', view: '👁️', expiry: '⏰', system: '🔔' };
@@ -120,43 +120,46 @@ export default function NotificationsDrawer({
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap');
-        .xtox-notif-root { font-family: 'Cairo', 'Tajawal', sans-serif; position: relative; display: inline-block; }
-        .xtox-notif-bell-btn { position: relative; background: none; border: none; cursor: pointer; padding: 6px; border-radius: 50%; transition: background 0.2s; }
-        .xtox-notif-bell-btn:hover { background: rgba(255,107,53,0.1); }
-        .xtox-notif-badge { position: absolute; top: 0; right: 0; background: #FF6B35; color: #fff; border-radius: 50%; font-size: 10px; font-weight: 700; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; line-height: 1; }
-        .xtox-notif-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 1000; animation: xtox-fade-in 0.2s ease; }
-        .xtox-notif-drawer { position: fixed; top: 0; bottom: 0; width: min(380px, 95vw); background: #fff; z-index: 1001; display: flex; flex-direction: column; box-shadow: -4px 0 24px rgba(0,0,0,0.15); animation: xtox-slide-in-${isRTL ? 'right' : 'left'} 0.25s cubic-bezier(.4,0,.2,1); }
-        .xtox-notif-drawer[data-rtl='true'] { right: 0; left: auto; border-radius: 12px 0 0 12px; }
-        .xtox-notif-drawer[data-rtl='false'] { left: 0; right: auto; border-radius: 0 12px 12px 0; }
-        .xtox-notif-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid #f0f0f0; background: #fff; flex-shrink: 0; direction: ${isRTL ? 'rtl' : 'ltr'}; }
-        .xtox-notif-header-title { font-size: 18px; font-weight: 700; color: #1a1a1a; }
-        .xtox-notif-header-actions { display: flex; align-items: center; gap: 10px; }
-        .xtox-notif-mark-all { background: none; border: 1px solid #FF6B35; color: #FF6B35; border-radius: 20px; font-size: 11px; font-family: inherit; cursor: pointer; padding: 4px 10px; font-weight: 600; transition: all 0.2s; white-space: nowrap; }
-        .xtox-notif-mark-all:hover { background: #FF6B35; color: #fff; }
-        .xtox-notif-close { background: none; border: none; cursor: pointer; font-size: 20px; color: #666; padding: 4px; border-radius: 50%; line-height: 1; transition: background 0.2s; }
-        .xtox-notif-close:hover { background: #f5f5f5; color: #333; }
-        .xtox-notif-list { flex: 1; overflow-y: auto; padding: 8px 0; }
-        .xtox-notif-list::-webkit-scrollbar { width: 4px; }
-        .xtox-notif-list::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
-        .xtox-notif-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 20px; cursor: pointer; border-bottom: 1px solid #fafafa; transition: background 0.15s; direction: ${isRTL ? 'rtl' : 'ltr'}; position: relative; }
-        .xtox-notif-item:hover { background: #fff8f5; }
-        .xtox-notif-item.unread { background: #fff5f1; }
-        .xtox-notif-item.unread::before { content: ''; position: absolute; ${isRTL ? 'right' : 'left'}: 0; top: 0; bottom: 0; width: 3px; background: #FF6B35; border-radius: 0 2px 2px 0; }
-        .xtox-notif-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-        .xtox-notif-content { flex: 1; min-width: 0; }
-        .xtox-notif-type { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
-        .xtox-notif-body { font-size: 13px; color: #333; line-height: 1.5; }
-        .xtox-notif-time { font-size: 11px; color: #999; margin-top: 4px; }
-        .xtox-notif-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; direction: ${isRTL ? 'rtl' : 'ltr'}; }
-        .xtox-notif-empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
-        .xtox-notif-empty-title { font-size: 16px; font-weight: 700; color: #333; margin-bottom: 6px; }
-        .xtox-notif-empty-desc { font-size: 13px; color: #999; }
-        @keyframes xtox-fade-in { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes xtox-slide-in-right { from { transform: translateX(100%) } to { transform: translateX(0) } }
-        @keyframes xtox-slide-in-left { from { transform: translateX(-100%) } to { transform: translateX(0) } }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: "@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap');" +
+        ".xtox-notif-root { font-family: 'Cairo', 'Tajawal', sans-serif; position: relative; display: inline-block; }" +
+        ".xtox-notif-bell-btn { position: relative; background: none; border: none; cursor: pointer; padding: 6px; border-radius: 50%; transition: background 0.2s; }" +
+        ".xtox-notif-bell-btn:hover { background: rgba(255,107,53,0.1); }" +
+        ".xtox-notif-badge { position: absolute; top: 0; right: 0; background: #FF6B35; color: #fff; border-radius: 50%; font-size: 10px; font-weight: 700; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; line-height: 1; }" +
+        ".xtox-notif-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 1000; animation: xtox-fade-in 0.2s ease; }" +
+        ".xtox-notif-drawer { position: fixed; top: 0; bottom: 0; width: min(380px, 95vw); background: #fff; z-index: 1001; display: flex; flex-direction: column; box-shadow: -4px 0 24px rgba(0,0,0,0.15); }" +
+        ".xtox-notif-drawer[data-rtl='true'] { right: 0; left: auto; border-radius: 12px 0 0 12px; animation: xtox-slide-in-right 0.25s cubic-bezier(.4,0,.2,1); }" +
+        ".xtox-notif-drawer[data-rtl='false'] { left: 0; right: auto; border-radius: 0 12px 12px 0; animation: xtox-slide-in-left 0.25s cubic-bezier(.4,0,.2,1); }" +
+        ".xtox-notif-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid #f0f0f0; background: #fff; flex-shrink: 0; direction: rtl; }" +
+        ".xtox-notif-drawer[data-rtl='false'] .xtox-notif-header { direction: ltr; }" +
+        ".xtox-notif-header-title { font-size: 18px; font-weight: 700; color: #1a1a1a; }" +
+        ".xtox-notif-header-actions { display: flex; align-items: center; gap: 10px; }" +
+        ".xtox-notif-mark-all { background: none; border: 1px solid #FF6B35; color: #FF6B35; border-radius: 20px; font-size: 11px; font-family: inherit; cursor: pointer; padding: 4px 10px; font-weight: 600; transition: all 0.2s; white-space: nowrap; }" +
+        ".xtox-notif-mark-all:hover { background: #FF6B35; color: #fff; }" +
+        ".xtox-notif-close { background: none; border: none; cursor: pointer; font-size: 20px; color: #666; padding: 4px; border-radius: 50%; line-height: 1; transition: background 0.2s; }" +
+        ".xtox-notif-close:hover { background: #f5f5f5; color: #333; }" +
+        ".xtox-notif-list { flex: 1; overflow-y: auto; padding: 8px 0; }" +
+        ".xtox-notif-list::-webkit-scrollbar { width: 4px; }" +
+        ".xtox-notif-list::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }" +
+        ".xtox-notif-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 20px; cursor: pointer; border-bottom: 1px solid #fafafa; transition: background 0.15s; direction: rtl; position: relative; }" +
+        ".xtox-notif-drawer[data-rtl='false'] .xtox-notif-item { direction: ltr; }" +
+        ".xtox-notif-item:hover { background: #fff8f5; }" +
+        ".xtox-notif-item.unread { background: #fff5f1; }" +
+        ".xtox-notif-item.unread::before { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 3px; background: #FF6B35; border-radius: 0 2px 2px 0; }" +
+        ".xtox-notif-drawer[data-rtl='false'] .xtox-notif-item.unread::before { right: auto; left: 0; }" +
+        ".xtox-notif-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }" +
+        ".xtox-notif-content { flex: 1; min-width: 0; }" +
+        ".xtox-notif-type { font-size: 11px; font-weight: 600; margin-bottom: 2px; }" +
+        ".xtox-notif-body { font-size: 13px; color: #333; line-height: 1.5; }" +
+        ".xtox-notif-time { font-size: 11px; color: #999; margin-top: 4px; }" +
+        ".xtox-notif-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; direction: rtl; }" +
+        ".xtox-notif-drawer[data-rtl='false'] .xtox-notif-empty { direction: ltr; }" +
+        ".xtox-notif-empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }" +
+        ".xtox-notif-empty-title { font-size: 16px; font-weight: 700; color: #333; margin-bottom: 6px; }" +
+        ".xtox-notif-empty-desc { font-size: 13px; color: #999; }" +
+        "@keyframes xtox-fade-in { from { opacity: 0 } to { opacity: 1 } }" +
+        "@keyframes xtox-slide-in-right { from { transform: translateX(100%) } to { transform: translateX(0) } }" +
+        "@keyframes xtox-slide-in-left { from { transform: translateX(-100%) } to { transform: translateX(0) } }"
+      }} />
 
       <div className="xtox-notif-root">
         {/* Trigger button (bell icon) */}
@@ -212,7 +215,7 @@ export default function NotificationsDrawer({
                 {notifications.map(notif => (
                   <div
                     key={notif.id}
-                    className={`xtox-notif-item${!notif.read ? ' unread' : ''}`}
+                    className={'xtox-notif-item' + (!notif.read ? ' unread' : '')}
                     onClick={() => handleRead(notif.id)}
                     role="button"
                     tabIndex={0}
@@ -220,7 +223,7 @@ export default function NotificationsDrawer({
                   >
                     <div
                       className="xtox-notif-icon"
-                      style={{ background: `${typeColor[notif.type] || '#FF6B35'}22` }}
+                      style={{ background: (typeColor[notif.type] || '#FF6B35') + '22' }}
                     >
                       {typeIcon[notif.type] || '🔔'}
                     </div>
