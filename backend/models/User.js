@@ -39,12 +39,58 @@ const UserSchema = new mongoose.Schema(
       body: String,
       link: String,
       read: { type: Boolean, default: false },
-      createdAt: { type: Date, default: Date.now },
+  
+    // -- Auth provider -------------------------------------------------------
+    authProvider: { type: String, enum: ['email', 'google', 'apple', 'whatsapp'], default: 'email' },
+    googleId: { type: String, sparse: true, unique: true },
+    appleId: { type: String, sparse: true, unique: true },
+    whatsappPhone: { type: String, sparse: true, unique: true },
+
+    // -- XTOX identity -------------------------------------------------------
+    xtoxId: { type: String, unique: true, sparse: true },
+    xtoxEmail: { type: String, unique: true, sparse: true },
+
+    // -- Blocking (real identifiers so they can never re-register) -----------
+    blocked: { type: Boolean, default: false },
+    blockedAt: { type: Date },
+    blockReason: { type: String },
+    blockedGoogleId: { type: String, sparse: true },
+    blockedAppleId: { type: String, sparse: true },
+    blockedPhone: { type: String, sparse: true },
+
+    // -- WhatsApp OTP --------------------------------------------------------
+    whatsappOtp: { type: String },
+    whatsappOtpExpiry: { type: Date },
+    whatsappOtpAttempts: { type: Number, default: 0 },
+    createdAt: { type: Date, default: Date.now },
     }],
     username: { type: String, sparse: true },
     bio: { type: String, maxlength: 500 },
     lastSeen: { type: Date, default: null },   // updated on each authenticated request
     lastActive: Date,                           // kept for backward compat
+
+    // -- Auth provider -------------------------------------------------------
+    authProvider: { type: String, enum: ['email', 'google', 'apple', 'whatsapp'], default: 'email' },
+    googleId: { type: String, sparse: true, unique: true },
+    appleId: { type: String, sparse: true, unique: true },
+    whatsappPhone: { type: String, sparse: true, unique: true },
+
+    // -- XTOX identity -------------------------------------------------------
+    xtoxId: { type: String, unique: true, sparse: true },
+    xtoxEmail: { type: String, unique: true, sparse: true },
+
+    // -- Blocking (real identifiers so they can never re-register) -----------
+    blocked: { type: Boolean, default: false },
+    blockedAt: { type: Date },
+    blockReason: { type: String },
+    blockedGoogleId: { type: String, sparse: true },
+    blockedAppleId: { type: String, sparse: true },
+    blockedPhone: { type: String, sparse: true },
+
+    // -- WhatsApp OTP --------------------------------------------------------
+    whatsappOtp: { type: String },
+    whatsappOtpExpiry: { type: Date },
+    whatsappOtpAttempts: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
   },
   { toJSON: { virtuals: true }, toObject: { virtuals: true } }
