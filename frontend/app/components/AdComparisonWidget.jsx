@@ -73,7 +73,7 @@ const formatPrice = (price, currency, lang) => {
       maximumFractionDigits: 0,
     }).format(price);
   } catch {
-    return `${price} ${currency || "EGP"}`;
+    return price + ' ' + (currency || "EGP");
   }
 };
 
@@ -205,7 +205,7 @@ export default function AdComparisonWidget({ ads = [], lang = "ar", onClose }) {
           {ad.seller?.name || "—"}
           <br />
           <span style={{ fontSize: 11, color: ad.seller?.verificationLevel >= 1 ? "#10b981" : "#94a3b8" }}>
-            {ad.seller?.verificationLevel >= 1 ? `✓ ${t.verified}` : t.unverified}
+            {ad.seller?.verificationLevel >= 1 ? '✓ ' + t.verified : t.unverified}
           </span>
         </span>
       ),
@@ -274,7 +274,7 @@ export default function AdComparisonWidget({ ads = [], lang = "ar", onClose }) {
                           style={contactBtnStyle(isBest)}
                           onClick={() => {
                             if (typeof window !== "undefined") {
-                              window.location.href = `/chat?ad=${ad._id}`;
+                              window.location.href = '/chat?ad=' + ad._id;
                             }
                           }}
                         >
