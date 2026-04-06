@@ -12,7 +12,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 // Reuse the same Cloudinary optimiser pattern used across XTOX components
 function optimizeImage(url, width = 300) {
   if (!url || !url.includes('cloudinary.com')) return url;
-  return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
+  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
 }
 
 // Arabic-Indic numeral conversion
@@ -30,7 +30,7 @@ function formatPrice(price, currency = 'EGP') {
       maximumFractionDigits: 0,
     }).format(price);
   } catch {
-    return `${toArabicNumerals(price)} ${currency}`;
+    return toArabicNumerals(price) + ' ' + currency;
   }
 }
 
@@ -40,13 +40,13 @@ function timeAgoAr(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'الآن';
-  if (mins < 60) return `منذ ${toArabicNumerals(mins)} دقيقة`;
+  if (mins < 60) return 'منذ ' + toArabicNumerals(mins) + ' دقيقة';
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `منذ ${toArabicNumerals(hrs)} ساعة`;
+  if (hrs < 24) return 'منذ ' + toArabicNumerals(hrs) + ' ساعة';
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `منذ ${toArabicNumerals(days)} يوم`;
+  if (days < 30) return 'منذ ' + toArabicNumerals(days) + ' يوم';
   const months = Math.floor(days / 30);
-  return `منذ ${toArabicNumerals(months)} شهر`;
+  return 'منذ ' + toArabicNumerals(months) + ' شهر';
 }
 
 // ── Mini Ad Card (horizontal scroll item) ────────────────────────────────────
@@ -56,7 +56,7 @@ function MiniAdCard({ ad }) {
 
   return (
     <a
-      href={`/ads/${ad._id}`}
+      href={'/ads/' + ad._id}
       dir="rtl"
       style={{
         display: 'flex',
@@ -185,11 +185,11 @@ function RelatedAdsSkeleton({ count = 4 }) {
                 key={j}
                 style={{
                   height: j === 0 ? 28 : 16,
-                  width: `${w}%`,
+                  width: w + '%',
                   borderRadius: 6,
                   background: 'linear-gradient(90deg, #e8e8e8 25%, #f5f5f5 50%, #e8e8e8 75%)',
                   backgroundSize: '200% 100%',
-                  animation: `shimmer 1.4s infinite ${j * 0.1}s`,
+                  animation: 'shimmer 1.4s infinite ' + j * 0.1 + 's',
                 }}
               />
             ))}
@@ -224,7 +224,7 @@ export default function RelatedAds({ currentAdId, category, limit = 6 }) {
       sort: 'newest',
     });
 
-    fetch(`${API}/api/ads?${params}`, { signal: controller.signal })
+    fetch(API + '/api/ads?' + params, { signal: controller.signal })
       .then(r => r.json())
       .then(data => {
         const items = Array.isArray(data)
@@ -274,12 +274,7 @@ export default function RelatedAds({ currentAdId, category, limit = 6 }) {
   return (
     <section dir="rtl" style={{ marginTop: 32, marginBottom: 8 }}>
       {/* Shimmer keyframes injected once */}
-      <style>{`
-        @keyframes shimmer {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
+      <style>{'\n        @keyframes shimmer {\n          0%   { background-position: 200% 0; }\n          100% { background-position: -200% 0; }\n        }\n      '}</style>
 
       {/* Section header */}
       <div style={{
@@ -376,9 +371,7 @@ export default function RelatedAds({ currentAdId, category, limit = 6 }) {
         onScroll={updateScrollButtons}
       >
         {/* Hide scrollbar in WebKit */}
-        <style>{`
-          .related-scroll::-webkit-scrollbar { display: none; }
-        `}</style>
+        <style>{'\n          .related-scroll::-webkit-scrollbar { display: none; }\n        '}</style>
 
         {loading ? (
           <RelatedAdsSkeleton count={4} />
@@ -391,7 +384,7 @@ export default function RelatedAds({ currentAdId, category, limit = 6 }) {
       {!loading && ads.length > 0 && (
         <div style={{ textAlign: 'center', marginTop: 14 }}>
           <a
-            href={`/search?category=${encodeURIComponent(category)}`}
+            href={'/search?category=' + encodeURIComponent(category)}
             style={{
               display: 'inline-block',
               padding: '8px 22px',
