@@ -48,7 +48,7 @@ class AISelfHealer {
   }
 
   async handleError(error) {
-    const key = `${error.type}:${error.message?.slice(0, 80)}`;
+    const key = error.type + ':' + error.message?.slice(0, 80);
     const attempts = this.fixAttempts.get(key) || 0;
     if (attempts >= 3) return;
     this.fixAttempts.set(key, attempts + 1);
@@ -58,7 +58,7 @@ class AISelfHealer {
       const diagnosis = await this.diagnoseWithAI(error);
       if (diagnosis?.is_fixable && diagnosis?.severity !== "high") {
         this.updateLog(key, "auto-diagnosed");
-        console.info(`[FOX AI Healer] Diagnosed: ${diagnosis.fix_description}`);
+        console.info('[FOX AI Healer] Diagnosed: ' + diagnosis.fix_description);
       }
     } catch {
       // Always silent — never crash the app
@@ -68,22 +68,7 @@ class AISelfHealer {
   async diagnoseWithAI(error) {
     try {
       const result = await FOX.integrations.Core.InvokeLLM({
-        prompt: `You are a senior React/Next.js engineer acting as an AI self-healing system for FOX marketplace.
-
-A runtime error occurred:
-Type: ${error.type}
-Message: "${error.message}"
-Source: ${error.source || "unknown"}
-Line: ${error.line || "?"}
-
-Analyze and return JSON with:
-- is_fixable: can this be auto-resolved without code change? (boolean)
-- needs_web_search: is this complex enough to need external research? (boolean)
-- fix_description: what the fix is (1 sentence, string)
-- severity: "low", "medium", or "high" (string)
-- root_cause: what caused it (1 sentence, string)
-
-Respond ONLY with valid JSON.`,
+        prompt: 'You are a senior React/Next.js engineer acting as an AI self-healing system for FOX marketplace.\n\nA runtime error occurred:\nType: ' + error.type + '\nMessage: "' + error.message + '"\nSource: ' + (error.source || "unknown") + '\nLine: ' + (error.line || "?") + '\n\nAnalyze and return JSON with:\n- is_fixable: can this be auto-resolved without code change? (boolean)\n- needs_web_search: is this complex enough to need external research? (boolean)\n- fix_description: what the fix is (1 sentence, string)\n- severity: "low", "medium", or "high" (string)\n- root_cause: what caused it (1 sentence, string)\n\nRespond ONLY with valid JSON.',
       });
 
       if (result?.text) {
@@ -102,17 +87,9 @@ Respond ONLY with valid JSON.`,
     setInterval(async () => {
       try {
         if (this.errorLog.length === 0) return;
-        const recentErrors = this.errorLog.slice(-10).map(e => `${e.type}: ${e.message}`).join("\n");
+        const recentErrors = this.errorLog.slice(-10).map(e => e.type + ': ' + e.message).join("\n");
         await FOX.integrations.Core.InvokeLLM({
-          prompt: `You are the FOX AI continuous improvement system.
-Review these recent errors from the marketplace app and suggest systemic improvements:
-
-${recentErrors}
-
-Return JSON with:
-- patterns: array of error patterns detected
-- improvement_suggestions: array of proactive fixes to apply
-- health_score: app health 1-100`,
+          prompt: 'You are the FOX AI continuous improvement system.\nReview these recent errors from the marketplace app and suggest systemic improvements:\n\n' + recentErrors + '\n\nReturn JSON with:\n- patterns: array of error patterns detected\n- improvement_suggestions: array of proactive fixes to apply\n- health_score: app health 1-100',
         });
         this.errorLog = this.errorLog.slice(-20);
       } catch {
@@ -122,7 +99,7 @@ Return JSON with:
   }
 
   updateLog(key, status) {
-    const entry = this.errorLog.find(e => `${e.type}:${e.message?.slice(0, 80)}` === key);
+    const entry = this.errorLog.find(e => e.type + ':' + e.message?.slice(0, 80) === key);
     if (entry) entry.status = status;
   }
 
