@@ -17,13 +17,13 @@ async function api(path, { method = 'GET', body } = {}) {
   if (!API_URL) throw new Error('API_URL not set');
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_URL}${path}`, {
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const res = await fetch(API_URL + path, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(`API ${res.status}`);
+  if (!res.ok) throw new Error('API ' + res.status);
   return res.json();
 }
 
@@ -123,7 +123,7 @@ const AI_PROVIDERS = [
     url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
     call: async (payload, key) => {
       const body = { contents: [{ parts: [{ text: payload.prompt || '' }] }] };
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error('gemini fail');
@@ -138,7 +138,7 @@ const AI_PROVIDERS = [
     call: async (payload, key) => {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
         body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: payload.prompt || '' }] }),
       });
       if (!res.ok) throw new Error('groq fail');
@@ -153,7 +153,7 @@ const AI_PROVIDERS = [
     call: async (payload, key) => {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
         body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: payload.prompt || '' }] }),
       });
       if (!res.ok) throw new Error('openai fail');
@@ -207,7 +207,7 @@ const mock = {
     Core: {
       InvokeLLM: async ({ prompt, response_json_schema }) => {
         if (response_json_schema?.properties?.approved) return { approved: true, reason: '' };
-        return { text: `Mocked response for: ${prompt?.slice(0, 60) ?? 'N/A'}` };
+        return { text: 'Mocked response for: ' + (prompt?.slice(0, 60) ?? 'N/A') };
       },
       UploadFile: async () => ({
         file_url: 'https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?w=800',
@@ -223,33 +223,33 @@ export const FOX = {
       list: (sort, limit) => {
         const country = getStoredCountry();
         const qs = new URLSearchParams({ status: 'active', limit: limit || 100, ...(country ? { country } : {}) }).toString();
-        return safe(() => api(`/ads?${qs}`), () => mock.entities.Ad.filter(country ? { country } : {}, sort, limit));
+        return safe(() => api('/ads?' + qs), () => mock.entities.Ad.filter(country ? { country } : {}, sort, limit));
       },
       filter: (filter = {}, sort, limit) => {
         const country = filter.country || getStoredCountry();
         const qs = new URLSearchParams({ ...filter, ...(country ? { country } : {}), limit: limit || 100 }).toString();
-        return safe(() => api(`/ads?${qs}`), () => mock.entities.Ad.filter({ ...filter, ...(country ? { country } : {}) }, sort, limit));
+        return safe(() => api('/ads?' + qs), () => mock.entities.Ad.filter({ ...filter, ...(country ? { country } : {}) }, sort, limit));
       },
       create: (data) => safe(() => api('/ads', { method: 'POST', body: data }), () => mock.entities.Ad.create(data)),
-      update: (id, patch) => safe(() => api(`/ads/${id}`, { method: 'PATCH', body: patch }), () => mock.entities.Ad.update(id, patch)),
-      delete: (id) => safe(() => api(`/ads/${id}`, { method: 'DELETE' }), () => mock.entities.Ad.delete(id)),
+      update: (id, patch) => safe(() => api('/ads/' + id, { method: 'PATCH', body: patch }), () => mock.entities.Ad.update(id, patch)),
+      delete: (id) => safe(() => api('/ads/' + id, { method: 'DELETE' }), () => mock.entities.Ad.delete(id)),
     },
     Favorite: {
       list: () => safe(() => api('/favorites'), () => mock.entities.Favorite.list()),
       filter: (filter) => safe(async () => { const favs = await api('/favorites'); return filter ? favs.filter(f => Object.entries(filter).every(([k, v]) => f[k] === v)) : favs; }, () => mock.entities.Favorite.filter(filter)),
       create: (data) => safe(() => api('/favorites', { method: 'POST', body: data }), () => mock.entities.Favorite.create(data)),
-      delete: (id) => safe(() => api(`/favorites/${id}`, { method: 'DELETE' }), () => mock.entities.Favorite.delete(id)),
+      delete: (id) => safe(() => api('/favorites/' + id, { method: 'DELETE' }), () => mock.entities.Favorite.delete(id)),
     },
     Message: {
       filter: (filter) => {
         const conversation = filter?.ad_id || filter?.conversation;
         if (!conversation) return Promise.resolve([]);
-        return safe(() => api(`/chat/${conversation}`), () => mock.entities.Message.filter(filter));
+        return safe(() => api('/chat/' + conversation), () => mock.entities.Message.filter(filter));
       },
       create: (data) => safe(() => api('/chat', { method: 'POST', body: data }), () => mock.entities.Message.create(data)),
     },
     Notification: {
-      list: (sort, limit) => safe(() => api(`/notifications?limit=${limit || 10}`), () => mock.entities.Notification.list(sort, limit)),
+      list: (sort, limit) => safe(() => api('/notifications?limit=' + (limit || 10)), () => mock.entities.Notification.list(sort, limit)),
     },
     User: {
       list: () => safe(() => api('/auth/users'), () => mock.entities.User.list()),
