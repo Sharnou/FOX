@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 const LABELS = {
   ar: {
     analyzing: "جاري تحليل الأسعار...",
-    insight: (city, count) => `💡 تحليل السعر — بناءً على ${count} إعلان مشابه في ${city}`,
+    insight: (city, count) => '💡 تحليل السعر — بناءً على ' + count + ' إعلان مشابه في ' + city,
     avg: "متوسط",
     low: "منخفض",
     high: "مرتفع",
@@ -13,7 +13,7 @@ const LABELS = {
   },
   en: {
     analyzing: "Analyzing prices...",
-    insight: (city, count) => `💡 Price insight — based on ${count} similar listings in ${city}`,
+    insight: (city, count) => '💡 Price insight — based on ' + count + ' similar listings in ' + city,
     avg: "Avg",
     low: "Low",
     high: "High",
@@ -22,7 +22,7 @@ const LABELS = {
   },
   de: {
     analyzing: "Preise werden analysiert...",
-    insight: (city, count) => `💡 Preisanalyse — basierend auf ${count} ähnlichen Anzeigen in ${city}`,
+    insight: (city, count) => '💡 Preisanalyse — basierend auf ' + count + ' ähnlichen Anzeigen in ' + city,
     avg: "Mittel",
     low: "Niedrig",
     high: "Hoch",
@@ -31,7 +31,7 @@ const LABELS = {
   },
   fr: {
     analyzing: "Analyse des prix...",
-    insight: (city, count) => `💡 Analyse du prix — basé sur ${count} annonces similaires à ${city}`,
+    insight: (city, count) => '💡 Analyse du prix — basé sur ' + count + ' annonces similaires à ' + city,
     avg: "Moy",
     low: "Bas",
     high: "Élevé",
@@ -50,7 +50,7 @@ export default function SmartPriceSuggester({ category, city, currentPrice, lang
     if (!category || !city) return;
     const controller = new AbortController();
     setLoading(true);
-    fetch(`/api/price-suggest?category=${encodeURIComponent(category)}&city=${encodeURIComponent(city)}`, {
+    fetch('/api/price-suggest?category=' + encodeURIComponent(category) + '&city=' + encodeURIComponent(city), {
       signal: controller.signal,
     })
       .then((r) => (r.ok ? r.json() : null))
@@ -90,7 +90,7 @@ export default function SmartPriceSuggester({ category, city, currentPrice, lang
       <div className="relative h-3 bg-gradient-to-r from-green-400 via-yellow-300 to-red-400 rounded-full mb-1">
         <div
           className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 border-blue-600 rounded-full shadow-md transition-all duration-500"
-          style={{ left: `${position}%`, transform: "translate(-50%, -50%)" }}
+          style={{ left: position + '%', transform: "translate(-50%, -50%)" }}
         />
       </div>
 
@@ -105,7 +105,7 @@ export default function SmartPriceSuggester({ category, city, currentPrice, lang
 
       {/* Advice */}
       {price > 0 && (
-        <p className={`text-xs mt-2 font-medium ${isHigh ? "text-orange-600" : "text-green-700"}`}>
+        <p className={'text-xs mt-2 font-medium ' + (isHigh ? "text-orange-600" : "text-green-700")}>
           {isHigh ? t.warning : t.good}
         </p>
       )}
