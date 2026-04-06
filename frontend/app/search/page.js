@@ -82,7 +82,7 @@ export default function SearchPage() {
       const params = { country };
       if (category !== 'الكل') params.category = CAT_MAP[category] || category;
       if (city) params.city = city;
-      const res = await axios.get(`${API}/api/ads`, { params });
+      const res = await axios.get(API + '/api/ads', { params });
       const _searchData = res.data;
       const _searchAds = Array.isArray(_searchData) ? _searchData : (_searchData.ads || _searchData.data || []);
       const filtered = (_searchAds || []).filter(ad =>
@@ -118,9 +118,9 @@ export default function SearchPage() {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     name: query
-      ? `نتائج البحث عن "${query}" في XTOX`
-      : `إعلانات XTOX - ${category !== 'الكل' ? category : 'جميع الفئات'}`,
-    description: `نتائج البحث في سوق XTOX للإعلانات المبوبة`,
+      ? ('نتائج البحث عن "' + query + '" في XTOX')
+      : ('إعلانات XTOX - ' + (category !== 'الكل' ? category : 'جميع الفئات')),
+    description: 'نتائج البحث في سوق XTOX للإعلانات المبوبة',
     numberOfItems: sorted.length,
     ...(searchPrices.length > 0 && {
       offers: {
@@ -137,7 +137,7 @@ export default function SearchPage() {
       item: {
         '@type': 'Product',
         name: ad.title,
-        url: `https://xtox.app/ads/${ad._id}`,
+        url: 'https://xtox.app/ads/' + ad._id,
         image: ad.media?.[0] || undefined,
         offers: {
           '@type': 'Offer',
@@ -159,7 +159,7 @@ export default function SearchPage() {
       '@type': 'ListItem',
       position: 3,
       name: query,
-      item: `https://xtox.app/search?q=${encodeURIComponent(query)}`,
+      item: 'https://xtox.app/search?q=' + encodeURIComponent(query),
     });
   }
   const breadcrumbSearchLd = searched ? {
@@ -284,7 +284,7 @@ export default function SearchPage() {
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
             {sorted.map(ad => (
-              <a key={ad._id} href={`/ads/${ad._id}`} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit' }}>
+              <a key={ad._id} href={'/ads/' + ad._id} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit' }}>
                 <div style={{ height: 130, background: '#f0f0f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
                   {ad.media?.[0] ? <img src={ad.media[0]} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title} /> : '📦'}
                 </div>
