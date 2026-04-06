@@ -8,7 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 
 function optimizeImage(url, width = 200) {
   if (!url || !url.includes('cloudinary.com')) return url;
-  return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
+  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
 }
 
 export function recordRecentView(adId) {
@@ -29,7 +29,7 @@ export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
           .filter(id => id !== currentAdId).slice(0, MAX_ITEMS);
         if (!ids.length) return;
         const results = await Promise.allSettled(
-          ids.map(id => fetch(`${API}/api/ads/${id}`).then(r => r.ok ? r.json() : null))
+          ids.map(id => fetch(API + '/api/ads/' + id).then(r => r.ok ? r.json() : null))
         );
         setAds(results.flatMap(r => (r.status === 'fulfilled' && r.value ? [r.value] : [])));
       } catch {}
@@ -47,7 +47,7 @@ export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
       <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">{label}</h2>
       <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
         {ads.map(ad => (
-          <Link key={ad._id} href={`/ads/${ad._id}`}
+          <Link key={ad._id} href={'/ads/' + ad._id}
             className="flex-shrink-0 w-32 snap-start rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-white hover:shadow-md transition-shadow">
             <div className="w-full h-20 bg-gray-100 overflow-hidden">
               {ad.images?.[0]
