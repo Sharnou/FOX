@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { fetchWithRetry } from '../lib/fetchWithRetry';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
 import AdCardSkeleton from './components/AdCardSkeleton';
@@ -273,7 +274,7 @@ export default function Home() {
         }}
       >
         {/* Brand */}
-        <a
+        <Link
           href="/"
           className="header-brand"
           aria-label={lang === 'ar' ? 'اكستوكس - الصفحة الرئيسية' : 'XTOX - Home'}
@@ -291,7 +292,7 @@ export default function Home() {
           }}
         >
           XTOX
-        </a>
+        </Link>
 
         {/* AI Search Bar */}
         <div style={{ flex: 1, position: 'relative' }}>
@@ -302,7 +303,7 @@ export default function Home() {
         </div>
 
         {/* Sell CTA */}
-        <a
+        <Link
           href="/sell"
           className="header-sell"
           aria-label={lang === 'ar' ? 'أضف إعلانك الآن' : 'Post your ad'}
@@ -322,10 +323,10 @@ export default function Home() {
           }}
         >
           {t.sell || (lang === 'ar' ? '＋ أعلن' : '＋ Sell')}
-        </a>
+        </Link>
 
         {/* Saved */}
-        <a
+        <Link
           href="/saved"
           title={savedLabel}
           aria-label={lang === 'ar' ? 'المحفوظات' + (savedCount > 0 ? ' - ' + savedCount + ' إعلان' + ' إعلان' : '') : 'Saved' + (savedCount > 0 ? ' - ' + savedCount : '')}
@@ -370,7 +371,7 @@ export default function Home() {
               {savedCount > 9 ? '9+' : savedCount}
             </span>
           )}
-        </a>
+        </Link>
 
         {/* User / Login */}
         {user ? (
@@ -399,7 +400,7 @@ export default function Home() {
               : user.name?.[0]?.toUpperCase()}
           </a>
         ) : (
-          <a
+          <Link
             href="/login"
             aria-label={lang === 'ar' ? 'تسجيل الدخول إلى حسابك' : 'Log in to your account'}
             style={{
@@ -416,7 +417,7 @@ export default function Home() {
             }}
           >
             {loginLabel}
-          </a>
+          </Link>
         )}
       </header>
 
@@ -480,18 +481,18 @@ export default function Home() {
           className="quick-scroll"
           style={{ display: 'flex', gap: 8, justifyContent: 'center', overflowX: 'auto', paddingBottom: 4 }}
         >
-          <a href="/nearby" className="quick-btn" aria-label={lang === 'ar' ? 'الإعلانات القريبة' : 'Nearby ads'} style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>
+          <Link href="/nearby" className="quick-btn" aria-label={lang === 'ar' ? 'الإعلانات القريبة' : 'Nearby ads'} style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>
             <span aria-hidden="true">📍</span>{t.nearby || (lang === 'ar' ? 'قريب منك' : 'Nearby')}
-          </a>
-          <a href="/my-ads" className="quick-btn" aria-label={lang === 'ar' ? 'إعلاناتي' : 'My ads'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+          </Link>
+          <Link href="/my-ads" className="quick-btn" aria-label={lang === 'ar' ? 'إعلاناتي' : 'My ads'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
             <span aria-hidden="true">📋</span>{t.myAds || (lang === 'ar' ? 'إعلاناتي' : 'My Ads')}
-          </a>
-          <a href="/chat" className="quick-btn" aria-label={lang === 'ar' ? 'المحادثات' : 'Messages'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+          </Link>
+          <Link href="/chat" className="quick-btn" aria-label={lang === 'ar' ? 'المحادثات' : 'Messages'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
             <span aria-hidden="true">💬</span>{t.messages || (lang === 'ar' ? 'رسائل' : 'Messages')}
-          </a>
-          <a href="/search" className="quick-btn" aria-label={lang === 'ar' ? 'البحث المتقدم' : 'Advanced search'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+          </Link>
+          <Link href="/search" className="quick-btn" aria-label={lang === 'ar' ? 'البحث المتقدم' : 'Advanced search'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
             <span aria-hidden="true">🔍</span>{t.advancedSearch || (lang === 'ar' ? 'بحث متقدم' : 'Advanced')}
-          </a>
+          </Link>
         </nav>
       </section>
 
@@ -847,7 +848,7 @@ export default function Home() {
                 <p style={{ fontSize: 13, margin: '0 0 24px', color: '#94a3b8' }}>
                   {lang === 'ar' ? 'كن أول من يضيف إعلاناً!' : 'Be the first to post!'}
                 </p>
-                <a
+                <Link
                   href="/sell"
                   aria-label={lang === 'ar' ? 'أضف إعلانك الآن' : 'Post your first ad'}
                   style={{
@@ -863,7 +864,7 @@ export default function Home() {
                   }}
                 >
                   {lang === 'ar' ? '＋ أضف إعلاناً' : '＋ Post Ad'}
-                </a>
+                </Link>
               </div>
             )}
           </div>
