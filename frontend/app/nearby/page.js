@@ -8,7 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 const LABELS = {
   title: '🗺️ إعلانات قريبة',
   searching: 'جارٍ البحث...',
-  adsFound: (n, r) => `${n} إعلان في نطاق ${r} كم`,
+  adsFound: (n, r) => n + ' إعلان في نطاق ' + r + ' كم',
   noAds: 'لا توجد إعلانات في هذا النطاق',
   noAdsHint: 'جرّب توسيع نطاق البحث أو الانتقال لمنطقة أخرى',
   radius: 'النطاق:',
@@ -267,34 +267,21 @@ export default function NearbyPage() {
 
       const img   = ad.media?.[0] || ad.images?.[0] || '';
       const price = ad.price
-        ? `${Number(ad.price).toLocaleString('ar-EG')} ج.م`
+        ? Number(ad.price).toLocaleString('ar-EG') + ' ج.م'
         : LABELS.priceOnContact;
-      const dist  = ad.distance ? `${(ad.distance / 1000).toFixed(1)} ${LABELS.km}` : '';
+      const dist  = ad.distance ? (ad.distance / 1000).toFixed(1) + ' ' + LABELS.km : '';
       const isSaved = savedAds.includes(ad._id);
 
       const icon = L.divIcon({
-        html: `<div style="background:${ad.isFeatured ? '#e67e22' : '#002f34'};color:#fff;border-radius:10px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;font-family:Cairo,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.3);border:2px solid rgba(255,255,255,0.3)">${ad.isFeatured ? '⭐ ' : ''}${price}</div>`,
+        html: '<div style="background:' + (ad.isFeatured ? '#e67e22' : '#002f34') + ';color:#fff;border-radius:10px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;font-family:Cairo,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.3);border:2px solid rgba(255,255,255,0.3)">' + (ad.isFeatured ? '⭐ ' : '') + price + '</div>',
         className: '',
         iconAnchor: [0, 0],
       });
 
-      const waUrl   = `https://wa.me/?text=${encodeURIComponent(`${ad.title} - ${window.location.origin}/ads/${ad._id}`)}`;
-      const mapUrl  = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      const waUrl   = 'https://wa.me/?text=' + encodeURIComponent(ad.title + ' - ' + window.location.origin + '/ads/' + ad._id);
+      const mapUrl  = 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng;
 
-      const popupContent = `
-        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;max-width:250px">
-          ${img ? `<img src="${img}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display='none'" alt="${ad.title || 'إعلان'}" loading="lazy">` : ''}
-          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${ad.title || ''}">${ad.title || 'إعلان'}</div>
-          ${ad.category ? `<div style="background:#f0f7f4;color:#002f34;font-size:10px;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">${ad.category}</div>` : ''}
-          <div style="color:#e74c3c;font-weight:700;font-size:14px;margin-bottom:4px">${price}</div>
-          ${dist ? `<div style="color:#888;font-size:11px;margin-bottom:8px">📍 ${dist}</div>` : ''}
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <a href="/ads/${ad._id}" style="flex:1;min-width:80px;background:#002f34;color:#fff;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">${LABELS.viewAdFull}</a>
-            <a href="${mapUrl}" target="_blank" rel="noopener" style="background:#4285F4;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="الاتجاهات">${LABELS.navigate}</a>
-            <a href="${waUrl}" target="_blank" rel="noopener" style="background:#25D366;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="مشاركة واتساب">💬</a>
-          </div>
-        </div>
-      `;
+      const popupContent = '\n        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;max-width:250px">\n          ' + (img ? '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display=\'none\'" alt="' + (ad.title || 'إعلان') + '" loading="lazy">' + '" loading="lazy">' : '') + '\n          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (ad.title || '') + '">' + (ad.title || 'إعلان') + '</div>\n          ' + (ad.category ? '<div style="background:#f0f7f4;color:#002f34;font-size:10px;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">' + ad.category + '</div>' + '</div>' : '') + '\n          <div style="color:#e74c3c;font-weight:700;font-size:14px;margin-bottom:4px">' + price + '</div>\n          ' + (dist ? '<div style="color:#888;font-size:11px;margin-bottom:8px">📍 ' + dist + '</div>' + '</div>' : '') + '\n          <div style="display:flex;gap:6px;flex-wrap:wrap">\n            <a href="/ads/' + ad._id + '" style="flex:1;min-width:80px;background:#002f34;color:#fff;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">' + LABELS.viewAdFull + '</a>\n            <a href="' + mapUrl + '" target="_blank" rel="noopener" style="background:#4285F4;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="الاتجاهات">' + LABELS.navigate + '</a>\n            <a href="' + waUrl + '" target="_blank" rel="noopener" style="background:#25D366;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="مشاركة واتساب">💬</a>\n          </div>\n        </div>\n      ';
 
       const marker = L.marker([lat, lng], { icon });
       marker.bindPopup(popupContent, { maxWidth: 260, className: 'xtox-popup' });
@@ -308,10 +295,10 @@ export default function NearbyPage() {
     setFetchError(null);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const res   = await fetch(`${API}/api/geo/nearby?lat=${lat}&lng=${lng}&radius=${radius}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const res   = await fetch(API + '/api/geo/nearby?lat=' + lat + '&lng=' + lng + '&radius=' + radius, {
+        headers: token ? { Authorization: 'Bearer ' + token } : {},
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data   = await res.json();
       const adList = Array.isArray(data) ? data : (data.ads || []);
       setAds(adList);
@@ -372,7 +359,7 @@ export default function NearbyPage() {
       map.on('moveend', () => {
         const c = map.getCenter();
         const z = map.getZoom();
-        saveMapHistory(c.lat, c.lng, z, `${c.lat.toFixed(3)}, ${c.lng.toFixed(3)}`);
+        saveMapHistory(c.lat, c.lng, z, c.lat.toFixed(3) + ', ' + c.lng.toFixed(3));
         setHistory(getMapHistory());
       });
 
@@ -386,7 +373,7 @@ export default function NearbyPage() {
         iconCreateFunction: (cluster) => {
           const count = cluster.getChildCount();
           return L.divIcon({
-            html: `<div role="img" aria-label="${count} إعلان" style="background:#002f34;color:#fff;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-family:Cairo,sans-serif">${count}</div>`,
+            html: '<div role="img" aria-label="' + count + ' إعلان" style="background:#002f34;color:#fff;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-family:Cairo,sans-serif">' + count + '</div>',
             className: '',
             iconSize: [38, 38],
           });
@@ -408,7 +395,7 @@ export default function NearbyPage() {
               radius: 10, fillColor: '#4285F4', color: '#fff', fillOpacity: 0.9, weight: 3,
             })
               .addTo(map)
-              .bindPopup(`<div style="font-family:Cairo;direction:rtl;font-weight:700">${LABELS.myLocation}</div>`);
+              .bindPopup('<div style="font-family:Cairo;direction:rtl;font-weight:700">' + LABELS.myLocation + '</div>');
 
             fetchAds(lat, lng);
           },
@@ -477,7 +464,7 @@ export default function NearbyPage() {
   const shareToGoogleMaps = useCallback(async () => {
     if (!leafletMap.current) return;
     const c   = leafletMap.current.getCenter();
-    const url = `https://www.google.com/maps/@${c.lat},${c.lng},${leafletMap.current.getZoom()}z`;
+    const url = 'https://www.google.com/maps/@' + c.lat + ',' + c.lng + ',' + leafletMap.current.getZoom() + 'z';
     try {
       if (navigator.share) {
         await navigator.share({ title: 'إعلانات XTOX في هذه المنطقة', url });
@@ -508,33 +495,7 @@ export default function NearbyPage() {
       }}
     >
       {/* Global styles */}
-      <style>{`
-        @keyframes shimmer {
-          0%   { opacity: 0.4; }
-          50%  { opacity: 0.9; }
-          100% { opacity: 0.4; }
-        }
-        @keyframes slideDown {
-          from { transform: translateY(-20px); opacity: 0; }
-          to   { transform: translateY(0);     opacity: 1; }
-        }
-        @keyframes toastIn {
-          from { transform: translateY(20px); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-        .xtox-popup .leaflet-popup-content-wrapper {
-          border-radius: 14px; padding: 0; overflow: hidden;
-          box-shadow: 0 6px 24px rgba(0,0,0,0.18);
-        }
-        .xtox-popup .leaflet-popup-content { margin: 12px; }
-        .xtox-popup .leaflet-popup-tip     { background: #fff; }
-        .leaflet-marker-cluster             { background: transparent !important; }
-        ::-webkit-scrollbar                 { width: 0; height: 0; }
-        button:focus-visible {
-          outline: 2px solid #4285F4;
-          outline-offset: 2px;
-        }
-      `}</style>
+      <style>{'\n        @keyframes shimmer {\n          0%   { opacity: 0.4; }\n          50%  { opacity: 0.9; }\n          100% { opacity: 0.4; }\n        }\n        @keyframes slideDown {\n          from { transform: translateY(-20px); opacity: 0; }\n          to   { transform: translateY(0);     opacity: 1; }\n        }\n        @keyframes toastIn {\n          from { transform: translateY(20px); opacity: 0; }\n          to   { transform: translateY(0);    opacity: 1; }\n        }\n        .xtox-popup .leaflet-popup-content-wrapper {\n          border-radius: 14px; padding: 0; overflow: hidden;\n          box-shadow: 0 6px 24px rgba(0,0,0,0.18);\n        }\n        .xtox-popup .leaflet-popup-content { margin: 12px; }\n        .xtox-popup .leaflet-popup-tip     { background: #fff; }\n        .leaflet-marker-cluster             { background: transparent !important; }\n        ::-webkit-scrollbar                 { width: 0; height: 0; }\n        button:focus-visible {\n          outline: 2px solid #4285F4;\n          outline-offset: 2px;\n        }\n      '}</style>
 
       {/* ── Header ── */}
       <header
@@ -617,7 +578,7 @@ export default function NearbyPage() {
               key={r}
               onClick={() => handleRadiusChange(r)}
               aria-pressed={radius === r}
-              aria-label={`نطاق ${r} كيلومتر`}
+              aria-label={'نطاق ' + r + ' كيلومتر'}
               style={{
                 flexShrink: 0,
                 background: radius === r ? '#002f34' : '#f0f0f0',
@@ -757,7 +718,7 @@ export default function NearbyPage() {
               </div>
             </div>
             <a
-              href={`/ads/${nearbyAlert._id}`}
+              href={'/ads/' + nearbyAlert._id}
               style={{
                 background: '#fff', color: '#002f34', padding: '6px 14px',
                 borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none',
