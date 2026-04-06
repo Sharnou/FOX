@@ -186,7 +186,7 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/users/register`, {
+      const res = await fetch(API_BASE + '/api/users/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -241,148 +241,10 @@ export default function RegisterPage() {
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: ${isRtl ? "'Cairo', sans-serif" : "system-ui, sans-serif"}; }
-        .register-input {
-          width: 100%;
-          padding: 12px 16px;
-          background: rgba(255,255,255,0.07);
-          border: 1px solid rgba(255,255,255,0.15);
-          border-radius: 10px;
-          color: #fff;
-          font-size: 16px;
-          font-family: inherit;
-          outline: none;
-          transition: border-color 0.2s, background 0.2s;
-        }
-        .register-input:focus {
-          border-color: rgba(167,139,250,0.7);
-          background: rgba(255,255,255,0.12);
-        }
-        .register-input::placeholder { color: rgba(255,255,255,0.4); }
-        .register-input option { background: #2d1060; color: #fff; }
-        .input-error { border-color: #f87171 !important; }
-        .error-text { color: #fca5a5; font-size: 12px; margin-top: 4px; }
-        .submit-btn {
-          width: 100%;
-          padding: 14px;
-          background: linear-gradient(135deg, #7c3aed, #6b21a8);
-          color: #fff;
-          border: none;
-          border-radius: 12px;
-          font-size: 16px;
-          font-weight: 700;
-          font-family: inherit;
-          cursor: pointer;
-          transition: transform 0.15s, box-shadow 0.15s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-        .submit-btn:hover:not(:disabled) {
-          transform: scale(1.02);
-          box-shadow: 0 8px 25px rgba(124,58,237,0.5);
-        }
-        .submit-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-        .toast {
-          position: fixed;
-          top: 24px;
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 9999;
-          padding: 14px 28px;
-          border-radius: 12px;
-          font-weight: 600;
-          font-size: 14px;
-          max-width: 90vw;
-          text-align: center;
-          animation: fadeIn 0.3s ease;
-        }
-        .toast-success { background: #065f46; color: #6ee7b7; border: 1px solid #34d399; }
-        .toast-error { background: #7f1d1d; color: #fca5a5; border: 1px solid #f87171; }
-        @keyframes fadeIn { from { opacity:0; transform: translateX(-50%) translateY(-10px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
-        .lang-btn {
-          padding: 6px 14px;
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.2);
-          border-radius: 20px;
-          color: #fff;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: inherit;
-          transition: background 0.2s;
-        }
-        .lang-btn:hover { background: rgba(255,255,255,0.2); }
-        .strength-bar-bg {
-          width: 100%;
-          height: 6px;
-          background: rgba(255,255,255,0.1);
-          border-radius: 3px;
-          margin-top: 8px;
-          overflow: hidden;
-        }
-        .strength-bar-fill {
-          height: 100%;
-          border-radius: 3px;
-          transition: width 0.3s, background 0.3s;
-        }
-        .eye-btn {
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: rgba(255,255,255,0.5);
-          font-size: 18px;
-          padding: 4px 8px;
-          transition: color 0.2s;
-        }
-        .eye-btn:hover { color: rgba(255,255,255,0.9); }
-        .input-wrapper { position: relative; }
-        .field-group { margin-bottom: 16px; }
-        .field-label {
-          display: block;
-          color: rgba(255,255,255,0.75);
-          font-size: 13px;
-          font-weight: 600;
-          margin-bottom: 6px;
-        }
-        .spinner {
-          width: 18px; height: 18px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-top-color: #fff;
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-          display: inline-block;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .glass-card {
-          background: rgba(255,255,255,0.07);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255,255,255,0.12);
-          border-radius: 20px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-        }
-        .scrollable-form {
-          max-height: 90vh;
-          overflow-y: auto;
-          padding: 32px;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255,255,255,0.2) transparent;
-        }
-        .scrollable-form::-webkit-scrollbar { width: 4px; }
-        .scrollable-form::-webkit-scrollbar-track { background: transparent; }
-        .scrollable-form::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
-      `}</style>
+      <style>{'\n        @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap\');\n        * { box-sizing: border-box; margin: 0; padding: 0; }\n        body { font-family: ' + (isRtl ? "'Cairo', sans-serif" : "system-ui, sans-serif") + '; }\n        .register-input {\n          width: 100%;\n          padding: 12px 16px;\n          background: rgba(255,255,255,0.07);\n          border: 1px solid rgba(255,255,255,0.15);\n          border-radius: 10px;\n          color: #fff;\n          font-size: 16px;\n          font-family: inherit;\n          outline: none;\n          transition: border-color 0.2s, background 0.2s;\n        }\n        .register-input:focus {\n          border-color: rgba(167,139,250,0.7);\n          background: rgba(255,255,255,0.12);\n        }\n        .register-input::placeholder { color: rgba(255,255,255,0.4); }\n        .register-input option { background: #2d1060; color: #fff; }\n        .input-error { border-color: #f87171 !important; }\n        .error-text { color: #fca5a5; font-size: 12px; margin-top: 4px; }\n        .submit-btn {\n          width: 100%;\n          padding: 14px;\n          background: linear-gradient(135deg, #7c3aed, #6b21a8);\n          color: #fff;\n          border: none;\n          border-radius: 12px;\n          font-size: 16px;\n          font-weight: 700;\n          font-family: inherit;\n          cursor: pointer;\n          transition: transform 0.15s, box-shadow 0.15s;\n          display: flex;\n          align-items: center;\n          justify-content: center;\n          gap: 8px;\n        }\n        .submit-btn:hover:not(:disabled) {\n          transform: scale(1.02);\n          box-shadow: 0 8px 25px rgba(124,58,237,0.5);\n        }\n        .submit-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }\n        .toast {\n          position: fixed;\n          top: 24px;\n          left: 50%;\n          transform: translateX(-50%);\n          z-index: 9999;\n          padding: 14px 28px;\n          border-radius: 12px;\n          font-weight: 600;\n          font-size: 14px;\n          max-width: 90vw;\n          text-align: center;\n          animation: fadeIn 0.3s ease;\n        }\n        .toast-success { background: #065f46; color: #6ee7b7; border: 1px solid #34d399; }\n        .toast-error { background: #7f1d1d; color: #fca5a5; border: 1px solid #f87171; }\n        @keyframes fadeIn { from { opacity:0; transform: translateX(-50%) translateY(-10px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }\n        .lang-btn {\n          padding: 6px 14px;\n          background: rgba(255,255,255,0.1);\n          border: 1px solid rgba(255,255,255,0.2);\n          border-radius: 20px;\n          color: #fff;\n          font-size: 13px;\n          font-weight: 600;\n          cursor: pointer;\n          font-family: inherit;\n          transition: background 0.2s;\n        }\n        .lang-btn:hover { background: rgba(255,255,255,0.2); }\n        .strength-bar-bg {\n          width: 100%;\n          height: 6px;\n          background: rgba(255,255,255,0.1);\n          border-radius: 3px;\n          margin-top: 8px;\n          overflow: hidden;\n        }\n        .strength-bar-fill {\n          height: 100%;\n          border-radius: 3px;\n          transition: width 0.3s, background 0.3s;\n        }\n        .eye-btn {\n          position: absolute;\n          top: 50%;\n          transform: translateY(-50%);\n          background: none;\n          border: none;\n          cursor: pointer;\n          color: rgba(255,255,255,0.5);\n          font-size: 18px;\n          padding: 4px 8px;\n          transition: color 0.2s;\n        }\n        .eye-btn:hover { color: rgba(255,255,255,0.9); }\n        .input-wrapper { position: relative; }\n        .field-group { margin-bottom: 16px; }\n        .field-label {\n          display: block;\n          color: rgba(255,255,255,0.75);\n          font-size: 13px;\n          font-weight: 600;\n          margin-bottom: 6px;\n        }\n        .spinner {\n          width: 18px; height: 18px;\n          border: 2px solid rgba(255,255,255,0.3);\n          border-top-color: #fff;\n          border-radius: 50%;\n          animation: spin 0.7s linear infinite;\n          display: inline-block;\n        }\n        @keyframes spin { to { transform: rotate(360deg); } }\n        .glass-card {\n          background: rgba(255,255,255,0.07);\n          backdrop-filter: blur(20px);\n          -webkit-backdrop-filter: blur(20px);\n          border: 1px solid rgba(255,255,255,0.12);\n          border-radius: 20px;\n          box-shadow: 0 20px 60px rgba(0,0,0,0.4);\n        }\n        .scrollable-form {\n          max-height: 90vh;\n          overflow-y: auto;\n          padding: 32px;\n          scrollbar-width: thin;\n          scrollbar-color: rgba(255,255,255,0.2) transparent;\n        }\n        .scrollable-form::-webkit-scrollbar { width: 4px; }\n        .scrollable-form::-webkit-scrollbar-track { background: transparent; }\n        .scrollable-form::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }\n      '}</style>
 
       {toast.message && (
-        <div className={`toast ${toast.type === 'success' ? 'toast-success' : 'toast-error'}`}>
+        <div className={'toast ' + (toast.type === 'success' ? 'toast-success' : 'toast-error')}>
           {toast.message}
         </div>
       )}
@@ -441,7 +303,7 @@ export default function RegisterPage() {
               <div className="field-group">
                 <label className="field-label">{t.name}</label>
                 <input
-                  className={`register-input${errors.name ? ' input-error' : ''}`}
+                  className={'register-input' + (errors.name ? ' input-error' : '')}
                   type="text"
                   name="name"
                   value={form.name}
@@ -456,7 +318,7 @@ export default function RegisterPage() {
               <div className="field-group">
                 <label className="field-label">{t.email}</label>
                 <input
-                  className={`register-input${errors.email ? ' input-error' : ''}`}
+                  className={'register-input' + (errors.email ? ' input-error' : '')}
                   type="email"
                   name="email"
                   value={form.email}
@@ -487,7 +349,7 @@ export default function RegisterPage() {
               <div className="field-group">
                 <label className="field-label">{t.country}</label>
                 <select
-                  className={`register-input${errors.country ? ' input-error' : ''}`}
+                  className={'register-input' + (errors.country ? ' input-error' : '')}
                   name="country"
                   value={form.country}
                   onChange={handleChange}
@@ -507,7 +369,7 @@ export default function RegisterPage() {
                 <label className="field-label">{t.password}</label>
                 <div className="input-wrapper">
                   <input
-                    className={`register-input${errors.password ? ' input-error' : ''}`}
+                    className={'register-input' + (errors.password ? ' input-error' : '')}
                     type={showPassword ? 'text' : 'password'}
                     name="password"
                     value={form.password}
@@ -540,7 +402,7 @@ export default function RegisterPage() {
                       <div
                         className="strength-bar-fill"
                         style={{
-                          width: `${(passwordStrength / 3) * 100}%`,
+                          width: (passwordStrength / 3) * 100 + '%',
                           background: strengthColor(),
                         }}
                       />
@@ -554,7 +416,7 @@ export default function RegisterPage() {
                 <label className="field-label">{t.confirmPassword}</label>
                 <div className="input-wrapper">
                   <input
-                    className={`register-input${errors.confirmPassword ? ' input-error' : ''}`}
+                    className={'register-input' + (errors.confirmPassword ? ' input-error' : '')}
                     type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
                     value={form.confirmPassword}
