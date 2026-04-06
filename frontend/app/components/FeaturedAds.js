@@ -41,13 +41,13 @@ function SkeletonCard() {
 function FeaturedCard({ ad }) {
   const isCartoon = ad.featuredStyle === 'cartoon';
   const whatsappNum = ad.phone ? ad.phone.replace(/\D/g, '') : null;
-  const whatsappUrl = whatsappNum ? `https://wa.me/${whatsappNum}?text=${encodeURIComponent(`مرحباً، رأيت إعلانك "${ad.title}" على XTOX`)}` : null;
+  const whatsappUrl = whatsappNum ? 'https://wa.me/' + whatsappNum + '?text=' + encodeURIComponent('مرحباً، رأيت إعلانك "' + ad.title + '" على XTOX' + '" على XTOX') : null;
 
   return (
     <article
       dir="rtl"
       role="article"
-      aria-label={`إعلان مميز: ${ad.title}`}
+      aria-label={'إعلان مميز: ' + ad.title}
       style={{
         minWidth: 180,
         maxWidth: 200,
@@ -82,7 +82,7 @@ function FeaturedCard({ ad }) {
         {isCartoon ? '⭐ مميز' : '✓ مميز'}
       </span>
 
-      <Link href={`/ads/${ad._id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+      <Link href={'/ads/' + ad._id} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
         {/* Image with gradient overlay */}
         <div style={{ position: 'relative', width: '100%', height: 120, background: '#f0f0f0', overflow: 'hidden' }}>
           {ad.media?.[0] ? (
@@ -112,7 +112,7 @@ function FeaturedCard({ ad }) {
             {ad.title}
           </p>
           <p style={{ fontWeight: 700, fontSize: 14, color: '#e67e22', margin: '0 0 4px' }}>
-            {ad.price ? `${ad.price} ${ad.currency || LABELS.currency}` : 'السعر عند الاتصال'}
+            {ad.price ? ad.price + ' ' + (ad.currency || LABELS.currency) : 'السعر عند الاتصال'}
           </p>
           {(ad.city || ad.location) && (
             <p style={{ fontSize: 11, color: '#888', margin: '0 0 2px', display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -134,7 +134,7 @@ function FeaturedCard({ ad }) {
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`تواصل عبر واتساب بخصوص: ${ad.title}`}
+          aria-label={'تواصل عبر واتساب بخصوص: ' + ad.title}
           onClick={e => e.stopPropagation()}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
@@ -217,17 +217,7 @@ export default function FeaturedAds({ ads = [], loading = false }) {
       style={{ padding: '16px 0', position: 'relative', fontFamily: 'Cairo, sans-serif' }}
     >
       {/* Keyframes */}
-      <style>{`
-        @keyframes shimmer {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-        .featured-card:focus-within {
-          outline: 2px solid #002f34;
-          outline-offset: 2px;
-          border-radius: 16px;
-        }
-      `}</style>
+      <style>{'\r\n        @keyframes shimmer {\r\n          0%   { background-position: 200% 0; }\r\n          100% { background-position: -200% 0; }\r\n        }\r\n        .featured-card:focus-within {\r\n          outline: 2px solid #002f34;\r\n          outline-offset: 2px;\r\n          border-radius: 16px;\r\n        }\r\n      '}</style>
 
       {/* Header */}
       <div style={{
@@ -269,7 +259,7 @@ export default function FeaturedAds({ ads = [], loading = false }) {
             WebkitOverflowScrolling: 'touch',
           }}
         >
-          <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+          <style>{'div::-webkit-scrollbar { display: none; }'}</style>
 
           {loading
             ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
