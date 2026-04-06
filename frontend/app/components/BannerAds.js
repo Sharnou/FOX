@@ -50,7 +50,7 @@ export default function BannerAds({ ads = [], lang = 'ar' }) {
       {heroAds.map((ad, i) => {
         const cfg = STYLE_CONFIG[ad.featuredStyle] || STYLE_CONFIG.banner;
         return (
-          <Link key={ad._id || `hero-${i}`} href={`/ads/${ad._id}`} style={{ textDecoration: 'none', display: 'block', marginBottom: 8 }}>
+          <Link key={ad._id || 'hero-' + i} href={'/ads/' + ad._id} style={{ textDecoration: 'none', display: 'block', marginBottom: 8 }}>
             <div style={{
               background: cfg.bg,
               color: '#fff',
@@ -118,7 +118,7 @@ export default function BannerAds({ ads = [], lang = 'ar' }) {
             const cfg = STYLE_CONFIG[ad.featuredStyle] || STYLE_CONFIG.normal;
             const isCartoon = ad.featuredStyle === 'cartoon';
             return (
-              <Link key={ad._id || `compact-${i}`} href={`/ads/${ad._id}`} style={{ textDecoration: 'none' }}>
+              <Link key={ad._id || 'compact-' + i} href={'/ads/' + ad._id} style={{ textDecoration: 'none' }}>
                 <div style={{
                   background: cfg.bg,
                   color: '#fff',
