@@ -95,7 +95,7 @@ export default function DealSafetyTips({ locale = 'ar', className = '' }) {
         type="button"
         onClick={handleOpen}
         dir={isRTL ? 'rtl' : 'ltr'}
-        className={`inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 underline underline-offset-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded ${className}`}
+        className={'inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 underline underline-offset-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded ' + className}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
