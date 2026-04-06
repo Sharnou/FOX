@@ -123,7 +123,7 @@ export default function RecentSearchesWidget({ onSelect, locale = 'ar' }) {
             key={idx}
             onClick={() => handleSelect(term)}
             className="flex-shrink-0 flex items-center gap-1 bg-gray-100 hover:bg-orange-100 text-gray-700 hover:text-orange-700 text-sm rounded-full px-3 py-1 transition-colors border border-transparent hover:border-orange-300"
-            aria-label={isRTL ? `ابحث عن ${term}` : `Search ${term}`}
+            aria-label={isRTL ? 'ابحث عن ' + term : 'Search ' + term}
           >
             {/* Search icon */}
             <svg
