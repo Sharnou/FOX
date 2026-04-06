@@ -50,9 +50,9 @@ export default function QRCode({ adId, adTitle, adUrl, showModal = false, onClos
   const isRTL = lang === 'ar';
 
   // Build the QR URL — use the adUrl prop or fallback
-  const targetUrl = adUrl || (adId ? `https://fox-kohl-eight.vercel.app/ads/${adId}` : '');
+  const targetUrl = adUrl || (adId ? 'https://fox-kohl-eight.vercel.app/ads/' + adId : '');
   const qrImageUrl = targetUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(targetUrl)}&color=FF6B35&bgcolor=ffffff&margin=10`
+    ? 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(targetUrl) + '&color=FF6B35&bgcolor=ffffff&margin=10'
     : null;
 
   const handleCopyLink = async () => {
@@ -82,7 +82,7 @@ export default function QRCode({ adId, adTitle, adUrl, showModal = false, onClos
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `xtox-qr-${adId || 'ad'}.png`;
+      a.download = 'xtox-qr-' + (adId || 'ad') + '.png';
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -133,7 +133,7 @@ export default function QRCode({ adId, adTitle, adUrl, showModal = false, onClos
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-opacity"
             style={{ backgroundColor: '#FF6B35', opacity: isDownloading ? 0.7 : 1 }}
           >
-            {isDownloading ? t.downloading : `⬇ ${t.downloadQR}`}
+            {isDownloading ? t.downloading : '⬇ ' + t.downloadQR}
           </button>
           <button
             onClick={handleCopyLink}
@@ -144,7 +144,7 @@ export default function QRCode({ adId, adTitle, adUrl, showModal = false, onClos
               backgroundColor: copyStatus === 'copied' ? '#f0fdf4' : 'transparent',
             }}
           >
-            {copyStatus === 'copied' ? `✓ ${t.copied}` : copyStatus === 'failed' ? t.copyFailed : `🔗 ${t.copyLink}`}
+            {copyStatus === 'copied' ? '✓ ' + t.copied : copyStatus === 'failed' ? t.copyFailed : '🔗 ' + t.copyLink}
           </button>
         </div>
         <p className="text-[10px] text-gray-300 mt-1">{t.poweredBy}</p>
@@ -230,7 +230,7 @@ export default function QRCode({ adId, adTitle, adUrl, showModal = false, onClos
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-opacity"
               style={{ backgroundColor: '#FF6B35', opacity: isDownloading ? 0.7 : 1 }}
             >
-              {isDownloading ? t.downloading : `⬇ ${t.downloadQR}`}
+              {isDownloading ? t.downloading : '⬇ ' + t.downloadQR}
             </button>
             <button
               onClick={handleCopyLink}
@@ -242,10 +242,10 @@ export default function QRCode({ adId, adTitle, adUrl, showModal = false, onClos
               }}
             >
               {copyStatus === 'copied'
-                ? `✓ ${t.copied}`
+                ? '✓ ' + t.copied
                 : copyStatus === 'failed'
                 ? t.copyFailed
-                : `🔗 ${t.copyLink}`}
+                : '🔗 ' + t.copyLink}
             </button>
           </div>
 
