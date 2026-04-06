@@ -67,7 +67,7 @@ export default function HijriDateDisplay({ date, showGregorian = true, className
   const d = date ? new Date(date) : new Date();
   const hijri = gregorianToHijri(d);
 
-  const hijriStr = `${toArabicNumerals(hijri.day)} ${HIJRI_MONTHS_AR[hijri.month - 1]} ${toArabicNumerals(hijri.year)}`;
+  const hijriStr = toArabicNumerals(hijri.day) + ' ' + HIJRI_MONTHS_AR[hijri.month - 1] + ' ' + toArabicNumerals(hijri.year);
 
   const gregorianStr = d.toLocaleDateString('ar-EG', {
     year: 'numeric',
@@ -77,7 +77,7 @@ export default function HijriDateDisplay({ date, showGregorian = true, className
 
   return (
     <div
-      className={`hijri-date-display ${className}`}
+      className={'hijri-date-display ' + className}
       dir="rtl"
       style={{
         fontSize: '0.82rem',
@@ -92,7 +92,7 @@ export default function HijriDateDisplay({ date, showGregorian = true, className
         role="time"
         title={showGregorian ? gregorianStr : ''}
         style={{ cursor: 'default' }}
-        aria-label={`تاريخ الإعلان: ${hijriStr} هجري`}
+        aria-label={'تاريخ الإعلان: ' + hijriStr + ' هجري'}
       >
         📅 {hijriStr} هـ
       </span>
