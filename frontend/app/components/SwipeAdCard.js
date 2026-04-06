@@ -145,7 +145,7 @@ export default function SwipeAdCard({ ads = [], token, onWishlistUpdate }) {
               title="تخطي"
             >✗</button>
             <Link
-              href={`/ads/${topAd._id}`}
+              href={'/ads/' + topAd._id}
               className="w-12 h-12 rounded-full bg-blue-50 border-2 border-blue-300 text-blue-500 text-xl flex items-center justify-center hover:bg-blue-100 transition"
               title="عرض التفاصيل"
             >👁</Link>
