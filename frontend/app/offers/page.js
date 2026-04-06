@@ -118,8 +118,8 @@ export default function OffersPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API}/api/offers/my`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(API + '/api/offers/my', {
+        headers: { Authorization: 'Bearer ' + token },
       });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
@@ -143,9 +143,9 @@ export default function OffersPage() {
     try {
       const body = { action };
       if (action === 'counter' && amount) body.counterAmount = Number(amount);
-      const res = await fetch(`${API}/api/offers/${offerId}`, {
+      const res = await fetch(API + '/api/offers/' + offerId, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error();
@@ -167,7 +167,7 @@ export default function OffersPage() {
   const statusLabel = (s) => t[s] || s;
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} className={`min-h-screen bg-gray-50 pb-24 ${isRTL ? 'font-arabic' : ''}`}>
+    <div dir={isRTL ? 'rtl' : 'ltr'} className={'min-h-screen bg-gray-50 pb-24 ' + (isRTL ? 'font-arabic' : '')}>
       <header className="sticky top-0 z-40 bg-white shadow-sm px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-800">{t.title}</h1>
         <button
@@ -183,7 +183,7 @@ export default function OffersPage() {
           <button
             key={tb}
             onClick={() => setTab(tb)}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${tab === tb ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500'}`}
+            className={'flex-1 py-3 text-sm font-medium transition-colors ' + (tab === tb ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500')}
           >
             {tb === 'seller' ? t.asSeller : t.asBuyer}
             {tb === 'seller' && receivedOffers.filter(o => o.status === 'pending').length > 0 && (
@@ -222,13 +222,13 @@ export default function OffersPage() {
                 <div className="min-w-0">
                   <p className="text-xs text-gray-400">{t.adLabel}</p>
                   <button
-                    onClick={() => router.push(`/ads/${adId}`)}
+                    onClick={() => router.push('/ads/' + adId)}
                     className="text-emerald-600 font-medium text-sm hover:underline line-clamp-1 text-start"
                   >
                     {adTitle}
                   </button>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${STATUS_COLORS[offer.status] || 'bg-gray-100 text-gray-600'}`}>
+                <span className={'text-xs px-2 py-1 rounded-full font-medium shrink-0 ' + (STATUS_COLORS[offer.status] || 'bg-gray-100 text-gray-600')}>
                   {statusLabel(offer.status)}
                 </span>
               </div>
