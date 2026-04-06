@@ -30,7 +30,7 @@ export default function SupermarketPage() {
   const [loading, setLoading] = useState(true);
   const country = typeof window !== 'undefined' ? localStorage.getItem('country') || 'EG' : 'EG';
   useEffect(() => {
-    axios.get(`${API}/api/supermarket`, { params: { country } })
+    axios.get(API + '/api/supermarket', { params: { country } })
       .then(r => setItems(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
