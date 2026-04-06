@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import SwipeAdCard from '../components/SwipeAdCard';
 import { detectLang } from '../../lib/lang';
 
@@ -201,12 +202,12 @@ export default function SwipePage() {
         {!loading && !error && !token && ads.length > 0 && (
           <div className="mb-4 bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center justify-between gap-2">
             <p className="text-blue-700 text-xs font-medium flex-1">{t.loginPrompt}</p>
-            <a
+            <Link
               href="/login"
               className="bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold hover:bg-blue-600 transition whitespace-nowrap"
             >
               {t.loginBtn}
-            </a>
+            </Link>
           </div>
         )}
 
