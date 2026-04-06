@@ -1,361 +1,360 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
-import { detectLang } from '../../lib/lang';
 import Link from 'next/link';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+var API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+var GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+var APPLE_CLIENT_ID = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || '';
 
-/* ── RTL-first Arabic Login Page ── */
-export default function LoginPage() {
-  const [error,      setError]      = useState('');
-  const [success,    setSuccess]    = useState('');
-  const [loading,    setLoading]    = useState(false);
-  const [showEmail,  setShowEmail]  = useState(false);
-  const [email,      setEmail]      = useState('');
-  const [password,   setPassword]   = useState('');
-  const [googleReady,setGoogleReady]= useState(false);
+/* -- helpers -- */
+function storeSession(data) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('xtoxId', (data.user && data.user.xtoxId) ? data.user.xtoxId : '');
+  localStorage.setItem('xtoxEmail', (data.user && data.user.xtoxEmail) ? data.user.xtoxEmail : '');
+  localStorage.setItem('userName', (data.user && data.user.name) ? data.user.name : '');
+  localStorage.setItem('userId', (data.user && data.user.id) ? data.user.id : '');
+  localStorage.setItem('userAvatar', (data.user && data.user.avatar) ? data.user.avatar : '');
+}
 
-  /* ── load Google SDK + check auth ── */
-  useEffect(() => {
-    try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        window.location.href =
-          (user.role === 'admin' || user.role === 'sub_admin') ? '/admin' : '/';
-        return;
+export default function LoginClient() {
+  var tabState = useState('whatsapp');
+  var tab = tabState[0];
+  var setTab = tabState[1];
+
+  var phoneState = useState('');
+  var phone = phoneState[0];
+  var setPhone = phoneState[1];
+
+  var otpState = useState('');
+  var otp = otpState[0];
+  var setOtp = otpState[1];
+
+  var otpSentState = useState(false);
+  var otpSent = otpSentState[0];
+  var setOtpSent = otpSentState[1];
+
+  var loadingState = useState(false);
+  var loading = loadingState[0];
+  var setLoading = loadingState[1];
+
+  var errorState = useState('');
+  var error = errorState[0];
+  var setError = errorState[1];
+
+  var successState = useState('');
+  var success = successState[0];
+  var setSuccess = successState[1];
+
+  var countdownState = useState(0);
+  var countdown = countdownState[0];
+  var setCountdown = countdownState[1];
+
+  /* OTP resend countdown */
+  useEffect(function() {
+    if (countdown <= 0) return;
+    var t = setTimeout(function() { setCountdown(countdown - 1); }, 1000);
+    return function() { clearTimeout(t); };
+  }, [countdown]);
+
+  /* Load Google Identity SDK */
+  useEffect(function() {
+    if (!GOOGLE_CLIENT_ID) return;
+    var script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.onload = function() {
+      if (window.google && window.google.accounts) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredential,
+          auto_select: false
+        });
       }
-
-      /* Google OAuth hash callback */
-      const hash = window.location.hash || '';
-      if (hash.includes('id_token=')) {
-        setLoading(true);
-        setSuccess('جارٍ التحقق من حساب Google...');
-        const params = new URLSearchParams(hash.replace('#', ''));
-        const idToken = params.get('id_token');
-        if (idToken) {
-          const country = localStorage.getItem('detectedCountry') || 'EG';
-          fetch(API + '/api/users/auth/google', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken, country })
-          })
-            .then(r => r.json())
-            .then(data => {
-              if (data.token) { saveAndRedirect(data); }
-              else {
-                setError(data.error || 'فشل تسجيل الدخول بـ Google');
-                setLoading(false);
-                window.history.replaceState(null, '', '/login');
-              }
-            })
-            .catch(() => { setError('فشل الاتصال بالخادم'); setLoading(false); });
-        }
-        return;
-      }
-
-      /* Google Identity Services */
-      if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com')) {
-        const initGoogle = () => {
-          if (!window.google) return;
-          try {
-            window.google.accounts.id.initialize({
-              client_id: GOOGLE_CLIENT_ID,
-              callback: (response) => {
-                setLoading(true);
-                setSuccess('جارٍ التحقق من حساب Google...');
-                const country = localStorage.getItem('detectedCountry') || 'EG';
-                fetch(API + '/api/users/auth/google', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ idToken: response.credential, country })
-                })
-                  .then(r => r.json())
-                  .then(data => {
-                    if (data.token) saveAndRedirect(data);
-                    else { setError(data.error || 'فشل التحقق'); setLoading(false); }
-                  })
-                  .catch(() => { setError('فشل الاتصال بالخادم'); setLoading(false); });
-              },
-              auto_select: false,
-              cancel_on_tap_outside: true
-            });
-            setGoogleReady(true);
-          } catch (e) { console.warn('Google init:', e.message); }
-        };
-
-        if (window.google) { initGoogle(); }
-        else {
-          const script = document.createElement('script');
-          script.src = 'https://accounts.google.com/gsi/client';
-          script.async = true; script.defer = true;
-          script.onload = initGoogle;
-          document.head.appendChild(script);
-        }
-      }
-
-      /* Detect country */
-      fetch('https://ipapi.co/json/')
-        .then(r => r.json())
-        .then(d => { if (d.country_code) localStorage.setItem('detectedCountry', d.country_code); })
-        .catch(() => {});
-    } catch {}
+    };
+    document.head.appendChild(script);
   }, []);
 
-  /* ── helpers ── */
-  function saveAndRedirect(data) {
-    try {
-      localStorage.setItem('token',   data.token);
-      localStorage.setItem('userId',  data.user?.id || '');
-      localStorage.setItem('user',    JSON.stringify(data.user || {}));
-      localStorage.setItem('country', data.user?.country || 'EG');
-      if (data.user?.role === 'admin' || data.user?.role === 'sub_admin') {
-        localStorage.setItem('xtox_admin_token', data.token);
-        localStorage.setItem('xtox_admin_user', JSON.stringify(data.user || {}));
-      }
-      setSuccess('تم تسجيل الدخول بنجاح! جارٍ التحويل...');
-      setTimeout(() => {
-        window.location.href =
-          (data.user?.role === 'admin' || data.user?.role === 'sub_admin') ? '/admin' : '/';
-      }, 1000);
-    } catch (e) { setError('خطأ: ' + e.message); }
-  }
+  /* Load Apple JS SDK */
+  useEffect(function() {
+    if (!APPLE_CLIENT_ID) return;
+    var script = document.createElement('script');
+    script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
+    script.async = true;
+    document.head.appendChild(script);
+  }, []);
 
-  function loginWithGoogle() {
-    if (!GOOGLE_CLIENT_ID) { setError('تسجيل الدخول بـ Google غير مفعّل'); return; }
-    try {
-      if (window.google && googleReady) {
-        window.google.accounts.id.prompt();
-        return;
-      }
-      const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
-      const params = new URLSearchParams({
-        client_id:     GOOGLE_CLIENT_ID,
-        redirect_uri:  window.location.origin + '/login',
-        response_type: 'id_token',
-        scope:         'email profile openid',
-        nonce,
-        prompt:        'select_account'
-      });
-      window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
-    } catch (e) { setError('خطأ: ' + e.message); }
-  }
-
-  async function loginWithEmail() {
+  /* -- WhatsApp OTP -- */
+  async function sendOtp() {
     setError('');
-    if (!email.trim())    { setError('يرجى إدخال البريد الإلكتروني'); return; }
-    if (!password.trim()) { setError('يرجى إدخال كلمة المرور');       return; }
+    var cleaned = '+' + phone.replace(/\D/g, '');
+    if (cleaned.length < 10) {
+      setError('Enter your full phone number with country code e.g. +201234567890');
+      return;
+    }
     setLoading(true);
     try {
-      const res  = await fetch(API + '/api/users/login', {
-        method:  'POST',
+      var res = await fetch(API + '/api/auth/whatsapp/send-otp', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email: email.trim(), password })
+        body: JSON.stringify({ phone: cleaned })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || data?.message || 'البريد أو كلمة المرور غير صحيحة');
-      saveAndRedirect(data);
-    } catch (e) { setError(e.message); }
-    setLoading(false);
+      var data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to send OTP'); return; }
+      setOtpSent(true);
+      setCountdown(60);
+      setSuccess('OTP sent to your WhatsApp!');
+    } catch (e) {
+      setError('Network error. Check your connection.');
+    } finally {
+      setLoading(false);
+    }
   }
 
-  /* ── styles ── */
-  const bg = {
-    minHeight:   '100vh',
-    background:  'linear-gradient(135deg, #002f34 0%, #00695c 100%)',
-    display:     'flex',
-    alignItems:  'center',
-    justifyContent: 'center',
-    fontFamily:  "'Cairo', 'Noto Sans Arabic', 'Segoe UI', system-ui, sans-serif",
-    padding:     16,
-    direction:   'rtl'
-  };
-  const card = {
-    background:   'white',
-    borderRadius: 24,
-    padding:      '36px 32px',
-    width:        '100%',
-    maxWidth:     420,
-    boxShadow:    '0 24px 64px rgba(0,0,0,0.35)',
-    direction:    'rtl',
-    lang:         'ar'
-  };
-  const inputStyle = {
-    width:        '100%',
-    padding:      '14px 16px',
-    borderRadius: 12,
-    border:       '1.5px solid #e0e0e0',
-    fontSize:     15,
-    boxSizing:    'border-box',
-    marginBottom: 14,
-    fontFamily:   'inherit',
-    transition:   'border-color 0.2s',
-    outline:      'none',
-    direction:    'rtl',
-    textAlign:    'right',
-    color:        '#222'
-  };
-
-  /* ── loading screen ── */
-  if (loading) {
-    return (
-      <div style={bg} role="status" aria-label="جارٍ التحميل" lang="ar">
-        <div style={{ textAlign: 'center', color: 'white' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🛒</div>
-          <h2 style={{ margin: '0 0 12px', fontSize: 28, fontWeight: 900 }}>XTOX</h2>
-          <p style={{ opacity: 0.85, fontSize: 16 }}>{success || 'جارٍ التحميل...'}</p>
-          <div style={{
-            width: 40, height: 40,
-            border: '4px solid rgba(255,255,255,0.3)',
-            borderTop: '4px solid white',
-            borderRadius: '50%',
-            margin: '20px auto 0',
-            animation: 'spin 0.9s linear infinite'
-          }} aria-hidden="true" />
-          <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
-        </div>
-      </div>
-    );
+  async function verifyOtp() {
+    setError('');
+    if (!otp || otp.length !== 6) { setError('Enter the 6-digit OTP'); return; }
+    setLoading(true);
+    try {
+      var cleaned = '+' + phone.replace(/\D/g, '');
+      var res = await fetch(API + '/api/auth/whatsapp/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleaned, otp: otp })
+      });
+      var data = await res.json();
+      if (!res.ok) { setError(data.error || 'Verification failed'); return; }
+      storeSession(data);
+      var xtoxIdVal = (data.user && data.user.xtoxId) ? data.user.xtoxId : '';
+      setSuccess('Welcome! Your XTOX ID: ' + xtoxIdVal);
+      setTimeout(function() { window.location.href = '/'; }, 1500);
+    } catch (e) {
+      setError('Network error.');
+    } finally {
+      setLoading(false);
+    }
   }
+
+  /* -- Google -- */
+  function handleGoogleLogin() {
+    if (!window.google || !window.google.accounts) {
+      setError('Google SDK not loaded. Try refreshing.');
+      return;
+    }
+    window.google.accounts.id.prompt(function(notification) {
+      if (notification.isNotDisplayed()) {
+        var btn = document.getElementById('google-signin-btn');
+        if (btn) {
+          window.google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', width: '100%' });
+        }
+      }
+    });
+  }
+
+  async function handleGoogleCredential(response) {
+    setError('');
+    setLoading(true);
+    try {
+      var res = await fetch(API + '/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+      });
+      var data = await res.json();
+      if (!res.ok) { setError(data.error || 'Google login failed'); setLoading(false); return; }
+      storeSession(data);
+      var xtoxIdVal = (data.user && data.user.xtoxId) ? data.user.xtoxId : '';
+      setSuccess('Welcome! Your XTOX ID: ' + xtoxIdVal);
+      setTimeout(function() { window.location.href = '/'; }, 1500);
+    } catch (e) {
+      setError('Google login failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* -- Apple -- */
+  async function handleAppleLogin() {
+    setError('');
+    if (!window.AppleID) { setError('Apple SDK not loaded.'); return; }
+    try {
+      window.AppleID.auth.init({
+        clientId: APPLE_CLIENT_ID,
+        scope: 'name email',
+        redirectURI: window.location.origin + '/api/auth/apple/callback',
+        usePopup: true
+      });
+      var response = await window.AppleID.auth.signIn();
+      setLoading(true);
+      var res = await fetch(API + '/api/auth/apple', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identityToken: response.authorization.id_token,
+          user: response.user || {}
+        })
+      });
+      var data = await res.json();
+      if (!res.ok) { setError(data.error || 'Apple login failed'); return; }
+      storeSession(data);
+      var xtoxIdVal = (data.user && data.user.xtoxId) ? data.user.xtoxId : '';
+      setSuccess('Welcome! Your XTOX ID: ' + xtoxIdVal);
+      setTimeout(function() { window.location.href = '/'; }, 1500);
+    } catch (e) {
+      var errMsg = e && e.error ? e.error : (e && e.message ? e.message : '');
+      if (errMsg !== 'popup_closed_by_user') setError('Apple login failed: ' + errMsg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* -- Styles -- */
+  var inputStyle = {
+    width: '100%', padding: '12px 16px', borderRadius: 12,
+    border: '1.5px solid #e5e7eb', fontSize: 16, outline: 'none',
+    fontFamily: "'Cairo', sans-serif", boxSizing: 'border-box',
+    direction: 'ltr'
+  };
+  var btnStyle = {
+    width: '100%', padding: '13px', borderRadius: 12, border: 'none',
+    backgroundColor: '#25D366', color: '#fff', fontSize: 16, fontWeight: 700,
+    cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
+  };
+  function tabStyle(active) {
+    return {
+      flex: 1, padding: '10px 0', border: 'none', borderRadius: 10,
+      backgroundColor: active ? '#fff' : 'transparent',
+      color: active ? '#111' : '#6b7280', fontWeight: active ? 700 : 400,
+      cursor: 'pointer', fontSize: 14, fontFamily: "'Cairo', sans-serif",
+      boxShadow: active ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+      transition: 'all 0.2s'
+    };
+  }
+
+  var resendLabel = countdown > 0
+    ? ('\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0628\u0639\u062f ' + countdown + ' \u062b')
+    : '\u0625\u0639\u0627\u062f\u0629 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0645\u0632';
 
   return (
-    <div style={bg} lang="ar">
-      <div style={card} role="main">
+    React.createElement('div', {
+      dir: 'rtl', lang: 'ar',
+      style: {
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#f3f4f6', fontFamily: "'Cairo', 'Tajawal', sans-serif", padding: 16
+      }
+    },
+      React.createElement('div', {
+        style: {
+          background: '#fff', borderRadius: 24, padding: 32,
+          width: '100%', maxWidth: 420, boxShadow: '0 8px 40px rgba(0,0,0,0.1)'
+        }
+      },
+        /* Logo */
+        React.createElement('div', { style: { textAlign: 'center', marginBottom: 24 } },
+          React.createElement(Link, { href: '/' },
+            React.createElement('span', { style: { fontSize: 32, fontWeight: 900, color: '#FF6B35', letterSpacing: -1 } }, 'XTOX')
+          ),
+          React.createElement('p', { style: { margin: '4px 0 0', color: '#6b7280', fontSize: 14 } }, '\u0633\u0648\u0642 \u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062a \u0627\u0644\u0639\u0631\u0628\u064a')
+        ),
 
-        {/* ── Noto Sans Arabic font ── */}
-        <style>{'\n          @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Noto+Sans+Arabic:wght@400;600;700&display=swap\');\n          input:focus { border-color: #002f34 !important; box-shadow: 0 0 0 3px rgba(0,47,52,0.12); }\n          button:active { transform: scale(0.98); }\n          @keyframes spin { to { transform: rotate(360deg); } }\n          @keyframes fadeIn { from { opacity:0; transform:translateY(8px);} to {opacity:1;transform:translateY(0);} }\n          .login-card-anim { animation: fadeIn 0.35s ease; }\n        '}</style>
+        /* Tabs */
+        React.createElement('div', {
+          style: { display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 12, padding: 4, marginBottom: 24 }
+        },
+          React.createElement('button', { style: tabStyle(tab === 'whatsapp'), onClick: function() { setTab('whatsapp'); setError(''); } }, '\uD83D\uDCF1 \u0648\u0627\u062a\u0633\u0627\u0628'),
+          React.createElement('button', { style: tabStyle(tab === 'google'), onClick: function() { setTab('google'); setError(''); } }, '\uD83D\uDD35 Google'),
+          React.createElement('button', { style: tabStyle(tab === 'apple'), onClick: function() { setTab('apple'); setError(''); } }, '\uF8FF Apple')
+        ),
 
-        {/* ── Logo ── */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <Link href="/" style={{ textDecoration: 'none' }} aria-label="الصفحة الرئيسية XTOX">
-            <div style={{ fontSize: 56 }} role="img" aria-label="XTOX">🛒</div>
-            <h1 style={{ color: '#002f34', fontSize: 30, fontWeight: 900, margin: '8px 0 4px', letterSpacing: -0.5 }}>
-              XTOX
-            </h1>
-            <p style={{ color: '#888', fontSize: 14, margin: 0 }}>السوق المحلي الذكي</p>
-          </Link>
-        </div>
+        /* Error */
+        error ? React.createElement('div', {
+          style: { background: '#fef2f2', color: '#dc2626', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14 }
+        }, error) : null,
 
-        {/* ── Error banner ── */}
-        {error && (
-          <div
-            role="alert"
-            aria-live="assertive"
-            style={{
-              background: '#fff0f0', border: '1px solid #ffcccc', borderRadius: 12,
-              padding: '12px 16px', marginBottom: 18, color: '#c62828', fontSize: 14,
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              animation: 'fadeIn 0.2s ease'
-            }}>
-            <span>⚠️ {error}</span>
-            <button
-              onClick={() => setError('')}
-              aria-label="إغلاق رسالة الخطأ"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 20, lineHeight: 1, padding: '0 4px' }}>
-              ×
-            </button>
-          </div>
-        )}
+        /* Success */
+        success ? React.createElement('div', {
+          style: { background: '#f0fdf4', color: '#16a34a', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14 }
+        }, success) : null,
 
-        {/* ── Success banner ── */}
-        {success && !loading && (
-          <div role="status" aria-live="polite"
-            style={{
-              background: '#e8f5e9', border: '1px solid #66bb6a', borderRadius: 12,
-              padding: '12px 16px', marginBottom: 18, color: '#2e7d32', fontSize: 14,
-              animation: 'fadeIn 0.2s ease'
-            }}>
-            ✅ {success}
-          </div>
-        )}
+        /* WhatsApp Tab */
+        tab === 'whatsapp' ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151' } },
+            '\u0623\u062f\u062e\u0644 \u0631\u0642\u0645 \u0647\u0627\u062a\u0641\u0643 \u0648\u0633\u064a\u0635\u0644\u0643 \u0631\u0645\u0632 \u062a\u062d\u0642\u0642 \u0639\u0644\u0649 \u0648\u0627\u062a\u0633\u0627\u0628'
+          ),
+          React.createElement('input', {
+            type: 'tel', placeholder: '+201234567890', value: phone,
+            onChange: function(e) { setPhone(e.target.value); },
+            style: inputStyle, disabled: otpSent
+          }),
+          !otpSent
+            ? React.createElement('button', { onClick: sendOtp, disabled: loading, style: btnStyle },
+                loading ? '...' : '\u0625\u0631\u0633\u0627\u0644 \u0631\u0645\u0632 \u0648\u0627\u062a\u0633\u0627\u0628'
+              )
+            : React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+                React.createElement('input', {
+                  type: 'number', placeholder: '\u0631\u0645\u0632 \u0627\u0644\u062a\u062d\u0642\u0642 (6 \u0623\u0631\u0642\u0627\u0645)',
+                  value: otp, onChange: function(e) { setOtp(e.target.value.slice(0, 6)); },
+                  style: inputStyle, maxLength: 6
+                }),
+                React.createElement('button', { onClick: verifyOtp, disabled: loading, style: btnStyle },
+                  loading ? '...' : '\u062a\u062d\u0642\u0642 \u0648\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644'
+                ),
+                React.createElement('button', {
+                  onClick: function() { if (countdown === 0) { setOtpSent(false); setOtp(''); sendOtp(); } },
+                  disabled: countdown > 0,
+                  style: { background: 'none', border: 'none', color: countdown > 0 ? '#9ca3af' : '#FF6B35', cursor: countdown > 0 ? 'default' : 'pointer', fontSize: 13, fontFamily: 'inherit' }
+                }, resendLabel)
+              )
+        ) : null,
 
-          <div className="login-card-anim" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <p style={{ textAlign: 'center', color: '#666', fontSize: 15, margin: '0 0 4px', fontWeight: 600 }}>
-              اختر طريقة الدخول
-            </p>
+        /* Google Tab */
+        tab === 'google' ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' } },
+          React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151', textAlign: 'center' } },
+            '\u0633\u062c\u0651\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0628\u062d\u0633\u0627\u0628 Google \u0627\u0644\u062d\u0642\u064a\u0642\u064a'
+          ),
+          React.createElement('div', { id: 'google-signin-btn', style: { width: '100%' } }),
+          React.createElement('button', {
+            onClick: handleGoogleLogin,
+            style: {
+              width: '100%', padding: 13, borderRadius: 12,
+              border: '1.5px solid #e5e7eb', background: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 10, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit'
+            }
+          },
+            React.createElement('img', { src: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg', width: 22, height: 22, alt: 'Google' }),
+            '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0628\u0640 Google'
+          )
+        ) : null,
 
-            {/* Google */}
-            {GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com') ? (
-              <button
-                onClick={loginWithGoogle}
-                aria-label="تسجيل الدخول بحساب Google"
-                style={{
-                  width: '100%', padding: '14px 20px', borderRadius: 14,
-                  border: '1.5px solid #dadce0', background: 'white', cursor: 'pointer',
-                  fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  gap: 12, fontFamily: 'inherit', fontWeight: 700, color: '#3c4043',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.08)', transition: 'box-shadow 0.2s'
-                }}>
-                <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                </svg>
-                المتابعة بـ Google
-              </button>
-            ) : null}
+        /* Apple Tab */
+        tab === 'apple' ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' } },
+          React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151', textAlign: 'center' } },
+            '\u0633\u062c\u0651\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0628\u062d\u0633\u0627\u0628 Apple \u0627\u0644\u062d\u0642\u064a\u0642\u064a'
+          ),
+          React.createElement('button', {
+            onClick: handleAppleLogin,
+            style: {
+              width: '100%', padding: 13, borderRadius: 12,
+              border: 'none', background: '#000', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 10, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit'
+            }
+          }, '\uF8FF Sign in with Apple'),
+          !APPLE_CLIENT_ID ? React.createElement('p', { style: { fontSize: 12, color: '#9ca3af', textAlign: 'center' } },
+            'Apple login requires NEXT_PUBLIC_APPLE_CLIENT_ID in Vercel settings'
+          ) : null
+        ) : null,
 
-            {/* Hidden email login */}
-            {showEmail && (
-              <div
-                className="login-card-anim"
-                style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4, padding: 16, background: '#f9fafb', borderRadius: 14, border: '1px solid #eee' }}>
-                <p style={{ margin: 0, fontWeight: 700, color: '#002f34', fontSize: 14 }}>
-                  🔐 تسجيل الدخول بالبريد الإلكتروني
-                </p>
-                <input
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  type="email"
-                  placeholder="البريد الإلكتروني"
-                  aria-label="البريد الإلكتروني"
-                  autoComplete="email"
-                  style={{ ...inputStyle, direction: 'ltr', textAlign: 'left' }}
-                />
-                <input
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  type="password"
-                  placeholder="كلمة المرور"
-                  aria-label="كلمة المرور"
-                  autoComplete="current-password"
-                  onKeyDown={e => e.key === 'Enter' && loginWithEmail()}
-                  style={inputStyle}
-                />
-                <button
-                  onClick={loginWithEmail}
-                  aria-label="تسجيل الدخول"
-                  style={{ padding: '12px', background: '#002f34', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 16, minHeight: 44, WebkitTapHighlightColor: 'transparent' }}>
-                  دخول
-                </button>
-                <button
-                  onClick={() => setShowEmail(false)}
-                  aria-label="إخفاء نموذج البريد الإلكتروني"
-                  style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
-                  إخفاء
-                </button>
-              </div>
-            )}
-
-            <p style={{ textAlign: 'center', color: '#bbb', fontSize: 12, marginTop: 8 }}>
-              بالمتابعة توافق على{' '}
-              <Link href="/terms"   style={{ color: '#002f34', textDecoration: 'none', fontWeight: 600 }}>شروط الاستخدام</Link>
-              {' '}و{' '}
-              <Link href="/privacy" style={{ color: '#002f34', textDecoration: 'none', fontWeight: 600 }}>سياسة الخصوصية</Link>
-            </p>
-            <p style={{ textAlign: 'center', margin: '4px 0 0' }}>
-              <button
-                onClick={() => setShowEmail(s => !s)}
-                aria-label={showEmail ? 'إخفاء تسجيل دخول المشرف' : 'تسجيل دخول المشرف'}
-                style={{ background: 'none', border: 'none', color: '#d0d0d0', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {showEmail ? 'إخفاء' : 'Admin / Email Login'}
-              </button>
-            </p>
-          </div>
-      </div>
-    </div>
+        /* Footer */
+        React.createElement('p', { style: { marginTop: 24, textAlign: 'center', fontSize: 12, color: '#9ca3af' } },
+          '\u0628\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0623\u0646\u062a \u062a\u0648\u0627\u0641\u0642 \u0639\u0644\u0649 ',
+          React.createElement(Link, { href: '/terms', style: { color: '#FF6B35' } }, '\u0627\u0644\u0634\u0631\u0648\u0637 \u0648\u0627\u0644\u0623\u062d\u0643\u0627\u0645'),
+          ' \u0648',
+          React.createElement(Link, { href: '/privacy', style: { color: '#FF6B35' } }, '\u0633\u064a\u0627\u0633\u0629 \u0627\u0644\u062e\u0635\u0648\u0635\u064a\u0629')
+        )
+      )
+    )
   );
 }
