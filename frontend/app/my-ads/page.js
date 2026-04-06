@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import axios from 'axios';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -134,7 +135,7 @@ export default function MyAdsPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 20, cursor: 'pointer' }}>→</button>
         <h1 style={{ color: '#002f34', margin: 0, fontSize: 22, fontWeight: 'bold' }}>إعلاناتي</h1>
-        <a href="/sell" style={{ marginLeft: 'auto', background: '#002f34', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}>+ إعلان جديد</a>
+        <Link href="/sell" style={{ marginLeft: 'auto', background: '#002f34', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}>+ إعلان جديد</Link>
       </div>
 
       {/* Performance Stats Banner */}
@@ -206,7 +207,7 @@ export default function MyAdsPage() {
                 <div style={{ textAlign: 'center', padding: 60, color: '#999', background: 'white', borderRadius: 16 }}>
                   <div style={{ fontSize: 48 }}>📋</div>
                   <p>لا توجد إعلانات نشطة</p>
-                  <a href="/sell" style={{ color: '#002f34', fontWeight: 'bold' }}>انشر إعلانك الأول</a>
+                  <Link href="/sell" style={{ color: '#002f34', fontWeight: 'bold' }}>انشر إعلانك الأول</Link>
                 </div>
               )}
               {activeAds.map(ad => {
@@ -312,9 +313,9 @@ export default function MyAdsPage() {
                               🔄 إعادة النشر (45 يوم)
                             </button>
                           ) : (
-                            <a href="/sell" style={{ background: '#00b09b', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}>
+                            <Link href="/sell" style={{ background: '#00b09b', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}>
                               + إنشاء إعلان جديد
-                            </a>
+                            </Link>
                           )}
                         </div>
                       </div>
