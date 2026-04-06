@@ -93,11 +93,9 @@ export default function CityRadiusFilter({ onChange, locale = 'ar' }) {
               key={String(r.value)}
               type="button"
               onClick={() => handleRadius(r.value)}
-              className={`px-3 py-1 rounded-full text-xs border transition-colors duration-150 ${
-                radius === r.value
+              className={'px-3 py-1 rounded-full text-xs border transition-colors duration-150 ' + (radius === r.value
                   ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'
-              }`}
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600')}
             >
               {radiusLabel(r)}
             </button>
