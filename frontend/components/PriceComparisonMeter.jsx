@@ -59,7 +59,7 @@ function formatPrice(amount, currency, lang) {
   const symbol = CURRENCY_SYMBOLS[currency] || currency;
   const formatted = Math.round(amount).toLocaleString('en');
   const numStr = lang === 'ar' ? toArabicNumerals(formatted) : formatted;
-  return lang === 'ar' ? `${numStr} ${symbol}` : `${symbol}${numStr}`;
+  return lang === 'ar' ? (numStr + ' ' + symbol) : (symbol + numStr);
 }
 
 export default function PriceComparisonMeter({
@@ -97,9 +97,9 @@ export default function PriceComparisonMeter({
     return (
       <span
         dir={isRTL ? 'rtl' : 'ltr'}
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${cfg.bgClass} ${cfg.textClass}`}
+        className={'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ' + cfg.bgClass + ' ' + cfg.textClass}
         style={{ fontFamily: isRTL ? "'Cairo', 'Tajawal', sans-serif" : 'inherit' }}
-        title={`${formatPrice(price, currency, lang)} (${pct > 0 ? '+' : ''}${lang === 'ar' ? toArabicNumerals(pct) : pct}%)`}
+        title={formatPrice(price, currency, lang) + ' (' + (pct > 0 ? '+' : '') + (lang === 'ar' ? toArabicNumerals(pct) : pct) + '%)'}
       >
         <span>{cfg.emoji}</span>
         <span>{cfg.label}</span>
@@ -115,11 +115,11 @@ export default function PriceComparisonMeter({
   return (
     <div
       dir={isRTL ? 'rtl' : 'ltr'}
-      className={`rounded-2xl border p-4 ${cfg.bgClass}`}
+      className={'rounded-2xl border p-4 ' + cfg.bgClass}
       style={{ fontFamily: isRTL ? "'Cairo', 'Tajawal', sans-serif" : 'inherit' }}
     >
       <div className="flex items-center justify-between mb-3">
-        <span className={`text-sm font-bold ${cfg.textClass} flex items-center gap-1.5`}>
+        <span className={'text-sm font-bold ' + cfg.textClass + ' flex items-center gap-1.5'}>
           <span className="text-base">{cfg.emoji}</span>
           {cfg.label}
         </span>
@@ -140,8 +140,8 @@ export default function PriceComparisonMeter({
         <div
           className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-md"
           style={{
-            left: isRTL ? 'auto' : `calc(${meterPct}% - 8px)`,
-            right: isRTL ? `calc(${100 - meterPct}% - 8px)` : 'auto',
+            left: isRTL ? 'auto' : ('calc(' + meterPct + '% - 8px)'),
+            right: isRTL ? ('calc(' + (100 - meterPct) + '% - 8px)') : 'auto',
             backgroundColor: zone === 'below' ? '#10b981' : zone === 'above' ? '#f43f5e' : '#3b82f6',
           }}
         />
@@ -156,7 +156,7 @@ export default function PriceComparisonMeter({
       <div className="flex items-center justify-between gap-2 text-sm">
         <div className="flex flex-col items-center bg-white rounded-xl px-3 py-2 border border-gray-100 flex-1 shadow-sm">
           <span className="text-xs text-gray-400 mb-0.5">{t.thisListing}</span>
-          <span className={`font-bold text-base ${cfg.textClass}`}>
+          <span className={'font-bold text-base ' + cfg.textClass}>
             {formatPrice(price, currency, lang)}
           </span>
         </div>
@@ -170,11 +170,11 @@ export default function PriceComparisonMeter({
       </div>
 
       {absDiff > 0 && (
-        <div className={`mt-3 text-xs text-center font-semibold ${cfg.textClass}`}>
+        <div className={'mt-3 text-xs text-center font-semibold ' + cfg.textClass}>
           {zone === 'below'
-            ? `${t.saving} ${formatPrice(absDiff, currency, lang)} (${lang === 'ar' ? toArabicNumerals(absPct) : absPct}%)`
+            ? (t.saving + ' ' + formatPrice(absDiff, currency, lang) + ' (' + (lang === 'ar' ? toArabicNumerals(absPct) : absPct) + '%)')
             : zone === 'above'
-              ? `${t.extra} ${formatPrice(absDiff, currency, lang)} (${lang === 'ar' ? toArabicNumerals(absPct) : absPct}%)`
+              ? (t.extra + ' ' + formatPrice(absDiff, currency, lang) + ' (' + (lang === 'ar' ? toArabicNumerals(absPct) : absPct) + '%)')
               : null
           }
         </div>
