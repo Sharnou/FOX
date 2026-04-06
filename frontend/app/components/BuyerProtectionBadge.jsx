@@ -1,9 +1,9 @@
+'use client';
 // BuyerProtectionBadge.jsx
 // XTOX Buyer Protection Badge - Run 134
 // Shows a trust shield badge for high-value ads to reassure Arab marketplace users.
 // Supports Arabic (RTL), English, German, French.
 
-'use client';
 
 import { useState } from 'react';
 
