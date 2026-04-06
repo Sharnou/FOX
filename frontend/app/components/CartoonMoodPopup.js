@@ -24,7 +24,7 @@ function getMood(ad) {
     emoji: '😴',
     animation: 'zzz',
     title: 'إعلانك نايم! 😴',
-    msg: `${views} مشاهدة فقط — إعلانك يحتاج تنبيه!`,
+    msg: views + ' مشاهدة فقط — إعلانك يحتاج تنبيه!',
     color: '#6C63FF',
     gradient: 'linear-gradient(135deg,#6C63FF,#48CAE4)',
     cta: '⏰ أيقظ إعلانك',
@@ -34,7 +34,7 @@ function getMood(ad) {
     emoji: '📉',
     animation: 'shake',
     title: 'مشاهدات منخفضة! 📉',
-    msg: `${views} مشاهدة فقط — المنافسون يسبقونك!`,
+    msg: views + ' مشاهدة فقط — المنافسون يسبقونك!',
     color: '#FF6584',
     gradient: 'linear-gradient(135deg,#FF6584,#FF8C42)',
     cta: '📈 ارفع مشاهداتك',
@@ -44,7 +44,7 @@ function getMood(ad) {
     emoji: '🔥',
     animation: 'pulse',
     title: 'إعلانك يسخن! 🔥',
-    msg: `${views} مشاهدة — أنت على الطريق الصحيح، روّجه ليصل للقمة!`,
+    msg: views + ' مشاهدة — أنت على الطريق الصحيح، روّجه ليصل للقمة!',
     color: '#FF6B35',
     gradient: 'linear-gradient(135deg,#FF6B35,#FFD700)',
     cta: '🔥 خليه يشتعل',
@@ -54,7 +54,7 @@ function getMood(ad) {
     emoji: '🚀',
     animation: 'rocket',
     title: 'إعلانك فيروسي! 🚀',
-    msg: `${views} مشاهدة — استمر بالزخم واجعله رقم 1!`,
+    msg: views + ' مشاهدة — استمر بالزخم واجعله رقم 1!',
     color: '#002f34',
     gradient: 'linear-gradient(135deg,#002f34,#00B894)',
     cta: '🚀 اجعله الأول',
@@ -102,7 +102,7 @@ export default function CartoonMoodPopup({ ads }) {
   const dismiss = () => setShow(false);
   const promote = () => {
     setShow(false);
-    router.push(`/promote?adId=${targetAd._id}&title=${encodeURIComponent(targetAd.title)}`);
+    router.push('/promote?adId=' + targetAd._id + '&title=' + encodeURIComponent(targetAd.title));
   };
 
   return (
@@ -110,36 +110,7 @@ export default function CartoonMoodPopup({ ads }) {
       position: 'fixed', bottom: 24, right: 16, left: 16, zIndex: 9999,
       animation: 'moodSlideUp 0.5s cubic-bezier(.21,1.02,.73,1) both',
     }}>
-      <style>{`
-        @keyframes moodSlideUp {
-          from { transform: translateY(140px); opacity: 0; }
-          to   { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes zzz {
-          0%,100% { transform: translateY(0) rotate(-8deg); }
-          50%     { transform: translateY(-10px) rotate(8deg); }
-        }
-        @keyframes shake {
-          0%,100% { transform: translateX(0); }
-          20%     { transform: translateX(-6px); }
-          40%     { transform: translateX(6px); }
-          60%     { transform: translateX(-4px); }
-          80%     { transform: translateX(4px); }
-        }
-        @keyframes pulse {
-          0%,100% { transform: scale(1); }
-          50%     { transform: scale(1.15); }
-        }
-        @keyframes rocket {
-          0%,100% { transform: translateY(0) rotate(-15deg); }
-          50%     { transform: translateY(-12px) rotate(-15deg); }
-        }
-        @keyframes bounce {
-          0%,100% { transform: translateY(0); }
-          30%     { transform: translateY(-12px); }
-          60%     { transform: translateY(-6px); }
-        }
-      `}</style>
+      <style>{'\r\n        @keyframes moodSlideUp {\r\n          from { transform: translateY(140px); opacity: 0; }\r\n          to   { transform: translateY(0); opacity: 1; }\r\n        }\r\n        @keyframes zzz {\r\n          0%,100% { transform: translateY(0) rotate(-8deg); }\r\n          50%     { transform: translateY(-10px) rotate(8deg); }\r\n        }\r\n        @keyframes shake {\r\n          0%,100% { transform: translateX(0); }\r\n          20%     { transform: translateX(-6px); }\r\n          40%     { transform: translateX(6px); }\r\n          60%     { transform: translateX(-4px); }\r\n          80%     { transform: translateX(4px); }\r\n        }\r\n        @keyframes pulse {\r\n          0%,100% { transform: scale(1); }\r\n          50%     { transform: scale(1.15); }\r\n        }\r\n        @keyframes rocket {\r\n          0%,100% { transform: translateY(0) rotate(-15deg); }\r\n          50%     { transform: translateY(-12px) rotate(-15deg); }\r\n        }\r\n        @keyframes bounce {\r\n          0%,100% { transform: translateY(0); }\r\n          30%     { transform: translateY(-12px); }\r\n          60%     { transform: translateY(-6px); }\r\n        }\r\n      '}</style>
 
       <div style={{
         maxWidth: 360, margin: '0 auto', direction: 'rtl',
@@ -147,7 +118,7 @@ export default function CartoonMoodPopup({ ads }) {
         background: '#fff', borderRadius: 20,
         boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
         overflow: 'hidden',
-        border: `2px solid ${mood.color}22`,
+        border: '2px solid ' + mood.color + '22',
       }}>
         {/* Gradient header */}
         <div style={{
@@ -166,7 +137,7 @@ export default function CartoonMoodPopup({ ads }) {
 
           <div style={{
             fontSize: 52,
-            animation: `${mood.animation} 2s ease-in-out infinite`,
+            animation: mood.animation + ' 2s ease-in-out infinite',
             flexShrink: 0,
           }}>{mood.emoji}</div>
 
@@ -190,7 +161,7 @@ export default function CartoonMoodPopup({ ads }) {
             <button onClick={promote} style={{
               flex: 1, background: mood.gradient, color: '#fff', border: 'none',
               borderRadius: 12, padding: '12px 8px', fontSize: 14, fontWeight: 700,
-              cursor: 'pointer', boxShadow: `0 4px 14px ${mood.color}44`,
+              cursor: 'pointer', boxShadow: '0 4px 14px ' + mood.color + '44',
             }}>
               {mood.cta}
             </button>
