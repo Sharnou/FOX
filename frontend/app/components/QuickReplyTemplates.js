@@ -39,7 +39,7 @@ export default function QuickReplyTemplates({ onSelect, lang = 'ar' }) {
 
       {visible && (
         <div
-          className={`absolute bottom-12 ${lang === 'ar' ? 'right-0' : 'left-0'} z-50 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden`}
+          className={'absolute bottom-12 ' + (lang === 'ar' ? 'right-0' : 'left-0') + ' z-50 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden'}
         >
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-3 py-2 border-b border-gray-100 dark:border-gray-700">
             {lang === 'ar' ? 'رسائل جاهزة' : 'Quick replies'}
