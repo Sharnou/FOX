@@ -75,14 +75,14 @@ const COLORS = {
 function formatCost(cost, currency, lang, L) {
   if (cost === 0 || cost == null) return L.free;
   const n = lang === "ar" ? ARABIC_INDIC(cost) : cost;
-  return `${n} ${currency}`;
+  return n + ' ' + currency;
 }
 
 function formatEta(min, max, unit, lang, L) {
   const fmtNum = (n) => (lang === "ar" ? ARABIC_INDIC(n) : n);
   const u = L[unit] ?? unit;
-  if (min === max) return `${fmtNum(min)} ${u}`;
-  return `${fmtNum(min)} ${L.to} ${fmtNum(max)} ${u}`;
+  if (min === max) return fmtNum(min) + ' ' + u;
+  return fmtNum(min) + ' ' + L.to + ' ' + fmtNum(max) + ' ' + u;
 }
 
 export default function DeliveryOptionsWidget({
@@ -116,10 +116,10 @@ export default function DeliveryOptionsWidget({
   if (compact && !expanded) {
     const c = selectedOpt ? COLORS[selectedOpt.key] : COLORS.pickup;
     return (
-      <div dir={dir} className={`inline-block ${font}`}>
+      <div dir={dir} className={'inline-block ' + font}>
         <button
           onClick={() => setExpanded(true)}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium shadow-sm transition ${c.bg} ${c.border} ${c.badge}`}
+          className={'flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium shadow-sm transition ' + c.bg + ' ' + c.border + ' ' + c.badge}
         >
           <span>{selectedOpt ? ICONS[selectedOpt.key] : "🚚"}</span>
           <span>{selectedOpt ? L[selectedOpt.key] : L.choose}</span>
@@ -131,9 +131,9 @@ export default function DeliveryOptionsWidget({
 
   // ── Full card mode ─────────────────────────────────────────────────────────
   return (
-    <div dir={dir} className={`w-full max-w-md ${font}`}>
+    <div dir={dir} className={'w-full max-w-md ' + font}>
       {/* Header */}
-      <div className={`flex items-center justify-between mb-3 ${isRTL ? "flex-row-reverse" : ""}`}>
+      <div className={'flex items-center justify-between mb-3 ' + (isRTL ? 'flex-row-reverse' : '')}>
         <h3 className="text-sm font-bold text-gray-700">
           🚚 {L.choose}
         </h3>
@@ -160,32 +160,27 @@ export default function DeliveryOptionsWidget({
                 onSelect(opt.key);
                 if (compact) setExpanded(false);
               }}
-              className={`
-                w-full text-start rounded-xl border-2 p-3 transition-all duration-150
-                ${isSelected
-                  ? `${c.bg} ${c.border} ring-2 ${c.ring} shadow-md`
-                  : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"}
-              `}
+              className={'w-full text-start rounded-xl border-2 p-3 transition-all duration-150 ' + (isSelected ? (c.bg + ' ' + c.border + ' ring-2 ' + c.ring + ' shadow-md') : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50')}
             >
-              <div className={`flex items-center gap-3 ${isRTL ? "flex-row-reverse" : ""}`}>
+              <div className={'flex items-center gap-3 ' + (isRTL ? 'flex-row-reverse' : '')}>
                 {/* Icon circle */}
-                <div className={`text-2xl w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${c.badge}`}>
+                <div className={'text-2xl w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ' + c.badge}>
                   {ICONS[opt.key]}
                 </div>
 
                 {/* Details */}
                 <div className="flex-1 min-w-0">
-                  <div className={`flex items-center justify-between gap-2 ${isRTL ? "flex-row-reverse" : ""}`}>
+                  <div className={'flex items-center justify-between gap-2 ' + (isRTL ? 'flex-row-reverse' : '')}>
                     <span className="text-sm font-bold text-gray-800">{L[opt.key]}</span>
                     {/* Cost badge */}
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${c.badge}`}>
+                    <span className={'text-xs font-bold px-2 py-0.5 rounded-full ' + c.badge}>
                       {formatCost(opt.cost, currency, lang, L)}
                     </span>
                   </div>
 
                   {/* ETA */}
                   {(opt.etaMin || opt.etaMax) && (
-                    <div className={`flex items-center gap-1 mt-0.5 text-xs text-gray-500 ${isRTL ? "flex-row-reverse" : ""}`}>
+                    <div className={'flex items-center gap-1 mt-0.5 text-xs text-gray-500 ' + (isRTL ? 'flex-row-reverse' : '')}>
                       <span>⏱</span>
                       <span>{L.est}</span>
                       <span>{formatEta(opt.etaMin, opt.etaMax, opt.etaUnit, lang, L)}</span>
@@ -200,7 +195,7 @@ export default function DeliveryOptionsWidget({
 
                 {/* Selected checkmark */}
                 {isSelected && (
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${c.badge} ${c.border} border`}>
+                  <div className={'w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ' + c.badge + ' ' + c.border + ' border'}>
                     ✓
                   </div>
                 )}
