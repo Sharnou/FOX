@@ -120,7 +120,7 @@ export default function ContactSellerSheet({
 
   const handleChatClick = useCallback(() => {
     if (typeof window !== 'undefined') {
-      window.location.href = `/chat?ad=${adId}&seller=${sellerId}`;
+      window.location.href = '/chat?ad=' + adId + '&seller=' + sellerId;
     }
   }, [adId, sellerId]);
 
@@ -128,17 +128,17 @@ export default function ContactSellerSheet({
     const phone = (sellerWhatsApp || sellerPhone || '').replace(/\D/g, '');
     const msg = encodeURIComponent(
       lang === 'ar'
-        ? `مرحباً، رأيت إعلانك "${adTitle}" وأريد الاستفسار.`
-        : `Hi, I saw your ad "${adTitle}" and I'm interested.`
+        ? 'مرحباً، رأيت إعلانك "' + adTitle + '" وأريد الاستفسار.'
+        : 'Hi, I saw your ad "' + adTitle + '" and I\'m interested.'
     );
     if (phone) {
-      window.open(`https://wa.me/${phone}?text=${msg}`, '_blank', 'noopener');
+      window.open('https://wa.me/' + phone + '?text=' + msg, '_blank', 'noopener');
     }
   }, [sellerWhatsApp, sellerPhone, adTitle, lang]);
 
   const handlePhoneClick = useCallback(() => {
     if (phoneRevealed && sellerPhone) {
-      window.location.href = `tel:${sellerPhone}`;
+      window.location.href = 'tel:' + sellerPhone;
     } else {
       setPhoneRevealed(true);
       if (navigator.vibrate) navigator.vibrate(15);
@@ -148,7 +148,7 @@ export default function ContactSellerSheet({
   const handleOfferClick = useCallback(() => {
     if (onOfferClick) onOfferClick();
     else if (typeof window !== 'undefined') {
-      window.location.href = `/offers?ad=${adId}`;
+      window.location.href = '/offers?ad=' + adId;
     }
   }, [onOfferClick, adId]);
 
