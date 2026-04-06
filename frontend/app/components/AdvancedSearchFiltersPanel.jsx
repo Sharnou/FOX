@@ -190,7 +190,7 @@ export default function AdvancedSearchFiltersPanel({
     display: 'inline-block',
     padding: '5px 12px',
     borderRadius: 20,
-    border: `1.5px solid ${active ? '#FF6B35' : '#E0E0E0'}`,
+    border: '1.5px solid ' + (active ? '#FF6B35' : '#E0E0E0'),
     background: active ? '#FFF3EE' : '#FFF',
     color: active ? '#FF6B35' : '#555',
     fontFamily: 'Cairo, Tajawal, sans-serif',
@@ -205,7 +205,7 @@ export default function AdvancedSearchFiltersPanel({
     ...inputStyle,
     padding: '8px 10px',
     appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23FF6B35' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath d=\'M1 1l5 5 5-5\' stroke=\'%23FF6B35\' stroke-width=\'2\' fill=\'none\' stroke-linecap=\'round\'/%3E%3C/svg%3E")',
     backgroundRepeat: 'no-repeat',
     backgroundPosition: isRTL ? '10px center' : 'calc(100% - 10px) center',
     paddingRight: isRTL ? 10 : 30,
@@ -215,24 +215,13 @@ export default function AdvancedSearchFiltersPanel({
   const displayCount =
     totalResults !== undefined
       ? isRTL
-        ? `${toArabicNumerals(totalResults)} ${t.results}`
-        : `${totalResults} ${t.results}`
+        ? (toArabicNumerals(totalResults) + ' ' + t.results)
+        : (totalResults + ' ' + t.results)
       : null;
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;700&display=swap');
-        .xtox-filter-panel input:focus, .xtox-filter-panel select:focus {
-          border-color: #FF6B35 !important;
-        }
-        .xtox-filter-panel input[type="checkbox"] {
-          accent-color: #FF6B35;
-          width: 16px;
-          height: 16px;
-          cursor: pointer;
-        }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: '@import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;700&display=swap\');' +'.xtox-filter-panel input:focus, .xtox-filter-panel select:focus { border-color: #FF6B35 !important; }' +'.xtox-filter-panel input[type="checkbox"] { accent-color: #FF6B35; width: 16px; height: 16px; cursor: pointer; }' }} />
 
       <div
         className="xtox-filter-panel"
@@ -335,7 +324,7 @@ export default function AdvancedSearchFiltersPanel({
                 style={chipStyle(filters.condition === c)}
                 onClick={() => update('condition', c)}
               >
-                {t[`cond${c.charAt(0).toUpperCase() + c.slice(1)}`]}
+                {t['cond' + c.charAt(0).toUpperCase() + c.slice(1)]}
               </span>
             ))}
           </div>
@@ -350,7 +339,7 @@ export default function AdvancedSearchFiltersPanel({
                 style={chipStyle(filters.adType === tp)}
                 onClick={() => update('adType', tp)}
               >
-                {t[`type${tp.charAt(0).toUpperCase() + tp.slice(1)}`]}
+                {t['type' + tp.charAt(0).toUpperCase() + tp.slice(1)]}
               </span>
             ))}
           </div>
