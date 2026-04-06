@@ -24,7 +24,7 @@ export default function NegotiableTag({ negotiable, locale = 'ar', className = '
   return (
     <span
       dir={isRTL ? 'rtl' : 'ltr'}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 select-none ${className}`}
+      className={'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 select-none ' + className}
       title={label}
       aria-label={label}
     >
