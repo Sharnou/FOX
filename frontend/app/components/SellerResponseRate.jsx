@@ -33,10 +33,10 @@ export default function SellerResponseRate({
     if (hours === 0) return "يرد فوراً";
     if (hours < 1) return "يرد خلال أقل من ساعة";
     if (hours === 1) return "يرد خلال ساعة";
-    if (hours < 24) return `يرد خلال ${Math.round(hours)} ساعات`;
+    if (hours < 24) return 'يرد خلال ' + Math.round(hours) + ' ساعات';
     const days = Math.round(hours / 24);
     if (days === 1) return "يرد خلال يوم";
-    return `يرد خلال ${days} أيام`;
+    return 'يرد خلال ' + days + ' أيام';
   };
 
   const tier = getTier(responseRate);
@@ -142,7 +142,7 @@ export default function SellerResponseRate({
         <div
           style={{
             height: "100%",
-            width: `${animatedRate}%`,
+            width: animatedRate + '%',
             backgroundColor: tier.color,
             borderRadius: "4px",
             transition: "width 0.05s linear",
