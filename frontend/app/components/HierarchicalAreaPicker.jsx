@@ -368,7 +368,7 @@ export default function HierarchicalAreaPicker({
 
   const countryOptions = useMemo(() => {
     const all = Object.entries(LOCATIONS).map(([k, v]) => ({
-      key: k, label: `${v.flag} ${v[nameKey]}`, pop: false,
+      key: k, label: v.flag + ' ' + v[nameKey], pop: false,
     }));
     if (!search) return all;
     const q = search.toLowerCase();
@@ -414,7 +414,7 @@ export default function HierarchicalAreaPicker({
   const clearAll = () => { if (!countryCode) setCountry(null); setGovernorate(null); setCity(null); setNeighborhood(null); setSearch(''); };
 
   // Breadcrumb labels
-  const countryLabel = country ? `${LOCATIONS[country]?.flag} ${LOCATIONS[country]?.[nameKey]}` : null;
+  const countryLabel = country ? LOCATIONS[country]?.flag + ' ' + LOCATIONS[country]?.[nameKey] : null;
   const govLabel = governorate ? (LOCATIONS[country]?.governorates?.[governorate]?.[nameKey] || '') : null;
   const cityLabel = city ? (LOCATIONS[country]?.governorates?.[governorate]?.cities?.[city]?.[nameKey] || '') : null;
   const neighborhoodLabel = neighborhood || null;
