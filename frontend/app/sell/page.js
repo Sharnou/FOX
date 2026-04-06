@@ -261,8 +261,8 @@ export default function SellPage() {
     // DUPLICATE DETECTION
     if (!forceDuplicate && form.title.trim().length >= 5) {
       try {
-        const myAdsRes = await fetchWithRetry(`${API}/api/ads/my/all`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const myAdsRes = await fetchWithRetry(API + '/api/ads/my/all', {
+          headers: { Authorization: 'Bearer ' + token },
         }, { retries: 1 });
         const myAdsData = await myAdsRes.json();
         const myActiveAds = myAdsData?.active || [];
@@ -271,7 +271,7 @@ export default function SellPage() {
           const highSimilarity = similar.filter(s => s.similarity >= 80);
           if (highSimilarity.length > 0) {
             setDuplicateWarning({
-              message: `⚠️ يبدو أن لديك إعلاناً مشابهاً: "${myActiveAds[highSimilarity[0].index - 1]?.title}" (تشابه ${highSimilarity[0].similarity}%). هل تريد المتابعة؟`,
+              message: '⚠️ يبدو أن لديك إعلاناً مشابهاً: "' + (myActiveAds[highSimilarity[0].index - 1] && myActiveAds[highSimilarity[0].index - 1].title) + '" (تشابه ' + highSimilarity[0].similarity + '%). هل تريد المتابعة؟',
               similar: highSimilarity,
             });
             return;
@@ -308,9 +308,9 @@ export default function SellPage() {
       const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
       // FIX E: Debug FormData before submit — visible in browser console
       console.log('Submitting FormData entries:', [...formData.entries()].map(([k,v]) => [k, typeof v === 'string' ? v.slice(0,50) : v.name]));
-      const res = await fetch(`${API}/api/ads`, {
+      const res = await fetch(API + '/api/ads', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${t}` }, // NO Content-Type — FormData sets it
+        headers: { Authorization: 'Bearer ' + t }, // NO Content-Type — FormData sets it
         body: formData,
       });
 
@@ -342,7 +342,7 @@ export default function SellPage() {
 
   const inputStyle = (field) => ({
     width: '100%', padding: '11px 14px', borderRadius: 10,
-    border: `1.5px solid ${errors[field] ? '#e53e3e' : '#e0e0e0'}`,
+    border: '1.5px solid ' + (errors[field] ? '#e53e3e' : '#e0e0e0'),
     fontSize: 16, boxSizing: 'border-box',
     fontFamily: "'Cairo', 'Tajawal', system-ui",
     direction: 'rtl', background: errors[field] ? '#fff5f5' : '#fff',
@@ -488,7 +488,7 @@ export default function SellPage() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
                 {mediaType === 'images' && mediaPreviews.map((src, i) => (
                   <div key={i} style={{ position: 'relative' }}>
-                    <img src={src} alt={`صورة ${i + 1}`}
+                    <img src={src} alt={'صورة ' + (i + 1)}
                       style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }} />
                     <button onClick={() => {
                       const newFiles = mediaFiles.filter((_, idx) => idx !== i);
@@ -537,9 +537,9 @@ export default function SellPage() {
                     if (value.length < 5) return;
                     try {
                       const tok = localStorage.getItem('token') || localStorage.getItem('fox_token') || '';
-                      const r = await fetch(`${API}/api/ads/ai-generate`, {
+                      const r = await fetch(API + '/api/ads/ai-generate', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
                         body: JSON.stringify({ text: value }),
                       });
                       const data = await r.json();
@@ -595,7 +595,7 @@ export default function SellPage() {
                     aria-pressed={form.category === cat.en}
                     style={{
                       padding: '10px 6px', borderRadius: 10,
-                      border: `2px solid ${form.category === cat.en ? '#002f34' : '#e0e0e0'}`,
+                      border: '2px solid ' + (form.category === cat.en ? '#002f34' : '#e0e0e0'),
                       background: form.category === cat.en ? '#002f34' : '#fafafa',
                       color: form.category === cat.en ? 'white' : '#444',
                       cursor: 'pointer', fontSize: 12, fontWeight: 'bold', fontFamily: 'inherit',
@@ -658,7 +658,7 @@ export default function SellPage() {
                     aria-pressed={form.condition === c.en}
                     style={{
                       padding: '8px 14px', borderRadius: 20,
-                      border: `2px solid ${form.condition === c.en ? '#002f34' : '#e0e0e0'}`,
+                      border: '2px solid ' + (form.condition === c.en ? '#002f34' : '#e0e0e0'),
                       background: form.condition === c.en ? '#002f34' : '#fafafa',
                       color: form.condition === c.en ? 'white' : '#444',
                       cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
