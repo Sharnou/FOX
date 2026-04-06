@@ -39,9 +39,9 @@ function timeAgo(timestamp, lang) {
   const s = t[lang];
   const diff = (Date.now() - timestamp) / 1000;
   if (diff < 60) return s.justNow;
-  if (diff < 3600) return `${Math.floor(diff / 60)} ${s.minutesAgo}`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ${s.hoursAgo}`;
-  return `${Math.floor(diff / 86400)} ${s.daysAgo}`;
+  if (diff < 3600) return Math.floor(diff / 60) + ' ' + s.minutesAgo;
+  if (diff < 86400) return Math.floor(diff / 3600) + ' ' + s.hoursAgo;
+  return Math.floor(diff / 86400) + ' ' + s.daysAgo;
 }
 
 const MAX_SEARCHES = 10;
@@ -122,21 +122,19 @@ export default function SaveSearch({ searchParams = {}, lang = 'ar' }) {
 
   const handleNavigate = (query) => {
     const params = new URLSearchParams(query).toString();
-    router.push(`/search?${params}`);
+    router.push('/search?' + params);
     setOpen(false);
   };
 
   return (
-    <div className={`relative inline-flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={'relative inline-flex items-center gap-2 ' + (isRTL ? 'flex-row-reverse' : '')} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Save button */}
       <button
         onClick={handleSave}
         title={T.hint}
-        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-200
-          ${justSaved
+        className={'flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-200\r\n          ' + (justSaved
             ? 'bg-green-50 border-green-400 text-green-700'
-            : 'bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50'
-          }`}
+            : 'bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50')}
       >
         <span>{justSaved ? '✓' : '💾'}</span>
         <span>{justSaved ? T.saved : T.save}</span>
@@ -164,8 +162,7 @@ export default function SaveSearch({ searchParams = {}, lang = 'ar' }) {
       {open && (
         <div
           ref={panelRef}
-          className={`absolute top-10 z-50 w-72 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden
-            ${isRTL ? 'right-0' : 'left-0'}`}
+          className={'absolute top-10 z-50 w-72 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden\r\n            ' + (isRTL ? 'right-0' : 'left-0')}
           dir={isRTL ? 'rtl' : 'ltr'}
         >
           {/* Header */}
@@ -193,7 +190,7 @@ export default function SaveSearch({ searchParams = {}, lang = 'ar' }) {
                 >
                   <button
                     onClick={() => handleNavigate(s.query)}
-                    className={`flex-1 text-sm text-gray-700 hover:text-blue-600 ${isRTL ? 'text-right' : 'text-left'} truncate`}
+                    className={'flex-1 text-sm text-gray-700 hover:text-blue-600 ' + (isRTL ? 'text-right' : 'text-left') + ' truncate'}
                   >
                     <div className="font-medium truncate">{s.label}</div>
                     <div className="text-xs text-gray-400">{timeAgo(s.timestamp, lang)}</div>
