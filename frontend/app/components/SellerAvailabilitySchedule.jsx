@@ -123,11 +123,7 @@ function TodayBadge({ schedule, lang, blockJumuah }) {
   return (
     <div
       dir={lang === "ar" ? "rtl" : "ltr"}
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border
-        ${isAvailable
-          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-          : "bg-gray-50 border-gray-200 text-gray-500"
-        }`}
+      className={'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ' + (isAvailable ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-gray-50 border-gray-200 text-gray-500")}
       style={{ fontFamily: lang === "ar" ? "'Cairo', 'Tajawal', sans-serif" : "inherit" }}
     >
       <span>{isAvailable ? "🟢" : "⚫"}</span>
@@ -184,8 +180,7 @@ function ScheduleGrid({ schedule, lang, editable, blockJumuah, onUpdate }) {
           return (
             <div
               key={dayKey}
-              className={`text-center text-xs font-bold pb-1 rounded-t
-                ${isToday ? "text-blue-600" : "text-gray-500"}`}
+              className={'text-center text-xs font-bold pb-1 rounded-t ' + (isToday ? "text-blue-600" : "text-gray-500")}
               style={{ fontFamily: isRTL ? "'Cairo', 'Tajawal', sans-serif" : "inherit" }}
             >
               {t.days[dayKey]}
@@ -205,20 +200,11 @@ function ScheduleGrid({ schedule, lang, editable, blockJumuah, onUpdate }) {
 
             return (
               <button
-                key={`${dayKey}-${slotKey}`}
+                key={dayKey + '-' + slotKey}
                 onClick={() => toggleSlot(dayKey, slotKey)}
                 disabled={!editable || isJumuah}
-                title={isJumuah ? t.jumuah : `${t.days[dayKey]} ${t[slotKey]}`}
-                className={`
-                  h-9 w-full rounded flex items-center justify-center text-base transition-all
-                  ${isJumuah
-                    ? "bg-amber-100 border border-amber-300 cursor-not-allowed"
-                    : isOn
-                    ? "bg-emerald-100 border border-emerald-400 shadow-sm"
-                    : "bg-gray-50 border border-gray-200"
-                  }
-                  ${editable && !isJumuah ? "hover:scale-105 cursor-pointer" : "cursor-default"}
-                `}
+                title={isJumuah ? t.jumuah : (t.days[dayKey] + ' ' + t[slotKey])}
+                className={'h-9 w-full rounded flex items-center justify-center text-base transition-all ' + (isJumuah ? "bg-amber-100 border border-amber-300 cursor-not-allowed" : isOn ? "bg-emerald-100 border border-emerald-400 shadow-sm" : "bg-gray-50 border border-gray-200") + ' ' + (editable && !isJumuah ? "hover:scale-105 cursor-pointer" : "cursor-default")}
               >
                 {isJumuah ? (
                   <span className="text-amber-500 text-xs">🕌</span>
@@ -289,7 +275,7 @@ export default function SellerAvailabilitySchedule({
       style={{ fontFamily: isRTL ? "'Cairo', 'Tajawal', sans-serif" : "inherit" }}
     >
       {/* Header */}
-      <div className={`flex items-center gap-2 ${isRTL ? "flex-row-reverse" : ""}`}>
+      <div className={'flex items-center gap-2 ' + (isRTL ? "flex-row-reverse" : "")}>
         <span className="text-lg">📅</span>
         <div>
           <h3 className="text-sm font-bold text-gray-800">{t.title}</h3>
