@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -210,9 +211,9 @@ export default function ProfilePage() {
                 style={{ flex: 1, padding: 12, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
                 ✏️ تعديل الملف الشخصي
               </button>
-              <a href="/sell" style={{ flex: 1, padding: 12, background: '#f3f4f6', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: '#374151' }}>
+              <Link href="/sell" style={{ flex: 1, padding: 12, background: '#f3f4f6', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: '#374151' }}>
                 ➕ إعلان جديد
-              </a>
+              </Link>
             </div>
           </>
         ) : (
@@ -259,7 +260,7 @@ export default function ProfilePage() {
           <div style={{ textAlign: 'center', padding: 32, background: 'white', borderRadius: 16, color: '#888', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>📭</div>
             <p style={{ margin: '0 0 12px' }}>لا توجد إعلانات بعد</p>
-            <a href="/sell" style={{ color: '#6366f1', fontWeight: 'bold', textDecoration: 'none' }}>+ أضف إعلانك الأول</a>
+            <Link href="/sell" style={{ color: '#6366f1', fontWeight: 'bold', textDecoration: 'none' }}>+ أضف إعلانك الأول</Link>
           </div>
         )}
         {myAds.length > 0 && (
