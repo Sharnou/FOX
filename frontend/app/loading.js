@@ -18,9 +18,7 @@ export default function Loading() {
         animation: 'xtox-spin 0.8s linear infinite',
       }} />
       <span style={{ color: '#94a3b8', fontSize: 14 }}>جارٍ التحميل...</span>
-      <style>{`
-        @keyframes xtox-spin { to { transform: rotate(360deg); } }
-      `}</style>
+      <style>{'\n        @keyframes xtox-spin { to { transform: rotate(360deg); } }\n      '}</style>
     </div>
   );
 }
