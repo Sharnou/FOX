@@ -82,8 +82,8 @@ export default function ProfileCompletionBar({
   }, [completionPercent]);
 
   const displayPct = isRTL
-    ? `${toArabicNumerals(completionPercent)}٪`
-    : `${completionPercent}%`;
+    ? (toArabicNumerals(completionPercent) + '٪')
+    : (completionPercent + '%');
 
   return (
     <div
@@ -94,9 +94,7 @@ export default function ProfileCompletionBar({
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-bold text-gray-800">{t.title}</span>
         <span
-          className={`text-sm font-extrabold ${
-            isComplete ? 'text-emerald-600' : 'text-gray-700'
-          }`}
+          className={'text-sm font-extrabold ' + (isComplete ? 'text-emerald-600' : 'text-gray-700')}
         >
           {displayPct}
         </span>
@@ -109,8 +107,8 @@ export default function ProfileCompletionBar({
       {/* Progress Bar */}
       <div className="relative w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-3">
         <div
-          className={`h-full rounded-full transition-all duration-700 ${barColor} relative`}
-          style={{ width: `${Math.min(completionPercent, 100)}%` }}
+          className={'h-full rounded-full transition-all duration-700 ' + barColor + ' relative'}
+          style={{ width: Math.min(completionPercent, 100) + '%' }}
         >
           {/* Shimmer */}
           <span
@@ -152,9 +150,7 @@ export default function ProfileCompletionBar({
                     <span className="text-xs text-gray-700 group-hover:text-blue-600 transition-colors underline-offset-2 group-hover:underline">
                       {t.fields[field] || field}
                     </span>
-                    <span className={`${
-                      isRTL ? 'mr-auto' : 'ml-auto'
-                    } text-gray-300 group-hover:text-blue-400 text-xs`}>
+                    <span className={(isRTL ? 'mr-auto' : 'ml-auto') + ' text-gray-300 group-hover:text-blue-400 text-xs'}>
                       {isRTL ? '←' : '→'}
                     </span>
                   </li>
@@ -165,12 +161,7 @@ export default function ProfileCompletionBar({
         </>
       )}
 
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: '@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }' }} />
     </div>
   );
 }
