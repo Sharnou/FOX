@@ -95,10 +95,10 @@ export default function WishlistPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/wishlist`, {
-        headers: { Authorization: `Bearer ${tkn}` },
+      const res = await fetch(API_BASE + '/api/wishlist', {
+        headers: { Authorization: 'Bearer ' + tkn },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       /* API may return array directly or wrapped */
       const list = Array.isArray(data)
@@ -115,9 +115,9 @@ export default function WishlistPage() {
   async function handleRemove(adId) {
     setRemoving(prev => ({ ...prev, [adId]: true }));
     try {
-      const res = await fetch(`${API_BASE}/api/wishlist/${adId}`, {
+      const res = await fetch(API_BASE + '/api/wishlist/' + adId, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Bearer ' + token },
       });
       if (res.ok) {
         setAds(prev => prev.filter(a => (a._id || a.id) !== adId));
@@ -128,8 +128,8 @@ export default function WishlistPage() {
 
   /* Count label */
   const countLabel = ads.length === 1
-    ? `1 ${t.savedOne}`
-    : `${ads.length} ${t.savedMany}`;
+    ? '1 ' + t.savedOne
+    : ads.length + ' ' + t.savedMany;
 
   return (
     <main
@@ -216,7 +216,7 @@ export default function WishlistPage() {
               const priceNum   = ad.price ?? ad.amount;
               const currency   = ad.currency || (isRTL ? '' : '');
               const price      = priceNum != null
-                ? `${Number(priceNum).toLocaleString(isRTL ? 'ar-EG' : 'en-US')} ${currency}`.trim()
+                ? Number(priceNum).toLocaleString(isRTL ? 'ar-EG' : 'en-US') + ' ' + currency.trim()
                 : t.noPrice;
               const location   = ad.location || ad.city || ad.area || '';
               const isBusy     = !!removing[adId];
@@ -228,7 +228,7 @@ export default function WishlistPage() {
                 >
                   {/* Image */}
                   <Link
-                    href={`/ads/${adId}`}
+                    href={'/ads/' + adId}
                     className="block relative h-44 bg-gray-100 overflow-hidden"
                     aria-label={title}
                   >
@@ -249,7 +249,7 @@ export default function WishlistPage() {
 
                   {/* Card body */}
                   <div className="p-3 flex flex-col gap-1 flex-1">
-                    <Link href={`/ads/${adId}`}>
+                    <Link href={'/ads/' + adId}>
                       <h3 className="text-sm font-bold text-gray-800 line-clamp-2 leading-snug hover:text-[#002f34] transition-colors">
                         {title}
                       </h3>
@@ -270,16 +270,12 @@ export default function WishlistPage() {
                     <button
                       onClick={() => handleRemove(adId)}
                       disabled={isBusy}
-                      aria-label={`${t.remove} ${title}`}
-                      className={`
-                        mt-auto w-full py-1.5 rounded-lg text-xs font-bold border transition-all
-                        ${isBusy
+                      aria-label={t.remove + ' ' + title}
+                      className={'\n                        mt-auto w-full py-1.5 rounded-lg text-xs font-bold border transition-all\n                        ' + (isBusy
                           ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
-                          : 'bg-white text-red-500 border-red-200 hover:bg-red-50 hover:border-red-400 active:scale-95'
-                        }
-                      `}
+                          : 'bg-white text-red-500 border-red-200 hover:bg-red-50 hover:border-red-400 active:scale-95') + '\n                      '}
                     >
-                      {isBusy ? t.removing : `❤️ ${t.remove}`}
+                      {isBusy ? t.removing : '❤️ ' + t.remove}
                     </button>
                   </div>
                 </article>
