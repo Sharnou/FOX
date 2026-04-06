@@ -32,8 +32,8 @@ export default function ProfilePage() {
     const token = getToken();
     if (!token) { router.push('/login'); return; }
 
-    fetch(`${API}/api/users/me`, {
-      headers: { Authorization: `Bearer ${token}` }
+    fetch(API + '/api/users/me', {
+      headers: { Authorization: 'Bearer ' + token }
     })
       .then(async r => {
         if (r.status === 401) { router.push('/login'); return null; }
@@ -64,8 +64,8 @@ export default function ProfilePage() {
     const uid = user._id || user.id;
     if (!uid) return;
     setAdsLoading(true);
-    fetch(`${API}/api/ads?userId=${uid}`, {
-      headers: { Authorization: `Bearer ${getToken()}` }
+    fetch(API + '/api/ads?userId=' + uid, {
+      headers: { Authorization: 'Bearer ' + getToken() }
     })
       .then(r => r.json())
       .then(data => {
@@ -79,9 +79,9 @@ export default function ProfilePage() {
   const deleteMyAd = async (adId) => {
     if (!confirm('هل تريد حذف هذا الإعلان؟')) return;
     try {
-      const res = await fetch(`${API}/api/ads/${adId}`, {
+      const res = await fetch(API + '/api/ads/' + adId, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${getToken()}` }
+        headers: { Authorization: 'Bearer ' + getToken() }
       });
       if (res.ok) setMyAds(prev => prev.filter(a => a._id !== adId));
     } catch {}
@@ -91,9 +91,9 @@ export default function ProfilePage() {
     setSaving(true); setMsg('');
     try {
       const token = getToken();
-      const res = await fetch(`${API}/api/users/me`, {
+      const res = await fetch(API + '/api/users/me', {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
       const data = await res.json();
@@ -103,7 +103,7 @@ export default function ProfilePage() {
       try { localStorage.setItem('user', JSON.stringify({ ...user, ...updated })); } catch {}
       setEditing(false);
       setMsg('✅ تم الحفظ بنجاح');
-    } catch (e) { setMsg(`❌ ${e.message}`); }
+    } catch (e) { setMsg('❌ ' + e.message); }
     finally { setSaving(false); }
   };
 
@@ -112,9 +112,9 @@ export default function ProfilePage() {
     setChatToggling(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API}/api/users/chat-toggle`, {
+      const res = await fetch(API + '/api/users/chat-toggle', {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: 'Bearer ' + token }
       });
       const data = await res.json();
       const newVal = res.ok ? data.chatEnabled : !chatEnabled;
@@ -291,7 +291,7 @@ export default function ProfilePage() {
                     <p style={{ margin: '0 0 8px', fontSize: 12, color: '#6366f1', fontWeight: 'bold' }}>{ad.price} {ad.currency || 'EGP'}</p>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <a
-                        href={`/ads/${ad._id}`}
+                        href={'/ads/' + ad._id}
                         style={{ flex: 1, textAlign: 'center', padding: '4px', background: '#f3f4f6', borderRadius: 8, fontSize: 11, textDecoration: 'none', color: '#333' }}
                       >
                         عرض
