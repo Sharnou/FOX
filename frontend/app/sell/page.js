@@ -44,15 +44,85 @@ const CATEGORY_PRICE_HINTS = {
 };
 
 const SUBCATS = {
-  Vehicles: [{v:'Cars',ar:'سيارات'},{v:'Motorcycles',ar:'دراجات نارية'},{v:'Trucks',ar:'شاحنات'},{v:'Boats',ar:'قوارب'},{v:'SpareParts',ar:'قطع غيار'},{v:'Other',ar:'أخرى'}],
-  Electronics: [{v:'MobilePhones',ar:'هواتف محمولة'},{v:'Laptops',ar:'لابتوب'},{v:'Tablets',ar:'تابلت'},{v:'TVs',ar:'تليفزيونات'},{v:'Cameras',ar:'كاميرات'},{v:'Gaming',ar:'ألعاب إلكترونية'},{v:'Audio',ar:'صوتيات'},{v:'Accessories',ar:'إكسسوارات'},{v:'Other',ar:'أخرى'}],
-  'Real Estate': [{v:'Apartments',ar:'شقق'},{v:'Villas',ar:'فيلات'},{v:'Land',ar:'أراضي'},{v:'Commercial',ar:'تجاري'},{v:'Offices',ar:'مكاتب'},{v:'Rooms',ar:'غرف'},{v:'Other',ar:'أخرى'}],
-  Jobs: [{v:'FullTime',ar:'دوام كامل'},{v:'PartTime',ar:'دوام جزئي'},{v:'Freelance',ar:'فريلانس'},{v:'Internship',ar:'تدريب'},{v:'Remote',ar:'عن بُعد'},{v:'Other',ar:'أخرى'}],
-  Services: [{v:'HomeServices',ar:'خدمات منزلية'},{v:'Cleaning',ar:'تنظيف'},{v:'Repairs',ar:'إصلاح وصيانة'},{v:'Education',ar:'تعليم ودروس'},{v:'Health',ar:'صحة وجمال'},{v:'Transport',ar:'نقل وشحن'},{v:'Design',ar:'تصميم وطباعة'},{v:'Other',ar:'أخرى'}],
-  Supermarket: [{v:'Food',ar:'مواد غذائية'},{v:'Beverages',ar:'مشروبات'},{v:'PersonalCare',ar:'عناية شخصية'},{v:'Household',ar:'منزلية'},{v:'BabyProducts',ar:'منتجات أطفال'},{v:'Other',ar:'أخرى'}],
-  Pharmacy: [{v:'Medicines',ar:'أدوية'},{v:'MedicalDevices',ar:'أجهزة طبية'},{v:'Supplements',ar:'مكملات غذائية'},{v:'BabyHealth',ar:'صحة الأطفال'},{v:'Other',ar:'أخرى'}],
-  'Fast Food': [{v:'Pizza',ar:'بيتزا'},{v:'Burgers',ar:'برجر'},{v:'Sandwiches',ar:'ساندوتشات'},{v:'Desserts',ar:'حلويات'},{v:'Oriental',ar:'مأكولات شرقية'},{v:'Seafood',ar:'مأكولات بحرية'},{v:'Other',ar:'أخرى'}],
-  Fashion: [{v:'MensClothing',ar:'ملابس رجالية'},{v:'WomensClothing',ar:'ملابس نسائية'},{v:'KidsClothing',ar:'ملابس أطفال'},{v:'Shoes',ar:'أحذية'},{v:'Bags',ar:'شنط'},{v:'Accessories',ar:'إكسسوارات'},{v:'Other',ar:'أخرى'}],
+  Vehicles: [
+    {v:'Cars', ar:'سيارات', subsubs:[{v:'Sedan',ar:'سيدان'},{v:'SUV',ar:'SUV / دفع رباعي'},{v:'Pickup',ar:'بيك آب'},{v:'Coupe',ar:'كوبيه'},{v:'Electric',ar:'كهربائية'},{v:'Other',ar:'أخرى'}]},
+    {v:'Motorcycles', ar:'دراجات نارية', subsubs:[{v:'Sport',ar:'رياضية'},{v:'Scooter',ar:'سكوتر'},{v:'OffRoad',ar:'أوف رود'},{v:'Other',ar:'أخرى'}]},
+    {v:'SpareParts', ar:'قطع غيار', subsubs:[{v:'Engine',ar:'محرك'},{v:'Tires',ar:'كفرات'},{v:'BodyParts',ar:'هيكل'},{v:'Other',ar:'أخرى'}]},
+    {v:'Trucks', ar:'شاحنات', subsubs:[{v:'LightTruck',ar:'خفيفة'},{v:'HeavyTruck',ar:'ثقيلة'},{v:'Other',ar:'أخرى'}]},
+    {v:'Boats', ar:'قوارب', subsubs:[{v:'FishingBoat',ar:'قارب صيد'},{v:'Yacht',ar:'يخت'},{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
+  Electronics: [
+    {v:'MobilePhones', ar:'هواتف محمولة', subsubs:[{v:'iPhone',ar:'آيفون'},{v:'Samsung',ar:'سامسونج'},{v:'Huawei',ar:'هواوي'},{v:'Xiaomi',ar:'شاومي'},{v:'Oppo',ar:'أوبو'},{v:'Other',ar:'أخرى'}]},
+    {v:'Laptops', ar:'لابتوب', subsubs:[{v:'MacBook',ar:'ماك بوك'},{v:'GamingLaptop',ar:'جيمينج'},{v:'Business',ar:'للأعمال'},{v:'Other',ar:'أخرى'}]},
+    {v:'Tablets', ar:'تابلت', subsubs:[{v:'iPad',ar:'آيباد'},{v:'SamsungTab',ar:'سامسونج تاب'},{v:'Other',ar:'أخرى'}]},
+    {v:'TVs', ar:'تليفزيونات', subsubs:[{v:'SmartTV',ar:'سمارت'},{v:'OLED',ar:'OLED'},{v:'LED',ar:'LED'},{v:'Other',ar:'أخرى'}]},
+    {v:'Cameras', ar:'كاميرات', subsubs:[{v:'DSLR',ar:'DSLR'},{v:'Mirrorless',ar:'ميرورليس'},{v:'Security',ar:'مراقبة'},{v:'Other',ar:'أخرى'}]},
+    {v:'Gaming', ar:'ألعاب', subsubs:[{v:'PlayStation',ar:'بلايستيشن'},{v:'Xbox',ar:'إكس بوكس'},{v:'Nintendo',ar:'نينتندو'},{v:'PCGaming',ar:'PC'},{v:'Other',ar:'أخرى'}]},
+    {v:'Audio', ar:'صوتيات', subsubs:[{v:'Headphones',ar:'سماعات رأس'},{v:'Earbuds',ar:'إيربودز'},{v:'Speakers',ar:'سبيكر'},{v:'Other',ar:'أخرى'}]},
+    {v:'Accessories', ar:'إكسسوارات', subsubs:[{v:'Chargers',ar:'شواحن'},{v:'Cases',ar:'كفرات'},{v:'PowerBanks',ar:'باور بانك'},{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
+  'Real Estate': [
+    {v:'Apartments', ar:'شقق', subsubs:[{v:'Studio',ar:'استوديو'},{v:'1BR',ar:'غرفة واحدة'},{v:'2BR',ar:'غرفتان'},{v:'3BR',ar:'3 غرف'},{v:'4BR',ar:'4 غرف+'},{v:'Duplex',ar:'دوبلكس'},{v:'Penthouse',ar:'بنتهاوس'},{v:'Other',ar:'أخرى'}]},
+    {v:'Villas', ar:'فيلات', subsubs:[{v:'Independent',ar:'مستقلة'},{v:'Compound',ar:'كمبوند'},{v:'TwinHouse',ar:'توين هاوس'},{v:'TownHouse',ar:'تاون هاوس'},{v:'Other',ar:'أخرى'}]},
+    {v:'Land', ar:'أراضي', subsubs:[{v:'Residential',ar:'سكنية'},{v:'Commercial',ar:'تجارية'},{v:'Agricultural',ar:'زراعية'},{v:'Other',ar:'أخرى'}]},
+    {v:'Commercial', ar:'تجاري', subsubs:[{v:'Shop',ar:'محل'},{v:'Warehouse',ar:'مخزن'},{v:'Restaurant',ar:'مطعم'},{v:'Other',ar:'أخرى'}]},
+    {v:'Offices', ar:'مكاتب', subsubs:[{v:'Private',ar:'خاص'},{v:'Shared',ar:'مشترك'},{v:'Other',ar:'أخرى'}]},
+    {v:'Rooms', ar:'غرف', subsubs:[{v:'Single',ar:'مفردة'},{v:'Double',ar:'مزدوجة'},{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
+  Jobs: [
+    {v:'FullTime', ar:'دوام كامل', subsubs:[{v:'IT',ar:'تكنولوجيا'},{v:'Engineering',ar:'هندسة'},{v:'Medical',ar:'طبي'},{v:'Marketing',ar:'تسويق'},{v:'Finance',ar:'مالية'},{v:'Education',ar:'تعليم'},{v:'Sales',ar:'مبيعات'},{v:'Other',ar:'أخرى'}]},
+    {v:'PartTime', ar:'دوام جزئي', subsubs:[{v:'Delivery',ar:'توصيل'},{v:'Tutoring',ar:'دروس'},{v:'CustomerService',ar:'خدمة عملاء'},{v:'Other',ar:'أخرى'}]},
+    {v:'Freelance', ar:'فريلانس', subsubs:[{v:'Design',ar:'تصميم'},{v:'Development',ar:'برمجة'},{v:'Writing',ar:'كتابة'},{v:'Translation',ar:'ترجمة'},{v:'Other',ar:'أخرى'}]},
+    {v:'Internship', ar:'تدريب', subsubs:[{v:'Technical',ar:'تقني'},{v:'Business',ar:'أعمال'},{v:'Other',ar:'أخرى'}]},
+    {v:'Remote', ar:'عن بُعد', subsubs:[{v:'Development',ar:'برمجة'},{v:'CustomerService',ar:'خدمة عملاء'},{v:'Content',ar:'محتوى'},{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
+  Services: [
+    {v:'HomeServices', ar:'خدمات منزلية', subsubs:[{v:'Plumber',ar:'سباكة'},{v:'Electrician',ar:'كهرباء'},{v:'Carpenter',ar:'نجارة'},{v:'Painter',ar:'دهانات'},{v:'ACRepair',ar:'تكييف'},{v:'PestControl',ar:'حشرات'},{v:'Other',ar:'أخرى'}]},
+    {v:'Cleaning', ar:'تنظيف', subsubs:[{v:'HomeCleaning',ar:'منازل'},{v:'OfficeCleaning',ar:'مكاتب'},{v:'CarWash',ar:'غسيل سيارات'},{v:'SofaCleaning',ar:'أثاث'},{v:'Other',ar:'أخرى'}]},
+    {v:'Repairs', ar:'إصلاح', subsubs:[{v:'Electronics',ar:'إلكترونيات'},{v:'Appliances',ar:'أجهزة'},{v:'Furniture',ar:'أثاث'},{v:'Other',ar:'أخرى'}]},
+    {v:'Education', ar:'دروس', subsubs:[{v:'Math',ar:'رياضيات'},{v:'Science',ar:'علوم'},{v:'Languages',ar:'لغات'},{v:'Quran',ar:'قرآن'},{v:'Music',ar:'موسيقى'},{v:'Other',ar:'أخرى'}]},
+    {v:'Health', ar:'صحة وجمال', subsubs:[{v:'Fitness',ar:'لياقة'},{v:'Nutrition',ar:'تغذية'},{v:'Salon',ar:'صالون'},{v:'Spa',ar:'سبا'},{v:'Other',ar:'أخرى'}]},
+    {v:'Transport', ar:'نقل', subsubs:[{v:'FurnitureMoving',ar:'نقل أثاث'},{v:'Delivery',ar:'توصيل'},{v:'AirportTransfer',ar:'مطار'},{v:'Other',ar:'أخرى'}]},
+    {v:'Design', ar:'تصميم', subsubs:[{v:'LogoDesign',ar:'شعار'},{v:'Print',ar:'طباعة'},{v:'WebDesign',ar:'مواقع'},{v:'Video',ar:'فيديو'},{v:'Photography',ar:'تصوير'},{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
+  Supermarket: [
+    {v:'Food', ar:'غذاء', subsubs:[{v:'Fresh',ar:'طازج'},{v:'Dairy',ar:'ألبان وبيض'},{v:'Bakery',ar:'مخبوزات'},{v:'Canned',ar:'معلبات'},{v:'Snacks',ar:'سناكس'},{v:'Other',ar:'أخرى'}]},
+    {v:'Beverages', ar:'مشروبات', subsubs:[{v:'Juice',ar:'عصائر'},{v:'Water',ar:'مياه'},{v:'SoftDrinks',ar:'غازي'},{v:'Energy',ar:'طاقة'},{v:'HotDrinks',ar:'ساخنة'},{v:'Other',ar:'أخرى'}]},
+    {v:'PersonalCare', ar:'عناية شخصية', subsubs:[{v:'Skincare',ar:'بشرة'},{v:'HairCare',ar:'شعر'},{v:'OralCare',ar:'أسنان'},{v:'Hygiene',ar:'نظافة'},{v:'Other',ar:'أخرى'}]},
+    {v:'Household', ar:'منزلية', subsubs:[{v:'Cleaning',ar:'منظفات'},{v:'Kitchen',ar:'مطبخ'},{v:'Other',ar:'أخرى'}]},
+    {v:'BabyProducts', ar:'منتجات أطفال', subsubs:[{v:'Diapers',ar:'حفاضات'},{v:'BabyFood',ar:'أغذية أطفال'},{v:'BabyToys',ar:'ألعاب'},{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
+  Pharmacy: [
+    {v:'Medicines', ar:'أدوية', subsubs:[{v:'OTC',ar:'بدون وصفة'},{v:'Vitamins',ar:'فيتامينات'},{v:'Herbal',ar:'أعشاب'},{v:'Other',ar:'أخرى'}]},
+    {v:'MedicalDevices', ar:'أجهزة طبية', subsubs:[{v:'BloodPressure',ar:'جهاز ضغط'},{v:'BloodSugar',ar:'جهاز سكر'},{v:'Thermometer',ar:'ترمومتر'},{v:'Other',ar:'أخرى'}]},
+    {v:'Supplements', ar:'مكملات', subsubs:[{v:'Protein',ar:'بروتين'},{v:'WeightLoss',ar:'تخسيس'},{v:'MuscleBuilding',ar:'بناء عضلات'},{v:'Other',ar:'أخرى'}]},
+    {v:'BabyHealth', ar:'صحة أطفال', subsubs:[{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
+  'Fast Food': [
+    {v:'Pizza', ar:'بيتزا', subsubs:[{v:'Margherita',ar:'مارغريتا'},{v:'Pepperoni',ar:'بيبروني'},{v:'Seafood',ar:'بحرية'},{v:'Other',ar:'أخرى'}]},
+    {v:'Burgers', ar:'برجر', subsubs:[{v:'BeefBurger',ar:'لحم'},{v:'ChickenBurger',ar:'دجاج'},{v:'DoubleBurger',ar:'دبل'},{v:'Other',ar:'أخرى'}]},
+    {v:'Sandwiches', ar:'ساندوتشات', subsubs:[{v:'Shawarma',ar:'شاورما'},{v:'Falafel',ar:'فلافل'},{v:'Kofta',ar:'كفتة'},{v:'Other',ar:'أخرى'}]},
+    {v:'Desserts', ar:'حلويات', subsubs:[{v:'IceCream',ar:'آيس كريم'},{v:'Cake',ar:'كيك'},{v:'Kunafa',ar:'كنافة'},{v:'Other',ar:'أخرى'}]},
+    {v:'Oriental', ar:'شرقي', subsubs:[{v:'Koshary',ar:'كشري'},{v:'Grills',ar:'مشويات'},{v:'Mahshi',ar:'محشي'},{v:'Other',ar:'أخرى'}]},
+    {v:'Seafood', ar:'مأكولات بحرية', subsubs:[{v:'Fish',ar:'سمك'},{v:'Shrimp',ar:'جمبري'},{v:'Mixed',ar:'مشكل'},{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
+  Fashion: [
+    {v:'MensClothing', ar:'رجالي', subsubs:[{v:'Formal',ar:'رسمي'},{v:'Casual',ar:'كاجوال'},{v:'Sports',ar:'رياضي'},{v:'Traditional',ar:'تقليدي'},{v:'Other',ar:'أخرى'}]},
+    {v:'WomensClothing', ar:'نسائي', subsubs:[{v:'Abayas',ar:'عبايات'},{v:'Dresses',ar:'فساتين'},{v:'Casual',ar:'كاجوال'},{v:'Sports',ar:'رياضي'},{v:'Other',ar:'أخرى'}]},
+    {v:'KidsClothing', ar:'أطفال', subsubs:[{v:'Boys',ar:'أولاد'},{v:'Girls',ar:'بنات'},{v:'Baby',ar:'مواليد'},{v:'SchoolUniform',ar:'يونيفورم'},{v:'Other',ar:'أخرى'}]},
+    {v:'Shoes', ar:'أحذية', subsubs:[{v:'Sneakers',ar:'سنيكرز'},{v:'Sandals',ar:'صنادل'},{v:'Sports',ar:'رياضي'},{v:'Formal',ar:'رسمي'},{v:'Other',ar:'أخرى'}]},
+    {v:'Bags', ar:'شنط', subsubs:[{v:'Handbag',ar:'حقيبة يد'},{v:'Backpack',ar:'ظهر'},{v:'TravelBag',ar:'سفر'},{v:'Wallet',ar:'محفظة'},{v:'Other',ar:'أخرى'}]},
+    {v:'Accessories', ar:'إكسسوارات', subsubs:[{v:'Jewelry',ar:'مجوهرات'},{v:'Watches',ar:'ساعات'},{v:'Sunglasses',ar:'نظارات'},{v:'Other',ar:'أخرى'}]},
+    {v:'Other', ar:'أخرى', subsubs:[]},
+  ],
 };
 
 function CategoryPriceHint({ category }) {
@@ -86,6 +156,7 @@ export default function SellPage() {
   const [charCount, setCharCount] = useState(0);
   const [aiDebounce, setAiDebounce] = useState(null);
   const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const [subsub, setSubsub] = useState('Other');
 
   // ── Multi-media state ──────────────────────────────────────────────────────
   const [mediaFiles, setMediaFiles] = useState([]); // up to 5 images OR 1 video
@@ -225,6 +296,7 @@ export default function SellPage() {
       formData.append('currency', form.currency || 'EGP');
       formData.append('condition', form.condition || '');
       formData.append('subcategory', form.subcategory || '');
+      formData.append('subsub', subsub || 'Other');
 
       // Attach media files
       if (mediaType === 'images' && mediaFiles.length > 0) {
@@ -515,7 +587,7 @@ export default function SellPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {CATS.map(cat => (
                   <button key={cat.en} type="button"
-                    onClick={() => { setForm(p => ({ ...p, category: cat.en, subcategory: 'Other' })); if (errors.category) setErrors(p => ({ ...p, category: '' })); }}
+                    onClick={() => { setForm(p => ({ ...p, category: cat.en, subcategory: 'Other' })); setSubsub('Other'); if (errors.category) setErrors(p => ({ ...p, category: '' })); }}
                     aria-pressed={form.category === cat.en}
                     style={{
                       padding: '10px 6px', borderRadius: 10,
@@ -542,7 +614,7 @@ export default function SellPage() {
                   <label style={labelStyle}>الفئة الفرعية</label>
                   <select
                     value={form.subcategory || 'Other'}
-                    onChange={e => setForm(p => ({ ...p, subcategory: e.target.value }))}
+                    onChange={e => { setForm(p => ({ ...p, subcategory: e.target.value })); setSubsub('Other'); }}
                     aria-label="الفئة الفرعية"
                     style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
                   >
@@ -552,6 +624,24 @@ export default function SellPage() {
                   </select>
                 </div>
               )}
+              {form.category && SUBCATS[form.category] && (function() {
+                var _selSub = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
+                return _selSub && _selSub.subsubs && _selSub.subsubs.length > 0 ? (
+                  <div style={{ marginTop: 10 }}>
+                    <label style={labelStyle}>التصنيف الدقيق</label>
+                    <select
+                      value={subsub}
+                      onChange={e => setSubsub(e.target.value)}
+                      aria-label="التصنيف الدقيق"
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
+                    >
+                      {_selSub.subsubs.map(function(ss) { return (
+                        <option key={ss.v} value={ss.v}>{ss.ar}</option>
+                      ); })}
+                    </select>
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Condition */}
