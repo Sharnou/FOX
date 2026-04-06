@@ -40,7 +40,7 @@ export default function ProfilePage({ params }) {
 
   useEffect(() => {
     if (params?.id) {
-      fetch(`${API}/api/profile/${params.id}`)
+      fetch(API + '/api/profile/' + params.id)
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data) setData(data); })
         .catch(() => {});
@@ -102,12 +102,12 @@ export default function ProfilePage({ params }) {
     if (!myRating) return alert('اختر تقييم أولاً');
     setSubmitting(true);
     try {
-      await fetch(`${API}/api/profile/${params.id}/review`, {
+      await fetch(API + '/api/profile/' + params.id + '/review', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify({ rating: myRating, comment: myComment })
       });
-      const reloadRes = await fetch(`${API}/api/profile/${params.id}`);
+      const reloadRes = await fetch(API + '/api/profile/' + params.id);
       const reloadData = reloadRes.ok ? await reloadRes.json() : null;
       if (reloadData) setData(reloadData);
       setMyRating(0); setMyComment('');
@@ -178,7 +178,7 @@ export default function ProfilePage({ params }) {
                   padding: '1px 4px',
                 }}
               >
-                {`آخر ظهور ${Math.round((Date.now() - new Date(user.lastSeen)) / 60000)} د`}
+                {'آخر ظهور ' + Math.round((Date.now() - new Date(user.lastSeen)) / 60000) + ' د'}
               </span>
             ) : null}
           </div>
@@ -202,13 +202,13 @@ export default function ProfilePage({ params }) {
         {(user.showPhone || user.showWhatsapp) && !isOwnProfile && (
           <div style={{ marginTop: 16, padding: '12px 16px', background: '#f8f8f8', borderRadius: 12, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             {user.showPhone && user.phone && (
-              <a href={`tel:${user.phone}`}
+              <a href={'tel:' + user.phone}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#002f34', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 14, fontWeight: 'bold' }}>
                 📞 {user.phone}
               </a>
             )}
             {user.showWhatsapp && user.whatsapp && (
-              <a href={`https://wa.me/${user.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener"
+              <a href={'https://wa.me/' + user.whatsapp.replace(/[^0-9]/g, '')} target="_blank" rel="noopener"
                 style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#25d366', color: 'white', padding: '8px 16px', borderRadius: 10, textDecoration: 'none', fontSize: 14, fontWeight: 'bold' }}>
                 💬 واتساب
               </a>
@@ -219,12 +219,12 @@ export default function ProfilePage({ params }) {
         {/* Action buttons — only if not own profile */}
         {!isOwnProfile && (
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-            <a href={`/chat?target=${params.id}`}
+            <a href={'/chat?target=' + params.id}
               style={{ flex: 1, background: '#002f34', color: 'white', textAlign: 'center', padding: '12px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 14 }}>
               💬 مراسلة
             </a>
             {callStatus && (
-              <div style={{ width: '100%', background: callActive ? '#e8f8e8' : '#fff8e0', border: `1px solid ${callActive ? '#00aa44' : '#ffd700'}`, borderRadius: 10, padding: '8px 14px', fontSize: 13, textAlign: 'center' }}>
+              <div style={{ width: '100%', background: callActive ? '#e8f8e8' : '#fff8e0', border: '1px solid ' + (callActive ? '#00aa44' : '#ffd700'), borderRadius: 10, padding: '8px 14px', fontSize: 13, textAlign: 'center' }}>
                 {callStatus}
               </div>
             )}
@@ -321,7 +321,7 @@ export default function ProfilePage({ params }) {
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
                 {ads.map(ad => (
-                  <a key={ad._id} href={`/ads/${ad._id}`} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit', display: 'block', transition: 'transform 0.15s, box-shadow 0.15s' }}
+                  <a key={ad._id} href={'/ads/' + ad._id} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit', display: 'block', transition: 'transform 0.15s, box-shadow 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,47,52,0.14)'; }}
                     onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.08)'; }}>
                     <div style={{ height: 110, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, overflow: 'hidden', position: 'relative' }}>
@@ -387,7 +387,7 @@ export default function ProfilePage({ params }) {
                       <span style={{ fontSize: 11, color: '#666', width: 10, textAlign: 'center' }}>{star}</span>
                       <span style={{ color: '#ffd700', fontSize: 11 }}>★</span>
                       <div style={{ flex: 1, height: 6, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: '#23e5db', borderRadius: 4, transition: 'width 0.4s ease' }} />
+                        <div style={{ width: pct + '%', height: '100%', background: '#23e5db', borderRadius: 4, transition: 'width 0.4s ease' }} />
                       </div>
                       <span style={{ fontSize: 11, color: '#999', width: 24 }}>{cnt}</span>
                     </div>
