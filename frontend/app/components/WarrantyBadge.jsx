@@ -61,16 +61,16 @@ function formatWarranty(warranty, locale) {
     const n = parseInt(numericMatch[1], 10);
     if (n >= 12 && n % 12 === 0) {
       const years = n / 12;
-      return `${years} ${years === 1 ? t.year : t.years}`;
+      return years + ' ' + (years === 1 ? t.year : t.years);
     }
-    return `${n} ${n === 1 ? t.month : t.months}`;
+    return n + ' ' + (n === 1 ? t.month : t.months);
   }
 
   // numeric years
   const yearMatch = val.match(/^(\d+)\s*(year|years|سنة|سنوات|yr)?$/);
   if (yearMatch) {
     const n = parseInt(yearMatch[1], 10);
-    return `${n} ${n === 1 ? t.year : t.years}`;
+    return n + ' ' + (n === 1 ? t.year : t.years);
   }
 
   // fallback: return as-is
@@ -101,7 +101,7 @@ export default function WarrantyBadge({ warranty, locale = "ar" }) {
         border: "1px solid #bbf7d0",
         flexDirection: isAr ? "row-reverse" : "row",
       }}
-      aria-label={`${labels.prefix}: ${formattedWarranty}`}
+      aria-label={labels.prefix + ': ' + formattedWarranty}
     >
       {/* Shield SVG icon */}
       <svg
