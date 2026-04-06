@@ -1,7 +1,8 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { detectLang } from '../../lib/lang';
+import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -11,23 +12,10 @@ export default function LoginPage() {
   const [error,      setError]      = useState('');
   const [success,    setSuccess]    = useState('');
   const [loading,    setLoading]    = useState(false);
-  const [tab,        setTab]        = useState('main');
-  const [phone,      setPhone]      = useState('');
-  const [otp,        setOtp]        = useState('');
-  const [otpSent,    setOtpSent]    = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
   const [showEmail,  setShowEmail]  = useState(false);
   const [email,      setEmail]      = useState('');
   const [password,   setPassword]   = useState('');
   const [googleReady,setGoogleReady]= useState(false);
-  const [resendTimer,setResendTimer]= useState(0);
-
-  /* ── countdown timer for OTP resend ── */
-  useEffect(() => {
-    if (resendTimer <= 0) return;
-    const t = setTimeout(() => setResendTimer(s => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [resendTimer]);
 
   /* ── load Google SDK + check auth ── */
   useEffect(() => {
@@ -173,52 +161,6 @@ export default function LoginPage() {
     setLoading(false);
   }
 
-  async function sendOTP() {
-    setError(''); setSuccess('');
-    if (!phone.trim()) {
-      setError('يرجى إدخال رقم الواتساب مع رمز الدولة، مثال: +966501234567');
-      return;
-    }
-    const cleaned = phone.trim();
-    if (!/^\+\d{7,15}$/.test(cleaned)) {
-      setError('صيغة الرقم غير صحيحة — يجب أن يبدأ بـ + ثم أرقام فقط');
-      return;
-    }
-    setOtpLoading(true);
-    try {
-      const res  = await fetch(API + '/api/users/send-otp', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ phone: cleaned, via: 'whatsapp' })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || data?.message || 'فشل إرسال الرمز');
-      setOtpSent(true);
-      setResendTimer(60);
-      setSuccess('تم إرسال رمز التحقق على واتساب ✅');
-    } catch (e) { setError(e.message); }
-    setOtpLoading(false);
-  }
-
-  async function verifyOTP() {
-    setError('');
-    if (!otp.trim())        { setError('يرجى إدخال رمز التحقق'); return; }
-    if (otp.length < 4)     { setError('الرمز قصير جداً');        return; }
-    setLoading(true);
-    try {
-      const country = localStorage.getItem('detectedCountry') || 'EG';
-      const res     = await fetch(API + '/api/users/verify-otp', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ phone: phone.trim(), otp: otp.trim(), country })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || data?.message || 'رمز التحقق غير صحيح');
-      saveAndRedirect(data);
-    } catch (e) { setError(e.message); }
-    setLoading(false);
-  }
-
   /* ── styles ── */
   const bg = {
     minHeight:   '100vh',
@@ -287,13 +229,13 @@ export default function LoginPage() {
 
         {/* ── Logo ── */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <a href="/" style={{ textDecoration: 'none' }} aria-label="الصفحة الرئيسية XTOX">
+          <Link href="/" style={{ textDecoration: 'none' }} aria-label="الصفحة الرئيسية XTOX">
             <div style={{ fontSize: 56 }} role="img" aria-label="XTOX">🛒</div>
             <h1 style={{ color: '#002f34', fontSize: 30, fontWeight: 900, margin: '8px 0 4px', letterSpacing: -0.5 }}>
               XTOX
             </h1>
             <p style={{ color: '#888', fontSize: 14, margin: 0 }}>السوق المحلي الذكي</p>
-          </a>
+          </Link>
         </div>
 
         {/* ── Error banner ── */}
@@ -329,10 +271,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════
-            TAB: main (Google + WhatsApp)
-        ══════════════════════════════════════════ */}
-        {tab === 'main' && (
           <div className="login-card-anim" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <p style={{ textAlign: 'center', color: '#666', fontSize: 15, margin: '0 0 4px', fontWeight: 600 }}>
               اختر طريقة الدخول
@@ -359,22 +297,6 @@ export default function LoginPage() {
                 المتابعة بـ Google
               </button>
             ) : null}
-
-            {/* WhatsApp */}
-            <button
-              onClick={() => { setTab('whatsapp'); setError(''); setSuccess(''); }}
-              aria-label="تسجيل الدخول عبر واتساب"
-              style={{
-                width: '100%', padding: '15px 20px', borderRadius: 14, border: 'none',
-                background: 'linear-gradient(135deg, #25d366, #128c7e)', color: 'white',
-                cursor: 'pointer', fontSize: 16,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
-                fontFamily: 'inherit', fontWeight: 700,
-                boxShadow: '0 4px 12px rgba(37,211,102,0.35)', transition: 'box-shadow 0.2s'
-              }}>
-              <span style={{ fontSize: 22 }} aria-hidden="true">💬</span>
-              المتابعة بـ واتساب
-            </button>
 
             {/* Hidden email login */}
             {showEmail && (
@@ -420,9 +342,9 @@ export default function LoginPage() {
 
             <p style={{ textAlign: 'center', color: '#bbb', fontSize: 12, marginTop: 8 }}>
               بالمتابعة توافق على{' '}
-              <a href="/terms"   style={{ color: '#002f34', textDecoration: 'none', fontWeight: 600 }}>شروط الاستخدام</a>
+              <Link href="/terms"   style={{ color: '#002f34', textDecoration: 'none', fontWeight: 600 }}>شروط الاستخدام</Link>
               {' '}و{' '}
-              <a href="/privacy" style={{ color: '#002f34', textDecoration: 'none', fontWeight: 600 }}>سياسة الخصوصية</a>
+              <Link href="/privacy" style={{ color: '#002f34', textDecoration: 'none', fontWeight: 600 }}>سياسة الخصوصية</Link>
             </p>
             <p style={{ textAlign: 'center', margin: '4px 0 0' }}>
               <button
@@ -433,143 +355,6 @@ export default function LoginPage() {
               </button>
             </p>
           </div>
-        )}
-
-        {/* ══════════════════════════════════════════
-            TAB: WhatsApp OTP
-        ══════════════════════════════════════════ */}
-        {tab === 'whatsapp' && (
-          <div className="login-card-anim">
-            <button
-              onClick={() => { setTab('main'); setOtpSent(false); setOtp(''); setPhone(''); setError(''); setSuccess(''); setResendTimer(0); }}
-              aria-label="العودة إلى الصفحة الرئيسية"
-              style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 700, fontSize: 18, cursor: 'pointer', marginBottom: 20, fontFamily: 'inherit', padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span aria-hidden="true">→</span> رجوع
-            </button>
-
-            <h2 style={{ color: '#002f34', margin: '0 0 6px', fontSize: 20, fontWeight: 900 }}>
-              دخول بـ واتساب
-            </h2>
-            <p style={{ color: '#888', fontSize: 13, margin: '0 0 24px' }}>
-              سيصلك رمز تحقق مجاني عبر واتساب
-            </p>
-
-            {!otpSent ? (
-              <>
-                <label htmlFor="whatsapp-phone" style={{ display: 'block', fontWeight: 700, fontSize: 14, marginBottom: 8, color: '#333' }}>
-                  رقم الواتساب
-                </label>
-                <input
-                  id="whatsapp-phone"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendOTP()}
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="+966501234567"
-                  aria-label="رقم واتساب مع رمز الدولة"
-                  autoComplete="tel"
-                  style={{ ...inputStyle, direction: 'ltr', textAlign: 'left', letterSpacing: 1, fontSize: 17 }}
-                />
-                <p style={{ color: '#aaa', fontSize: 12, marginTop: -10, marginBottom: 14, textAlign: 'right' }}>
-                  مثال: +966 للسعودية، +20 لمصر، +971 للإمارات
-                </p>
-                <button
-                  onClick={sendOTP}
-                  disabled={otpLoading}
-                  aria-label="إرسال رمز التحقق عبر واتساب"
-                  aria-busy={otpLoading}
-                  style={{
-                    width: '100%', padding: '15px', borderRadius: 12, border: 'none',
-                    background: otpLoading ? '#b0b0b0' : 'linear-gradient(135deg, #25d366, #128c7e)',
-                    color: 'white', cursor: otpLoading ? 'not-allowed' : 'pointer',
-                    fontSize: 16, fontFamily: 'inherit', fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    boxShadow: otpLoading ? 'none' : '0 4px 12px rgba(37,211,102,0.35)'
-                  }}>
-                  {otpLoading ? (
-                    <>
-                      <span style={{ width:18, height:18, border:'3px solid rgba(255,255,255,0.4)', borderTop:'3px solid white', borderRadius:'50%', animation:'spin 0.8s linear infinite', display:'inline-block' }} aria-hidden="true" />
-                      جارٍ الإرسال...
-                    </>
-                  ) : (
-                    <><span aria-hidden="true">📨</span> إرسال رمز واتساب</>
-                  )}
-                </button>
-              </>
-            ) : (
-              <>
-                <p style={{ color: '#2e7d32', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>
-                  ✅ تم إرسال الرمز إلى {phone}
-                </p>
-                <p style={{ color: '#888', fontSize: 12, marginBottom: 20 }}>
-                  لم تستلم الرمز؟ تحقق من واتساب أو أعد الإرسال
-                </p>
-
-                <label htmlFor="otp-input" style={{ display: 'block', fontWeight: 700, fontSize: 14, marginBottom: 8, color: '#333' }}>
-                  رمز التحقق
-                </label>
-                <input
-                  id="otp-input"
-                  value={otp}
-                  onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  onKeyDown={e => e.key === 'Enter' && verifyOTP()}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="• • • • • •"
-                  aria-label="أدخل رمز التحقق المكون من 6 أرقام"
-                  maxLength={6}
-                  style={{
-                    width: '100%', padding: '16px', borderRadius: 12,
-                    border: '2px solid #25d366', fontSize: 32, textAlign: 'center',
-                    boxSizing: 'border-box', marginBottom: 14,
-                    letterSpacing: 14, fontFamily: 'monospace', direction: 'ltr'
-                  }}
-                />
-
-                {/* OTP progress dots */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
-                  {[0,1,2,3,4,5].map(i => (
-                    <div key={i} style={{
-                      width: 10, height: 10, borderRadius: '50%',
-                      background: otp.length > i ? '#25d366' : '#e0e0e0',
-                      transition: 'background 0.2s'
-                    }} aria-hidden="true" />
-                  ))}
-                </div>
-
-                <button
-                  onClick={verifyOTP}
-                  disabled={loading || otp.length < 4}
-                  aria-label="تأكيد رمز التحقق"
-                  aria-busy={loading}
-                  style={{
-                    width: '100%', padding: '15px', background: (loading || otp.length < 4) ? '#b0b0b0' : '#002f34',
-                    color: 'white', border: 'none', borderRadius: 12, fontWeight: 700,
-                    fontSize: 16, cursor: (loading || otp.length < 4) ? 'not-allowed' : 'pointer',
-                    fontFamily: 'inherit', transition: 'background 0.2s'
-                  }}>
-                  {loading ? 'جارٍ التحقق...' : '✅ تأكيد الرمز'}
-                </button>
-
-                <button
-                  onClick={() => { if (resendTimer === 0) { setOtpSent(false); setOtp(''); setSuccess(''); } }}
-                  disabled={resendTimer > 0}
-                  aria-label={resendTimer > 0 ? 'إعادة الإرسال بعد ' + resendTimer + ' ثانية' : 'إعادة إرسال الرمز'}
-                  style={{
-                    width: '100%', marginTop: 10, padding: '12px',
-                    background: '#f5f5f5', border: 'none', borderRadius: 12,
-                    cursor: resendTimer > 0 ? 'not-allowed' : 'pointer',
-                    color: resendTimer > 0 ? '#bbb' : '#555',
-                    fontSize: 14, fontFamily: 'inherit', transition: 'color 0.2s'
-                  }}>
-                  {resendTimer > 0 ? 'إعادة الإرسال بعد ' + resendTimer + 'ث' : '🔄 إعادة إرسال الرمز'}
-                </button>
-              </>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
