@@ -25,26 +25,11 @@ export default function AIAssistantPage() {
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setLoading(true);
 
-    const history = messages.slice(-8).map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`).join('\n');
+    const history = messages.slice(-8).map(m => (m.role === 'user' ? 'User' : 'AI') + ': ' + m.content).join('\n');
 
     try {
       const result = await FOX.integrations.Core.InvokeLLM({
-        prompt: `You are FOX AI Assistant — a helpful co-pilot for FOX international classified marketplace.
-
-Previous conversation:
-${history}
-
-User message: "${userMsg}"
-
-You help users with:
-- Posting and improving marketplace ads
-- Buying and selling safely
-- Navigating the platform
-- Fraud awareness and safety tips
-- Pricing advice
-
-Reply in the SAME LANGUAGE as the user. Be concise, friendly, and helpful. Max 200 words.
-You are "FOX AI" — never call yourself Claude or any other AI model.`,
+        prompt: 'You are FOX AI Assistant — a helpful co-pilot for FOX international classified marketplace.\n\nPrevious conversation:\n' + history + '\n\nUser message: "' + userMsg + '"\n\nYou help users with:\n- Posting and improving marketplace ads\n- Buying and selling safely\n- Navigating the platform\n- Fraud awareness and safety tips\n- Pricing advice\n\nReply in the SAME LANGUAGE as the user. Be concise, friendly, and helpful. Max 200 words.\nYou are "FOX AI" — never call yourself Claude or any other AI model.',
       });
       setMessages(prev => [...prev, { role: 'assistant', content: result?.text || 'عذراً، حدث خطأ. حاول مرة أخرى.' }]);
     } catch {
@@ -121,7 +106,7 @@ You are "FOX AI" — never call yourself Claude or any other AI model.`,
               <Zap style={{ width: 14, height: 14, color: '#fbbf24' }} />
             </div>
             <div style={{ background: '#f3f4f6', borderRadius: '16px 16px 4px 16px', padding: '12px 16px', display: 'flex', gap: 4 }}>
-              {[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, background: '#9ca3af', borderRadius: '50%', animation: `bounce 0.6s ${i*0.15}s infinite alternate` }} />)}
+              {[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, background: '#9ca3af', borderRadius: '50%', animation: 'bounce 0.6s ' + i*0.15 + 's infinite alternate' }} />)}
             </div>
           </div>
         )}
