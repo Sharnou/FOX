@@ -71,13 +71,13 @@ function Sparkline({ data, color = '#f97316', height = 40 }) {
   const points = data.map((v, i) => {
     const x = pad + (i / (data.length - 1)) * (w - pad * 2);
     const y = h - pad - ((v - min) / range) * (h - pad * 2);
-    return `${x},${y}`;
+    return x + ',' + y;
   });
   const polyline = points.join(' ');
   // Area fill
-  const areaPoints = `${pad},${h - pad} ${polyline} ${w - pad},${h - pad}`;
+  const areaPoints = pad + ',' + h - pad + ' ' + polyline + ' ' + w - pad + ',' + h - pad;
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: 'block' }}>
+    <svg width={w} height={h} viewBox={'0 0 ' + w + ' ' + h} style={{ display: 'block' }}>
       <defs>
         <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.35" />
@@ -253,7 +253,7 @@ export default function AdStatsWidget({ adId, stats = {}, lang = 'ar', compact =
             fontSize: '11px',
             fontWeight: 600,
             color: engagementColor,
-            background: `${engagementColor}18`,
+            background: engagementColor + '18',
             borderRadius: '6px',
             padding: '2px 8px',
             display: 'inline-block',
@@ -276,7 +276,7 @@ export default function AdStatsWidget({ adId, stats = {}, lang = 'ar', compact =
           {/* Score bar */}
           <div style={{ marginTop: '8px', background: '#2a2a2a', borderRadius: '4px', height: '5px', overflow: 'hidden' }}>
             <div style={{
-              width: `${Math.min(score, 100)}%`,
+              width: Math.min(score, 100) + '%',
               height: '100%',
               background: scoreColor,
               borderRadius: '4px',
