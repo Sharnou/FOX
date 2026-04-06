@@ -14,7 +14,7 @@ export default function LanguagePage() {
   const [learnText, setLearnText] = useState('');
   const [loading, setLoading] = useState(false);
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = { Authorization: 'Bearer ' + token };
   const CATS = ['Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion', 'General'];
 
   useEffect(() => { fetchAll(); }, [search]);
@@ -23,9 +23,9 @@ export default function LanguagePage() {
     setLoading(true);
     try {
       const [w, s, p] = await Promise.allSettled([
-        axios.get(`${API}/api/language`, { params: { search, limit: 100 } }),
-        axios.get(`${API}/api/language/stats`, { headers }),
-        axios.get(`${API}/api/language/pending`, { headers })
+        axios.get(API + '/api/language', { params: { search, limit: 100 } }),
+        axios.get(API + '/api/language/stats', { headers }),
+        axios.get(API + '/api/language/pending', { headers })
       ]);
       if (w.status === 'fulfilled') setWords(w.value.data.words || []);
       if (s.status === 'fulfilled') setStats(s.value.data);
@@ -37,7 +37,7 @@ export default function LanguagePage() {
   async function teach() {
     if (!teaching.word || !teaching.category) return alert('الكلمة والفئة مطلوبة');
     try {
-      await axios.post(`${API}/api/language/teach`, { ...teaching, country: 'EG' }, { headers });
+      await axios.post(API + '/api/language/teach', { ...teaching, country: 'EG' }, { headers });
       alert('✅ تم تعليم الكلمة!');
       setTeaching({ word: '', meaning: '', category: '', subcategory: '', dialect: 'Egyptian' });
       fetchAll();
@@ -47,7 +47,7 @@ export default function LanguagePage() {
   async function triggerLearn() {
     if (!learnText.trim()) return;
     try {
-      await axios.post(`${API}/api/language/learn`, { word: learnText.trim(), meaning: '', country: 'EG' }, { headers });
+      await axios.post(API + '/api/language/learn', { word: learnText.trim(), meaning: '', country: 'EG' }, { headers });
       alert('✅ تم إرسال الكلمة للتعلم');
       setLearnText('');
       setTimeout(fetchAll, 2000);
@@ -55,13 +55,13 @@ export default function LanguagePage() {
   }
 
   async function approve(id, approved) {
-    await axios.patch(`${API}/api/language/${id}/approve`, { approved }, { headers });
+    await axios.patch(API + '/api/language/' + id + '/approve', { approved }, { headers });
     fetchAll();
   }
 
   async function deleteWord(id) {
     if (!confirm('حذف هذه الكلمة؟')) return;
-    await axios.delete(`${API}/api/language/${id}`, { headers });
+    await axios.delete(API + '/api/language/' + id, { headers });
     fetchAll();
   }
 
@@ -118,7 +118,7 @@ export default function LanguagePage() {
                     <td style={{ padding: '8px 14px' }}><span style={{ background: '#21262d', color: '#00ff41', padding: '2px 8px', borderRadius: 12, fontSize: 11 }}>{w.category}</span></td>
                     <td style={{ padding: '8px 14px' }}>
                       <div style={{ background: '#30363d', borderRadius: 4, overflow: 'hidden', height: 8, width: 60 }}>
-                        <div style={{ background: (w.confidence || w.aiConfidence || 0) > 0.8 ? '#00ff41' : '#ffd700', width: `${(w.confidence || w.aiConfidence || 0.5) * 100}%`, height: '100%' }} />
+                        <div style={{ background: (w.confidence || w.aiConfidence || 0) > 0.8 ? '#00ff41' : '#ffd700', width: (w.confidence || w.aiConfidence || 0.5) * 100 + '%', height: '100%' }} />
                       </div>
                     </td>
                     <td style={{ padding: '8px 14px', color: '#ffd700' }}>{w.frequency || w.count || 1}x</td>
