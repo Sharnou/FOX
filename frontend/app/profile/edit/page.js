@@ -41,11 +41,7 @@ function SkeletonLine({ w = '100%', h = 14, mb = 8 }) {
 function LoadingSkeleton() {
   return (
     <div style={{ maxWidth: 520, margin: '0 auto', padding: 20 }}>
-      <style>{`
-        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        @keyframes fadeIn  { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-      `}</style>
+      <style>{'\n        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }\n        @keyframes fadeIn  { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }\n        @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }\n      '}</style>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, direction: 'rtl' }}>
         <SkeletonLine w={30} h={30} mb={0} />
         <SkeletonLine w={180} h={26} mb={0} />
@@ -94,7 +90,7 @@ export default function EditProfilePage() {
     if (cached) hydrateForm(cached);
 
     // Then fetch fresh data from server
-    fetch(`${API}/api/users/me`, { headers: { Authorization: `Bearer ${t}` } })
+    fetch(API + '/api/users/me', { headers: { Authorization: 'Bearer ' + t } })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) { const u = data.user || data; hydrateForm(u); localStorage.setItem('user', JSON.stringify(u)); } })
       .catch(() => {})
@@ -154,7 +150,7 @@ export default function EditProfilePage() {
       errs.whatsapp = 'رقم واتساب غير صحيح';
 
     if (form.bio.length > MAX_BIO)
-      errs.bio = `النبذة يجب ألا تتجاوز ${MAX_BIO} حرف`;
+      errs.bio = 'النبذة يجب ألا تتجاوز ' + MAX_BIO + ' حرف';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -170,19 +166,19 @@ export default function EditProfilePage() {
         city:         form.city.trim(),
         avatar:       form.avatar,
         bio:          form.bio.trim(),
-        phone:        form.phone    ? `${form.phoneCode}${form.phone.replace(/^0/, '')}`    : '',
-        whatsapp:     form.whatsapp ? `${form.whatsappCode}${form.whatsapp.replace(/^0/, '')}` : '',
+        phone:        form.phone    ? form.phoneCode + form.phone.replace(/^0/, '')    : '',
+        whatsapp:     form.whatsapp ? form.whatsappCode + form.whatsapp.replace(/^0/, '') : '',
         showPhone:    form.showPhone,
         showWhatsapp: form.showWhatsapp,
       };
-      const res = await fetch(`${API}/api/users/me`, {
+      const res = await fetch(API + '/api/users/me', {
         method:  'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body:    JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `خطأ ${res.status}`);
+        throw new Error(err.error || 'خطأ ' + res.status);
       }
       const updated = await res.json();
       localStorage.setItem('user', JSON.stringify(updated));
@@ -206,7 +202,7 @@ export default function EditProfilePage() {
   /* ── styles ── */
   const inputStyle = (hasErr) => ({
     width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: 14,
-    border: `1.5px solid ${hasErr ? '#e53e3e' : '#ddd'}`,
+    border: '1.5px solid ' + (hasErr ? '#e53e3e' : '#ddd'),
     boxSizing: 'border-box', fontFamily: 'inherit', direction: 'rtl',
     outline: 'none', transition: 'border-color .2s',
   });
@@ -219,19 +215,7 @@ export default function EditProfilePage() {
   /* ── render ── */
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&display=swap');
-        @keyframes fadeIn  { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes slideUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes spin    { to { transform: rotate(360deg); } }
-        .edit-input:focus { border-color: #002f34 !important; box-shadow: 0 0 0 3px rgba(0,47,52,.12); }
-        .edit-btn:hover:not(:disabled) { background: #004d54 !important; transform: translateY(-1px); }
-        .edit-btn:active:not(:disabled){ transform: translateY(0); }
-        .save-btn-inner { display:flex; align-items:center; justify-content:center; gap:8px; }
-        .spinner { width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite; }
-        .toggle-row { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
-        .toggle-checkbox { width:18px; height:18px; accent-color:#002f34; cursor:pointer; flex-shrink:0; }
-      `}</style>
+      <style>{'\n        @import url(\'https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&display=swap\');\n        @keyframes fadeIn  { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }\n        @keyframes slideUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }\n        @keyframes spin    { to { transform: rotate(360deg); } }\n        .edit-input:focus { border-color: #002f34 !important; box-shadow: 0 0 0 3px rgba(0,47,52,.12); }\n        .edit-btn:hover:not(:disabled) { background: #004d54 !important; transform: translateY(-1px); }\n        .edit-btn:active:not(:disabled){ transform: translateY(0); }\n        .save-btn-inner { display:flex; align-items:center; justify-content:center; gap:8px; }\n        .spinner { width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite; }\n        .toggle-row { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }\n        .toggle-checkbox { width:18px; height:18px; accent-color:#002f34; cursor:pointer; flex-shrink:0; }\n      '}</style>
 
       {/* Toast */}
       {toast && (
