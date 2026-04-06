@@ -96,7 +96,7 @@ export default function ReportSeller({ sellerId, sellerName, onClose, lang = "ar
     setError("");
     setStatus("submitting");
     try {
-      const response = await fetch(`${API_BASE}/api/reports`, {
+      const response = await fetch(API_BASE + '/api/reports', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
