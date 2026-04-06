@@ -41,7 +41,7 @@ function toArabicIndic(n) {
 export default function AdBumpButton({ adId, lang = 'ar', onBump }) {
   const t = i18n[lang] || i18n.ar;
   const isRTL = lang === 'ar';
-  const storageKey = `xtox_bump_${adId}`;
+  const storageKey = 'xtox_bump_' + adId;
 
   const [lastBumpTime, setLastBumpTime] = useState(null);
   const [remaining, setRemaining] = useState(null);
@@ -137,14 +137,14 @@ export default function AdBumpButton({ adId, lang = 'ar', onBump }) {
         </span>
         <span>
           {bumped ? t.bumped : inCooldown
-            ? `${t.cooldown} ${fmt(remaining.h)}${t.hours} ${fmt(remaining.m)}${t.minutes}`
+            ? (t.cooldown + ' ' + fmt(remaining.h) + t.hours + ' ' + fmt(remaining.m) + t.minutes)
             : t.bump}
         </span>
       </button>
 
       <span style={{ fontSize: 11, color: '#9ca3af', paddingInlineStart: 4 }}>
         {inCooldown && lastBumpTime
-          ? `${t.lastBump}: ${new Date(lastBumpTime).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : lang === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`
+          ? (t.lastBump + ': ' + new Date(lastBumpTime).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : lang === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' }))
           : t.free}
       </span>
     </div>
