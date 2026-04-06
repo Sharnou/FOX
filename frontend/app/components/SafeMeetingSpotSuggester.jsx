@@ -120,7 +120,7 @@ export default function SafeMeetingSpotSuggester({
   }
 
   function handleCopy(spot) {
-    const text = `${getSpotName(spot)}${city ? ' - ' + city : ''}`;
+    const text = getSpotName(spot) + (city ? ' - ' + city : '');
     navigator.clipboard.writeText(text).then(() => {
       setCopied(spot.id);
       setTimeout(() => setCopied(null), 2000);
@@ -129,9 +129,9 @@ export default function SafeMeetingSpotSuggester({
 
   function handleWhatsApp(spot) {
     const text = encodeURIComponent(
-      `${t.title}: ${getSpotName(spot)}${city ? ' - ' + city : ''}`
+      t.title + ': ' + getSpotName(spot) + (city ? ' - ' + city : '')
     );
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+    window.open('https://wa.me/?text=' + text, '_blank');
   }
 
   function handleSelect(spot) {
@@ -145,9 +145,7 @@ export default function SafeMeetingSpotSuggester({
       {/* Trigger Button */}
       <button
         onClick={() => setOpen(true)}
-        className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm
-          bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow transition-all duration-150
-          ${compact ? 'px-2 py-2' : ''}`}
+        className={'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow transition-all duration-150 ' + (compact ? 'px-2 py-2' : '')}
         title={t.trigger}
       >
         <span className="text-base">🛡️</span>
@@ -186,11 +184,10 @@ export default function SafeMeetingSpotSuggester({
               {DEFAULT_SPOTS.map((spot) => (
                 <div
                   key={spot.id}
-                  className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors
-                    ${selected === spot.id ? 'bg-emerald-50' : ''}`}
+                  className={'flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ' + (selected === spot.id ? 'bg-emerald-50' : '')}
                 >
                   {/* Icon + Type Badge */}
-                  <span className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl border ${TYPE_COLORS[spot.type]}`}>
+                  <span className={'flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl border ' + TYPE_COLORS[spot.type]}>
                     {TYPE_ICONS[spot.type]}
                   </span>
 
@@ -201,7 +198,7 @@ export default function SafeMeetingSpotSuggester({
                   </div>
 
                   {/* Actions */}
-                  <div className={`flex items-center gap-1 flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className={'flex items-center gap-1 flex-shrink-0 ' + (isRTL ? 'flex-row-reverse' : '')}>
                     {/* Copy */}
                     <button
                       onClick={() => handleCopy(spot)}
@@ -223,11 +220,7 @@ export default function SafeMeetingSpotSuggester({
                     {/* Select */}
                     <button
                       onClick={() => handleSelect(spot)}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition
-                        ${selected === spot.id
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-gray-100 hover:bg-emerald-600 hover:text-white text-gray-700'
-                        }`}
+                      className={'px-3 py-1 rounded-lg text-xs font-semibold transition ' + (selected === spot.id ? 'bg-emerald-600 text-white' : 'bg-gray-100 hover:bg-emerald-600 hover:text-white text-gray-700')}
                     >
                       {selected === spot.id ? '✓' : t.select}
                     </button>
