@@ -180,9 +180,7 @@ export default function CategoryBrowserGrid({ lang = "ar", onCategorySelect, cou
       </div>
 
       {/* Google Fonts */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap');
-      `}</style>
+      <style>{'\n        @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap\');\n      '}</style>
     </div>
   );
 }
