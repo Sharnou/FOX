@@ -41,7 +41,7 @@ export default function FeaturedAdPopup({ ads }) {
 
   function promote() {
     setShow(false);
-    router.push(`/promote?adId=${targetAd._id}&title=${encodeURIComponent(targetAd.title)}`);
+    router.push('/promote?adId=' + targetAd._id + '&title=' + encodeURIComponent(targetAd.title));
   }
 
   return (
@@ -50,16 +50,7 @@ export default function FeaturedAdPopup({ ads }) {
       zIndex:9999,
       animation:'slideUpPop 0.4s cubic-bezier(.21,1.02,.73,1) both',
     }}>
-      <style>{`
-        @keyframes slideUpPop {
-          from { transform: translateY(120px); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-        @keyframes zzz {
-          0%,100% { transform: translateY(0) rotate(-5deg); }
-          50%     { transform: translateY(-6px) rotate(5deg); }
-        }
-      `}</style>
+      <style>{'\r\n        @keyframes slideUpPop {\r\n          from { transform: translateY(120px); opacity: 0; }\r\n          to   { transform: translateY(0);    opacity: 1; }\r\n        }\r\n        @keyframes zzz {\r\n          0%,100% { transform: translateY(0) rotate(-5deg); }\r\n          50%     { transform: translateY(-6px) rotate(5deg); }\r\n        }\r\n      '}</style>
       <div style={{
         maxWidth:340, margin:'0 auto',
         background:'#fff', borderRadius:20,
