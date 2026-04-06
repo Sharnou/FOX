@@ -45,7 +45,7 @@ export default function PharmacyPage() {
   const country = typeof window !== 'undefined' ? localStorage.getItem('country') || 'EG' : 'EG';
 
   useEffect(() => {
-    axios.get(`${API}/api/pharmacy`, { params: { country } })
+    axios.get(API + '/api/pharmacy', { params: { country } })
       .then(r => setItems(Array.isArray(r.data) ? r.data : []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
@@ -129,11 +129,9 @@ export default function PharmacyPage() {
             role="tab"
             aria-selected={activeCategory === cat.id}
             onClick={() => setActiveCategory(cat.id)}
-            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap border
-              ${activeCategory === cat.id
+            className={'flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap border\r\n              ' + (activeCategory === cat.id
                 ? 'bg-brand text-white border-brand'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand'
-              }`}
+                : 'bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand')}
           >
             {cat.label}
           </button>
@@ -145,8 +143,8 @@ export default function PharmacyPage() {
         <p className="text-xs text-gray-400 mb-3">
           {filtered.length === 0
             ? 'لا توجد نتائج'
-            : `${filtered.length} نتيجة`}
-          {search ? ` لـ "${search}"` : ''}
+            : filtered.length + ' نتيجة'}
+          {search ? ' لـ "' + search + '"' : ''}
         </p>
       )}
 
@@ -160,7 +158,7 @@ export default function PharmacyPage() {
           <p className="text-4xl mb-3">💊</p>
           <p className="text-base font-medium text-gray-500 mb-1">
             {search
-              ? `لا توجد نتائج لـ "${search}"`
+              ? 'لا توجد نتائج لـ "' + search + '"'
               : 'لا توجد منتجات في الصيدلية الآن'}
           </p>
           <p className="text-sm">جرب تصنيفًا آخر أو ابحث بكلمة مختلفة</p>
@@ -196,18 +194,18 @@ export default function PharmacyPage() {
               {/* Action buttons */}
               <div className="flex gap-2 mt-1">
                 <a
-                  href={`/chat?target=${item.userId}`}
+                  href={'/chat?target=' + item.userId}
                   className="flex-1 bg-brand text-white text-center py-2 rounded-xl text-xs font-medium hover:opacity-90 transition-opacity"
-                  aria-label={`تواصل بخصوص ${item.title}`}
+                  aria-label={'تواصل بخصوص ' + item.title}
                 >
                   💬 تواصل
                 </a>
                 {item.phone && (
                   <a
-                    href={`https://wa.me/${String(item.phone).replace(/\D/g, '')}?text=${encodeURIComponent(`أريد الاستفسار عن: ${item.title}`)}`}
+                    href={'https://wa.me/' + String(item.phone).replace(/\D/g, '') + '?text=' + encodeURIComponent('أريد الاستفسار عن: ' + item.title)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label={`واتساب بخصوص ${item.title}`}
+                    aria-label={'واتساب بخصوص ' + item.title}
                     className="flex-shrink-0 bg-green-500 text-white text-center px-3 py-2 rounded-xl text-xs font-medium hover:bg-green-600 transition-colors"
                   >
                     واتساب
