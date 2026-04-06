@@ -462,6 +462,27 @@ router.post('/', auth, upload.fields([
       if (!finalSubcategory) finalSubcategory = 'Other';
     }
 
+    // Auto-detect sub-subcategory (level 3)
+    let finalSubsub = req.body.subsub || 'Other';
+    if (!req.body.subsub || req.body.subsub === 'Other') {
+      const _subsubMap = {
+        Cars: [{kw:['sedan','سيدان'],v:'Sedan'},{kw:['suv','دفع رباعي','jeep','جيب'],v:'SUV'},{kw:['بيك اب','pickup','pick up','هايلكس','hilux'],v:'Pickup'},{kw:['كوبيه','coupe'],v:'Coupe'},{kw:['كهربائي','electric','ev','tesla'],v:'Electric'}],
+        MobilePhones: [{kw:['iphone','ايفون','آيفون'],v:'iPhone'},{kw:['samsung','سامسونج','galaxy'],v:'Samsung'},{kw:['huawei','هواوي'],v:'Huawei'},{kw:['xiaomi','شاومي','redmi','poco'],v:'Xiaomi'},{kw:['oppo','realme'],v:'Oppo'}],
+        Apartments: [{kw:['استوديو','studio'],v:'Studio'},{kw:['غرفة واحدة','1 bedroom','1br'],v:'1BR'},{kw:['غرفتين','2 bedroom','2br'],v:'2BR'},{kw:['3 غرف','3 bedroom','3br'],v:'3BR'},{kw:['4 غرف','4 bedroom','4br'],v:'4BR'},{kw:['دوبلكس','duplex'],v:'Duplex'},{kw:['بنتهاوس','penthouse'],v:'Penthouse'}],
+        Laptops: [{kw:['macbook','ماك'],v:'MacBook'},{kw:['gaming','جيمينج','rog','msi','alienware'],v:'GamingLaptop'},{kw:['thinkpad','xps','elitebook'],v:'Business'}],
+        Shoes: [{kw:['سنيكرز','sneakers','كوتشي'],v:'Sneakers'},{kw:['صندل','sandal','شبشب'],v:'Sandals'},{kw:['رياضي','running','sports shoes'],v:'Sports'},{kw:['جزمة رسمية','formal shoes','oxford'],v:'Formal'}],
+        Motorcycles: [{kw:['sport','رياضي','cbr','r1'],v:'Sport'},{kw:['سكوتر','scooter','vespa'],v:'Scooter'},{kw:['off road','offroad','dirt'],v:'OffRoad'},{kw:['cruiser','كروزر','harley'],v:'Cruiser'}],
+        Villas: [{kw:['كمبوند','compound'],v:'Compound'},{kw:['توين','twin house'],v:'TwinHouse'},{kw:['تاون','town house'],v:'TownHouse'},{kw:['مستقلة','standalone'],v:'Independent'}],
+        Gaming: [{kw:['playstation','بلايستيشن','ps4','ps5'],v:'PlayStation'},{kw:['xbox','اكس بوكس'],v:'Xbox'},{kw:['nintendo','نينتندو','switch'],v:'Nintendo'},{kw:['rtx','gtx','gpu','gaming pc'],v:'PCGaming'}],
+        HomeServices: [{kw:['سباك','plumber','مواسير'],v:'Plumber'},{kw:['كهربائي','electrician'],v:'Electrician'},{kw:['نجار','carpenter'],v:'Carpenter'},{kw:['دهان','painter'],v:'Painter'},{kw:['تكييف','air condition'],v:'ACRepair'},{kw:['حشرات','pest'],v:'PestControl'}],
+      };
+      const _ssMap = _subsubMap[finalSubcategory] || [];
+      for (let _ssi = 0; _ssi < _ssMap.length; _ssi++) {
+        const _ssEntry = _ssMap[_ssi];
+        if (_ssEntry.kw.some(function(k) { return _subText.includes(k); })) { finalSubsub = _ssEntry.v; break; }
+      }
+    }
+
     // ENSURE COUNTRY EXISTS
     await getOrCreateCountry(country, country).catch(() => {});
 
@@ -476,6 +497,7 @@ router.post('/', auth, upload.fields([
       description,
       category: finalCategory,
       subcategory: finalSubcategory,
+      subsub: finalSubsub,
       price,
       city,
       currency: currency || 'EGP',
