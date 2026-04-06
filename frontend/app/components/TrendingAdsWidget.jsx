@@ -18,7 +18,7 @@ function formatPrice(price, currency = 'EGP', lang = 'ar') {
       style: 'currency', currency, maximumFractionDigits: 0,
     }).format(price);
   } catch {
-    return `${price} ${currency}`;
+    return price + ' ' + currency;
   }
 }
 
@@ -33,7 +33,7 @@ export default function TrendingAdsWidget({ lang = 'ar', countryCode = 'EG', cur
     let cancelled = false;
     setLoading(true);
     setError(false);
-    fetch(`${API_URL}/api/ads?limit=6${countryCode ? '&country=' + countryCode : ''}`)
+    fetch(API_URL + '/api/ads?limit=6' + (countryCode ? '&country=' + countryCode : ''))
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         if (!cancelled) {
@@ -49,7 +49,7 @@ export default function TrendingAdsWidget({ lang = 'ar', countryCode = 'EG', cur
 
   return (
     <section dir={isRTL ? 'rtl' : 'ltr'} className="w-full py-6 px-4">
-      <h2 className={`text-xl font-bold mb-4 text-gray-800 ${isRTL ? 'text-right' : 'text-left'}`}>
+      <h2 className={'text-xl font-bold mb-4 text-gray-800 ' + (isRTL ? 'text-right' : 'text-left')}>
         {t.title}
       </h2>
 
@@ -62,11 +62,11 @@ export default function TrendingAdsWidget({ lang = 'ar', countryCode = 'EG', cur
       )}
 
       {!loading && error && (
-        <p className={`text-red-500 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>{t.error}</p>
+        <p className={'text-red-500 text-sm ' + (isRTL ? 'text-right' : 'text-left')}>{t.error}</p>
       )}
 
       {!loading && !error && ads.length === 0 && (
-        <p className={`text-gray-400 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>{t.noAds}</p>
+        <p className={'text-gray-400 text-sm ' + (isRTL ? 'text-right' : 'text-left')}>{t.noAds}</p>
       )}
 
       {!loading && !error && ads.length > 0 && (
@@ -101,7 +101,7 @@ export default function TrendingAdsWidget({ lang = 'ar', countryCode = 'EG', cur
               </div>
 
               {/* Ad info */}
-              <div className={`p-2 ${isRTL ? 'text-right' : 'text-left'}`}>
+              <div className={'p-2 ' + (isRTL ? 'text-right' : 'text-left')}>
                 <p className="text-sm font-semibold text-gray-800 line-clamp-1">{ad.title}</p>
                 <p className="text-base font-bold text-emerald-600 mt-0.5">
                   {ad.price != null ? formatPrice(ad.price, currency, lang) : '—'}
