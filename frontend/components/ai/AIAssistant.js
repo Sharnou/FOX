@@ -48,15 +48,12 @@ export default function AIAssistant({ detectedCountry, user }) {
   const sendGreeting = async () => {
     setLoading(true);
     const pageCtx = PAGE_CONTEXT[pathname] || "The user is browsing FOX marketplace.";
-    const userCtx = user ? `User is logged in as ${user.full_name || user.email}.` : "User is not logged in.";
-    const countryCtx = detectedCountry ? `Detected country: ${detectedCountry}.` : "";
+    const userCtx = user ? 'User is logged in as ' + (user.full_name || user.email) + '.' : "User is not logged in.";
+    const countryCtx = detectedCountry ? 'Detected country: ' + detectedCountry + '.' : "";
 
     try {
       const result = await FOX.integrations.Core.InvokeLLM({
-        prompt: `You are FOX AI Assistant — a friendly, smart co-pilot for the FOX international classified marketplace.
-${pageCtx} ${userCtx} ${countryCtx}
-Generate a short, warm, helpful greeting (2-3 sentences). Mention what you can help with. Use emojis. Be concise.
-Respond in Arabic and English. You are "FOX AI" — do NOT call yourself Claude or any other AI model name.`,
+        prompt: 'You are FOX AI Assistant — a friendly, smart co-pilot for the FOX international classified marketplace.\n' + pageCtx + ' ' + userCtx + ' ' + countryCtx + '\nGenerate a short, warm, helpful greeting (2-3 sentences). Mention what you can help with. Use emojis. Be concise.\nRespond in Arabic and English. You are "FOX AI" — do NOT call yourself Claude or any other AI model name.',
       });
       const greeting = result?.text || "مرحباً! أنا FOX AI، مساعدك الذكي. 👋 كيف يمكنني مساعدتك اليوم؟";
       setMessages([{ role: "assistant", content: greeting }]);
@@ -74,30 +71,12 @@ Respond in Arabic and English. You are "FOX AI" — do NOT call yourself Claude 
     setLoading(true);
 
     const pageCtx = PAGE_CONTEXT[pathname] || "FOX marketplace.";
-    const userCtx = user ? `User: ${user.full_name || user.email}` : "Not logged in.";
-    const history = messages.slice(-6).map(m => `${m.role === "user" ? "User" : "AI"}: ${m.content}`).join("\n");
+    const userCtx = user ? 'User: ' + (user.full_name || user.email) : "Not logged in.";
+    const history = messages.slice(-6).map(m => (m.role === "user" ? "User" : "AI") + ': ' + m.content).join("\n");
 
     try {
       const result = await FOX.integrations.Core.InvokeLLM({
-        prompt: `You are FOX AI Assistant — a smart co-pilot for FOX international classified marketplace.
-Context: ${pageCtx}
-User info: ${userCtx}
-Country: ${detectedCountry || "Unknown"}
-
-Conversation history:
-${history}
-
-User message: "${userMsg}"
-
-You help users with:
-- Registering and logging in
-- Posting and improving their ads (suggest better titles, descriptions, pricing)
-- Navigating the marketplace
-- Answering questions about buying and selling safely
-- Fraud awareness and safety tips
-
-Reply in the SAME LANGUAGE the user is using. Be concise, friendly, helpful. Max 200 words.
-NEVER say you are Claude or any AI model — you are "FOX AI".`,
+        prompt: 'You are FOX AI Assistant — a smart co-pilot for FOX international classified marketplace.\nContext: ' + pageCtx + '\nUser info: ' + userCtx + '\nCountry: ' + (detectedCountry || "Unknown") + '\n\nConversation history:\n' + history + '\n\nUser message: "' + userMsg + '"\n\nYou help users with:\n- Registering and logging in\n- Posting and improving their ads (suggest better titles, descriptions, pricing)\n- Navigating the marketplace\n- Answering questions about buying and selling safely\n- Fraud awareness and safety tips\n\nReply in the SAME LANGUAGE the user is using. Be concise, friendly, helpful. Max 200 words.\nNEVER say you are Claude or any AI model — you are "FOX AI".',
       });
       setMessages(prev => [...prev, { role: "assistant", content: result?.text || "آسف، حدث خطأ. حاول مرة أخرى." }]);
     } catch {
@@ -211,7 +190,7 @@ NEVER say you are Claude or any AI model — you are "FOX AI".`,
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ display: "flex", gap: 4, background: "#f3f4f6", borderRadius: "16px 16px 16px 4px", padding: "8px 12px" }}>
                       {[0, 1, 2].map(i => (
-                        <div key={i} style={{ width: 6, height: 6, background: "#9ca3af", borderRadius: "50%", animation: `bounce 0.6s ${i * 0.15}s infinite alternate` }} />
+                        <div key={i} style={{ width: 6, height: 6, background: "#9ca3af", borderRadius: "50%", animation: 'bounce 0.6s ' + i * 0.15 + 's infinite alternate' }} />
                       ))}
                     </div>
                   </div>
