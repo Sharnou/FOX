@@ -17,9 +17,9 @@ export default function ConditionBadge({ condition = 'used', lang = 'ar', classN
   return (
     <span
       dir={isRTL ? 'rtl' : 'ltr'}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${className}`}
-      style={{ color: info.color, backgroundColor: info.bg, border: `1px solid ${info.color}33` }}
-      aria-label={`${info.en} condition`}
+      className={'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ' + className}
+      style={{ color: info.color, backgroundColor: info.bg, border: '1px solid ' + info.color + '33' }}
+      aria-label={info.en + ' condition'}
     >
       <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: info.color }} />
       {isRTL ? info.ar : info.en}
