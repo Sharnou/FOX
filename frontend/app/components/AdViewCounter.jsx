@@ -50,7 +50,7 @@ function useCountUp(target, duration = 1200) {
 function formatNum(n, lang) {
   if (n >= 1000) {
     const k = (n / 1000).toFixed(1).replace(/\.0$/, "");
-    return lang === "ar" ? `${k}ك` : `${k}k`;
+    return lang === "ar" ? k + 'ك' : k + 'k';
   }
   return String(n);
 }
@@ -58,14 +58,14 @@ function formatNum(n, lang) {
 /* ─── i18n strings ────────────────────────────────────────── */
 const i18n = {
   ar: {
-    viewedToday: (n) => `${n} شخص شاهد هذا الإعلان اليوم`,
-    totalViews:  (n) => `${n} مشاهدة إجمالية`,
+    viewedToday: (n) => n + ' شخص شاهد هذا الإعلان اليوم',
+    totalViews:  (n) => n + ' مشاهدة إجمالية',
     hot:         "🔥 رائج",
     views:       "مشاهدة",
   },
   en: {
-    viewedToday: (n) => `${n} people viewed this today`,
-    totalViews:  (n) => `${n} total views`,
+    viewedToday: (n) => n + ' people viewed this today',
+    totalViews:  (n) => n + ' total views',
     hot:         "🔥 Hot",
     views:       "views",
   },
