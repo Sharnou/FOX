@@ -12,13 +12,13 @@ function getSelectorPath(el) {
   while (current && current !== document.body) {
     let selector = current.tagName.toLowerCase();
     if (current.id) {
-      selector += `#${current.id}`;
+      selector += '#' + current.id;
       parts.unshift(selector);
       break;
     }
     if (current.className && typeof current.className === 'string') {
       const classes = current.className.trim().split(/\s+/).slice(0, 2).join('.');
-      if (classes) selector += `.${classes}`;
+      if (classes) selector += '.' + classes;
     }
     parts.unshift(selector);
     current = current.parentElement;
@@ -122,8 +122,8 @@ export default function MarkPoint() {
     if (!popup) return;
     setSending(true);
     try {
-      const message = `[MARKED] ${popup.elementInfo.selector} — ${popup.note || 'لا يوجد وصف'}`;
-      await fetch(`${API}/api/errors`, {
+      const message = '[MARKED] ' + popup.elementInfo.selector + ' — ' + (popup.note || 'لا يوجد وصف');
+      await fetch(API + '/api/errors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
