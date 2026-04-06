@@ -325,11 +325,15 @@ export default function SellPage() {
         return;
       }
 
-      const resData = await res.json().catch(() => ({}));
+      var resData = await res.json().catch(function() { return {}; });
       if (form.phone) localStorage.setItem('last_used_phone', form.phone);
+      // Normalize ad result — handle both {success, ad, _id} and direct ad response shapes
+      var _adResult = (resData && resData.ad && resData.ad._id) ? resData.ad : resData;
+      // Safe image field reader — handles both 'images' and 'media' field names
+      var _adImages = (_adResult && (_adResult.images || _adResult.media || _adResult.photos)) || [];
       // Redirect to the new ad if we got an ID, otherwise to homepage
-      const newAdId = resData?.ad?._id || resData?._id || resData?.id;
-      window.location.href = newAdId ? `/ads/${newAdId}?published=1` : `/?published=1`;
+      var newAdId = (resData && resData._id) || (_adResult && _adResult._id) || (resData && resData.id);
+      window.location.href = newAdId ? ('/ads/' + newAdId + '?published=1') : '/?published=1';
     } catch (e) {
       setErrors({ submit: e.message || 'خطأ في الاتصال بالخادم' });
     }
