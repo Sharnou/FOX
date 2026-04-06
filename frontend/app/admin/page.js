@@ -7,8 +7,8 @@ const RAILWAY = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.r
 function AITerminal({ title, children, color = 'green' }) {
   const colors = { green: '#00ff41', blue: '#00d4ff', yellow: '#ffd700', red: '#ff4444', purple: '#bf5fff' };
   return (
-    <div style={{ background: '#0d1117', border: `1px solid ${colors[color]}`, borderRadius: 8, overflow: 'hidden', fontFamily: 'monospace' }}>
-      <div style={{ background: '#161b22', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${colors[color]}` }}>
+    <div style={{ background: '#0d1117', border: '1px solid ' + colors[color], borderRadius: 8, overflow: 'hidden', fontFamily: 'monospace' }}>
+      <div style={{ background: '#161b22', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid ' + colors[color] }}>
         <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
         <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#febc2e', display: 'inline-block' }} />
         <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#28c840', display: 'inline-block' }} />
@@ -130,8 +130,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (tab !== 'reports' || !authed) return;
-    const h = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-    fetch(`${RAILWAY}/api/admin/reports`, { headers: h })
+    const h = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' };
+    fetch(RAILWAY + '/api/admin/reports', { headers: h })
       .then(r => r.ok ? r.json() : [])
       .then(r => setReports(Array.isArray(r) ? r : (r?.reports || [])))
       .catch(() => {});
@@ -149,7 +149,7 @@ export default function AdminPage() {
     setLoginLoading(true);
     try {
       const API = process.env.NEXT_PUBLIC_API_URL || RAILWAY;
-      const res = await fetch(`${API}/api/users/login`, {
+      const res = await fetch(API + '/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ email: loginEmail.trim().toLowerCase(), password: loginPass })
@@ -157,7 +157,7 @@ export default function AdminPage() {
       let data = {};
       try { data = await res.json(); } catch {}
       if (!res.ok) {
-        setLoginErr(data.error || data.message || `خطأ ${res.status}: ${res.statusText}`);
+        setLoginErr(data.error || data.message || 'خطأ ' + res.status + ': ' + res.statusText);
         setLoginLoading(false);
         return;
       }
@@ -183,14 +183,14 @@ export default function AdminPage() {
       setAuthed(true);
       fetchAll(token);
     } catch (e) {
-      setLoginErr(`فشل الاتصال: ${e.message}. تحقق من Railway`);
+      setLoginErr('فشل الاتصال: ' + e.message + '. تحقق من Railway');
     }
     setLoginLoading(false);
   }
 
   async function fetchAll(tk) {
     const effectiveToken = tk || getAdminToken() || token;
-    const h = { 'Authorization': `Bearer ${effectiveToken}`, 'Accept': 'application/json' };
+    const h = { 'Authorization': 'Bearer ' + effectiveToken, 'Accept': 'application/json' };
     // Robust get: handles array or { ads/users/data/results/docs: [] } response shapes
     const get = (url) => fetch(url, { headers: h })
       .then(r => r.ok ? r.json() : null)
@@ -202,11 +202,11 @@ export default function AdminPage() {
       return [];
     };
     const [u, a, r, l, e] = await Promise.all([
-      get(`${RAILWAY}/api/admin/users`),
-      get(`${RAILWAY}/api/admin/ads`),
-      get(`${RAILWAY}/api/admin/reports`),
-      get(`${RAILWAY}/api/admin/ai-logs`),
-      get(`${RAILWAY}/api/errors`),
+      get(RAILWAY + '/api/admin/users'),
+      get(RAILWAY + '/api/admin/ads'),
+      get(RAILWAY + '/api/admin/reports'),
+      get(RAILWAY + '/api/admin/ai-logs'),
+      get(RAILWAY + '/api/errors'),
     ]);
     const usersList    = normalize(u, ['users','data','results','docs']);
     const adsList      = normalize(a, ['ads','data','results','docs']);
@@ -219,27 +219,27 @@ export default function AdminPage() {
     setLogs(logsList);
     setErrors(errorsList);
     setStats({ users: usersList.length, ads: adsList.length, reports: reportsList.length });
-    setLiveLog(prev => [...prev, `[DB] Loaded: ${usersList.length} users, ${adsList.length} ads, ${reportsList.length} reports`]);
+    setLiveLog(prev => [...prev, '[DB] Loaded: ' + usersList.length + ' users, ' + adsList.length + ' ads, ' + reportsList.length + ' reports']);
   }
 
-  const post = (path, body) => fetch(`${RAILWAY}${path}`, {
+  const post = (path, body) => fetch(RAILWAY + path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify(body)
   }).then(r => r.json()).catch(e => ({ error: e.message }));
 
   const ban = (id, hours) => post('/api/admin/ban', { id, hours }).then(() => fetchAll());
   const featureAd = (adId, style) => post('/api/admin/feature', { adId, style }).then(() => fetchAll());
-  const fixCats = () => post('/api/admin/fix-categories', {}).then(r => alert(`Fixed: ${r.fixed || 0} ads`));
-  const backup = () => window.open(`${RAILWAY}/api/admin/backup`, '_blank');
+  const fixCats = () => post('/api/admin/fix-categories', {}).then(r => alert('Fixed: ' + (r.fixed || 0) + ' ads'));
+  const backup = () => window.open(RAILWAY + '/api/admin/backup', '_blank');
   const sendBroadcast = () => post('/api/admin/broadcast', { message: broadcast }).then(r => { if (r.error) alert('Error: ' + r.error); else { alert('Sent!'); setBroadcast(''); } });
   const requestRepair = () => post('/api/admin/ai-repair/request', { problem: repairProblem }).then(r => { setLogs(l => [r, ...l]); setRepairProblem(''); alert('Repair requested'); });
-  const resolveError = (id) => fetch(`${RAILWAY}/api/errors/${id}/resolve`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).then(() => fetchAll());
+  const resolveError = (id) => fetch(RAILWAY + '/api/errors/' + id + '/resolve', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } }).then(() => fetchAll());
   const scanErrors = async () => {
     setScanLoading(true);
     try {
-      const res = await fetch(`${RAILWAY}/api/errors`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch(RAILWAY + '/api/errors', {
+        headers: { Authorization: 'Bearer ' + token }
       });
       const data = await res.json();
       setErrors(data.errors || []);
@@ -249,9 +249,9 @@ export default function AdminPage() {
   const analyzeError = async (id) => {
     setAnalyzingId(id);
     try {
-      const res = await fetch(`${RAILWAY}/api/errors/${id}/analyze`, {
+      const res = await fetch(RAILWAY + '/api/errors/' + id + '/analyze', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: 'Bearer ' + token }
       });
       const data = await res.json();
       setErrors(prev => prev.map(e => e._id === id ? { ...e, aiAnalysis: data.aiAnalysis, aiFixSuggestion: data.aiFixSuggestion } : e));
@@ -259,8 +259,8 @@ export default function AdminPage() {
   };
 
   const resolveErrorScanner = async (id) => {
-    await fetch(`${RAILWAY}/api/errors/${id}/resolve`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` }
+    await fetch(RAILWAY + '/api/errors/' + id + '/resolve', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }
     });
     setErrors(prev => prev.filter(e => e._id !== id));
   };
@@ -272,9 +272,9 @@ export default function AdminPage() {
   const deleteAd = async (adId) => {
     if (!confirm('حذف هذا الإعلان؟')) return;
     const tok = getAdminToken() || token;
-    const res = await fetch(`${RAILWAY}/api/ads/${adId}`, {
+    const res = await fetch(RAILWAY + '/api/ads/' + adId, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${tok}` }
+      headers: { 'Authorization': 'Bearer ' + tok }
     });
     if (res.ok) {
       setAds(prev => prev.filter(a => a._id !== adId));
@@ -518,8 +518,8 @@ export default function AdminPage() {
                 🚨 Reports <span dir="rtl" style={{ color: '#8b949e', fontSize: 12, fontWeight: 'normal' }}>/ تقارير</span> ({reports.length})
               </h2>
               <button onClick={() => {
-                const h = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-                fetch(`${RAILWAY}/api/admin/reports`, { headers: h })
+                const h = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' };
+                fetch(RAILWAY + '/api/admin/reports', { headers: h })
                   .then(r => r.ok ? r.json() : [])
                   .then(r => setReports(Array.isArray(r) ? r : (r?.reports || [])))
                   .catch(() => {});
@@ -563,7 +563,7 @@ export default function AdminPage() {
               {errors.length === 0 && <AITerminal title="errors.log" color="green"><div>✅ No errors. System clean.</div></AITerminal>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {errors.map(err => (
-                  <div key={err._id} style={{ background: '#161b22', border: `1px solid ${err.severity === 'high' || err.severity === 'critical' ? '#ff4444' : '#ffd700'}`, borderRadius: 8, padding: '10px 14px' }}>
+                  <div key={err._id} style={{ background: '#161b22', border: '1px solid ' + (err.severity === 'high' || err.severity === 'critical' ? '#ff4444' : '#ffd700'), borderRadius: 8, padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
                       <span style={{ background: '#3d1a1a', color: '#ff4444', padding: '1px 7px', borderRadius: 10, fontSize: 10 }}>{err.severity}</span>
                       {(err.type === 'marked_issue' || err.message?.includes('[MARKED]')) && (
@@ -638,7 +638,7 @@ export default function AdminPage() {
 
               {errors.map(err => (
                 <div key={err._id} style={{ background: '#161b22', borderRadius: 12, padding: 16, marginBottom: 12,
-                  border: `2px solid ${severityColor[err.severity] || '#30363d'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                  border: '2px solid ' + (severityColor[err.severity] || '#30363d'), boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
                     <div style={{ flex: 1 }}>
@@ -722,8 +722,8 @@ export default function AdminPage() {
                     <button onClick={fixCats} style={{ background: '#0d1117', color: '#00ff41', border: '1px solid #00ff41', borderRadius: 4, padding: '8px', cursor: 'pointer', fontSize: 11, textAlign: 'left', fontFamily: 'monospace' }}>🔧 Auto-Fix Categories</button>
                     <button onClick={backup} style={{ background: '#0d1117', color: '#00d4ff', border: '1px solid #00d4ff', borderRadius: 4, padding: '8px', cursor: 'pointer', fontSize: 11, textAlign: 'left', fontFamily: 'monospace' }}>💾 Backup Database</button>
                     <button onClick={() => fetchAll()} style={{ background: '#0d1117', color: '#ffd700', border: '1px solid #ffd700', borderRadius: 4, padding: '8px', cursor: 'pointer', fontSize: 11, textAlign: 'left', fontFamily: 'monospace' }}>🔄 Refresh All Data</button>
-                    <button onClick={() => window.open(`${RAILWAY}/rss/EG`, '_blank')} style={{ background: '#0d1117', color: '#bf5fff', border: '1px solid #bf5fff', borderRadius: 4, padding: '8px', cursor: 'pointer', fontSize: 11, textAlign: 'left', fontFamily: 'monospace' }}>📡 RSS Feed</button>
-                    <button onClick={() => window.open(`${RAILWAY}`, '_blank')} style={{ background: '#0d1117', color: '#00ff41', border: '1px solid #00ff41', borderRadius: 4, padding: '8px', cursor: 'pointer', fontSize: 11, textAlign: 'left', fontFamily: 'monospace' }}>🏥 Health Check</button>
+                    <button onClick={() => window.open(RAILWAY + '/rss/EG', '_blank')} style={{ background: '#0d1117', color: '#bf5fff', border: '1px solid #bf5fff', borderRadius: 4, padding: '8px', cursor: 'pointer', fontSize: 11, textAlign: 'left', fontFamily: 'monospace' }}>📡 RSS Feed</button>
+                    <button onClick={() => window.open(RAILWAY, '_blank')} style={{ background: '#0d1117', color: '#00ff41', border: '1px solid #00ff41', borderRadius: 4, padding: '8px', cursor: 'pointer', fontSize: 11, textAlign: 'left', fontFamily: 'monospace' }}>🏥 Health Check</button>
                   </div>
                 </AITerminal>
                 <AITerminal title="live.log" color="blue">
