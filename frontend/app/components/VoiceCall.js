@@ -53,7 +53,7 @@ const RTC_CONFIG = {
 function formatDuration(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
   const s = (seconds % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
+  return m + ':' + s;
 }
 
 function cairoFont(isRTL) {
@@ -75,9 +75,9 @@ function RingWaves({ color = '#FF6B35', count = 3 }) {
             width: 80 + i * 26,
             height: 80 + i * 26,
             borderRadius: '50%',
-            border: `2px solid ${color}`,
+            border: '2px solid ' + color,
             opacity: 0,
-            animation: `xtox-ring 1.8s ease-out ${i * 0.45}s infinite`,
+            animation: 'xtox-ring 1.8s ease-out ' + i * 0.45 + 's infinite',
             pointerEvents: 'none',
           }}
         />
@@ -104,11 +104,11 @@ function AudioWaveform({ active }) {
           key={i}
           style={{
             width: 3,
-            height: active ? `${h * 24}px` : '4px',
+            height: active ? h * 24 + 'px' : '4px',
             borderRadius: 4,
             background: active ? '#22c55e' : '#374151',
             transition: 'height 0.2s ease',
-            animation: active ? `xtox-wave ${0.6 + i * 0.08}s ease-in-out ${i * 0.06}s infinite alternate` : 'none',
+            animation: active ? 'xtox-wave ' + 0.6 + i * 0.08 + 's ease-in-out ' + i * 0.06 + 's infinite alternate' : 'none',
           }}
         />
       ))}
@@ -536,7 +536,7 @@ export default function VoiceCall({ socket, targetId, userId }) {
                     height: 7,
                     borderRadius: '50%',
                     background: '#FF6B35',
-                    animation: `xtox-bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+                    animation: 'xtox-bounce 1.2s ease-in-out ' + i * 0.2 + 's infinite',
                   }}
                 />
               ))}
@@ -624,7 +624,7 @@ export default function VoiceCall({ socket, targetId, userId }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 30,
-                border: `3px solid ${statusColor}`,
+                border: '3px solid ' + statusColor,
                 transition: 'border-color 0.4s ease',
               }}
             >
@@ -822,34 +822,7 @@ export default function VoiceCall({ socket, targetId, userId }) {
       {/* ══════════════════════════════════════════════════════════
           GLOBAL CSS ANIMATIONS
          ══════════════════════════════════════════════════════════ */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-
-        @keyframes xtox-pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.07); }
-        }
-        @keyframes xtox-ring {
-          0%   { transform: translate(-50%, -50%) scale(1); opacity: 0.65; }
-          100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
-        }
-        @keyframes xtox-blink {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.35; }
-        }
-        @keyframes xtox-spin {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        @keyframes xtox-bounce {
-          0%, 100% { transform: translateY(0); opacity: 0.5; }
-          50%       { transform: translateY(-5px); opacity: 1; }
-        }
-        @keyframes xtox-wave {
-          from { height: 4px; }
-          to   { height: 22px; }
-        }
-      `}</style>
+      <style>{'\n        @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap\');\n\n        @keyframes xtox-pulse {\n          0%, 100% { transform: scale(1); }\n          50% { transform: scale(1.07); }\n        }\n        @keyframes xtox-ring {\n          0%   { transform: translate(-50%, -50%) scale(1); opacity: 0.65; }\n          100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }\n        }\n        @keyframes xtox-blink {\n          0%, 100% { opacity: 1; }\n          50%       { opacity: 0.35; }\n        }\n        @keyframes xtox-spin {\n          from { transform: rotate(0deg); }\n          to   { transform: rotate(360deg); }\n        }\n        @keyframes xtox-bounce {\n          0%, 100% { transform: translateY(0); opacity: 0.5; }\n          50%       { transform: translateY(-5px); opacity: 1; }\n        }\n        @keyframes xtox-wave {\n          from { height: 4px; }\n          to   { height: 22px; }\n        }\n      '}</style>
     </div>
   );
 }
