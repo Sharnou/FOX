@@ -1,12 +1,6 @@
 'use client';
 import React, { useEffect, useState, useRef } from 'react';
 import { detectLang } from '../../../lib/lang';
-
-// Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality)
-function optimizeImage(url, width = 400) {
-  if (!url || !url.includes('cloudinary.com')) return url;
-  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
-}
 import AdDetailSkeleton from '../../components/AdDetailSkeleton';
 import RecentlyViewed, { recordRecentView } from '../../components/RecentlyViewed';
 import ReportAd from '../../components/ReportAd';
@@ -17,6 +11,11 @@ import ChatBox from '../../components/ChatBox';
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox-production.up.railway.app';
 
+// Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality)
+function optimizeImage(url, width = 400) {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
+}
 function AITranslate({ title, description }) {
   const [translated, setTranslated] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -534,7 +533,7 @@ export default function AdPageClient({ params }) {
         {ad.hashtags.map((tag, i) => (<a key={i} href={'/search?q=' + tag} style={{ padding: '4px 12px', background: '#e8f4f8', color: '#002f34', borderRadius: 20, fontSize: 12, textDecoration: 'none', fontWeight: 'bold' }}>#{tag}</a>))}
       </div>)}
       <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
-        <button onClick={() => (navigator.share ? navigator.share({ title: ad.title, url: window.location.href }) : null) || navigator.clipboard.writeText(window.location.href).then(() => alert('تم نسخ الرابط'))} style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔗 مشاركة الإعلان</button>
+        <button onClick={async () => { if (navigator.share) { try { await navigator.share({ title: ad.title, url: window.location.href }); } catch(e) {} } else { try { await navigator.clipboard.writeText(window.location.href); alert('تم نسخ الرابط'); } catch(e) {} } }} style={{ background: 'none', border: '1px solid #ddd', color: '#666', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔗 مشاركة الإعلان</button>
         <button onClick={() => setShowReport(true)} style={{ background: 'none', border: '1px solid #ffccbc', color: '#e64a19', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }} title="Report Ad / الإبلاغ عن الإعلان">🚩 الإبلاغ</button>
       </div>
       {showReport && (
@@ -603,7 +602,7 @@ export default function AdPageClient({ params }) {
       <SellerMiniCard sellerId={(ad.seller && ad.seller._id) || ad.sellerId} sellerName={(ad.seller && ad.seller.name) || ad.sellerName || ''} lang={lang} />
       <button
         onClick={() => setShowReportSeller(true)}
-        className="mt-2 text-xs text-red-500 hover:text-red-700 underline flex items-center gap-1"
+        style={{ marginTop: 8, fontSize: 12, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 4 }}
         aria-label={lang === 'ar' ? 'الإبلاغ عن البائع' : 'Report Seller'}
       >
         <span>🚩</span>
