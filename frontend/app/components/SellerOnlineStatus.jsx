@@ -20,23 +20,23 @@ export default function SellerOnlineStatus({ lastSeen, locale = 'ar', showLabel 
   const labels = {
     ar: {
       online: 'متصل الآن',
-      minutesAgo: (n) => `آخر ظهور منذ ${n} ${n === 1 ? 'دقيقة' : 'دقائق'}`,
-      hoursAgo: (n) => `آخر ظهور منذ ${n} ${n === 1 ? 'ساعة' : 'ساعات'}`,
-      daysAgo: (n) => `آخر ظهور منذ ${n} ${n === 1 ? 'يوم' : 'أيام'}`,
+      minutesAgo: (n) => 'آخر ظهور منذ ' + n + ' ' + (n === 1 ? 'دقيقة' : 'دقائق'),
+      hoursAgo: (n) => 'آخر ظهور منذ ' + n + ' ' + (n === 1 ? 'ساعة' : 'ساعات'),
+      daysAgo: (n) => 'آخر ظهور منذ ' + n + ' ' + (n === 1 ? 'يوم' : 'أيام'),
       unknown: 'غير معروف',
     },
     en: {
       online: 'Online now',
-      minutesAgo: (n) => `Last seen ${n} min ago`,
-      hoursAgo: (n) => `Last seen ${n}h ago`,
-      daysAgo: (n) => `Last seen ${n}d ago`,
+      minutesAgo: (n) => 'Last seen ' + n + ' min ago',
+      hoursAgo: (n) => 'Last seen ' + n + 'h ago',
+      daysAgo: (n) => 'Last seen ' + n + 'd ago',
       unknown: 'Unknown',
     },
     de: {
       online: 'Jetzt online',
-      minutesAgo: (n) => `Zuletzt gesehen vor ${n} Min.`,
-      hoursAgo: (n) => `Zuletzt gesehen vor ${n} Std.`,
-      daysAgo: (n) => `Zuletzt gesehen vor ${n} Tag(en)`,
+      minutesAgo: (n) => 'Zuletzt gesehen vor ' + n + ' Min.',
+      hoursAgo: (n) => 'Zuletzt gesehen vor ' + n + ' Std.',
+      daysAgo: (n) => 'Zuletzt gesehen vor ' + n + ' Tag(en)',
       unknown: 'Unbekannt',
     },
   };
@@ -86,17 +86,17 @@ export default function SellerOnlineStatus({ lastSeen, locale = 'ar', showLabel 
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-sm ${isRTL ? 'flex-row-reverse' : 'flex-row'} ${className}`}
+      className={'inline-flex items-center gap-1.5 text-sm ' + (isRTL ? 'flex-row-reverse' : 'flex-row') + ' ' + className}
       dir={isRTL ? 'rtl' : 'ltr'}
       aria-label={label}
     >
       <span
-        className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor} ${isOnline ? 'animate-pulse' : ''}`}
+        className={'w-2.5 h-2.5 rounded-full flex-shrink-0 ' + dotColor + ' ' + (isOnline ? 'animate-pulse' : '')}
         role="img"
         aria-hidden="true"
       />
       {showLabel && (
-        <span className={`text-gray-500 ${isRTL ? 'font-cairo' : ''}`}>{label}</span>
+        <span className={'text-gray-500 ' + (isRTL ? 'font-cairo' : '')}>{label}</span>
       )}
     </span>
   );
