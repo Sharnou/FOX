@@ -37,19 +37,19 @@ export default function AdFavoriteCount({ count = 0, lang = 'ar', compact = fals
   }, [count]);
 
   const formatNum = (n) => {
-    if (!isAr) return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+    if (!isAr) return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
     // Arabic-Indic numerals
     const toArabicIndic = (num) =>
       String(num).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]);
-    if (n >= 1000) return `${toArabicIndic(Math.floor(n / 1000))}.${toArabicIndic(Math.floor((n % 1000) / 100))}ك`;
+    if (n >= 1000) return toArabicIndic(Math.floor(n / 1000)) + '.' + toArabicIndic(Math.floor((n % 1000) / 100)) + 'ك';
     return toArabicIndic(n);
   };
 
   const isHot = count >= 20;
 
   const label = isAr
-    ? `أضاف ${formatNum(displayed)} شخص هذا للمفضلة`
-    : `${formatNum(displayed)} ${displayed === 1 ? 'person' : 'people'} favorited this`;
+    ? 'أضاف ' + formatNum(displayed) + ' شخص هذا للمفضلة'
+    : formatNum(displayed) + ' ' + (displayed === 1 ? 'person' : 'people') + ' favorited this';
 
   const hotLabel = isAr ? 'مطلوب جداً' : 'In Demand';
 
@@ -62,7 +62,7 @@ export default function AdFavoriteCount({ count = 0, lang = 'ar', compact = fals
           alignItems: 'center',
           gap: '4px',
           background: isHot ? '#fff1f2' : '#f9fafb',
-          border: `1px solid ${isHot ? '#fecdd3' : '#e5e7eb'}`,
+          border: '1px solid ' + (isHot ? '#fecdd3' : '#e5e7eb'),
           borderRadius: '999px',
           padding: '2px 10px',
           fontSize: '12px',
@@ -89,7 +89,7 @@ export default function AdFavoriteCount({ count = 0, lang = 'ar', compact = fals
         background: isHot
           ? 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)'
           : 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
-        border: `1px solid ${isHot ? '#fecdd3' : '#e5e7eb'}`,
+        border: '1px solid ' + (isHot ? '#fecdd3' : '#e5e7eb'),
         borderRadius: '12px',
         padding: '8px 14px',
         fontFamily: isAr ? "'Cairo', 'Tajawal', sans-serif" : 'inherit',
