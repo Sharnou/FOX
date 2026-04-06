@@ -28,8 +28,8 @@ function toArabicIndic(n, lang) {
 function formatCount(count, lang) {
   const L = LABELS[lang] || LABELS.ar;
   const display = toArabicIndic(count, lang);
-  if (lang === "ar") return `${display} ${count === 1 ? L.followers : L.followers_pl}`;
-  return `${display} ${count === 1 ? L.followers : L.followers_pl}`;
+  if (lang === "ar") return display + ' ' + (count === 1 ? L.followers : L.followers_pl);
+  return display + ' ' + (count === 1 ? L.followers : L.followers_pl);
 }
 
 export default function SellerFollowButton({
@@ -60,7 +60,7 @@ export default function SellerFollowButton({
     setTimeout(() => setPulse(false), 600);
 
     try {
-      const res = await fetch(`/api/sellers/${sellerId}/follow`, {
+      const res = await fetch('/api/sellers/' + sellerId + '/follow', {
         method: newState ? "POST" : "DELETE",
         headers: { "Content-Type": "application/json" },
       });
