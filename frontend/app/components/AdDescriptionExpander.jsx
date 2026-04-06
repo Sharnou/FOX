@@ -43,74 +43,7 @@ export default function AdDescriptionExpander({ text = '', lang = 'ar', maxLines
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&family=Tajawal:wght@400;500&display=swap');
-
-        .xtox-expander-wrap {
-          font-family: 'Cairo', 'Tajawal', sans-serif;
-        }
-
-        .xtox-expander-text {
-          font-size: 15px;
-          line-height: 1.75;
-          color: #374151;
-          white-space: pre-wrap;
-          word-break: break-word;
-          overflow: hidden;
-          transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .xtox-expander-text.collapsed {
-          max-height: ${MAX_HEIGHT_PX}px;
-          -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
-          mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
-        }
-
-        .xtox-expander-text.expanded-state {
-          max-height: 5000px;
-          -webkit-mask-image: none;
-          mask-image: none;
-        }
-
-        .xtox-expander-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          margin-top: 8px;
-          background: none;
-          border: none;
-          cursor: pointer;
-          font-family: 'Cairo', 'Tajawal', sans-serif;
-          font-size: 14px;
-          font-weight: 600;
-          color: #2563eb;
-          padding: 2px 0;
-          transition: color 0.2s ease;
-          text-decoration: none;
-        }
-
-        .xtox-expander-btn:hover {
-          color: #1d4ed8;
-          text-decoration: underline;
-        }
-
-        .xtox-expander-btn:focus-visible {
-          outline: 2px solid #2563eb;
-          outline-offset: 2px;
-          border-radius: 3px;
-        }
-
-        .xtox-expander-arrow {
-          font-size: 11px;
-          display: inline-block;
-          transition: transform 0.3s ease;
-          line-height: 1;
-        }
-
-        .xtox-expander-arrow.up {
-          transform: rotate(180deg);
-        }
-      `}</style>
+      <style>{'\n        @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&family=Tajawal:wght@400;500&display=swap\');\n\n        .xtox-expander-wrap {\n          font-family: \'Cairo\', \'Tajawal\', sans-serif;\n        }\n\n        .xtox-expander-text {\n          font-size: 15px;\n          line-height: 1.75;\n          color: #374151;\n          white-space: pre-wrap;\n          word-break: break-word;\n          overflow: hidden;\n          transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);\n        }\n\n        .xtox-expander-text.collapsed {\n          max-height: ' + MAX_HEIGHT_PX + 'px;\n          -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);\n          mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);\n        }\n\n        .xtox-expander-text.expanded-state {\n          max-height: 5000px;\n          -webkit-mask-image: none;\n          mask-image: none;\n        }\n\n        .xtox-expander-btn {\n          display: inline-flex;\n          align-items: center;\n          gap: 5px;\n          margin-top: 8px;\n          background: none;\n          border: none;\n          cursor: pointer;\n          font-family: \'Cairo\', \'Tajawal\', sans-serif;\n          font-size: 14px;\n          font-weight: 600;\n          color: #2563eb;\n          padding: 2px 0;\n          transition: color 0.2s ease;\n          text-decoration: none;\n        }\n\n        .xtox-expander-btn:hover {\n          color: #1d4ed8;\n          text-decoration: underline;\n        }\n\n        .xtox-expander-btn:focus-visible {\n          outline: 2px solid #2563eb;\n          outline-offset: 2px;\n          border-radius: 3px;\n        }\n\n        .xtox-expander-arrow {\n          font-size: 11px;\n          display: inline-block;\n          transition: transform 0.3s ease;\n          line-height: 1;\n        }\n\n        .xtox-expander-arrow.up {\n          transform: rotate(180deg);\n        }\n      '}</style>
 
       <div
         className="xtox-expander-wrap"
@@ -123,7 +56,7 @@ export default function AdDescriptionExpander({ text = '', lang = 'ar', maxLines
         {/* Description text */}
         <div
           ref={textRef}
-          className={`xtox-expander-text ${needsExpander && !expanded ? 'collapsed' : 'expanded-state'}`}
+          className={'xtox-expander-text ' + (needsExpander && !expanded ? 'collapsed' : 'expanded-state')}
           lang={lang}
         >
           {text}
@@ -139,7 +72,7 @@ export default function AdDescriptionExpander({ text = '', lang = 'ar', maxLines
           >
             {expanded ? t.less : t.more}
             <span
-              className={`xtox-expander-arrow${expanded ? ' up' : ''}`}
+              className={'xtox-expander-arrow' + (expanded ? ' up' : '')}
               aria-hidden="true"
             >
               ▼
