@@ -49,7 +49,7 @@ export default function LoginPage() {
         const idToken = params.get('id_token');
         if (idToken) {
           const country = localStorage.getItem('detectedCountry') || 'EG';
-          fetch(`${API}/api/users/auth/google`, {
+          fetch(API + '/api/users/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ idToken, country })
@@ -79,7 +79,7 @@ export default function LoginPage() {
                 setLoading(true);
                 setSuccess('جارٍ التحقق من حساب Google...');
                 const country = localStorage.getItem('detectedCountry') || 'EG';
-                fetch(`${API}/api/users/auth/google`, {
+                fetch(API + '/api/users/auth/google', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ idToken: response.credential, country })
@@ -161,7 +161,7 @@ export default function LoginPage() {
     if (!password.trim()) { setError('يرجى إدخال كلمة المرور');       return; }
     setLoading(true);
     try {
-      const res  = await fetch(`${API}/api/users/login`, {
+      const res  = await fetch(API + '/api/users/login', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ email: email.trim(), password })
@@ -186,7 +186,7 @@ export default function LoginPage() {
     }
     setOtpLoading(true);
     try {
-      const res  = await fetch(`${API}/api/users/send-otp`, {
+      const res  = await fetch(API + '/api/users/send-otp', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ phone: cleaned, via: 'whatsapp' })
@@ -207,7 +207,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const country = localStorage.getItem('detectedCountry') || 'EG';
-      const res     = await fetch(`${API}/api/users/verify-otp`, {
+      const res     = await fetch(API + '/api/users/verify-otp', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ phone: phone.trim(), otp: otp.trim(), country })
@@ -272,7 +272,7 @@ export default function LoginPage() {
             margin: '20px auto 0',
             animation: 'spin 0.9s linear infinite'
           }} aria-hidden="true" />
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
         </div>
       </div>
     );
@@ -283,14 +283,7 @@ export default function LoginPage() {
       <div style={card} role="main">
 
         {/* ── Noto Sans Arabic font ── */}
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Noto+Sans+Arabic:wght@400;600;700&display=swap');
-          input:focus { border-color: #002f34 !important; box-shadow: 0 0 0 3px rgba(0,47,52,0.12); }
-          button:active { transform: scale(0.98); }
-          @keyframes spin { to { transform: rotate(360deg); } }
-          @keyframes fadeIn { from { opacity:0; transform:translateY(8px);} to {opacity:1;transform:translateY(0);} }
-          .login-card-anim { animation: fadeIn 0.35s ease; }
-        `}</style>
+        <style>{'\n          @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Noto+Sans+Arabic:wght@400;600;700&display=swap\');\n          input:focus { border-color: #002f34 !important; box-shadow: 0 0 0 3px rgba(0,47,52,0.12); }\n          button:active { transform: scale(0.98); }\n          @keyframes spin { to { transform: rotate(360deg); } }\n          @keyframes fadeIn { from { opacity:0; transform:translateY(8px);} to {opacity:1;transform:translateY(0);} }\n          .login-card-anim { animation: fadeIn 0.35s ease; }\n        '}</style>
 
         {/* ── Logo ── */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
@@ -563,7 +556,7 @@ export default function LoginPage() {
                 <button
                   onClick={() => { if (resendTimer === 0) { setOtpSent(false); setOtp(''); setSuccess(''); } }}
                   disabled={resendTimer > 0}
-                  aria-label={resendTimer > 0 ? `إعادة الإرسال بعد ${resendTimer} ثانية` : 'إعادة إرسال الرمز'}
+                  aria-label={resendTimer > 0 ? 'إعادة الإرسال بعد ' + resendTimer + ' ثانية' : 'إعادة إرسال الرمز'}
                   style={{
                     width: '100%', marginTop: 10, padding: '12px',
                     background: '#f5f5f5', border: 'none', borderRadius: 12,
@@ -571,7 +564,7 @@ export default function LoginPage() {
                     color: resendTimer > 0 ? '#bbb' : '#555',
                     fontSize: 14, fontFamily: 'inherit', transition: 'color 0.2s'
                   }}>
-                  {resendTimer > 0 ? `إعادة الإرسال بعد ${resendTimer}ث` : '🔄 إعادة إرسال الرمز'}
+                  {resendTimer > 0 ? 'إعادة الإرسال بعد ' + resendTimer + 'ث' : '🔄 إعادة إرسال الرمز'}
                 </button>
               </>
             )}
