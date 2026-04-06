@@ -31,7 +31,7 @@ const i18n = {
     noData: "لا توجد بيانات تاريخ أسعار",
     today: "اليوم",
     yesterday: "أمس",
-    daysAgo: (n) => `منذ ${n} أيام`,
+    daysAgo: (n) => 'منذ ' + n + ' أيام',
     change: "التغيير",
     save: "توفير",
   },
@@ -45,7 +45,7 @@ const i18n = {
     noData: "No price history available",
     today: "Today",
     yesterday: "Yesterday",
-    daysAgo: (n) => `${n} days ago`,
+    daysAgo: (n) => n + ' days ago',
     change: "Change",
     save: "Save",
   },
@@ -53,7 +53,7 @@ const i18n = {
 
 /* ─── helpers ───────────────────────────────────────────────────── */
 function formatPrice(amount, currency) {
-  return `${Number(amount).toLocaleString("ar-EG")} ${currency}`;
+  return Number(amount).toLocaleString("ar-EG") + ' ' + currency;
 }
 
 function relativeDate(date, t) {
@@ -92,20 +92,20 @@ function MiniChart({ history, width = 280, height = 90 }) {
     label: h.label,
   }));
 
-  const polyline = points.map((p) => `${p.x},${p.y}`).join(" ");
-  const areaClose = `${points[points.length - 1].x},${pad.top + innerH} ${pad.left},${pad.top + innerH}`;
-  const areaPath = `M ${polyline} L ${areaClose} Z`;
+  const polyline = points.map((p) => p.x + ',' + p.y).join(" ");
+  const areaClose = points[points.length - 1].x + ',' + pad.top + innerH + ' ' + pad.left + ',' + pad.top + innerH;
+  const areaPath = 'M ' + polyline + ' L ' + areaClose + ' Z';
 
   const first = prices[0];
   const last = prices[prices.length - 1];
   const stroke = last <= first ? "#10b981" : "#ef4444";
-  const fillId = `grad-${Math.random().toString(36).slice(2, 7)}`;
+  const fillId = 'grad-' + Math.random().toString(36).slice(2, 7);
 
   return (
     <svg
       width={width}
       height={height}
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={'0 0 ' + width + ' ' + height}
       style={{ overflow: "visible", display: "block" }}
       aria-hidden="true"
     >
@@ -117,7 +117,7 @@ function MiniChart({ history, width = 280, height = 90 }) {
       </defs>
 
       {/* area fill */}
-      <path d={areaPath} fill={`url(#${fillId})`} />
+      <path d={areaPath} fill={'url(#' + fillId + ')'} />
 
       {/* gridlines */}
       {[0.25, 0.5, 0.75].map((f) => (
@@ -248,7 +248,7 @@ export default function PriceHistoryChart({
   if (!stats || stats.sorted.length < 2) {
     return (
       <>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap');`}</style>
+        <style>{'@import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap\');'}</style>
         <div style={rootStyle}>
           <p
             style={{
@@ -277,29 +277,7 @@ export default function PriceHistoryChart({
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap');
-        .phc-row { display: flex; justify-content: space-between; margin-top: 12px; gap: 8px; }
-        .phc-stat { flex: 1; background: #f8fafc; border-radius: 10px; padding: 8px 10px; text-align: center; }
-        .phc-stat-label { font-size: 10px; color: #94a3b8; margin-bottom: 2px; }
-        .phc-stat-value { font-size: 13px; font-weight: 700; color: #0f172a; }
-        .phc-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
-        .phc-timeline { margin-top: 14px; display: flex; flex-direction: column; gap: 0; }
-        .phc-tl-item { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; position: relative; }
-        .phc-tl-item:not(:last-child)::after {
-          content: '';
-          position: absolute;
-          ${isRTL ? "right" : "left"}: 9px;
-          top: 24px;
-          bottom: -6px;
-          width: 2px;
-          background: #e2e8f0;
-        }
-        .phc-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid; flex-shrink: 0; margin-top: 2px; }
-        .phc-tl-date { font-size: 11px; color: #94a3b8; }
-        .phc-tl-price { font-size: 14px; font-weight: 700; }
-        .phc-tl-diff { font-size: 11px; margin-top: 2px; }
-      `}</style>
+      <style>{'\n        @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap\');\n        .phc-row { display: flex; justify-content: space-between; margin-top: 12px; gap: 8px; }\n        .phc-stat { flex: 1; background: #f8fafc; border-radius: 10px; padding: 8px 10px; text-align: center; }\n        .phc-stat-label { font-size: 10px; color: #94a3b8; margin-bottom: 2px; }\n        .phc-stat-value { font-size: 13px; font-weight: 700; color: #0f172a; }\n        .phc-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }\n        .phc-timeline { margin-top: 14px; display: flex; flex-direction: column; gap: 0; }\n        .phc-tl-item { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; position: relative; }\n        .phc-tl-item:not(:last-child)::after {\n          content: \'\';\n          position: absolute;\n          ' + (isRTL ? "right" : "left") + ': 9px;\n          top: 24px;\n          bottom: -6px;\n          width: 2px;\n          background: #e2e8f0;\n        }\n        .phc-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid; flex-shrink: 0; margin-top: 2px; }\n        .phc-tl-date { font-size: 11px; color: #94a3b8; }\n        .phc-tl-price { font-size: 14px; font-weight: 700; }\n        .phc-tl-diff { font-size: 11px; margin-top: 2px; }\n      '}</style>
 
       <div style={rootStyle} role="region" aria-label={title || t.title}>
         {/* Header */}
@@ -310,7 +288,7 @@ export default function PriceHistoryChart({
           <span
             className="phc-badge"
             style={{
-              background: `${color}18`,
+              background: color + '18',
               color,
             }}
           >
@@ -322,7 +300,7 @@ export default function PriceHistoryChart({
         {/* Current price */}
         <div
           style={{
-            background: `${color}12`,
+            background: color + '12',
             borderRadius: "10px",
             padding: "10px 14px",
             marginBottom: "14px",
