@@ -20,7 +20,7 @@ const TRANSLATIONS = {
     sortPriceLow: 'السعر: الأقل',
     sortPriceHigh: 'السعر: الأعلى',
     filterAll: 'الكل',
-    count: (n) => `${n} إعلان محفوظ`,
+    count: (n) => n + ' إعلان محفوظ',
     emptyTitle: 'لا توجد إعلانات محفوظة بعد',
     emptyDesc: 'احفظ الإعلانات التي تعجبك وستظهر هنا',
     browseCta: 'تصفح الإعلانات',
@@ -40,7 +40,7 @@ const TRANSLATIONS = {
     sortPriceLow: 'Price: Low',
     sortPriceHigh: 'Price: High',
     filterAll: 'All',
-    count: (n) => `${n} saved ad${n !== 1 ? 's' : ''}`,
+    count: (n) => n + ' saved ad' + (n !== 1 ? 's' : ''),
     emptyTitle: 'No saved ads yet',
     emptyDesc: 'Save ads you like and they will appear here',
     browseCta: 'Browse Ads',
@@ -82,7 +82,7 @@ export default function SavedPage() {
     }
     Promise.all(
       savedIds.map(id =>
-        fetch(`${BACKEND}/api/ads/${id}`)
+        fetch(BACKEND + '/api/ads/' + id)
           .then(res => res.ok ? res.json() : null)
           .catch(() => null)
       )
@@ -126,7 +126,7 @@ export default function SavedPage() {
 
   const shareList = async () => {
     const ids = JSON.parse(localStorage.getItem('xtox_saved_ads') || '[]');
-    const url = `${window.location.origin}/saved?ids=${ids.join(',')}`;
+    const url = window.location.origin + '/saved?ids=' + ids.join(',');
     try {
       await navigator.clipboard.writeText(url);
       showToast(t.copiedToast);
