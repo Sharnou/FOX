@@ -88,7 +88,7 @@ export default function TrendingAdsWidget({ lang = 'ar', countryCode = 'EG', cur
               <div className="relative w-full h-32 bg-gray-50">
                 {ad.images?.[0] ? (
                   <Image
-                    src={ad.images[0]}
+                    src={ad.images && ad.images[0] ? ad.images[0] : '/placeholder.png'}
                     alt={ad.title || ''}
                     fill
                     className="object-cover"
