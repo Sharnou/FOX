@@ -70,8 +70,8 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
   }
 
   const counterText = isRTL
-    ? `${total} ${t.of} ${current + 1} ${t.image}`
-    : `${t.image} ${current + 1} ${t.of} ${total}`;
+    ? total + ' ' + t.of + ' ' + current + 1 + ' ' + t.image
+    : t.image + ' ' + current + 1 + ' ' + t.of + ' ' + total;
 
   return (
     <div ref={galleryRef} dir={isRTL ? 'rtl' : 'ltr'} style={{ width: '100%', userSelect: 'none' }}>
@@ -89,7 +89,7 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
         <img
           key={current}
           src={images[current]}
-          alt={`${alt} - ${counterText}`}
+          alt={alt + ' - ' + counterText}
           onLoad={() => handleImageLoad(current)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: loaded[current] ? 'block' : 'none', transition: 'opacity 0.2s' }}
         />
@@ -132,7 +132,7 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
             <button
               key={i}
               onClick={() => setCurrent(i)}
-              aria-label={`${t.image} ${i + 1}`}
+              aria-label={t.image + ' ' + i + 1}
               style={{ width: i === current ? 20 : 8, height: 8, borderRadius: 4, border: 'none', background: i === current ? '#2563eb' : '#cbd5e1', cursor: 'pointer', transition: 'all 0.2s', padding: 0 }}
             />
           ))}
@@ -146,10 +146,10 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
             <button
               key={i}
               onClick={() => setCurrent(i)}
-              aria-label={`${t.thumb} ${i + 1}`}
+              aria-label={t.thumb + ' ' + i + 1}
               style={{ flexShrink: 0, width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: i === current ? '2px solid #2563eb' : '2px solid transparent', padding: 0, cursor: 'pointer', background: '#f0f0f0' }}
             >
-              <img src={url} alt={`${t.thumb} ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={url} alt={t.thumb + ' ' + i + 1} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </button>
           ))}
         </div>
@@ -164,7 +164,7 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
           dir={isRTL ? 'rtl' : 'ltr'}
         >
           <button onClick={() => setLightbox(false)} aria-label={t.close} style={{ position: 'absolute', top: 16, [isRTL ? 'left' : 'right']: 16, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 22, borderRadius: 8, width: 40, height: 40, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>\u2715</button>
-          <img src={images[current]} alt={`${alt} ${current + 1}`} style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }} />
+          <img src={images[current]} alt={alt + ' ' + current + 1} style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }} />
           {total > 1 && (
             <div style={{ display: 'flex', gap: 20, marginTop: 20 }}>
               <button onClick={goPrev} style={lbNavBtn}>{isRTL ? '\u203a' : '\u2039'} {t.prev}</button>
