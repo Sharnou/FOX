@@ -207,7 +207,7 @@ export default function JobsPage() {
             <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>
               {loading ? '…' : jobs.length + ' إعلان'}
             </span>
-            <a
+            <Link
               href="/jobs/post"
               aria-label="نشر وظيفة جديدة"
               style={{
@@ -217,7 +217,7 @@ export default function JobsPage() {
               }}
             >
               + نشر وظيفة
-            </a>
+            </Link>
           </div>
 
           {/* City search */}
@@ -295,12 +295,12 @@ export default function JobsPage() {
             <p style={{ color: '#888', fontSize: 14, marginBottom: 24 }}>
               {citySearch ? 'لا توجد نتائج في "' + citySearch + '" — جرب مدينة أخرى' : 'كن أول من ينشر وظيفة في منطقتك!'}
             </p>
-            <a
+            <Link
               href="/jobs/post"
               style={{ background: '#002f34', color: '#fff', padding: '12px 28px', borderRadius: 14, textDecoration: 'none', fontWeight: 700, fontSize: 15 }}
             >
               + انشر وظيفة الآن
-            </a>
+            </Link>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
