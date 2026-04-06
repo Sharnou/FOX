@@ -10,23 +10,23 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.r
 function arabicRelTime(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000);
   if (diff < 10) return 'الآن';
-  if (diff < 60) return `منذ ${diff} ثانية`;
+  if (diff < 60) return 'منذ ' + diff + ' ثانية';
   const mins = Math.floor(diff / 60);
   if (mins < 60) {
     if (mins === 1) return 'منذ دقيقة';
-    if (mins <= 10) return `منذ ${mins} دقائق`;
-    return `منذ ${mins} دقيقة`;
+    if (mins <= 10) return 'منذ ' + mins + ' دقائق';
+    return 'منذ ' + mins + ' دقيقة';
   }
   const hours = Math.floor(mins / 60);
   if (hours < 24) {
     if (hours === 1) return 'منذ ساعة';
-    if (hours <= 10) return `منذ ${hours} ساعات`;
-    return `منذ ${hours} ساعة`;
+    if (hours <= 10) return 'منذ ' + hours + ' ساعات';
+    return 'منذ ' + hours + ' ساعة';
   }
   const days = Math.floor(hours / 24);
   if (days === 1) return 'منذ يوم';
-  if (days <= 10) return `منذ ${days} أيام`;
-  return `منذ ${days} يوم`;
+  if (days <= 10) return 'منذ ' + days + ' أيام';
+  return 'منذ ' + days + ' يوم';
 }
 
 // ─── Typing indicator dots ────────────────────────────────────────────────────
@@ -54,8 +54,8 @@ function TypingDots() {
               borderRadius: '50%',
               background: '#9ca3af',
               display: 'inline-block',
-              animation: `xtox-bounce 1.2s ease-in-out infinite`,
-              animationDelay: `${i * 0.2}s`,
+              animation: 'xtox-bounce 1.2s ease-in-out infinite',
+              animationDelay: i * 0.2 + 's',
             }}
           />
         ))}
@@ -188,11 +188,11 @@ function LocationCard({ msg }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: '#002f34' }}>موقعي الحالي</div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <a href={`https://www.google.com/maps?q=${msg.lat},${msg.lng}`} target="_blank" rel="noopener noreferrer"
+        <a href={'https://www.google.com/maps?q=' + msg.lat + ',' + msg.lng} target="_blank" rel="noopener noreferrer"
           style={{ flex: 1, background: '#4285F4', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
           🗺️ عرض
         </a>
-        <a href={`https://www.google.com/maps/dir/?api=1&destination=${msg.lat},${msg.lng}`} target="_blank" rel="noopener noreferrer"
+        <a href={'https://www.google.com/maps/dir/?api=1&destination=' + msg.lat + ',' + msg.lng} target="_blank" rel="noopener noreferrer"
           style={{ flex: 1, background: '#002f34', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
           🚗 اتجاهات
         </a>
@@ -282,8 +282,8 @@ export default function ChatPage() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) return;
 
-    fetch(`${API_URL}/api/chat`, {
-      headers: { Authorization: `Bearer ${token}` },
+    fetch(API_URL + '/api/chat', {
+      headers: { Authorization: 'Bearer ' + token },
     })
       .then(r => r.ok ? r.json() : null)
       .then(async (data) => {
@@ -320,8 +320,8 @@ export default function ChatPage() {
             chatIdRef.current = urlChatId;
             // Load message history from API
             try {
-              const msgRes = await fetch(`${API_URL}/api/chat/${urlChatId}/messages?limit=50`, {
-                headers: { Authorization: `Bearer ${token}` },
+              const msgRes = await fetch(API_URL + '/api/chat/' + urlChatId + '/messages?limit=50', {
+                headers: { Authorization: 'Bearer ' + token },
               });
               if (msgRes.ok) {
                 const msgData = await msgRes.json();
@@ -533,9 +533,9 @@ export default function ChatPage() {
     const currentChatId = chatIdRef.current;
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (token && currentChatId) {
-      fetch(`${API_URL}/api/chat/${currentChatId}/messages`, {
+      fetch(API_URL + '/api/chat/' + currentChatId + '/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify({ text }),
       }).catch(() => {});
     }
@@ -560,7 +560,7 @@ export default function ChatPage() {
         lat,
         lng,
         label: 'موقعي الحالي',
-        text: `📍 موقعي: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        text: '📍 موقعي: ' + lat.toFixed(5) + ', ' + lng.toFixed(5),
         from: 'me',
         time: Date.now(),
       };
@@ -701,8 +701,8 @@ export default function ChatPage() {
                         setShowConvPanel(false);
                         // Use chatId if available (from API), fall back to target param
                         const dest = conv.chatId
-                          ? `/chat?chatId=${encodeURIComponent(conv.chatId)}&target=${encodeURIComponent(conv.id)}`
-                          : `/chat?target=${encodeURIComponent(conv.id)}`;
+                          ? '/chat?chatId=' + encodeURIComponent(conv.chatId) + '&target=' + encodeURIComponent(conv.id)
+                          : '/chat?target=' + encodeURIComponent(conv.id);
                         window.location.href = dest;
                       }}
                       style={{
@@ -768,7 +768,7 @@ export default function ChatPage() {
                       {/* ── Unread count badge ─────────────────────────────── */}
                       {unread > 0 && (
                         <span
-                          aria-label={`${unread} رسالة غير مقروءة`}
+                          aria-label={unread + ' رسالة غير مقروءة'}
                           style={{
                             minWidth: 22,
                             height: 22,
@@ -882,7 +882,7 @@ export default function ChatPage() {
           💬
           {totalUnread > 0 && (
             <span
-              aria-label={`${totalUnread} رسائل غير مقروءة`}
+              aria-label={totalUnread + ' رسائل غير مقروءة'}
               style={{
                 position: 'absolute',
                 top: -4,
@@ -927,7 +927,7 @@ export default function ChatPage() {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontWeight: 'bold', fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {targetId ? `محادثة مع ${targetId}` : 'اختر محادثة للبدء'}
+            {targetId ? 'محادثة مع ' + targetId : 'اختر محادثة للبدء'}
           </p>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
             {joined ? '🟢 متصل' : '⏳ جار الاتصال...'}
@@ -1049,7 +1049,7 @@ export default function ChatPage() {
                 <div
                   dir="rtl"
                   role="article"
-                  aria-label={isSent ? 'رسالتك' : `رسالة من ${m.from}`}
+                  aria-label={isSent ? 'رسالتك' : 'رسالة من ' + m.from}
                   style={{
                     maxWidth: '75%',
                     padding: '10px 14px',
@@ -1174,28 +1174,7 @@ export default function ChatPage() {
       )}
 
       {/* ── Animation keyframes ── */}
-      <style>{`
-        @keyframes xtox-bounce {
-          0%, 60%, 100% { transform: translateY(0);  opacity: 0.35; }
-          30%            { transform: translateY(-7px); opacity: 1;    }
-        }
-        @keyframes xtox-pop {
-          from { transform: scale(0.85); opacity: 0; }
-          to   { transform: scale(1);    opacity: 1; }
-        }
-        @keyframes xtox-ring {
-          0%   { transform: scale(0.9); opacity: 0.7; }
-          100% { transform: scale(1.6); opacity: 0;   }
-        }
-        @keyframes xtox-badge-pulse {
-          0%, 100% { transform: scale(1);    box-shadow: 0 2px 6px rgba(35,229,219,0.4); }
-          50%       { transform: scale(1.12); box-shadow: 0 2px 12px rgba(35,229,219,0.7); }
-        }
-        @keyframes xtox-slide-in {
-          from { transform: translateX(100%); opacity: 0; }
-          to   { transform: translateX(0);    opacity: 1; }
-        }
-      `}</style>
+      <style>{'\n        @keyframes xtox-bounce {\n          0%, 60%, 100% { transform: translateY(0);  opacity: 0.35; }\n          30%            { transform: translateY(-7px); opacity: 1;    }\n        }\n        @keyframes xtox-pop {\n          from { transform: scale(0.85); opacity: 0; }\n          to   { transform: scale(1);    opacity: 1; }\n        }\n        @keyframes xtox-ring {\n          0%   { transform: scale(0.9); opacity: 0.7; }\n          100% { transform: scale(1.6); opacity: 0;   }\n        }\n        @keyframes xtox-badge-pulse {\n          0%, 100% { transform: scale(1);    box-shadow: 0 2px 6px rgba(35,229,219,0.4); }\n          50%       { transform: scale(1.12); box-shadow: 0 2px 12px rgba(35,229,219,0.7); }\n        }\n        @keyframes xtox-slide-in {\n          from { transform: translateX(100%); opacity: 0; }\n          to   { transform: translateX(0);    opacity: 1; }\n        }\n      '}</style>
     </div>
   );
 }
