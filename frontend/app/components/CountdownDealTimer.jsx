@@ -122,7 +122,7 @@ export default function CountdownDealTimer({
     return (
       <span
         dir={isRTL ? 'rtl' : 'ltr'}
-        className={`inline-flex items-center gap-1 text-xs font-bold text-white px-2 py-0.5 rounded-full ${badgeColor}`}
+        className={'inline-flex items-center gap-1 text-xs font-bold text-white px-2 py-0.5 rounded-full ' + badgeColor}
         style={{ fontFamily: isRTL ? "'Cairo', 'Tajawal', sans-serif" : 'inherit' }}
       >
         {t.ends_in}{' '}
@@ -140,7 +140,7 @@ export default function CountdownDealTimer({
       style={{ fontFamily: isRTL ? "'Cairo', 'Tajawal', sans-serif" : 'inherit' }}
     >
       {/* Badge label */}
-      <div className={`inline-block text-xs font-bold text-white rounded-full px-3 py-1 mb-2 ${badgeColor}`}>
+      <div className={'inline-block text-xs font-bold text-white rounded-full px-3 py-1 mb-2 ' + badgeColor}>
         {t[labelKey] || t.deal}
       </div>
 
@@ -152,7 +152,7 @@ export default function CountdownDealTimer({
           <p className="text-xs text-gray-500 mb-1">{t.ends_in}</p>
 
           {/* Digit blocks */}
-          <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
+          <div className={'flex gap-2 ' + (isRTL ? 'flex-row-reverse justify-end' : '')}>
             {timeLeft.days > 0 && (
               <DigitBlock value={n(timeLeft.days)} label={t.days} color={badgeColor} />
             )}
@@ -169,7 +169,7 @@ export default function CountdownDealTimer({
 function DigitBlock({ value, label, color }) {
   return (
     <div className="flex flex-col items-center min-w-[42px]">
-      <div className={`text-xl font-black text-white rounded-xl px-2 py-1 min-w-[42px] text-center ${color}`}>
+      <div className={'text-xl font-black text-white rounded-xl px-2 py-1 min-w-[42px] text-center ' + color}>
         {value}
       </div>
       <span className="text-[10px] text-gray-500 mt-0.5">{label}</span>
