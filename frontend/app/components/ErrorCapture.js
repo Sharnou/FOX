@@ -5,7 +5,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 
 async function reportError(data) {
   try {
-    await fetch(`${API}/api/errors`, {
+    await fetch(API + '/api/errors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, userAgent: navigator.userAgent, url: location.href }),
@@ -31,7 +31,7 @@ export default function ErrorCapture() {
         const res = await origFetch(...args);
         if (!res.ok && res.status >= 500) {
           reportError({ 
-            message: `API ${res.status}: ${args[0]}`, 
+            message: 'API ' + res.status + ': ' + args[0], 
             type: 'api_error',
             url: typeof args[0] === 'string' ? args[0] : args[0]?.url
           });
