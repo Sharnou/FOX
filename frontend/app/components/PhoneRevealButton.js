@@ -100,7 +100,7 @@ export default function PhoneRevealButton({ phone, lang = 'ar' }) {
         >
           {/* Phone number display */}
           <a
-            href={`tel:${phone}`}
+            href={'tel:' + phone}
             style={{
               fontSize: '17px',
               fontWeight: 'bold',
@@ -133,7 +133,7 @@ export default function PhoneRevealButton({ phone, lang = 'ar' }) {
 
           {/* Call button */}
           <a
-            href={`tel:${phone}`}
+            href={'tel:' + phone}
             style={{
               padding: '6px 12px',
               backgroundColor: '#25D366',
