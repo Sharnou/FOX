@@ -4,7 +4,7 @@ const AdSchema = new mongoose.Schema({
   seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // alias for userId
   title: String, title_original: String, language: String,
   translations: { en: String, ar: String, de: String, fr: String },
-  description: String, category: String, subcategory: String, subcategory2: String, subcategory3: String,
+  description: String, category: String, subcategory: { type: String, default: 'Other' }, subcategory2: String, subcategory3: String,
   price: Number, currency: String, city: String, country: { type: String, required: true },
   media: [String], images: [String], video: String, videoUrl: { type: String, default: null }, mediaType: { type: String, enum: ['image', 'video', 'mixed'] },
   imageVector: [Number],
@@ -74,6 +74,7 @@ AdSchema.pre('validate', function(next) {
 
 // FIX B: Pre-save hook — final safety net to clear invalid location objects
 // Catches any path (create, update, republish) that writes without valid coords.
+// NOTE: _id is immutable — MongoDB prevents _id modification automatically
 AdSchema.pre('save', function(next) {
   if (this.location) {
     const coords = this.location.coordinates;
