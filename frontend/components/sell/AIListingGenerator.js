@@ -35,12 +35,7 @@ export default function AIListingGenerator({ onGenerated }) {
     setAnalyzing(true);
     try {
       const response = await FOX.integrations.Core.InvokeLLM({
-        prompt: `You are an AI listing generator for a classified marketplace called FOX.
-Analyze this product and generate a complete marketplace listing.
-Return a JSON object with: title (catchy, SEO-friendly, max 80 chars), description (3-4 sentences, highlight key features),
-category (one of: vehicles, electronics, real_estate, fashion, home, sports, other), subcategory (specific type),
-estimated_price_usd (number), condition (new/like_new/good/fair/poor), key_features (array of 3-5 strings).
-Respond ONLY with valid JSON.`,
+        prompt: 'You are an AI listing generator for a classified marketplace called FOX.\nAnalyze this product and generate a complete marketplace listing.\nReturn a JSON object with: title (catchy, SEO-friendly, max 80 chars), description (3-4 sentences, highlight key features),\ncategory (one of: vehicles, electronics, real_estate, fashion, home, sports, other), subcategory (specific type),\nestimated_price_usd (number), condition (new/like_new/good/fair/poor), key_features (array of 3-5 strings).\nRespond ONLY with valid JSON.',
       });
 
       let parsed = null;
@@ -73,19 +68,7 @@ Respond ONLY with valid JSON.`,
     setGeneratingFromText(true);
     try {
       const response = await FOX.integrations.Core.InvokeLLM({
-        prompt: `You are an AI listing generator for FOX classified marketplace.
-The user described their item as: "${textInput}"
-
-Generate a complete marketplace listing. Return a JSON object with:
-- title: catchy, SEO-friendly title (max 80 chars)
-- description: compelling description (3-4 sentences)
-- category: one of (vehicles, electronics, real_estate, fashion, home, sports, other)
-- subcategory: specific type
-- estimated_price_usd: estimated price as number
-- condition: new/like_new/good/fair/poor
-- key_features: array of 3-5 key features
-
-Respond ONLY with valid JSON.`,
+        prompt: 'You are an AI listing generator for FOX classified marketplace.\nThe user described their item as: "' + textInput + '"\n\nGenerate a complete marketplace listing. Return a JSON object with:\n- title: catchy, SEO-friendly title (max 80 chars)\n- description: compelling description (3-4 sentences)\n- category: one of (vehicles, electronics, real_estate, fashion, home, sports, other)\n- subcategory: specific type\n- estimated_price_usd: estimated price as number\n- condition: new/like_new/good/fair/poor\n- key_features: array of 3-5 key features\n\nRespond ONLY with valid JSON.',
       });
 
       let parsed = null;
