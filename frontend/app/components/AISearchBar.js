@@ -74,7 +74,7 @@ export default function AISearchBar({ onSearch, placeholder = 'ابحث عن أ�
     if (query.trim()) {
       setShowDropdown(false);
       if (onSearch) onSearch(query.trim());
-      else window.location.href = `/search?q=${encodeURIComponent(query.trim())}`;
+      else window.location.href = '/search?q=' + encodeURIComponent(query.trim());
     }
   }
 
@@ -82,7 +82,7 @@ export default function AISearchBar({ onSearch, placeholder = 'ابحث عن أ�
     setQuery(term);
     setShowDropdown(false);
     if (onSearch) onSearch(term);
-    else window.location.href = `/search?q=${encodeURIComponent(term)}`;
+    else window.location.href = '/search?q=' + encodeURIComponent(term);
   }
 
   const catIcon = suggestions?.category ? (CATEGORY_ICONS[suggestions.category] || '🔍') : '🔍';
@@ -276,12 +276,7 @@ export default function AISearchBar({ onSearch, placeholder = 'ابحث عن أ�
         </div>
       )}
 
-      <style>{`
-        @keyframes spin {
-          0% { transform: translateY(-50%) rotate(0deg); }
-          100% { transform: translateY(-50%) rotate(360deg); }
-        }
-      `}</style>
+      <style>{'\n        @keyframes spin {\n          0% { transform: translateY(-50%) rotate(0deg); }\n          100% { transform: translateY(-50%) rotate(360deg); }\n        }\n      '}</style>
     </div>
   );
 }
