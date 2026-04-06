@@ -1,4 +1,6 @@
 'use client';
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useRef } from 'react';
 import { Zap, Send, Mic, Loader2, Bot } from 'lucide-react';
 import { FOX } from '@/lib/XTOXClient';
