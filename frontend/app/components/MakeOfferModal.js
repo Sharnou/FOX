@@ -18,12 +18,12 @@ export default function MakeOfferModal({ ad, user, onClose }) {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app'}/api/offers`,
+        (process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app') + '/api/offers',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
+            ...(token ? { Authorization: 'Bearer ' + token } : {})
           },
           body: JSON.stringify({ adId: ad._id, amount: Number(amount), message })
         }
