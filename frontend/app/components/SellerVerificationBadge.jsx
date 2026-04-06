@@ -117,7 +117,7 @@ export default function SellerVerificationBadge({
         gap: s.gap,
         background: t.bg,
         color: t.color,
-        border: `1px solid ${t.border}`,
+        border: '1px solid ' + t.border,
         borderRadius: s.radius,
         padding: s.padding,
         fontSize: s.font,
@@ -125,7 +125,7 @@ export default function SellerVerificationBadge({
         fontWeight: 600,
         cursor: tooltip ? 'help' : 'default',
         userSelect: 'none',
-        boxShadow: isBusiness ? `0 0 0 2px ${t.border}` : 'none',
+        boxShadow: isBusiness ? '0 0 0 2px ' + t.border : 'none',
         animation: isBusiness && animated ? 'xtox-glow 2s ease-in-out infinite alternate' : 'none',
         transition: 'box-shadow 0.2s, transform 0.15s',
         transform: hovered ? 'scale(1.04)' : 'scale(1)',
@@ -134,12 +134,7 @@ export default function SellerVerificationBadge({
       aria-label={tooltipText}
       role="img"
     >
-      <style>{`
-        @keyframes xtox-glow {
-          from { box-shadow: 0 0 0 2px #fde68a, 0 0 6px #fbbf24; }
-          to   { box-shadow: 0 0 0 3px #fcd34d, 0 0 14px #f59e0b; }
-        }
-      `}</style>
+      <style>{'\n        @keyframes xtox-glow {\n          from { box-shadow: 0 0 0 2px #fde68a, 0 0 6px #fbbf24; }\n          to   { box-shadow: 0 0 0 3px #fcd34d, 0 0 14px #f59e0b; }\n        }\n      '}</style>
 
       {/* Icon */}
       <span style={{ display: 'flex', alignItems: 'center', fontSize: s.iconSize, lineHeight: 1 }}>
