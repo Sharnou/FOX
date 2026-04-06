@@ -15,22 +15,7 @@ export default function AIAdImprover({ title, description, price, category, onAp
 
     try {
       const result = await FOX.integrations.Core.InvokeLLM({
-        prompt: `You are an expert marketplace listing optimizer for FOX classified marketplace.
-Analyze this listing and provide concrete improvements:
-
-Title: "${title || "Not provided"}"
-Description: "${description || "Not provided"}"
-Price: ${price || "Not provided"}
-Category: ${category || "Not provided"}
-
-Return a JSON object with exactly these fields:
-- improved_title: a better, more specific, SEO-friendly title (max 80 chars)
-- improved_description: a more compelling, detailed description (3-4 sentences)
-- issues: array of specific problems found (max 4 items)
-- price_feedback: brief comment on the price (1 sentence)
-- score: listing quality score 1-10 (number)
-
-Respond ONLY with valid JSON.`,
+        prompt: 'You are an expert marketplace listing optimizer for FOX classified marketplace.\nAnalyze this listing and provide concrete improvements:\n\nTitle: "' + (title || "Not provided") + '"\nDescription: "' + (description || "Not provided") + '"\nPrice: ' + (price || "Not provided") + '\nCategory: ' + (category || "Not provided") + '\n\nReturn a JSON object with exactly these fields:\n- improved_title: a better, more specific, SEO-friendly title (max 80 chars)\n- improved_description: a more compelling, detailed description (3-4 sentences)\n- issues: array of specific problems found (max 4 items)\n- price_feedback: brief comment on the price (1 sentence)\n- score: listing quality score 1-10 (number)\n\nRespond ONLY with valid JSON.',
       });
 
       let parsed = null;
