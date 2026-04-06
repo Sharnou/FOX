@@ -42,10 +42,10 @@ export default function PriceDropBadge({
   return (
     <div
       dir="rtl"
-      className={`price-drop-badge ${className}`}
+      className={'price-drop-badge ' + className}
       style={styles.wrapper}
-      title={`انخفض السعر من ${formatNum(originalPrice)} إلى ${formatNum(currentPrice)} ${currency}`}
-      aria-label={`انخفض السعر بنسبة ${dropPercent}٪`}
+      title={'انخفض السعر من ' + formatNum(originalPrice) + ' إلى ' + formatNum(currentPrice) + ' ' + currency}
+      aria-label={'انخفض السعر بنسبة ' + dropPercent + '٪'}
     >
       {/* Downward arrow icon */}
       <span style={styles.arrow} aria-hidden="true">↘</span>
