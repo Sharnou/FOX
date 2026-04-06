@@ -8,7 +8,7 @@ import AIQualityBadge from './AIQualityBadge';
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality, w_400=resize)
 function optimizeImage(url, width = 400) {
   if (!url || !url.includes('cloudinary.com')) return url;
-  return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
+  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
 }
 
 // Convert Western numerals to Arabic-Indic numerals for RTL UI
@@ -39,7 +39,7 @@ function StarRating({ rating, count }) {
   return (
     <span
       className="text-xs inline-flex items-center gap-0.5"
-      title={`${rating}/5`}
+      title={rating + '/5'}
       dir="rtl"
     >
       {Array.from({ length: 5 }, (_, i) => (
@@ -81,7 +81,7 @@ function ConditionBadge({ condition }) {
         fontWeight: 700,
         lineHeight: 1.5,
       }}
-      aria-label={`حالة المنتج: ${ar}`}
+      aria-label={'حالة المنتج: ' + ar}
     >
       {icon} {ar}
     </span>
@@ -116,7 +116,7 @@ export default function AdCard({ ad }) {
   useEffect(() => {
     if (!adId) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-    fetch(`${apiUrl}/api/ads/${adId}/view`, { method: 'PATCH' })
+    fetch(apiUrl + '/api/ads/' + adId + '/view', { method: 'PATCH' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.views != null) setViewCount(data.views); })
       .catch(() => {}); // silent — view count is non-critical
@@ -142,7 +142,7 @@ export default function AdCard({ ad }) {
     e.preventDefault();
     e.stopPropagation();
 
-    const adUrl = `${window.location.origin}/ads/${adId}`;
+    const adUrl = window.location.origin + '/ads/' + adId;
     const shareData = {
       title: ad.title,
       text: ad.description || ad.title,
@@ -195,8 +195,8 @@ export default function AdCard({ ad }) {
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://xtox-production.up.railway.app";
       const wishlistUrl = saved
-        ? `${apiBase}/api/wishlist/${adIdStr}`
-        : `${apiBase}/api/wishlist`;
+        ? apiBase + '/api/wishlist/' + adIdStr
+        : apiBase + '/api/wishlist';
       const res = await fetch(wishlistUrl, {
         method: saved ? 'DELETE' : 'POST',
         headers: {
@@ -226,7 +226,7 @@ export default function AdCard({ ad }) {
   const handleChat = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    window.location.href = `/ads/${adId}#chat`;
+    window.location.href = '/ads/' + adId + '#chat';
   };
 
   // ── FIX: Comprehensive image resolution — try ALL field names, handle base64 ─
@@ -258,7 +258,7 @@ export default function AdCard({ ad }) {
   // ──────────────────────────────────────────────────────────────────────────
 
   // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
-  const adDetailUrl = `/ads/${adId}`;
+  const adDetailUrl = '/ads/' + adId;
 
   return (
     // FIX 2: Use Next.js Link for correct navigation; normalized adId
@@ -297,11 +297,7 @@ export default function AdCard({ ad }) {
       <button
         onClick={handleShare}
         aria-label="مشاركة"
-        className={`absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors duration-200 ${
-          shared
-            ? 'bg-green-500 text-white'
-            : 'bg-black/40 hover:bg-black/60 text-white'
-        }`}
+        className={'absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors duration-200 ' + (shared ? 'bg-green-500 text-white' : 'bg-black/40 hover:bg-black/60 text-white')}
       >
         {shared ? '✓' : '📤'}
       </button>
@@ -370,7 +366,7 @@ export default function AdCard({ ad }) {
           const daysLeft = getDaysLeft(ad.createdAt);
           if (daysLeft === null) return null;
           const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
-          const label = daysLeft <= 0 ? 'منتهي' : `${daysLeft} يوم متبق`;
+          const label = daysLeft <= 0 ? 'منتهي' : daysLeft + ' يوم متبق';
           return (
             <span style={{
               position: 'absolute', bottom: '8px', left: '8px',
@@ -404,7 +400,7 @@ export default function AdCard({ ad }) {
           )}
           {ad.phone && (
             <a
-              href={`https://wa.me/${ad.phone.replace(/\D/g, '')}?text=${encodeURIComponent('مرحبا، رأيت إعلانك على XTOX')}`}
+              href={'https://wa.me/' + ad.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent('مرحبا، رأيت إعلانك على XTOX')}
               target="_blank"
               rel="noopener noreferrer"
               dir="auto"
