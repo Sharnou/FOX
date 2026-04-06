@@ -18,16 +18,16 @@ function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
   if (diff < 60)  return 'منذ لحظات';
-  if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
-  if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;
-  if (diff < 2592000) return `منذ ${Math.floor(diff / 86400)} يوم`;
-  return `منذ ${Math.floor(diff / 2592000)} شهر`;
+  if (diff < 3600) return 'منذ ' + Math.floor(diff / 60) + ' دقيقة';
+  if (diff < 86400) return 'منذ ' + Math.floor(diff / 3600) + ' ساعة';
+  if (diff < 2592000) return 'منذ ' + Math.floor(diff / 86400) + ' يوم';
+  return 'منذ ' + Math.floor(diff / 2592000) + ' شهر';
 }
 
 function JobCard({ job }) {
   const hasWhatsApp = job.phone && (job.phone.startsWith('+') || job.phone.length >= 9);
   const wa = hasWhatsApp
-    ? `https://wa.me/${job.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`مرحباً، رأيت إعلان الوظيفة "${job.title}" على XTOX وأريد الاستفسار`)}`
+    ? 'https://wa.me/' + job.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent('مرحباً، رأيت إعلان الوظيفة "' + job.title + '" على XTOX وأريد الاستفسار' + '" على XTOX وأريد الاستفسار')
     : null;
 
   const typeLabelMap = {
@@ -39,7 +39,7 @@ function JobCard({ job }) {
   return (
     <article
       role="article"
-      aria-label={`وظيفة: ${job.title}`}
+      aria-label={'وظيفة: ' + job.title}
       style={{
         background: '#fff',
         borderRadius: 18,
@@ -93,7 +93,7 @@ function JobCard({ job }) {
         )}
         {job.price && (
           <span style={{ color: '#002f34', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-            💰 {job.price}{job.currency ? ` ${job.currency}` : ''}
+            💰 {job.price}{job.currency ? ' ' + job.currency : ''}
           </span>
         )}
         {job.createdAt && (
@@ -106,8 +106,8 @@ function JobCard({ job }) {
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <a
-          href={`/chat?target=${job.userId?._id || job.userId}`}
-          aria-label={`محادثة بخصوص وظيفة ${job.title}`}
+          href={'/chat?target=' + (job.userId?._id || job.userId)}
+          aria-label={'محادثة بخصوص وظيفة ' + job.title}
           style={{
             flex: 1, background: '#002f34', color: '#fff',
             textAlign: 'center', padding: '10px 12px',
@@ -122,7 +122,7 @@ function JobCard({ job }) {
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={`واتساب بخصوص وظيفة ${job.title}`}
+            aria-label={'واتساب بخصوص وظيفة ' + job.title}
             style={{
               flex: 1, background: '#25D366', color: '#fff',
               textAlign: 'center', padding: '10px 12px',
@@ -149,7 +149,7 @@ export default function JobsPage() {
     : 'EG';
 
   useEffect(() => {
-    axios.get(`${API}/api/jobs`, { params: { country } })
+    axios.get(API + '/api/jobs', { params: { country } })
       .then(r => setJobs(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -205,7 +205,7 @@ export default function JobsPage() {
               💼 الوظائف
             </h1>
             <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>
-              {loading ? '…' : `${jobs.length} إعلان`}
+              {loading ? '…' : jobs.length + ' إعلان'}
             </span>
             <a
               href="/jobs/post"
@@ -261,7 +261,7 @@ export default function JobsPage() {
               style={{
                 background: filter === t.id ? '#002f34' : '#fff',
                 color: filter === t.id ? '#fff' : '#555',
-                border: `1.5px solid ${filter === t.id ? '#002f34' : '#e0e0e0'}`,
+                border: '1.5px solid ' + (filter === t.id ? '#002f34' : '#e0e0e0'),
                 borderRadius: 20, padding: '7px 16px',
                 fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
                 cursor: 'pointer', fontFamily: 'inherit',
@@ -278,7 +278,7 @@ export default function JobsPage() {
         {!loading && (
           <p style={{ color: '#888', fontSize: 13, margin: '0 0 12px' }}>
             {filtered.length > 0
-              ? `${filtered.length} وظيفة متاحة`
+              ? filtered.length + ' وظيفة متاحة'
               : 'لا توجد وظائف تطابق البحث'}
           </p>
         )}
@@ -293,7 +293,7 @@ export default function JobsPage() {
             <div style={{ fontSize: 56, marginBottom: 16 }}>🔍</div>
             <h2 style={{ color: '#002f34', fontSize: 20, marginBottom: 8 }}>لا توجد وظائف حالياً</h2>
             <p style={{ color: '#888', fontSize: 14, marginBottom: 24 }}>
-              {citySearch ? `لا توجد نتائج في "${citySearch}" — جرب مدينة أخرى` : 'كن أول من ينشر وظيفة في منطقتك!'}
+              {citySearch ? 'لا توجد نتائج في "' + citySearch + '" — جرب مدينة أخرى' : 'كن أول من ينشر وظيفة في منطقتك!'}
             </p>
             <a
               href="/jobs/post"
