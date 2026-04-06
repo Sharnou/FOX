@@ -99,23 +99,18 @@ export default function MultiCurrencyDisplay({
   const targets = showCurrencies.filter(c => c !== currency && CURRENCIES[c]);
 
   return (
-    <div dir={dir} className={`font-sans ${isRTL ? 'text-right' : 'text-left'}`}>
+    <div dir={dir} className={'font-sans ' + (isRTL ? 'text-right' : 'text-left')}>
       {/* Toggle button */}
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
         aria-expanded={open}
-        className={`
-          inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium
-          border border-blue-200 bg-blue-50 text-blue-700
-          hover:bg-blue-100 active:scale-95 transition-all duration-150
-          focus:outline-none focus:ring-2 focus:ring-blue-400
-        `}
+        className={'\n          inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium\n          border border-blue-200 bg-blue-50 text-blue-700\n          hover:bg-blue-100 active:scale-95 transition-all duration-150\n          focus:outline-none focus:ring-2 focus:ring-blue-400\n        '}
       >
         <span aria-hidden="true">💱</span>
         <span>{open ? t.collapse : t.toggle}</span>
         <svg
-          className={`w-3 h-3 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={'w-3 h-3 transition-transform duration-200 ' + (open ? 'rotate-180' : '')}
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden="true"
@@ -160,7 +155,7 @@ export default function MultiCurrencyDisplay({
                     <span className="text-base leading-none" aria-hidden="true">{meta.flag}</span>
                     <span className="text-[11px] text-gray-500 truncate">{label}</span>
                   </div>
-                  <div className={`text-sm font-bold text-gray-800 ${isRTL ? 'text-right' : 'text-left'}`}>
+                  <div className={'text-sm font-bold text-gray-800 ' + (isRTL ? 'text-right' : 'text-left')}>
                     {formatAmount(converted, locale)}
                     <span className="text-gray-400 font-normal text-xs ms-1">{code}</span>
                   </div>
