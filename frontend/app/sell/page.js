@@ -43,6 +43,18 @@ const CATEGORY_PRICE_HINTS = {
   'General':     { min: 10,      max: 10000,   symbol: 'ج.م' },
 };
 
+const SUBCATS = {
+  Vehicles: [{v:'Cars',ar:'سيارات'},{v:'Motorcycles',ar:'دراجات نارية'},{v:'Trucks',ar:'شاحنات'},{v:'Boats',ar:'قوارب'},{v:'SpareParts',ar:'قطع غيار'},{v:'Other',ar:'أخرى'}],
+  Electronics: [{v:'MobilePhones',ar:'هواتف محمولة'},{v:'Laptops',ar:'لابتوب'},{v:'Tablets',ar:'تابلت'},{v:'TVs',ar:'تليفزيونات'},{v:'Cameras',ar:'كاميرات'},{v:'Gaming',ar:'ألعاب إلكترونية'},{v:'Audio',ar:'صوتيات'},{v:'Accessories',ar:'إكسسوارات'},{v:'Other',ar:'أخرى'}],
+  'Real Estate': [{v:'Apartments',ar:'شقق'},{v:'Villas',ar:'فيلات'},{v:'Land',ar:'أراضي'},{v:'Commercial',ar:'تجاري'},{v:'Offices',ar:'مكاتب'},{v:'Rooms',ar:'غرف'},{v:'Other',ar:'أخرى'}],
+  Jobs: [{v:'FullTime',ar:'دوام كامل'},{v:'PartTime',ar:'دوام جزئي'},{v:'Freelance',ar:'فريلانس'},{v:'Internship',ar:'تدريب'},{v:'Remote',ar:'عن بُعد'},{v:'Other',ar:'أخرى'}],
+  Services: [{v:'HomeServices',ar:'خدمات منزلية'},{v:'Cleaning',ar:'تنظيف'},{v:'Repairs',ar:'إصلاح وصيانة'},{v:'Education',ar:'تعليم ودروس'},{v:'Health',ar:'صحة وجمال'},{v:'Transport',ar:'نقل وشحن'},{v:'Design',ar:'تصميم وطباعة'},{v:'Other',ar:'أخرى'}],
+  Supermarket: [{v:'Food',ar:'مواد غذائية'},{v:'Beverages',ar:'مشروبات'},{v:'PersonalCare',ar:'عناية شخصية'},{v:'Household',ar:'منزلية'},{v:'BabyProducts',ar:'منتجات أطفال'},{v:'Other',ar:'أخرى'}],
+  Pharmacy: [{v:'Medicines',ar:'أدوية'},{v:'MedicalDevices',ar:'أجهزة طبية'},{v:'Supplements',ar:'مكملات غذائية'},{v:'BabyHealth',ar:'صحة الأطفال'},{v:'Other',ar:'أخرى'}],
+  'Fast Food': [{v:'Pizza',ar:'بيتزا'},{v:'Burgers',ar:'برجر'},{v:'Sandwiches',ar:'ساندوتشات'},{v:'Desserts',ar:'حلويات'},{v:'Oriental',ar:'مأكولات شرقية'},{v:'Seafood',ar:'مأكولات بحرية'},{v:'Other',ar:'أخرى'}],
+  Fashion: [{v:'MensClothing',ar:'ملابس رجالية'},{v:'WomensClothing',ar:'ملابس نسائية'},{v:'KidsClothing',ar:'ملابس أطفال'},{v:'Shoes',ar:'أحذية'},{v:'Bags',ar:'شنط'},{v:'Accessories',ar:'إكسسوارات'},{v:'Other',ar:'أخرى'}],
+};
+
 function CategoryPriceHint({ category }) {
   const hint = CATEGORY_PRICE_HINTS[category];
   if (!hint) return null;
@@ -503,7 +515,7 @@ export default function SellPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {CATS.map(cat => (
                   <button key={cat.en} type="button"
-                    onClick={() => { setForm(p => ({ ...p, category: cat.en })); if (errors.category) setErrors(p => ({ ...p, category: '' })); }}
+                    onClick={() => { setForm(p => ({ ...p, category: cat.en, subcategory: 'Other' })); if (errors.category) setErrors(p => ({ ...p, category: '' })); }}
                     aria-pressed={form.category === cat.en}
                     style={{
                       padding: '10px 6px', borderRadius: 10,
@@ -525,6 +537,21 @@ export default function SellPage() {
                 </p>
               )}
               <CategoryPriceHint category={form.category} />
+              {form.category && SUBCATS[form.category] && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={labelStyle}>الفئة الفرعية</label>
+                  <select
+                    value={form.subcategory || 'Other'}
+                    onChange={e => setForm(p => ({ ...p, subcategory: e.target.value }))}
+                    aria-label="الفئة الفرعية"
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
+                  >
+                    {SUBCATS[form.category].map(function(s) { return (
+                      <option key={s.v} value={s.v}>{s.ar}</option>
+                    ); })}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Condition */}
