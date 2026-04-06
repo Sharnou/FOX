@@ -55,8 +55,8 @@ export default function SwipePage() {
     else setLoadingMore(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-      const res = await fetch(`${apiUrl}/api/ads?page=${page}&limit=${PAGE_SIZE}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(apiUrl + '/api/ads?page=' + page + '&limit=' + PAGE_SIZE);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       const list = Array.isArray(data) ? data : (data.ads || data.data || []);
       if (append) {
@@ -121,10 +121,10 @@ export default function SwipePage() {
     setSavingId(ad._id);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-      const res = await fetch(`${apiUrl}/api/wishlist`, {
+      const res = await fetch(apiUrl + '/api/wishlist', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: 'Bearer ' + token,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ adId: ad._id }),
