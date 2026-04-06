@@ -102,8 +102,8 @@ export async function analyzeImageFile(file) {
       URL.revokeObjectURL(url);
 
       const learned = getLearnedSuggestions(info.category);
-      const suggestedTitle = learned.titles[0] || `${info.ar}${ocrText ? ' - ' + ocrText.split('\n')[0].slice(0, 30) : ' - بحالة ممتازة'}`;
-      const suggestedDesc = learned.descriptions[0] || `${info.desc}${ocrText ? '\n\nنص مستخرج: ' + ocrText.slice(0, 300) : ''}`;
+      const suggestedTitle = learned.titles[0] || info.ar + (ocrText ? ' - ' + ocrText.split('\n')[0].slice(0, 30) : ' - بحالة ممتازة');
+      const suggestedDesc = learned.descriptions[0] || info.desc + (ocrText ? '\n\nنص مستخرج: ' + ocrText.slice(0, 300) : '');
 
       resolve({
         title: suggestedTitle,
