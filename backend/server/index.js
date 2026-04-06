@@ -69,6 +69,7 @@ import paymentRoutes from '../routes/payment.js';
 import reportRoutes from '../routes/reports.js';
 import offersRouter from '../routes/offers.js';
 import wishlistRouter from '../routes/wishlist.js';
+import authRouter from '../routes/auth.js';
 import reviewsRouter from '../routes/reviews.js';
 import favoritesRouter from '../routes/favorites.js';
 import promoteRouter from '../routes/promote.js';
@@ -226,6 +227,7 @@ app.use('/api/language', languageRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/offers', offersRouter);
+app.use('/api/auth', authRouter);
 app.use('/api/wishlist', wishlistRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/favorites', favoritesRouter);
@@ -413,7 +415,7 @@ setInterval(async () => {
 // server.listen runs BEFORE MongoDB connects — healthcheck GET / always returns 200
 const PORT = parseInt(process.env.PORT, 10) || 3001;
 server.listen(PORT, '0.0.0.0', () => {
-  logger.info(`XTOX running on port ${PORT}`);
+  logger.info('XTOX running on port ' + PORT);
 
   // ── Startup env var check — log what's missing so Railway is easy to configure ──
   const missingEnvs = [];
@@ -455,7 +457,7 @@ app.use((err, req, res, next) => {
 
 // ── DB startup: race MongoDB vs Couchbase (handled by dbManager) ────────────
 connectDatabases().then(async (db) => {
-  console.log(`[DB] Active database: ${db}`);
+  console.log('[DB] Active database: ' + db);
 
   if (db === 'memory') {
     // Both DBs unavailable — activate in-memory store
@@ -495,12 +497,12 @@ connectDatabases().then(async (db) => {
             else seen.add(key);
           }
           const dupeCount = all.length - seen.size;
-          if (dupeCount > 0) logger.info(`[CLEANUP] Removed ${dupeCount} duplicate countries`);
+          if (dupeCount > 0) logger.info('[CLEANUP] Removed ' + dupeCount + ' duplicate countries');
         }
         const ErrModel = mongoose.models.Error || mongoose.models.AppError || mongoose.models.ErrorLog;
         if (ErrModel) {
           const r = await ErrModel.deleteMany({ createdAt: { $lt: new Date(Date.now() - 7 * 86400000) } });
-          if (r.deletedCount > 0) logger.info(`[CLEANUP] Removed ${r.deletedCount} old error logs`);
+          if (r.deletedCount > 0) logger.info('[CLEANUP] Removed ' + r.deletedCount + ' old error logs');
         }
       } catch(e) {
         logger.warn('[CLEANUP] Skipped:', e.message);
