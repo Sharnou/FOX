@@ -14,7 +14,7 @@ export default function WhatsAppFloat() {
   // WhatsApp number for XTOX support (format: country code + number, no '+' or spaces)
   const WHATSAPP_NUMBER = '213555000000';
   const MESSAGE = encodeURIComponent('مرحبا، أحتاج مساعدة في XTOX 👋');
-  const WA_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${MESSAGE}`;
+  const WA_URL = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + MESSAGE;
 
   useEffect(() => {
     // Don't show if user dismissed this session
@@ -34,31 +34,7 @@ export default function WhatsAppFloat() {
 
   return (
     <>
-      <style>{`
-        @keyframes wa-pulse {
-          0%   { box-shadow: 0 0 0 0 rgba(37,211,102,0.55); }
-          70%  { box-shadow: 0 0 0 16px rgba(37,211,102,0); }
-          100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
-        }
-        @keyframes wa-bounce-in {
-          0%   { transform: scale(0) rotate(-30deg); opacity: 0; }
-          60%  { transform: scale(1.15) rotate(5deg); opacity: 1; }
-          100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
-        @keyframes wa-tooltip-in {
-          from { opacity: 0; transform: translateX(-8px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-        .wa-float-btn {
-          animation: wa-bounce-in 0.5s cubic-bezier(.21,1.02,.73,1) both,
-                     wa-pulse 2.5s ease-out 1s infinite;
-        }
-        .wa-float-btn:hover {
-          transform: scale(1.08) !important;
-          animation: none;
-          box-shadow: 0 8px 32px rgba(37,211,102,0.5);
-        }
-      `}</style>
+      <style>{'\r\n        @keyframes wa-pulse {\r\n          0%   { box-shadow: 0 0 0 0 rgba(37,211,102,0.55); }\r\n          70%  { box-shadow: 0 0 0 16px rgba(37,211,102,0); }\r\n          100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }\r\n        }\r\n        @keyframes wa-bounce-in {\r\n          0%   { transform: scale(0) rotate(-30deg); opacity: 0; }\r\n          60%  { transform: scale(1.15) rotate(5deg); opacity: 1; }\r\n          100% { transform: scale(1) rotate(0deg); opacity: 1; }\r\n        }\r\n        @keyframes wa-tooltip-in {\r\n          from { opacity: 0; transform: translateX(-8px); }\r\n          to   { opacity: 1; transform: translateX(0); }\r\n        }\r\n        .wa-float-btn {\r\n          animation: wa-bounce-in 0.5s cubic-bezier(.21,1.02,.73,1) both,\r\n                     wa-pulse 2.5s ease-out 1s infinite;\r\n        }\r\n        .wa-float-btn:hover {\r\n          transform: scale(1.08) !important;\r\n          animation: none;\r\n          box-shadow: 0 8px 32px rgba(37,211,102,0.5);\r\n        }\r\n      '}</style>
 
       {/* Tooltip (Arabic label, appears on hover) */}
       {tooltipOpen && (
