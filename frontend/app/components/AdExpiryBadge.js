@@ -52,14 +52,14 @@ export default function AdExpiryBadge({ createdAt, lang = 'ar' }) {
 
   const labels = {
     active: {
-      ar: (d) => `باقي ${d} ${d === 1 ? 'يوم' : 'أيام'}`,
-      de: (d) => `Noch ${d} Tag${d !== 1 ? 'e' : ''}`,
-      en: (d) => `${d} day${d !== 1 ? 's' : ''} left`,
+      ar: (d) => 'باقي ' + d + ' ' + (d === 1 ? 'يوم' : 'أيام'),
+      de: (d) => 'Noch ' + d + ' Tag' + (d !== 1 ? 'e' : ''),
+      en: (d) => d + ' day' + (d !== 1 ? 's' : '') + ' left',
     },
     grace: {
-      ar: (d) => `فترة السماح · ${d} ${d === 1 ? 'يوم' : 'أيام'}`,
-      de: (d) => `Gnadenfrist · ${d} Tag${d !== 1 ? 'e' : ''}`,
-      en: (d) => `Grace period · ${d} day${d !== 1 ? 's' : ''}`,
+      ar: (d) => 'فترة السماح · ' + d + ' ' + (d === 1 ? 'يوم' : 'أيام'),
+      de: (d) => 'Gnadenfrist · ' + d + ' Tag' + (d !== 1 ? 'e' : ''),
+      en: (d) => 'Grace period · ' + d + ' day' + (d !== 1 ? 's' : ''),
     },
     expired: {
       ar: () => 'منتهي الصلاحية',
@@ -87,7 +87,7 @@ export default function AdExpiryBadge({ createdAt, lang = 'ar' }) {
         padding: '2px 10px',
         borderRadius: '999px',
         backgroundColor: info.color + '20', // translucent bg
-        border: `1px solid ${info.color}`,
+        border: '1px solid ' + info.color,
         color: info.color,
         fontSize: '0.78rem',
         fontFamily: isRTL ? '"Cairo", sans-serif' : 'inherit',
