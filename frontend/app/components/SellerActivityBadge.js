@@ -26,13 +26,13 @@ export default function SellerActivityBadge({ lastActive, lang = "ar" }) {
     if (minutes < 5) {
       text = isRTL ? "متصل الآن" : "Online now";
     } else if (minutes < 60) {
-      text = isRTL ? `نشط منذ ${minutes} دقيقة` : `Active ${minutes}m ago`;
+      text = isRTL ? 'نشط منذ ' + minutes + ' دقيقة' : 'Active ' + minutes + 'm ago';
     } else if (hours < 24) {
-      text = isRTL ? `نشط منذ ${hours} ساعة` : `Active ${hours}h ago`;
+      text = isRTL ? 'نشط منذ ' + hours + ' ساعة' : 'Active ' + hours + 'h ago';
     } else if (days === 1) {
       text = isRTL ? "نشط أمس" : "Active yesterday";
     } else if (days < 30) {
-      text = isRTL ? `نشط منذ ${days} يوم` : `Active ${days}d ago`;
+      text = isRTL ? 'نشط منذ ' + days + ' يوم' : 'Active ' + days + 'd ago';
     } else {
       text = isRTL ? "غير نشط" : "Inactive";
     }
