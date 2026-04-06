@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
+import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
@@ -244,10 +245,10 @@ export default function ProfilePage({ params }) {
 
         {/* Own profile edit link */}
         {isOwnProfile && (
-          <a href="/profile/edit"
+          <Link href="/profile/edit"
             style={{ display: 'block', marginTop: 16, background: '#f0f0f0', textAlign: 'center', padding: '12px', borderRadius: 12, textDecoration: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 14 }}>
             ✏️ تعديل الملف الشخصي
-          </a>
+          </Link>
         )}
       </div>
 
