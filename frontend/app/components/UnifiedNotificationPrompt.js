@@ -54,15 +54,7 @@ const strings = {
 };
 
 /* ─── Slide-up keyframe injected once ────────────────────────────────────── */
-const SLIDE_UP_STYLE = `
-@keyframes xtox-slide-up {
-  from { transform: translateY(110%); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-.xtox-slide-up {
-  animation: xtox-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-`;
+const SLIDE_UP_STYLE = '\n@keyframes xtox-slide-up {\n  from { transform: translateY(110%); opacity: 0; }\n  to   { transform: translateY(0);    opacity: 1; }\n}\n.xtox-slide-up {\n  animation: xtox-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;\n}\n';
 
 function injectStyles() {
   if (
