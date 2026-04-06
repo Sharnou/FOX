@@ -278,15 +278,25 @@ export default function AdPageClient({ params }) {
     if (params && params.id) {
       fetch(API + '/api/ads/' + params.id)
         .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data && !data.error) {
-            setAd(data);
-            recordRecentView(data._id || params.id);
+        .then(function(data) {
+          if (!data) { setAdNotFound(true); return; }
+          // Handle both {ad: {...}} and direct ad object response shapes
+          var adData = (data.ad && data.ad._id) ? data.ad : data;
+          if (adData && !adData.error) {
+            // Normalize images field — handles both 'images' and 'media' field names
+            if (!adData.images || !adData.images.length) {
+              adData.images = (adData.media && adData.media.length) ? adData.media : (adData.photos || []);
+            }
+            if (!adData.media || !adData.media.length) {
+              adData.media = adData.images || [];
+            }
+            setAd(adData);
+            recordRecentView(adData._id || params.id);
           } else {
             setAdNotFound(true);
           }
         })
-        .catch(() => { setAdNotFound(true); });
+        .catch(function() { setAdNotFound(true); });
     }
   }, [params && params.id]);
 
@@ -599,7 +609,7 @@ export default function AdPageClient({ params }) {
           )}
         </div>
       )}
-      <SellerMiniCard sellerId={(ad.seller && ad.seller._id) || ad.sellerId} sellerName={(ad.seller && ad.seller.name) || ad.sellerName || ''} lang={lang} />
+      <SellerMiniCard sellerId={(ad.userId && ad.userId._id) || ad.userId || (ad.seller && ad.seller._id) || ad.sellerId} sellerName={(ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || ''} lang={lang} />
       <button
         onClick={() => setShowReportSeller(true)}
         style={{ marginTop: 8, fontSize: 12, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 4 }}
