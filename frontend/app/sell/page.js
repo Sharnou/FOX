@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { analyzeImageForAd, checkAdSimilarity } from '../../lib/geminiAI';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
 import { detectLang, detectCurrency } from '../../lib/lang';
@@ -737,7 +738,7 @@ export default function SellPage() {
 
             <p style={{ textAlign: 'center', fontSize: 12, color: '#888', marginTop: 10 }}>
               بالنشر توافق على{' '}
-              <a href="/terms" style={{ color: '#002f34' }}>شروط الاستخدام</a>
+              <Link href="/terms" style={{ color: '#002f34' }}>شروط الاستخدام</Link>
             </p>
           </div>
         )}
