@@ -17,8 +17,8 @@ export default function AIQualityBadge({ score }) {
 
   return (
     <span
-      title={`جودة الإعلان: ${score}/100`}
-      aria-label={`جودة الإعلان ${score} من 100 - ${label}`}
+      title={'جودة الإعلان: ' + score + '/100'}
+      aria-label={'جودة الإعلان ' + score + ' من 100 - ' + label}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
