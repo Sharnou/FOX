@@ -106,10 +106,10 @@ export default function Home() {
       // Country detection is only used for locale/UI, not for the ads query.
       const params = new URLSearchParams();
       if (category) params.append('category', category);
-      const res = await fetchWithRetry(`${API}/api/ads?${params}`, {}, {
+      const res = await fetchWithRetry(API + '/api/ads?' + params, {}, {
         retries: 3,
         baseDelay: 500,
-        onRetry: (attempt) => console.log(`[XTOX] Retry ${attempt}/3 for ads...`),
+        onRetry: (attempt) => console.log('[XTOX] Retry ' + attempt + '/3 for ads...'),
       });
       const data = await res.json();
       setAds(Array.isArray(data) ? data : (data.ads || data.data || data.results || []));
@@ -131,7 +131,7 @@ export default function Home() {
   async function showPopup(country) {
     try {
       // FIX A: No country filter — ensures featured ads always load
-      const res = await fetch(`${API}/api/ads`);
+      const res = await fetch(API + '/api/ads');
       if (!res.ok) return;
       const all = await res.json();
       const allList = Array.isArray(all) ? all : (all.ads || all.data || all.results || []);
@@ -145,7 +145,7 @@ export default function Home() {
 
   const handleSearchSubmit = useCallback((e) => {
     e.preventDefault();
-    if (search.trim()) window.location.href = `/search?q=${encodeURIComponent(search.trim())}`;
+    if (search.trim()) window.location.href = '/search?q=' + encodeURIComponent(search.trim());
   }, [search]);
 
   const handleRetry = useCallback(() => {
@@ -163,8 +163,8 @@ export default function Home() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: `إعلانات XTOX - ${currentCatNameAr}`,
-    description: `سوق XTOX للإعلانات المبوبة - ${currentCatNameAr}`,
+    name: 'إعلانات XTOX - ' + currentCatNameAr,
+    description: 'سوق XTOX للإعلانات المبوبة - ' + currentCatNameAr,
     numberOfItems: ads.length,
     ...(prices.length > 0 && {
       offers: {
@@ -181,7 +181,7 @@ export default function Home() {
       item: {
         '@type': 'Product',
         name: ad.title,
-        url: `https://xtox.app/ads/${ad._id}`,
+        url: 'https://xtox.app/ads/' + ad._id,
         image: ad.media?.[0] || ad.images?.[0] || undefined,
         offers: {
           '@type': 'Offer',
@@ -202,7 +202,7 @@ export default function Home() {
       '@type': 'ListItem',
       position: 2,
       name: currentCatNameAr,
-      item: `https://xtox.app/?cat=${CAT_VALS[catIdx]}`,
+      item: 'https://xtox.app/?cat=' + CAT_VALS[catIdx],
     });
   }
   const breadcrumbLd = {
@@ -238,170 +238,7 @@ export default function Home() {
       }}
     >
       {/* ── Global Styles ── */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Noto+Sans+Arabic:wght@400;600;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; }
-        body { margin: 0; padding: 0; }
-
-        :focus-visible { outline: 2px solid ${PRIMARY}; outline-offset: 2px; border-radius: 4px; }
-
-        /* Scrollbar hiding */
-        .cat-scroll::-webkit-scrollbar,
-        .feat-scroll::-webkit-scrollbar,
-        .quick-scroll::-webkit-scrollbar { display: none; }
-        .cat-scroll, .feat-scroll, .quick-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* Popup slide-in */
-        .slide-in { animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        @keyframes slideUp { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
-
-        /* Ad card */
-        .ad-card {
-          background: ${CARD_BG};
-          border-radius: 18px;
-          overflow: hidden;
-          box-shadow: 0 2px 8px rgba(99,102,241,0.06), 0 1px 3px rgba(0,0,0,0.07);
-          text-decoration: none;
-          color: inherit;
-          display: block;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-          border: 1.5px solid rgba(99,102,241,0.08);
-        }
-        .ad-card:hover {
-          transform: translateY(-4px) scale(1.01);
-          box-shadow: 0 12px 32px rgba(99,102,241,0.18), 0 2px 8px rgba(0,0,0,0.1);
-          border-color: rgba(99,102,241,0.25);
-        }
-        .ad-card:active { transform: translateY(-1px) scale(1.0); }
-
-        /* Category pill */
-        .cat-btn {
-          padding: 8px 18px;
-          border-radius: 999px;
-          border: none;
-          cursor: pointer;
-          white-space: nowrap;
-          font-size: 13px;
-          font-weight: 600;
-          transition: all 0.18s ease;
-          flex-shrink: 0;
-          letter-spacing: 0.2px;
-        }
-        .cat-btn:active { transform: scale(0.94); }
-
-        /* Featured card */
-        .feat-card {
-          min-width: 165px;
-          background: white;
-          border-radius: 18px;
-          overflow: hidden;
-          text-decoration: none;
-          color: inherit;
-          display: block;
-          flex-shrink: 0;
-          box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-          border: 2px solid rgba(255,255,255,0.2);
-        }
-        .feat-card:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 28px rgba(0,0,0,0.2); }
-        .feat-card:active { transform: translateY(0); }
-
-        /* Quick action */
-        .quick-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 16px;
-          border-radius: 999px;
-          text-decoration: none;
-          font-size: 13px;
-          font-weight: 600;
-          white-space: nowrap;
-          flex-shrink: 0;
-          transition: all 0.18s ease;
-        }
-        .quick-btn:hover { transform: translateY(-1px); }
-        .quick-btn:active { transform: scale(0.96); }
-
-        /* Toast */
-        .toast {
-          position: fixed;
-          bottom: 88px;
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 9999;
-          padding: 11px 22px;
-          border-radius: 999px;
-          font-size: 14px;
-          font-weight: 700;
-          white-space: nowrap;
-          animation: toastIn 0.3s ease forwards;
-          pointer-events: none;
-          max-width: 88vw;
-          text-align: center;
-          backdrop-filter: blur(12px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-        }
-        @keyframes toastIn {
-          from { opacity:0; transform: translateX(-50%) translateY(12px) scale(0.95); }
-          to   { opacity:1; transform: translateX(-50%) translateY(0)    scale(1); }
-        }
-
-        /* Skeleton pulse */
-        .loading-pulse { animation: pulse 1.6s ease-in-out infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
-
-        /* Hero gradient animation */
-        @keyframes gradShift {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-
-        /* Navbar scroll effect */
-        .navbar-scrolled {
-          background: rgba(15,10,40,0.82) !important;
-          box-shadow: 0 4px 24px rgba(99,102,241,0.18) !important;
-        }
-
-        /* Price badge */
-        .price-badge {
-          background: linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_D});
-          color: white;
-          border-radius: 8px;
-          padding: 2px 8px;
-          font-size: 13px;
-          font-weight: 800;
-          display: inline-block;
-        }
-
-        /* Hover glow on FAB */
-        .fab-btn {
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .fab-btn:hover {
-          transform: scale(1.1);
-          box-shadow: 0 8px 24px rgba(99,102,241,0.5) !important;
-        }
-
-        /* Responsive grid */
-        @media (max-width: 480px) {
-          .ads-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
-          .hero-title { font-size: 22px !important; }
-          .hero-subtitle { font-size: 13px !important; }
-          .header-brand { font-size: 20px !important; }
-          .header-sell  { padding: 7px 12px !important; font-size: 13px !important; }
-        }
-        @media (min-width: 640px) {
-          .ads-grid { grid-template-columns: repeat(3, 1fr) !important; }
-        }
-        @media (min-width: 1024px) {
-          .ads-grid { grid-template-columns: repeat(4, 1fr) !important; }
-        }
-        @media (min-width: 1280px) {
-          .ads-grid { grid-template-columns: repeat(5, 1fr) !important; }
-        }
-      `}</style>
+      <style>{'\n        @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Noto+Sans+Arabic:wght@400;600;700&display=swap\');\n        *, *::before, *::after { box-sizing: border-box; }\n        body { margin: 0; padding: 0; }\n\n        :focus-visible { outline: 2px solid ' + PRIMARY + '; outline-offset: 2px; border-radius: 4px; }\n\n        /* Scrollbar hiding */\n        .cat-scroll::-webkit-scrollbar,\n        .feat-scroll::-webkit-scrollbar,\n        .quick-scroll::-webkit-scrollbar { display: none; }\n        .cat-scroll, .feat-scroll, .quick-scroll { -ms-overflow-style: none; scrollbar-width: none; }\n\n        /* Popup slide-in */\n        .slide-in { animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }\n        @keyframes slideUp { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }\n\n        /* Ad card */\n        .ad-card {\n          background: ' + CARD_BG + ';\n          border-radius: 18px;\n          overflow: hidden;\n          box-shadow: 0 2px 8px rgba(99,102,241,0.06), 0 1px 3px rgba(0,0,0,0.07);\n          text-decoration: none;\n          color: inherit;\n          display: block;\n          transition: transform 0.2s ease, box-shadow 0.2s ease;\n          border: 1.5px solid rgba(99,102,241,0.08);\n        }\n        .ad-card:hover {\n          transform: translateY(-4px) scale(1.01);\n          box-shadow: 0 12px 32px rgba(99,102,241,0.18), 0 2px 8px rgba(0,0,0,0.1);\n          border-color: rgba(99,102,241,0.25);\n        }\n        .ad-card:active { transform: translateY(-1px) scale(1.0); }\n\n        /* Category pill */\n        .cat-btn {\n          padding: 8px 18px;\n          border-radius: 999px;\n          border: none;\n          cursor: pointer;\n          white-space: nowrap;\n          font-size: 13px;\n          font-weight: 600;\n          transition: all 0.18s ease;\n          flex-shrink: 0;\n          letter-spacing: 0.2px;\n        }\n        .cat-btn:active { transform: scale(0.94); }\n\n        /* Featured card */\n        .feat-card {\n          min-width: 165px;\n          background: white;\n          border-radius: 18px;\n          overflow: hidden;\n          text-decoration: none;\n          color: inherit;\n          display: block;\n          flex-shrink: 0;\n          box-shadow: 0 6px 20px rgba(0,0,0,0.15);\n          transition: transform 0.2s ease, box-shadow 0.2s ease;\n          border: 2px solid rgba(255,255,255,0.2);\n        }\n        .feat-card:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 28px rgba(0,0,0,0.2); }\n        .feat-card:active { transform: translateY(0); }\n\n        /* Quick action */\n        .quick-btn {\n          display: flex;\n          align-items: center;\n          gap: 6px;\n          padding: 8px 16px;\n          border-radius: 999px;\n          text-decoration: none;\n          font-size: 13px;\n          font-weight: 600;\n          white-space: nowrap;\n          flex-shrink: 0;\n          transition: all 0.18s ease;\n        }\n        .quick-btn:hover { transform: translateY(-1px); }\n        .quick-btn:active { transform: scale(0.96); }\n\n        /* Toast */\n        .toast {\n          position: fixed;\n          bottom: 88px;\n          left: 50%;\n          transform: translateX(-50%);\n          z-index: 9999;\n          padding: 11px 22px;\n          border-radius: 999px;\n          font-size: 14px;\n          font-weight: 700;\n          white-space: nowrap;\n          animation: toastIn 0.3s ease forwards;\n          pointer-events: none;\n          max-width: 88vw;\n          text-align: center;\n          backdrop-filter: blur(12px);\n          box-shadow: 0 8px 24px rgba(0,0,0,0.2);\n        }\n        @keyframes toastIn {\n          from { opacity:0; transform: translateX(-50%) translateY(12px) scale(0.95); }\n          to   { opacity:1; transform: translateX(-50%) translateY(0)    scale(1); }\n        }\n\n        /* Skeleton pulse */\n        .loading-pulse { animation: pulse 1.6s ease-in-out infinite; }\n        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }\n\n        /* Hero gradient animation */\n        @keyframes gradShift {\n          0%   { background-position: 0% 50%; }\n          50%  { background-position: 100% 50%; }\n          100% { background-position: 0% 50%; }\n        }\n\n        /* Navbar scroll effect */\n        .navbar-scrolled {\n          background: rgba(15,10,40,0.82) !important;\n          box-shadow: 0 4px 24px rgba(99,102,241,0.18) !important;\n        }\n\n        /* Price badge */\n        .price-badge {\n          background: linear-gradient(135deg, ' + PRIMARY + ', ' + PRIMARY_D + ');\n          color: white;\n          border-radius: 8px;\n          padding: 2px 8px;\n          font-size: 13px;\n          font-weight: 800;\n          display: inline-block;\n        }\n\n        /* Hover glow on FAB */\n        .fab-btn {\n          transition: transform 0.2s, box-shadow 0.2s;\n        }\n        .fab-btn:hover {\n          transform: scale(1.1);\n          box-shadow: 0 8px 24px rgba(99,102,241,0.5) !important;\n        }\n\n        /* Responsive grid */\n        @media (max-width: 480px) {\n          .ads-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }\n          .hero-title { font-size: 22px !important; }\n          .hero-subtitle { font-size: 13px !important; }\n          .header-brand { font-size: 20px !important; }\n          .header-sell  { padding: 7px 12px !important; font-size: 13px !important; }\n        }\n        @media (min-width: 640px) {\n          .ads-grid { grid-template-columns: repeat(3, 1fr) !important; }\n        }\n        @media (min-width: 1024px) {\n          .ads-grid { grid-template-columns: repeat(4, 1fr) !important; }\n        }\n        @media (min-width: 1280px) {\n          .ads-grid { grid-template-columns: repeat(5, 1fr) !important; }\n        }\n      '}</style>
 
       {/* JSON-LD */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -460,7 +297,7 @@ export default function Home() {
         <div style={{ flex: 1, position: 'relative' }}>
           <AISearchBar
             placeholder={t.search || (lang === 'ar' ? 'ابحث عن أي شيء...' : 'Search anything...')}
-            onSearch={(q) => { window.location.href = `/search?q=${encodeURIComponent(q)}`; }}
+            onSearch={(q) => { window.location.href = '/search?q=' + encodeURIComponent(q); }}
           />
         </div>
 
@@ -491,7 +328,7 @@ export default function Home() {
         <a
           href="/saved"
           title={savedLabel}
-          aria-label={lang === 'ar' ? `المحفوظات${savedCount > 0 ? ` - ${savedCount} إعلان` : ''}` : `Saved${savedCount > 0 ? ` - ${savedCount}` : ''}`}
+          aria-label={lang === 'ar' ? 'المحفوظات' + (savedCount > 0 ? ' - ' + savedCount + ' إعلان' + ' إعلان' : '') : 'Saved' + (savedCount > 0 ? ' - ' + savedCount : '')}
           style={{
             position: 'relative',
             width: 38,
@@ -538,8 +375,8 @@ export default function Home() {
         {/* User / Login */}
         {user ? (
           <a
-            href={`/profile/${user.id}`}
-            aria-label={lang === 'ar' ? `الملف الشخصي - ${user.name}` : `Profile - ${user.name}`}
+            href={'/profile/' + user.id}
+            aria-label={lang === 'ar' ? 'الملف الشخصي - ' + user.name : 'Profile - ' + user.name}
             style={{
               width: 38,
               height: 38,
@@ -685,7 +522,7 @@ export default function Home() {
               role="listitem"
               onClick={() => selectCat(i)}
               aria-pressed={catIdx === i}
-              aria-label={lang === 'ar' ? `تصفية: ${CAT_NAMES_AR[key]}` : `Filter: ${key}`}
+              aria-label={lang === 'ar' ? 'تصفية: ' + CAT_NAMES_AR[key] : 'Filter: ' + key}
               className="cat-btn"
               style={{
                 fontWeight: catIdx === i ? 800 : 600,
@@ -722,8 +559,8 @@ export default function Home() {
           }}
         >
           {lang === 'ar'
-            ? `✨ ${regular.length} إعلان في ${currentCatNameAr}`
-            : `✨ ${regular.length} ads in ${CAT_NAMES_AR[currentCatKey]}`}
+            ? '✨ ' + regular.length + ' إعلان في ' + currentCatNameAr
+            : '✨ ' + regular.length + ' ads in ' + CAT_NAMES_AR[currentCatKey]}
         </div>
       )}
 
@@ -775,10 +612,10 @@ export default function Home() {
             {featured.map(ad => (
               <a
                 key={ad._id}
-                href={`/ads/${ad._id}`}
+                href={'/ads/' + ad._id}
                 role="listitem"
                 className="feat-card"
-                aria-label={lang === 'ar' ? `إعلان مميز: ${ad.title} - ${ad.price} ${ad.currency || locale.currency}` : `Featured: ${ad.title}`}
+                aria-label={lang === 'ar' ? 'إعلان مميز: ' + ad.title + ' - ' + ad.price + ' ' + (ad.currency || locale.currency) : 'Featured: ' + ad.title}
                 style={{
                   border: ad.featuredStyle === 'gold'
                     ? '2px solid #fbbf24'
@@ -911,13 +748,13 @@ export default function Home() {
             {regular.map(ad => (
               <a
                 key={ad._id}
-                href={`/ads/${ad._id}`}
+                href={'/ads/' + ad._id}
                 role="listitem"
                 className="ad-card"
                 aria-label={
                   lang === 'ar'
-                    ? `${ad.title} - ${ad.price} ${ad.currency || locale.currency} - ${ad.city || ''}`
-                    : `${ad.title} - ${ad.price} ${ad.currency || locale.currency}`
+                    ? ad.title + ' - ' + ad.price + ' ' + (ad.currency || locale.currency) + ' - ' + (ad.city || '')
+                    : ad.title + ' - ' + ad.price + ' ' + (ad.currency || locale.currency)
                 }
               >
                 {/* Image / Video */}
@@ -962,7 +799,7 @@ export default function Home() {
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
                     <span className="price-badge">
-                      {ad.price ? `${ad.price.toLocaleString()} ${ad.currency || locale.currency}` : (lang === 'ar' ? 'تواصل' : 'Contact')}
+                      {ad.price ? ad.price.toLocaleString() + ' ' + (ad.currency || locale.currency) : (lang === 'ar' ? 'تواصل' : 'Contact')}
                     </span>
                     {ad.city && (
                       <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 500 }}>
@@ -1004,8 +841,8 @@ export default function Home() {
                 </div>
                 <p style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
                   {lang === 'ar'
-                    ? `لا توجد إعلانات في ${currentCatNameAr} حتى الآن`
-                    : `No ads in ${currentCatNameAr} yet`}
+                    ? 'لا توجد إعلانات في ' + currentCatNameAr + ' حتى الآن'
+                    : 'No ads in ' + currentCatNameAr + ' yet'}
                 </p>
                 <p style={{ fontSize: 13, margin: '0 0 24px', color: '#94a3b8' }}>
                   {lang === 'ar' ? 'كن أول من يضيف إعلاناً!' : 'Be the first to post!'}
@@ -1143,9 +980,9 @@ export default function Home() {
             </div>
             {popup.ad && (
               <a
-                href={`/ads/${popup.ad._id}`}
+                href={'/ads/' + popup.ad._id}
                 onClick={() => setPopup(null)}
-                aria-label={lang === 'ar' ? `الإعلان المميز: ${popup.ad.title}` : `Featured ad: ${popup.ad.title}`}
+                aria-label={lang === 'ar' ? 'الإعلان المميز: ' + popup.ad.title : 'Featured ad: ' + popup.ad.title}
                 style={{
                   display: 'block',
                   background: '#f8faff',
