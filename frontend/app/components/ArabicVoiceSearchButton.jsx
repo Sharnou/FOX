@@ -220,7 +220,7 @@ export default function ArabicVoiceSearchButton({
 
   /* ── Pulse ring animation via keyframes in style tag ─────── */
   const pulseStyle = phase === 'listening' ? {
-    boxShadow: `0 0 0 6px ${colors.ring}`,
+    boxShadow: '0 0 0 6px ' + colors.ring,
     animation: 'xtox-voice-pulse 1s ease-in-out infinite',
   } : {};
 
@@ -266,16 +266,7 @@ export default function ArabicVoiceSearchButton({
   return (
     <>
       {/* Inject pulse keyframes once */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&family=Tajawal:wght@400;500&display=swap');
-        @keyframes xtox-voice-pulse {
-          0%,100% { box-shadow: 0 0 0 0 ${colors.ring}; }
-          50%      { box-shadow: 0 0 0 10px transparent; }
-        }
-        @keyframes xtox-voice-spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      <style>{'\n        @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&family=Tajawal:wght@400;500&display=swap\');\n        @keyframes xtox-voice-pulse {\n          0%,100% { box-shadow: 0 0 0 0 ' + colors.ring + '; }\n          50%      { box-shadow: 0 0 0 10px transparent; }\n        }\n        @keyframes xtox-voice-spin {\n          to { transform: rotate(360deg); }\n        }\n      '}</style>
 
       <div
         className={className}
@@ -315,7 +306,7 @@ export default function ArabicVoiceSearchButton({
           {phase === 'processing' ? (
             <div style={{
               width: sz.icon, height: sz.icon,
-              border: `2px solid rgba(255,255,255,0.4)`,
+              border: '2px solid rgba(255,255,255,0.4)',
               borderTopColor: '#fff',
               borderRadius: '50%',
               animation: 'xtox-voice-spin 0.7s linear infinite',
