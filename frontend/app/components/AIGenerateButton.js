@@ -105,10 +105,10 @@ export default function AIGenerateButton({ onResult }) {
         // Stage 3: generating
         setStage('generating');
         const res = await axios.post(
-          `${API}/api/ads/ai-generate`,
+          API + '/api/ads/ai-generate',
           { image: base64 },
           {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: 'Bearer ' + token },
             timeout: 30000,
           }
         );
@@ -212,12 +212,7 @@ export default function AIGenerateButton({ onResult }) {
         </div>
       )}
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .ai-btn:hover:not(:disabled) { opacity: 0.88; transform: scale(1.01); }
-        .ai-btn:active:not(:disabled) { transform: scale(0.98); }
-        .ai-btn { transition: opacity 0.2s, transform 0.15s; }
-      `}</style>
+      <style>{'\r\n        @keyframes spin { to { transform: rotate(360deg); } }\r\n        .ai-btn:hover:not(:disabled) { opacity: 0.88; transform: scale(1.01); }\r\n        .ai-btn:active:not(:disabled) { transform: scale(0.98); }\r\n        .ai-btn { transition: opacity 0.2s, transform 0.15s; }\r\n      '}</style>
 
       {/* Main button or error */}
       {stage === 'error' ? (
