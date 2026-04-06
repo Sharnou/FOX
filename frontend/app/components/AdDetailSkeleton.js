@@ -59,7 +59,7 @@ export default function AdDetailSkeleton() {
               height: 14,
               borderRadius: 6,
               marginBottom: i === 3 ? 16 : 7,
-              width: `${pct}%`,
+              width: pct + '%',
             }}
           />
         ))}
