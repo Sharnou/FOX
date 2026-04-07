@@ -5,7 +5,7 @@
  * ─────────────────────────────────────────────────────────────────
  * Web Speech API–powered voice search for the XTOX Arab marketplace.
  * Supports Arabic (ar-EG, ar-SA), English (en-US), German (de-DE).
- * Passes recognised transcript to `onResult(text)` callback.
+ * Passes recognised transcript to "onResult(text)" callback.
  * Zero external dependencies. Full RTL / LTR. Cairo + Tajawal fonts.
  * Arabic-Indic numerals for countdown display.
  * Safe for Next.js (client-only guard via typeof window check).
