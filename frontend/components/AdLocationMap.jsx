@@ -76,11 +76,11 @@ export default function AdLocationMap({
   const displayLng = hasCoords ? (lng + 0.002).toFixed(5) : null;
 
   const osmEmbedUrl = hasCoords
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${(+displayLng - 0.01).toFixed(5)},${(+displayLat - 0.008).toFixed(5)},${(+displayLng + 0.01).toFixed(5)},${(+displayLat + 0.008).toFixed(5)}&layer=mapnik&marker=${displayLat},${displayLng}`
+    ? 'https://www.openstreetmap.org/export/embed.html?bbox=' + ((+displayLng - 0.01).toFixed(5)) + ',' + ((+displayLat - 0.008).toFixed(5)) + ',' + ((+displayLng + 0.01).toFixed(5)) + ',' + ((+displayLat + 0.008).toFixed(5)) + '&layer=mapnik&marker=' + (displayLat) + ',' + (displayLng)
     : null;
 
   const osmHref = hasCoords
-    ? `https://www.openstreetmap.org/?mlat=${displayLat}&mlon=${displayLng}#map=${zoom}/${displayLat}/${displayLng}`
+    ? 'https://www.openstreetmap.org/?mlat=' + (displayLat) + '&mlon=' + (displayLng) + '#map=' + (zoom) + '/' + (displayLat) + '/' + (displayLng)
     : null;
 
   const mapHeight = expanded ? 'h-72' : 'h-44';
@@ -88,11 +88,11 @@ export default function AdLocationMap({
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className={`font-[Cairo,Tajawal,sans-serif] rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden ${className}`}
+      className={'font-[Cairo,Tajawal,sans-serif] rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden ' + (className)}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className={`flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+        <div className={'flex items-center gap-2 ' + (isRtl ? 'flex-row-reverse' : '')}>
           {/* Pin icon */}
           <svg
             className="w-5 h-5 text-red-500 flex-shrink-0"
@@ -109,7 +109,7 @@ export default function AdLocationMap({
           <button
             onClick={() => setExpanded(v => !v)}
             aria-expanded={expanded}
-            aria-controls={`map-${id}`}
+            aria-controls={'map-' + (id)}
             className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded"
           >
             {expanded ? t.collapse : t.expand}
@@ -119,7 +119,7 @@ export default function AdLocationMap({
 
       {/* Location text labels */}
       {(areaName || city) && (
-        <div className={`flex gap-4 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 ${isRtl ? 'flex-row-reverse' : ''}`}>
+        <div className={'flex gap-4 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 ' + (isRtl ? 'flex-row-reverse' : '')}>
           {areaName && (
             <span>
               <span className="font-semibold text-gray-700 dark:text-gray-300">{t.area}: </span>
@@ -137,7 +137,7 @@ export default function AdLocationMap({
 
       {/* Map or unavailable state */}
       {hasCoords ? (
-        <div id={`map-${id}`} className={`relative w-full ${mapHeight} transition-all duration-300`}>
+        <div id={'map-' + (id)} className={'relative w-full ' + (mapHeight) + ' transition-all duration-300'}>
           {/* Loading shimmer */}
           {!mapLoaded && (
             <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 animate-pulse flex items-center justify-center">
@@ -150,7 +150,7 @@ export default function AdLocationMap({
           <iframe
             title={t.title}
             src={osmEmbedUrl}
-            className={`w-full h-full border-0 transition-opacity duration-500 ${mapLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={'w-full h-full border-0 transition-opacity duration-500 ' + (mapLoaded ? 'opacity-100' : 'opacity-0')}
             loading="lazy"
             referrerPolicy="no-referrer"
             onLoad={() => setMapLoaded(true)}
@@ -169,7 +169,7 @@ export default function AdLocationMap({
 
       {/* Footer: privacy note + OSM link */}
       {hasCoords && (
-        <div className={`flex items-center justify-between gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 ${isRtl ? 'flex-row-reverse' : ''}`}>
+        <div className={'flex items-center justify-between gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 ' + (isRtl ? 'flex-row-reverse' : '')}>
           <p className="text-xs text-gray-400 dark:text-gray-500 leading-snug">{t.note}</p>
           <a
             href={osmHref}
