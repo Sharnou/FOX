@@ -129,14 +129,12 @@ const StatusBadge = ({ status, lang }) => {
   const style = STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-700 border border-gray-300';
   const label = t.statusLabels[status] ?? status;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${style}`}>
+    <span className={'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ' + (style)}>
       <span
-        className={`w-1.5 h-1.5 rounded-full ${
-          status === 'active'  ? 'bg-emerald-500' :
+        className={'w-1.5 h-1.5 rounded-full ' + (status === 'active'  ? 'bg-emerald-500' :
           status === 'paused'  ? 'bg-amber-500'   :
           status === 'expired' ? 'bg-red-500'     :
-          status === 'grace'   ? 'bg-purple-500'  : 'bg-gray-400'
-        }`}
+          status === 'grace'   ? 'bg-purple-500'  : 'bg-gray-400')}
       />
       {label}
     </span>
@@ -172,7 +170,7 @@ const ConfirmModal = ({ lang, onConfirm, onCancel }) => {
           {t.confirmMsg}
         </p>
 
-        <div className={`flex gap-3 pt-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+        <div className={'flex gap-3 pt-2 ' + (isRtl ? 'flex-row-reverse' : '')}>
           <button
             onClick={onCancel}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
@@ -208,7 +206,7 @@ const ActionButton = ({ onClick, disabled, variant = 'default', children }) => {
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${base} ${variants[variant] ?? variants.default}`}
+      className={(base) + ' ' + (variants[variant] ?? variants.default)}
     >
       {children}
     </button>
@@ -279,10 +277,10 @@ export default function BulkAdManager({
   return (
     <>
       {/* Google Fonts — Cairo + Tajawal for Arabic */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap');
-        .font-cairo { font-family: 'Cairo', 'Tajawal', sans-serif; }
-      `}</style>
+      <style>{'
+        @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap\');
+        .font-cairo { font-family: \'Cairo\', \'Tajawal\', sans-serif; }
+      '}</style>
 
       {/* Confirmation modal */}
       {showConfirm && (
@@ -295,7 +293,7 @@ export default function BulkAdManager({
 
       <section
         dir={dir}
-        className={`${fontClass} w-full bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden`}
+        className={(fontClass) + ' w-full bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden'}
         aria-label={t.title}
       >
         {/* ── Header ─────────────────────────────────────────────── */}
@@ -318,9 +316,7 @@ export default function BulkAdManager({
 
         {/* ── Toolbar ────────────────────────────────────────────── */}
         <div
-          className={`flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50 ${
-            isRtl ? 'flex-row-reverse' : ''
-          }`}
+          className={'flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50 ' + (isRtl ? 'flex-row-reverse' : '')}
         >
           {/* Select all toggle */}
           <button
@@ -328,11 +324,9 @@ export default function BulkAdManager({
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 transition-colors"
           >
             <span
-              className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                allSelected
+              className={'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ' + (allSelected
                   ? 'bg-indigo-600 border-indigo-600'
-                  : 'border-gray-400 bg-white'
-              }`}
+                  : 'border-gray-400 bg-white')}
             >
               {allSelected && (
                 <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -399,13 +393,13 @@ export default function BulkAdManager({
                     />
                   </th>
 
-                  <th className={`px-4 py-3 font-semibold text-gray-600 ${isRtl ? 'text-right' : 'text-left'}`}>
+                  <th className={'px-4 py-3 font-semibold text-gray-600 ' + (isRtl ? 'text-right' : 'text-left')}>
                     {t.ad}
                   </th>
                   <th className="px-4 py-3 font-semibold text-gray-600 text-center whitespace-nowrap">
                     {t.status}
                   </th>
-                  <th className={`px-4 py-3 font-semibold text-gray-600 whitespace-nowrap ${isRtl ? 'text-right' : 'text-left'}`}>
+                  <th className={'px-4 py-3 font-semibold text-gray-600 whitespace-nowrap ' + (isRtl ? 'text-right' : 'text-left')}>
                     {t.expires}
                   </th>
                   <th className="px-4 py-3 font-semibold text-gray-600 text-center whitespace-nowrap">
@@ -421,11 +415,9 @@ export default function BulkAdManager({
                     <tr
                       key={ad._id}
                       onClick={() => toggleOne(ad._id)}
-                      className={`cursor-pointer transition-colors ${
-                        isChecked
+                      className={'cursor-pointer transition-colors ' + (isChecked
                           ? 'bg-indigo-50 hover:bg-indigo-100'
-                          : 'hover:bg-gray-50'
-                      }`}
+                          : 'hover:bg-gray-50')}
                       aria-selected={isChecked}
                     >
                       {/* Checkbox */}
@@ -440,7 +432,7 @@ export default function BulkAdManager({
                       </td>
 
                       {/* Title */}
-                      <td className={`px-4 py-3 ${isRtl ? 'text-right' : 'text-left'}`}>
+                      <td className={'px-4 py-3 ' + (isRtl ? 'text-right' : 'text-left')}>
                         <span className="font-medium text-gray-900 line-clamp-1 block max-w-[220px]" title={ad.title}>
                           {ad.title}
                         </span>
@@ -453,7 +445,7 @@ export default function BulkAdManager({
                       </td>
 
                       {/* Expires */}
-                      <td className={`px-4 py-3 text-gray-600 text-xs whitespace-nowrap ${isRtl ? 'text-right' : 'text-left'}`}>
+                      <td className={'px-4 py-3 text-gray-600 text-xs whitespace-nowrap ' + (isRtl ? 'text-right' : 'text-left')}>
                         {formatDate(ad.expiresAt)}
                       </td>
 
@@ -471,7 +463,7 @@ export default function BulkAdManager({
 
         {/* ── Footer ────────────────────────────────────────────── */}
         {ads.length > 0 && (
-          <div className={`flex items-center justify-between px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 ${isRtl ? 'flex-row-reverse' : ''}`}>
+          <div className={'flex items-center justify-between px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 ' + (isRtl ? 'flex-row-reverse' : '')}>
             <span>
               {formatNumber(ads.length, lang)}{' '}
               {lang === 'ar' ? 'إعلان' : lang === 'de' ? 'Anzeigen' : 'ads'}
