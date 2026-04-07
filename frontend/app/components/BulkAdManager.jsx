@@ -22,6 +22,8 @@
  *  - onBulkDelete   : (ids[]) => void
  */
 
+'use client';
+
 import { useState, useCallback, useMemo } from 'react';
 
 /* ─────────────────────────────────────────────
