@@ -132,7 +132,7 @@ const formatAmount = (amount, currency, lang) => {
   const indic = lang === "ar"
     ? formatted.replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
     : formatted;
-  return `${indic} ${currency}`;
+  return (indic) + ' ' + (currency);
 };
 
 const relativeTime = (dateStr, lang) => {
@@ -142,19 +142,19 @@ const relativeTime = (dateStr, lang) => {
   if (diff < 3600) {
     const m = Math.floor(diff / 60);
     return lang === "ar"
-      ? `${t.ago} ${toArabicIndic(m, lang)} ${t.minutes}`
-      : `${m} ${t.minutes} ${t.ago}`;
+      ? (t.ago) + ' ' + (toArabicIndic(m, lang)) + ' ' + (t.minutes)
+      : (m) + ' ' + (t.minutes) + ' ' + (t.ago);
   }
   if (diff < 86400) {
     const h = Math.floor(diff / 3600);
     return lang === "ar"
-      ? `${t.ago} ${toArabicIndic(h, lang)} ${t.hours}`
-      : `${h} ${t.hours} ${t.ago}`;
+      ? (t.ago) + ' ' + (toArabicIndic(h, lang)) + ' ' + (t.hours)
+      : (h) + ' ' + (t.hours) + ' ' + (t.ago);
   }
   const d = Math.floor(diff / 86400);
   return lang === "ar"
-    ? `${t.ago} ${toArabicIndic(d, lang)} ${t.days}`
-    : `${d} ${t.days} ${t.ago}`;
+    ? (t.ago) + ' ' + (toArabicIndic(d, lang)) + ' ' + (t.days)
+    : (d) + ' ' + (t.days) + ' ' + (t.ago);
 };
 
 const discountPct = (original, offer) => {
@@ -176,7 +176,7 @@ function StatusBadge({ status, lang }) {
   const label = t[status] || status;
   const cls = STATUS_STYLES[status] || "bg-gray-100 text-gray-500";
   return (
-    <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={'inline-block text-xs font-semibold px-2 py-0.5 rounded-full border ' + (cls)}>
       {label}
     </span>
   );
@@ -192,7 +192,7 @@ function OfferBubble({ offer, isOwn, lang, currency, originalPrice, onAccept, on
   const alignRight = isAr ? !isOwn : isOwn;
 
   return (
-    <div className={`flex flex-col mb-4 ${alignRight ? "items-end" : "items-start"}`}>
+    <div className={'flex flex-col mb-4 ' + (alignRight ? "items-end" : "items-start")}>
       {/* Label */}
       <p className="text-xs text-gray-400 mb-1 font-medium">
         {isOwn ? t.yourOffer : t.theirOffer}
@@ -200,36 +200,35 @@ function OfferBubble({ offer, isOwn, lang, currency, originalPrice, onAccept, on
 
       {/* Bubble */}
       <div
-        className={`relative max-w-xs rounded-2xl px-4 py-3 shadow-sm border
-          ${isOwn
+        className={'relative max-w-xs rounded-2xl px-4 py-3 shadow-sm border
+          ' + (isOwn
             ? "bg-indigo-600 text-white border-indigo-500 rounded-br-sm"
-            : "bg-white text-gray-800 border-gray-200 rounded-bl-sm"
-          }`}
+            : "bg-white text-gray-800 border-gray-200 rounded-bl-sm")}
       >
         {/* Amount */}
-        <p className={`text-xl font-bold mb-1 ${isAr ? "text-right font-[Cairo,sans-serif]" : ""}`}>
+        <p className={'text-xl font-bold mb-1 ' + (isAr ? "text-right font-[Cairo,sans-serif]" : "")}>
           {formatAmount(offer.amount, currency, lang)}
         </p>
 
         {/* Discount tag */}
         {pct > 0 && (
-          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-1
-            ${isOwn ? "bg-indigo-400 text-white" : "bg-indigo-50 text-indigo-600"}`}>
+          <span className={'inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-1
+            ' + (isOwn ? "bg-indigo-400 text-white" : "bg-indigo-50 text-indigo-600")}>
             {isAr
-              ? `${t.discount} ${toArabicIndic(pct, lang)}٪`
-              : `${pct}% ${t.discount}`}
+              ? (t.discount) + ' ' + (toArabicIndic(pct, lang)) + '٪'
+              : (pct) + '% ' + (t.discount)}
           </span>
         )}
 
         {/* Note */}
         {offer.note && (
-          <p className={`text-xs mt-1 opacity-80 ${isAr ? "text-right" : ""}`}>
+          <p className={'text-xs mt-1 opacity-80 ' + (isAr ? "text-right" : "")}>
             {offer.note}
           </p>
         )}
 
         {/* Timestamp */}
-        <p className={`text-xs mt-2 opacity-60 ${isAr ? "text-right" : ""}`}>
+        <p className={'text-xs mt-2 opacity-60 ' + (isAr ? "text-right" : "")}>
           {relativeTime(offer.createdAt, lang)}
         </p>
       </div>
@@ -241,7 +240,7 @@ function OfferBubble({ offer, isOwn, lang, currency, originalPrice, onAccept, on
 
       {/* Action buttons for pending offers (only for the recipient) */}
       {!isOwn && isLast && isPending && (
-        <div className={`flex gap-2 mt-2 ${isAr ? "flex-row-reverse" : ""}`}>
+        <div className={'flex gap-2 mt-2 ' + (isAr ? "flex-row-reverse" : "")}>
           <button
             onClick={() => onAccept && onAccept(offer._id)}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
@@ -265,13 +264,13 @@ function DealDoneCard({ agreedAmount, currency, lang }) {
   const t = T[lang] || T.en;
   const isAr = lang === "ar";
   return (
-    <div className={`my-4 mx-auto max-w-sm rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 text-center shadow`}>
+    <div className={'my-4 mx-auto max-w-sm rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 text-center shadow'}>
       <div className="text-3xl mb-1">🤝</div>
-      <p className={`font-bold text-emerald-700 text-lg ${isAr ? "font-[Cairo,sans-serif]" : ""}`}>
+      <p className={'font-bold text-emerald-700 text-lg ' + (isAr ? "font-[Cairo,sans-serif]" : "")}>
         {t.dealDone}
       </p>
       <p className="text-sm text-gray-500 mt-1">{t.agreedAt}</p>
-      <p className={`text-2xl font-extrabold text-emerald-600 mt-1 ${isAr ? "font-[Cairo,sans-serif]" : ""}`}>
+      <p className={'text-2xl font-extrabold text-emerald-600 mt-1 ' + (isAr ? "font-[Cairo,sans-serif]" : "")}>
         {formatAmount(agreedAmount, currency, lang)}
       </p>
     </div>
@@ -295,11 +294,11 @@ function CounterOfferInput({ lang, currency, lastAmount, originalPrice, onSend, 
   };
 
   return (
-    <div className={`mt-4 p-4 rounded-2xl bg-indigo-50 border border-indigo-100 ${isAr ? "text-right" : ""}`}>
-      <p className={`text-sm font-semibold text-indigo-700 mb-2 ${isAr ? "font-[Cairo,sans-serif]" : ""}`}>
+    <div className={'mt-4 p-4 rounded-2xl bg-indigo-50 border border-indigo-100 ' + (isAr ? "text-right" : "")}>
+      <p className={'text-sm font-semibold text-indigo-700 mb-2 ' + (isAr ? "font-[Cairo,sans-serif]" : "")}>
         {t.makeCounter}
       </p>
-      <div className={`flex gap-2 ${isAr ? "flex-row-reverse" : ""}`}>
+      <div className={'flex gap-2 ' + (isAr ? "flex-row-reverse" : "")}>
         <input
           ref={inputRef}
           type="number"
@@ -307,7 +306,7 @@ function CounterOfferInput({ lang, currency, lastAmount, originalPrice, onSend, 
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder={t.enterAmount}
-          className={`flex-1 rounded-xl border border-indigo-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400 bg-white ${isAr ? "text-right" : ""}`}
+          className={'flex-1 rounded-xl border border-indigo-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400 bg-white ' + (isAr ? "text-right" : "")}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
         <span className="self-center text-xs text-gray-400 font-medium">{currency}</span>
@@ -315,11 +314,11 @@ function CounterOfferInput({ lang, currency, lastAmount, originalPrice, onSend, 
       {lastAmount && originalPrice && (
         <p className="text-xs text-gray-400 mt-1">
           {isAr
-            ? `آخر عرض: ${formatAmount(lastAmount, currency, "ar")}`
-            : `Last offer: ${formatAmount(lastAmount, currency, lang)}`}
+            ? 'آخر عرض: ' + (formatAmount(lastAmount, currency, "ar"))
+            : 'Last offer: ' + (formatAmount(lastAmount, currency, lang))}
         </p>
       )}
-      <div className={`flex gap-2 mt-3 ${isAr ? "flex-row-reverse" : ""}`}>
+      <div className={'flex gap-2 mt-3 ' + (isAr ? "flex-row-reverse" : "")}>
         <button
           onClick={handleSend}
           className="flex-1 bg-indigo-600 text-white text-sm font-semibold py-2 rounded-xl hover:bg-indigo-700 transition-colors"
