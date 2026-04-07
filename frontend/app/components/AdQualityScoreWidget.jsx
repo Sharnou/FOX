@@ -228,7 +228,7 @@ export default function AdQualityScoreWidget({ ad = {}, lang = "ar", onImprove }
       <button
         onClick={() => setOpen(v => !v)}
         aria-label={t.title}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold shadow-sm cursor-pointer transition hover:shadow-md ${badgeColor}`}
+        className={'flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold shadow-sm cursor-pointer transition hover:shadow-md ' + (badgeColor)}
       >
         <span>⭐</span>
         <span>{t.score}: {isRTL ? toArabicNumerals(score) : score}/100</span>
@@ -253,7 +253,7 @@ export default function AdQualityScoreWidget({ ad = {}, lang = "ar", onImprove }
 
           <div className="flex flex-col items-center py-5 bg-gray-50 border-b border-gray-100">
             <ScoreRing score={score} size={88} />
-            <span className={`mt-2 text-sm font-semibold px-3 py-0.5 rounded-full border ${badgeColor}`}>
+            <span className={'mt-2 text-sm font-semibold px-3 py-0.5 rounded-full border ' + (badgeColor)}>
               {label}
             </span>
           </div>
@@ -261,7 +261,7 @@ export default function AdQualityScoreWidget({ ad = {}, lang = "ar", onImprove }
           <ul className="divide-y divide-gray-50 max-h-52 overflow-y-auto">
             {Object.keys(results).map(key => (
               <li key={key} className="flex items-start gap-2 px-4 py-2.5 text-sm">
-                <span className={`mt-0.5 flex-shrink-0 ${results[key] ? "text-emerald-500" : "text-red-400"}`}>
+                <span className={'mt-0.5 flex-shrink-0 ' + (results[key] ? "text-emerald-500" : "text-red-400")}>
                   {results[key] ? "✓" : "✗"}
                 </span>
                 <span className={results[key] ? "text-gray-700" : "text-gray-400 line-through"}>
