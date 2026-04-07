@@ -167,7 +167,7 @@ const DEMO_HEAT = Array.from({ length: 7 }, (_, d) =>
 function StatCard({ label, value, color, lang }) {
   const isRtl = lang === 'ar';
   return (
-    <div className={`rounded-2xl p-4 flex flex-col gap-1 ${color} shadow-sm`} dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={'rounded-2xl p-4 flex flex-col gap-1 ' + (color) + ' shadow-sm'} dir={isRtl ? 'rtl' : 'ltr'}>
       <span className="text-xs font-medium opacity-70">{label}</span>
       <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: isRtl ? "'Cairo', 'Tajawal', sans-serif" : 'inherit' }}>
         {value}
@@ -180,7 +180,7 @@ function ScoreBar({ label, value, max, color, lang }) {
   const pct = Math.min(100, Math.round((value / max) * 100));
   const isRtl = lang === 'ar';
   return (
-    <div className={`flex flex-col gap-1`} dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={'flex flex-col gap-1'} dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="flex justify-between text-xs text-gray-600">
         <span>{label}</span>
         <span style={{ fontFamily: isRtl ? "'Cairo', sans-serif" : 'inherit' }}>
@@ -189,8 +189,8 @@ function ScoreBar({ label, value, max, color, lang }) {
       </div>
       <div className="w-full h-2 rounded-full bg-gray-200 overflow-hidden">
         <div
-          className={`h-2 rounded-full transition-all duration-700 ${color}`}
-          style={{ width: `${pct}%`, [isRtl ? 'marginRight' : 'marginLeft']: 0 }}
+          className={'h-2 rounded-full transition-all duration-700 ' + (color)}
+          style={{ width: (pct) + '%', [isRtl ? 'marginRight' : 'marginLeft']: 0 }}
         />
       </div>
     </div>
@@ -206,12 +206,12 @@ function LifecycleBadge({ ad, t, lang }) {
     expired: 'bg-red-100 text-red-700 border-red-300',
   };
   const label = {
-    active: `${isRtl ? toArabicNumerals(status.daysLeft) : status.daysLeft} ${t.daysLeft}`,
-    grace: `${isRtl ? toArabicNumerals(status.daysLeft) : status.daysLeft} ${t.daysGrace}`,
+    active: (isRtl ? toArabicNumerals(status.daysLeft) : status.daysLeft) + ' ' + (t.daysLeft),
+    grace: (isRtl ? toArabicNumerals(status.daysLeft) : status.daysLeft) + ' ' + (t.daysGrace),
     expired: t.expired,
   };
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${map[status.type]}`}>
+    <span className={'text-xs px-2 py-0.5 rounded-full border font-medium ' + (map[status.type])}>
       {label[status.type]}
     </span>
   );
@@ -223,7 +223,7 @@ function HeatmapCell({ value }) {
   return (
     <div
       className="w-full aspect-square rounded-sm"
-      style={{ backgroundColor: `rgba(99,102,241,${alpha})` }}
+      style={{ backgroundColor: 'rgba(99,102,241,' + (alpha) + ')' }}
       title={value}
     />
   );
@@ -253,7 +253,7 @@ export default function SellerInsightsDashboard({
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 8000);
-      const res = await fetch(`${apiBase}/api/sellers/${sellerId}/insights`, { signal: ctrl.signal });
+      const res = await fetch((apiBase) + '/api/sellers/' + (sellerId) + '/insights', { signal: ctrl.signal });
       clearTimeout(timer);
       if (!res.ok) throw new Error(res.status);
       const data = await res.json();
@@ -364,12 +364,10 @@ export default function SellerInsightsDashboard({
                   aria-label={adName}
                 >
                   {/* Rank */}
-                  <span className={`w-6 h-6 flex items-center justify-center text-xs font-bold rounded-full ${
-                    idx === 0 ? 'bg-amber-100 text-amber-700'
+                  <span className={'w-6 h-6 flex items-center justify-center text-xs font-bold rounded-full ' + (idx === 0 ? 'bg-amber-100 text-amber-700'
                     : idx === 1 ? 'bg-gray-100 text-gray-600'
                     : idx === 2 ? 'bg-orange-100 text-orange-600'
-                    : 'bg-gray-50 text-gray-400'
-                  }`}>
+                    : 'bg-gray-50 text-gray-400')}>
                     {isRtl ? toArabicNumerals(idx + 1) : idx + 1}
                   </span>
                   {/* Title */}
@@ -419,7 +417,7 @@ export default function SellerInsightsDashboard({
         <div className="flex items-center gap-2 mt-2 justify-end">
           <span className="text-[10px] text-gray-400">Low</span>
           {[0.05, 0.25, 0.5, 0.75, 0.9].map((a, i) => (
-            <div key={i} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(99,102,241,${a})` }} />
+            <div key={i} className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'rgba(99,102,241,' + (a) + ')' }} />
           ))}
           <span className="text-[10px] text-gray-400">High</span>
         </div>
