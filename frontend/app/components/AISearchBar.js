@@ -92,6 +92,8 @@ export default function AISearchBar({ onSearch, placeholder = 'ابحث عن أ�
       <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8 }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <input
+            id="ai-search-input"
+            name="ai-search-query"
             ref={inputRef}
             type="search"
             value={query}

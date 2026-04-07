@@ -314,15 +314,15 @@ export default function AdminPage() {
         </div>
         <div style={{ marginBottom: 14 }}>
           <label style={{ color: '#00ff41', fontSize: 11, display: 'block', marginBottom: 5 }}>EMAIL</label>
-          <input value={loginEmail} onChange={e => setLoginEmail(e.target.value)} type="email"
+          <input id="admin-login-email" name="admin-login-email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} type="email"
             style={{ width: '100%', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '10px 12px', color: '#fff', fontSize: 14, boxSizing: 'border-box', fontFamily: 'monospace' }}
-            placeholder="admin@email.com" onKeyDown={e => e.key === 'Enter' && login()} />
+            placeholder="admin@email.com" autoComplete="username" onKeyDown={e => e.key === 'Enter' && login()} />
         </div>
         <div style={{ marginBottom: 20 }}>
           <label style={{ color: '#00ff41', fontSize: 11, display: 'block', marginBottom: 5 }}>PASSWORD</label>
-          <input value={loginPass} onChange={e => setLoginPass(e.target.value)} type="password"
+          <input id="admin-login-password" name="admin-login-password" value={loginPass} onChange={e => setLoginPass(e.target.value)} type="password"
             style={{ width: '100%', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '10px 12px', color: '#fff', fontSize: 14, boxSizing: 'border-box', fontFamily: 'monospace' }}
-            placeholder="••••••••" onKeyDown={e => e.key === 'Enter' && login()} />
+            placeholder="••••••••" autoComplete="current-password" onKeyDown={e => e.key === 'Enter' && login()} />
         </div>
         {loginErr && <div style={{ color: '#ff4444', fontSize: 12, marginBottom: 14, background: '#1a0000', padding: '8px 12px', borderRadius: 6, border: '1px solid #ff4444' }}>⚠ {loginErr}</div>}
         <button onClick={login} disabled={loginLoading}
@@ -403,6 +403,8 @@ export default function AdminPage() {
               {/* NEW: User search & filter bar */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <input
+                  id="admin-user-search"
+                  name="admin-user-search"
                   value={userSearch}
                   onChange={e => setUserSearch(e.target.value)}
                   placeholder="🔍 Search / بحث — name, email, country"
@@ -461,6 +463,8 @@ export default function AdminPage() {
               {/* NEW: Ads search & filter bar */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <input
+                  id="admin-ads-search"
+                  name="admin-ads-search"
                   value={adSearch}
                   onChange={e => setAdSearch(e.target.value)}
                   placeholder="🔍 Search / بحث — title, category, city"

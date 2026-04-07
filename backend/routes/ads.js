@@ -158,11 +158,17 @@ router.get('/', async (req, res) => {
     // FEATURED FIRST: max 16, newest featured → top (only on page 0)
     let featuredAds = [];
     if (Number(page) === 0) {
-      const { getFeaturedAds, getFeaturedByCategory } = await import('../server/featuredManager.js');
-      if (category && category !== 'الكل' && category !== 'All') {
-        featuredAds = await getFeaturedByCategory(countryParam, filter.category);
-      } else {
-        featuredAds = await getFeaturedAds(countryParam);
+      try {
+        const { getFeaturedAds, getFeaturedByCategory } = await import('../server/featuredManager.js');
+        if (category && category !== 'الكل' && category !== 'All') {
+          featuredAds = await getFeaturedByCategory(countryParam, filter.category);
+        } else {
+          featuredAds = await getFeaturedAds(countryParam);
+        }
+      } catch (_featuredErr) {
+        // Featured ads fetch is non-critical — log and continue with regular ads
+        console.warn('[GET /api/ads] Featured ads fetch failed (non-fatal):', _featuredErr.message);
+        featuredAds = [];
       }
     }
 

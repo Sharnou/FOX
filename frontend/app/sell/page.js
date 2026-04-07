@@ -616,6 +616,8 @@ export default function SellPage() {
                 <div style={{ marginTop: 10 }}>
                   <label style={labelStyle}>الفئة الفرعية</label>
                   <select
+                    id="sell-subcategory"
+                    name="sell-subcategory"
                     value={form.subcategory || 'Other'}
                     onChange={e => { setForm(p => ({ ...p, subcategory: e.target.value })); setSubsub('Other'); }}
                     aria-label="الفئة الفرعية"
@@ -673,7 +675,7 @@ export default function SellPage() {
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle} htmlFor="sell-price">السعر</label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <select value={form.currency}
+                <select id="sell-currency" name="sell-currency" value={form.currency}
                   onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}
                   aria-label="العملة"
                   style={{

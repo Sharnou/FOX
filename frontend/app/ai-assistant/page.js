@@ -144,6 +144,8 @@ export default function AIAssistantPage() {
             <Mic style={{ width: 18, height: 18 }} />
           </button>
           <input
+            id="ai-assistant-input"
+            name="ai-assistant-query"
             ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}

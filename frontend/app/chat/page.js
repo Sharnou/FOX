@@ -662,6 +662,8 @@ export default function ChatPage() {
             &#128205;
           </button>
           <input
+            id="chat-message-input"
+            name="chat-message"
             value={msg}
             onChange={handleTyping}
             onKeyDown={function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
