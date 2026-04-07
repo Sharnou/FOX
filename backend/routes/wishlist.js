@@ -47,7 +47,7 @@ router.get('/', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).populate({
       path: 'wishlist',
-      select: 'title price images location category currency status',
+      select: 'title price images media city condition views createdAt location category currency status',
       match: { status: { $ne: 'deleted' } }
     });
     res.json(user.wishlist || []);
