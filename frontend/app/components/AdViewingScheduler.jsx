@@ -193,12 +193,12 @@ export default function AdViewingScheduler({
         <h2 className="text-white font-bold text-lg mt-1">{t.title}</h2>
         <p className="text-white/70 text-xs">{t.subtitle}</p>
         {/* Step indicators */}
-        <div className={`flex gap-2 mt-3 ${isRTL ? "flex-row-reverse" : ""}`}>
+        <div className={'flex gap-2 mt-3 ' + (isRTL ? "flex-row-reverse" : "")}>
           {[1,2].map(s => (
-            <div key={s} className={`flex-1 h-1 rounded-full transition-all ${step >= s ? "bg-white" : "bg-white/30"}`} />
+            <div key={s} className={'flex-1 h-1 rounded-full transition-all ' + (step >= s ? "bg-white" : "bg-white/30")} />
           ))}
         </div>
-        <div className={`flex justify-between text-white/60 text-xs mt-1 ${isRTL ? "flex-row-reverse" : ""}`}>
+        <div className={'flex justify-between text-white/60 text-xs mt-1 ' + (isRTL ? "flex-row-reverse" : "")}>
           <span>{t.step1}</span><span>{t.step2}</span>
         </div>
       </div>
@@ -223,7 +223,7 @@ export default function AdViewingScheduler({
                   </button>
                 </div>
                 {/* Day headers */}
-                <div className={`grid grid-cols-7 ${isRTL ? "" : ""}`}>
+                <div className={'grid grid-cols-7 ' + (isRTL ? "" : "")}>
                   {(isRTL ? [...t.day_names].reverse() : t.day_names).map((d, i) => (
                     <div key={i} className="text-center text-xs text-gray-400 py-1">{d}</div>
                   ))}
@@ -293,7 +293,7 @@ export default function AdViewingScheduler({
                   >
                     <span className="text-xl">{LOCATION_ICONS[loc]}</span>
                     <span className="text-sm font-medium text-gray-700">{t[loc]}</span>
-                    {selectedLoc === loc && <span className={`${isRTL ? "mr-auto" : "ml-auto"} text-violet-500`}>✓</span>}
+                    {selectedLoc === loc && <span className={(isRTL ? "mr-auto" : "ml-auto") + ' text-violet-500'}>✓</span>}
                   </button>
                 ))}
               </div>
@@ -346,7 +346,7 @@ export default function AdViewingScheduler({
                   rows={3}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-violet-300"
                 />
-                <span className={`absolute bottom-2 ${isRTL ? "left-2" : "right-2"} text-xs text-gray-300`}>
+                <span className={'absolute bottom-2 ' + (isRTL ? "left-2" : "right-2") + ' text-xs text-gray-300'}>
                   {formatNum(note.length, lang)}/٢٠٠
                 </span>
               </div>
