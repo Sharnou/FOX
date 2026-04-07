@@ -20,7 +20,7 @@ const LABELS = {
     expires: 'ينتهي نهائياً في',
     renew: 'تجديد الإعلان (+٣٠ يوم)',
     delete: 'حذف الإعلان',
-    daysLeft: (n) => `${toArabicNumerals(n)} ${n === 1 ? 'يوم' : 'أيام'} متبقية`,
+    daysLeft: (n) => (toArabicNumerals(n)) + ' ' + (n === 1 ? 'يوم' : 'أيام') + ' متبقية',
     description: 'جدّد إعلانك الآن وإلا سيُحذف مع جميع الصور والمحادثات نهائياً.',
     renewed: 'تم تجديد إعلانك بنجاح! ✓',
   },
@@ -29,7 +29,7 @@ const LABELS = {
     expires: 'Permanently deleted on',
     renew: 'Renew Ad (+30 days)',
     delete: 'Delete Ad',
-    daysLeft: (n) => `${n} day${n !== 1 ? 's' : ''} left`,
+    daysLeft: (n) => (n) + ' day' + (n !== 1 ? 's' : '') + ' left',
     description: 'Renew your ad now or it will be permanently deleted along with all photos and chats.',
     renewed: 'Ad renewed successfully! ✓',
   },
@@ -38,7 +38,7 @@ const LABELS = {
     expires: 'Endgültig gelöscht am',
     renew: 'Anzeige verlängern (+30 Tage)',
     delete: 'Anzeige löschen',
-    daysLeft: (n) => `Noch ${n} Tag${n !== 1 ? 'e' : ''}`,
+    daysLeft: (n) => 'Noch ' + (n) + ' Tag' + (n !== 1 ? 'e' : ''),
     description:
       'Verlängern Sie Ihre Anzeige jetzt, sonst wird sie zusammen mit allen Fotos und Chats dauerhaft gelöscht.',
     renewed: 'Anzeige erfolgreich verlängert! ✓',
@@ -100,7 +100,7 @@ export default function AdRenewalReminderBanner({ ad, lang = 'ar', onRenew, onDe
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className={`w-full rounded-xl border-2 ${c.border} ${c.bg} p-4 shadow-sm font-['Cairo','Tajawal',sans-serif] mb-4`}
+      className={'w-full rounded-xl border-2 ' + (c.border) + ' ' + (c.bg) + ' p-4 shadow-sm font-[\'Cairo\',\'Tajawal\',sans-serif] mb-4'}
       role="alert"
       aria-live="assertive"
     >
@@ -115,7 +115,7 @@ export default function AdRenewalReminderBanner({ ad, lang = 'ar', onRenew, onDe
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-2xl select-none">⏳</span>
               <div className="min-w-0">
-                <p className={`font-bold text-base ${c.text}`}>{t.gracePeriod}</p>
+                <p className={'font-bold text-base ' + (c.text)}>{t.gracePeriod}</p>
                 <p className="text-gray-500 text-sm mt-0.5 truncate max-w-[220px]">
                   {lang === 'ar' ? '«' : '"'}{ad.title}{lang === 'ar' ? '»' : '"'}
                 </p>
@@ -124,7 +124,7 @@ export default function AdRenewalReminderBanner({ ad, lang = 'ar', onRenew, onDe
 
             {/* Days-left badge + dismiss */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`${c.badge} text-white text-xs font-bold px-3 py-1 rounded-full`}>
+              <span className={(c.badge) + ' text-white text-xs font-bold px-3 py-1 rounded-full'}>
                 {t.daysLeft(daysLeft)}
               </span>
               <button
@@ -138,7 +138,7 @@ export default function AdRenewalReminderBanner({ ad, lang = 'ar', onRenew, onDe
           </div>
 
           {/* ── Description + expiry date ── */}
-          <p className={`mt-2 text-sm ${c.text} opacity-80`}>{t.description}</p>
+          <p className={'mt-2 text-sm ' + (c.text) + ' opacity-80'}>{t.description}</p>
           <p className="text-xs text-gray-400 mt-1">
             {t.expires}:{' '}
             <span className="font-medium">{formatDate(ad.graceUntil, lang)}</span>
@@ -147,10 +147,8 @@ export default function AdRenewalReminderBanner({ ad, lang = 'ar', onRenew, onDe
           {/* ── Countdown progress bar (7 days = full) ── */}
           <div className="mt-3 h-1.5 rounded-full bg-gray-200 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                urgency === 'red' ? 'bg-red-500' : urgency === 'orange' ? 'bg-orange-500' : 'bg-amber-500'
-              }`}
-              style={{ width: `${Math.min(100, (daysLeft / 7) * 100)}%` }}
+              className={'h-full rounded-full transition-all duration-700 ' + (urgency === 'red' ? 'bg-red-500' : urgency === 'orange' ? 'bg-orange-500' : 'bg-amber-500')}
+              style={{ width: (Math.min(100, (daysLeft / 7) * 100)) + '%' }}
             />
           </div>
 
@@ -159,7 +157,7 @@ export default function AdRenewalReminderBanner({ ad, lang = 'ar', onRenew, onDe
             <button
               onClick={handleRenew}
               disabled={loading}
-              className={`flex-1 min-w-[140px] ${c.btn} text-white font-bold py-2.5 px-4 rounded-lg transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed`}
+              className={'flex-1 min-w-[140px] ' + (c.btn) + ' text-white font-bold py-2.5 px-4 rounded-lg transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed'}
             >
               {loading ? '...' : t.renew}
             </button>
