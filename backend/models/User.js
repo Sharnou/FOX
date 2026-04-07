@@ -39,30 +39,7 @@ const UserSchema = new mongoose.Schema(
       body: String,
       link: String,
       read: { type: Boolean, default: false },
-  
-    // -- Auth provider -------------------------------------------------------
-    authProvider: { type: String, enum: ['email', 'google', 'apple', 'whatsapp'], default: 'email' },
-    googleId: { type: String, sparse: true, unique: true },
-    appleId: { type: String, sparse: true, unique: true },
-    whatsappPhone: { type: String, sparse: true, unique: true },
-
-    // -- XTOX identity -------------------------------------------------------
-    xtoxId: { type: String, unique: true, sparse: true },
-    xtoxEmail: { type: String, unique: true, sparse: true },
-
-    // -- Blocking (real identifiers so they can never re-register) -----------
-    blocked: { type: Boolean, default: false },
-    blockedAt: { type: Date },
-    blockReason: { type: String },
-    blockedGoogleId: { type: String, sparse: true },
-    blockedAppleId: { type: String, sparse: true },
-    blockedPhone: { type: String, sparse: true },
-
-    // -- WhatsApp OTP --------------------------------------------------------
-    whatsappOtp: { type: String },
-    whatsappOtpExpiry: { type: Date },
-    whatsappOtpAttempts: { type: Number, default: 0 },
-    createdAt: { type: Date, default: Date.now },
+      createdAt: { type: Date, default: Date.now },
     }],
     username: { type: String, sparse: true },
     bio: { type: String, maxlength: 500 },
@@ -123,9 +100,9 @@ UserSchema.virtual('onlineStatus').get(function () {
  */
 UserSchema.virtual('onlineStatusLabel').get(function () {
   const labels = {
-    online:   { ar: 'متصل الآن',          en: 'Online now' },
-    recently: { ar: 'متصل مؤخراً',        en: 'Recently active' },
-    offline:  { ar: 'غير متصل',           en: 'Offline' },
+    online:   { ar: '\u0645\u062a\u0635\u0644 \u0627\u0644\u0622\u0646',          en: 'Online now' },
+    recently: { ar: '\u0645\u062a\u0635\u0644 \u0645\u0624\u062e\u0631\u0627\u064b',        en: 'Recently active' },
+    offline:  { ar: '\u063a\u064a\u0631 \u0645\u062a\u0635\u0644',           en: 'Offline' },
   };
   return labels[this.onlineStatus] || labels.offline;
 });
