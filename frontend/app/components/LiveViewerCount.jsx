@@ -73,7 +73,7 @@ export default function LiveViewerCount({
       return;
     }
     try {
-      const res = await fetch(`/api/ads/${adId}/viewers`, {
+      const res = await fetch('/api/ads/' + (adId) + '/viewers', {
         cache: "no-store",
         signal: AbortSignal.timeout(5000),
       });
@@ -121,8 +121,8 @@ export default function LiveViewerCount({
   const label = isZero
     ? t.zero
     : count === 1
-    ? `${displayNum} ${t.singular}`
-    : `${displayNum} ${t.plural}`;
+    ? (displayNum) + ' ' + (t.singular)
+    : (displayNum) + ' ' + (t.plural);
 
   // Pulsing dot color: green normally, orange if 5+, red if 10+
   const dotColor =
@@ -147,10 +147,10 @@ export default function LiveViewerCount({
         {/* Pulsing dot */}
         <span className="relative flex h-2 w-2">
           <span
-            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${dotColor}`}
+            className={'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ' + (dotColor)}
           />
           <span
-            className={`relative inline-flex rounded-full h-2 w-2 ${dotColor}`}
+            className={'relative inline-flex rounded-full h-2 w-2 ' + (dotColor)}
           />
         </span>
         {isLoading ? "…" : isZero ? "0" : displayNum}
@@ -174,10 +174,10 @@ export default function LiveViewerCount({
       {/* Animated pulsing dot */}
       <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
         <span
-          className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${dotColor}`}
+          className={'animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ' + (dotColor)}
         />
         <span
-          className={`relative inline-flex rounded-full h-2.5 w-2.5 ${dotColor}`}
+          className={'relative inline-flex rounded-full h-2.5 w-2.5 ' + (dotColor)}
         />
       </span>
 
