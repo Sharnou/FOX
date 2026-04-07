@@ -113,9 +113,9 @@ function formatAccountAge(months, t) {
   if (!months) return '—';
   if (months >= 12) {
     const years = (months / 12).toFixed(1).replace('.0', '');
-    return `${years} ${t.years}`;
+    return (years) + ' ' + (t.years);
   }
-  return `${months} ${t.months}`;
+  return (months) + ' ' + (t.months);
 }
 
 function CircularScore({ score, level, size = 80 }) {
@@ -123,14 +123,14 @@ function CircularScore({ score, level, size = 80 }) {
   const circumference = 2 * Math.PI * radius;
   const filled = (score / 100) * circumference;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rotate-[-90deg]">
+    <svg width={size} height={size} viewBox={'0 0 ' + (size) + ' ' + (size)} className="rotate-[-90deg]">
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={10} />
       <circle
         cx={size / 2} cy={size / 2} r={radius} fill="none"
         strokeWidth={10}
         strokeLinecap="round"
-        strokeDasharray={`${filled} ${circumference}`}
-        className={`transition-all duration-700 ${level.bar.replace('bg-', 'stroke-')}`}
+        strokeDasharray={(filled) + ' ' + (circumference)}
+        className={'transition-all duration-700 ' + (level.bar.replace('bg-', 'stroke-'))}
       />
     </svg>
   );
@@ -155,7 +155,7 @@ export default function TrustScoreWidget({
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/sellers/${sellerId}/trust`, { signal: controller.signal });
+        const res = await fetch('/api/sellers/' + (sellerId) + '/trust', { signal: controller.signal });
         if (!res.ok) throw new Error();
         const json = await res.json();
         setData(json);
@@ -182,7 +182,7 @@ export default function TrustScoreWidget({
 
   if (loading) {
     return (
-      <div className={`animate-pulse rounded-2xl bg-gray-100 ${compact ? 'h-12 w-32' : 'h-40 w-full'}`} />
+      <div className={'animate-pulse rounded-2xl bg-gray-100 ' + (compact ? 'h-12 w-32' : 'h-40 w-full')} />
     );
   }
 
@@ -190,8 +190,8 @@ export default function TrustScoreWidget({
     return (
       <div
         dir={isRTL ? 'rtl' : 'ltr'}
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${level.bg} ${level.color} ring-1 ${level.ring} cursor-default select-none`}
-        title={`${t.title}: ${score}/100`}
+        className={'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ' + (level.bg) + ' ' + (level.color) + ' ring-1 ' + (level.ring) + ' cursor-default select-none'}
+        title={(t.title) + ': ' + (score) + '/100'}
       >
         <span>{level.emoji}</span>
         <span style={{ fontFamily: 'Cairo, Tajawal, sans-serif' }}>
@@ -207,14 +207,14 @@ export default function TrustScoreWidget({
     {
       icon: '⭐',
       label: t.ratings,
-      value: data.avgRating ? `${data.avgRating.toFixed(1)} (${isRTL ? toArabicNumerals(data.totalRatings || 0) : data.totalRatings || 0})` : '—',
+      value: data.avgRating ? (data.avgRating.toFixed(1)) + ' (' + (isRTL ? toArabicNumerals(data.totalRatings || 0) : data.totalRatings || 0) + ')' : '—',
       pct: data.avgRating ? (data.avgRating / 5) * 100 : 0,
       color: 'bg-yellow-400',
     },
     {
       icon: '💬',
       label: t.responseRate,
-      value: data.responseRate ? `${isRTL ? toArabicNumerals(data.responseRate) : data.responseRate}%` : '—',
+      value: data.responseRate ? (isRTL ? toArabicNumerals(data.responseRate) : data.responseRate) + '%' : '—',
       pct: data.responseRate || 0,
       color: 'bg-blue-400',
     },
@@ -222,7 +222,7 @@ export default function TrustScoreWidget({
       icon: '🤝',
       label: t.completedDeals,
       value: data.completedDeals
-        ? `${isRTL ? toArabicNumerals(data.completedDeals) : data.completedDeals} ${t.deals}`
+        ? (isRTL ? toArabicNumerals(data.completedDeals) : data.completedDeals) + ' ' + (t.deals)
         : '—',
       pct: Math.min((data.completedDeals || 0) / 50 * 100, 100),
       color: 'bg-emerald-400',
@@ -260,7 +260,7 @@ export default function TrustScoreWidget({
         <div className="relative shrink-0">
           <CircularScore score={score} level={level} size={80} />
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className={`text-xl font-black ${level.color}`} style={{ lineHeight: 1 }}>
+            <span className={'text-xl font-black ' + (level.color)} style={{ lineHeight: 1 }}>
               {isRTL ? toArabicNumerals(score) : score}
             </span>
             <span className="text-[10px] text-gray-400 font-medium">/100</span>
@@ -268,14 +268,14 @@ export default function TrustScoreWidget({
         </div>
 
         <div className="flex-1 space-y-1.5">
-          <div className={`text-base font-bold ${level.color}`}>{level.emoji} {level.label}</div>
+          <div className={'text-base font-bold ' + (level.color)}>{level.emoji} {level.label}</div>
 
           {/* Verification badges */}
           <div className="flex flex-wrap gap-1.5">
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${data?.phoneVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
+            <span className={'text-[11px] px-2 py-0.5 rounded-full font-medium ' + (data?.phoneVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400')}>
               📱 {t.phoneVerified}
             </span>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${data?.idVerified ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
+            <span className={'text-[11px] px-2 py-0.5 rounded-full font-medium ' + (data?.idVerified ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400')}>
               🪪 {t.idVerified}
             </span>
           </div>
@@ -294,8 +294,8 @@ export default function TrustScoreWidget({
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div
-                  className={`h-full ${f.color} rounded-full transition-all duration-700`}
-                  style={{ width: `${f.pct}%` }}
+                  className={'h-full ' + (f.color) + ' rounded-full transition-all duration-700'}
+                  style={{ width: (f.pct) + '%' }}
                 />
               </div>
             </div>
