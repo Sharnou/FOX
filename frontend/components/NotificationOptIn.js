@@ -3,9 +3,9 @@
 // Shows a subtle banner asking users to enable push notifications (Arabic RTL).
 // NOTE: This component handles the browser Notification permission flow only.
 //       For full Firebase Cloud Messaging (FCM) integration, you need to:
-//         1. Install firebase: `npm install firebase`
+//         1. Install firebase: "npm install firebase"
 //         2. Configure your Firebase project (firebaseConfig)
-//         3. Call `getToken(messaging, { vapidKey: YOUR_VAPID_KEY })` after permission is granted
+//         3. Call "getToken(messaging, { vapidKey: YOUR_VAPID_KEY })" after permission is granted
 //         4. Send that token to your backend to store it for targeted pushes
 
 import { useState, useEffect } from 'react';
