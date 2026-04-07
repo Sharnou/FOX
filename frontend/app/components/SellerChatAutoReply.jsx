@@ -116,7 +116,7 @@ export default function SellerChatAutoReply({
   return (
     <div
       dir={isRTL ? "rtl" : "ltr"}
-      className={`font-${isRTL ? "['Cairo','Tajawal',sans-serif']" : "sans"} bg-white rounded-2xl shadow-lg p-5 max-w-md w-full mx-auto border border-gray-100`}
+      className={'font-' + (isRTL ? "['Cairo','Tajawal',sans-serif']" : "sans") + ' bg-white rounded-2xl shadow-lg p-5 max-w-md w-full mx-auto border border-gray-100'}
       style={{ fontFamily: isRTL ? "'Cairo','Tajawal',sans-serif" : "inherit" }}
     >
       {/* Header */}
@@ -134,9 +134,7 @@ export default function SellerChatAutoReply({
       <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 mb-4">
         <div className="flex items-center gap-2">
           <span
-            className={`inline-block w-2.5 h-2.5 rounded-full ${
-              enabled ? "bg-emerald-500" : "bg-gray-300"
-            }`}
+            className={'inline-block w-2.5 h-2.5 rounded-full ' + (enabled ? "bg-emerald-500" : "bg-gray-300")}
           />
           <span className="text-sm font-medium text-gray-700">
             {t.status}:{" "}
@@ -149,21 +147,17 @@ export default function SellerChatAutoReply({
         </div>
         <button
           onClick={() => setEnabled((v) => !v)}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-            enabled ? "bg-emerald-500" : "bg-gray-200"
-          }`}
+          className={'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ' + (enabled ? "bg-emerald-500" : "bg-gray-200")}
           aria-label="toggle auto-reply"
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
-              enabled
+            className={'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ' + (enabled
                 ? isRTL
                   ? "-translate-x-6"
                   : "translate-x-6"
                 : isRTL
                 ? "-translate-x-1"
-                : "translate-x-1"
-            }`}
+                : "translate-x-1")}
           />
         </button>
       </div>
@@ -203,16 +197,14 @@ export default function SellerChatAutoReply({
 
       {/* Char counter */}
       <div
-        className={`flex justify-${isRTL ? "start" : "end"} mb-3`}
+        className={'flex justify-' + (isRTL ? "start" : "end") + ' mb-3'}
       >
         <span
-          className={`text-xs ${
-            charLeft < 20 ? "text-red-400" : "text-gray-400"
-          }`}
+          className={'text-xs ' + (charLeft < 20 ? "text-red-400" : "text-gray-400")}
         >
           {isRTL
-            ? `${toArabicIndic(message.length)} / ${toArabicIndic(MAX)} ${t.charCount}`
-            : `${message.length} / ${MAX} ${t.charCount}`}
+            ? (toArabicIndic(message.length)) + ' / ' + (toArabicIndic(MAX)) + ' ' + (t.charCount)
+            : (message.length) + ' / ' + (MAX) + ' ' + (t.charCount)}
         </span>
       </div>
 
@@ -225,13 +217,11 @@ export default function SellerChatAutoReply({
       <button
         onClick={handleSave}
         disabled={!enabled && !saved}
-        className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-          saved
+        className={'w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ' + (saved
             ? "bg-emerald-500 text-white"
             : enabled
             ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-        }`}
+            : "bg-gray-200 text-gray-400 cursor-not-allowed")}
       >
         {saved ? t.saved : enabled ? t.save : t.disable}
       </button>
