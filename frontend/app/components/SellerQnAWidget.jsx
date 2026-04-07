@@ -193,7 +193,7 @@ export default function SellerQnAWidget({
             <div
               key={qa.id}
               className="px-5 py-4 animate-fade-in"
-              style={{ animationDelay: `${idx * 60}ms` }}
+              style={{ animationDelay: (idx * 60) + 'ms' }}
             >
               {/* Question row */}
               <div className="flex items-start gap-2 mb-2">
@@ -209,7 +209,7 @@ export default function SellerQnAWidget({
 
               {/* Answer or unanswered */}
               {qa.answer ? (
-                <div className={`${isRTL ? 'mr-6 border-r-2' : 'ml-6 border-l-2'} border-emerald-400 ${isRTL ? 'pr-3' : 'pl-3'} mt-2`}>
+                <div className={(isRTL ? 'mr-6 border-r-2' : 'ml-6 border-l-2') + ' border-emerald-400 ' + (isRTL ? 'pr-3' : 'pl-3') + ' mt-2'}>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                       ✅ {t.sellerBadge}
@@ -219,7 +219,7 @@ export default function SellerQnAWidget({
                   <p className="text-sm text-gray-700 leading-relaxed">{qa.answer}</p>
                 </div>
               ) : (
-                <div className={`${isRTL ? 'mr-6' : 'ml-6'} mt-2`}>
+                <div className={(isRTL ? 'mr-6' : 'ml-6') + ' mt-2'}>
                   {/* Seller answer form */}
                   {isSeller ? (
                     openAnswerId === qa.id ? (
