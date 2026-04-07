@@ -318,26 +318,35 @@ export default function AdPageClient({ params }) {
 
   useEffect(() => {
     if (!SOCKET_URL || !userId) return;
-    let s;
-    import('socket.io-client').then(({ io }) => {
-      s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('token') || 'guest' : 'guest' } });
-      s.emit('join', userId);
-      s.on('incoming_call', async (data) => {
-        setCallStatus('مكالمة واردة...');
-        const pc = await createPeer(s, data.from);
-        await pc.setRemoteDescription(data.offer);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        s.emit('call_answer', { to: data.from, answer });
-        setCallActive(true);
-        setCallStatus('متصل 🟢');
+    var _s;
+    import('socket.io-client').then(function(_mod) {
+      var io = _mod.io;
+      // Connect to default namespace only — no custom namespace to avoid "Invalid namespace" errors
+      _s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('token') || 'guest' : 'guest' } });
+      // Handle socket connection errors gracefully — must never block UI
+      _s.on('connect_error', function(err) { console.warn('[Socket] connect error:', err.message); });
+      _s.emit('join', userId);
+      _s.on('incoming_call', function(data) {
+        // Wrap async handler in try/catch so mic errors don't crash the page
+        (async function() {
+          try {
+            setCallStatus('مكالمة واردة...');
+            var pc = await createPeer(_s, data.from);
+            await pc.setRemoteDescription(data.offer);
+            var answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            _s.emit('call_answer', { to: data.from, answer: answer });
+            setCallActive(true);
+            setCallStatus('متصل 🟢');
+          } catch (e) { setCallStatus('فشل الرد على المكالمة'); }
+        })();
       });
-      s.on('call_answer', async (data) => { if (pcRef.current) { await pcRef.current.setRemoteDescription(data.answer); } setCallStatus('متصل 🟢'); });
-      s.on('ice_candidate', async (data) => { if (pcRef.current) { await pcRef.current.addIceCandidate(data.candidate); } });
-      s.on('call_end', () => { endCall(); setCallStatus('انتهت المكالمة'); });
-      setSocket(s);
-    });
-    return () => { if (s) s.disconnect(); };
+      _s.on('call_answer', function(data) { (async function() { try { if (pcRef.current) { await pcRef.current.setRemoteDescription(data.answer); } setCallStatus('متصل 🟢'); } catch {} })(); });
+      _s.on('ice_candidate', function(data) { (async function() { try { if (pcRef.current) { await pcRef.current.addIceCandidate(data.candidate); } } catch {} })(); });
+      _s.on('call_end', function() { endCall(); setCallStatus('انتهت المكالمة'); });
+      setSocket(_s);
+    }).catch(function(err) { console.warn('[Socket] failed to load:', err.message); });
+    return function() { if (_s) _s.disconnect(); };
   }, [userId]);
 
 
@@ -388,13 +397,14 @@ export default function AdPageClient({ params }) {
 
   async function startCall() {
     if (!(ad && ad.userId && ad.userId._id) && !(ad && ad.userId)) return alert('لا يمكن الاتصال الآن');
-    const targetId = (ad.userId && ad.userId._id) || ad.userId;
+    if (!socket) { setCallStatus('جار الاتصال بالخادم...'); return; }
+    var targetId = (ad.userId && ad.userId._id) || ad.userId;
     setCallStatus('جار الاتصال...');
     try {
-      const pc = await createPeer(socket, targetId);
-      const offer = await pc.createOffer();
+      var pc = await createPeer(socket, targetId);
+      var offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socket.emit('call_offer', { to: targetId, from: userId, offer });
+      socket.emit('call_offer', { to: targetId, from: userId, offer: offer });
       setCallActive(true);
     } catch (e) { setCallStatus('فشل الاتصال — تحقق من الميكروفون'); }
   }
