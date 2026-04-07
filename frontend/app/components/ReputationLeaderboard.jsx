@@ -168,11 +168,11 @@ const CACHE_TTL = 60 * 60 * 1000; // 1 hour in ms
 // ── Star renderer ──────────────────────────────────────────────────────────
 function Stars({ rating }) {
   return (
-    <span className="inline-flex gap-0.5" aria-label={`rating ${rating}`}>
+    <span className="inline-flex gap-0.5" aria-label={'rating ' + (rating)}>
       {[1, 2, 3, 4, 5].map((i) => (
         <svg
           key={i}
-          className={`w-3 h-3 ${i <= Math.round(rating) ? "text-yellow-400" : "text-gray-200"}`}
+          className={'w-3 h-3 ' + (i <= Math.round(rating) ? "text-yellow-400" : "text-gray-200")}
           viewBox="0 0 20 20"
           fill="currentColor"
         >
@@ -193,7 +193,7 @@ function Podium({ sellers, lang, t, isRTL }) {
     : [second, first, third];
 
   return (
-    <div className={`flex items-end justify-center gap-3 mb-6 ${isRTL ? "flex-row-reverse" : ""}`}>
+    <div className={'flex items-end justify-center gap-3 mb-6 ' + (isRTL ? "flex-row-reverse" : "")}>
       {[second, first, third].map((s, idx) => {
         const medal = ["🥈", "🥇", "🥉"][idx];
         const podH = ["h-16", "h-24", "h-12"][idx];
@@ -215,7 +215,7 @@ function Podium({ sellers, lang, t, isRTL }) {
               {s.name}
             </p>
             <div
-              className={`w-16 rounded-t-lg ${podH} ${podBg} flex items-center justify-center`}
+              className={'w-16 rounded-t-lg ' + (podH) + ' ' + (podBg) + ' flex items-center justify-center'}
             >
               <span className="text-xs font-bold text-gray-700">
                 {lang === "ar"
@@ -253,7 +253,7 @@ export default function ReputationLeaderboard({
   const [selectedCategory, setSelectedCategory] = useState(category);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const cacheKey = `xtox_leaderboard_${country}_${selectedCategory}_${limit}`;
+  const cacheKey = 'xtox_leaderboard_' + (country) + '_' + (selectedCategory) + '_' + (limit);
 
   const fetchLeaderboard = useCallback(async () => {
     // 1. Check localStorage cache
@@ -269,11 +269,11 @@ export default function ReputationLeaderboard({
 
     setStatus("loading");
     try {
-      const url = `${apiEndpoint}?country=${country}&category=${encodeURIComponent(
+      const url = (apiEndpoint) + '?country=' + (country) + '&category=' + (encodeURIComponent(
         selectedCategory
-      )}&limit=${limit}`;
+      )) + '&limit=' + (limit);
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error('HTTP ' + (res.status));
       const json = await res.json();
       const data = json.sellers || json.data || json || [];
       setSellers(data.slice(0, limit));
@@ -301,7 +301,7 @@ export default function ReputationLeaderboard({
   if (status === "loading" && sellers.length === 0) {
     return (
       <div
-        className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 ${className}`}
+        className={'bg-white rounded-2xl shadow-sm border border-gray-100 p-5 ' + (className)}
         dir={isRTL ? "rtl" : "ltr"}
       >
         <div className="h-5 w-32 bg-gray-200 rounded animate-pulse mb-4" />
@@ -318,7 +318,7 @@ export default function ReputationLeaderboard({
 
   return (
     <div
-      className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden ${className}`}
+      className={'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden ' + (className)}
       dir={isRTL ? "rtl" : "ltr"}
       role="region"
       aria-label={t.title}
@@ -366,28 +366,22 @@ export default function ReputationLeaderboard({
                   key={seller.id}
                   role="listitem"
                   onClick={() => onSellerClick?.(seller)}
-                  className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer hover:shadow-md ${
-                    badgeCfg
-                      ? `${badgeCfg.bg} ${badgeCfg.border}`
-                      : "bg-gray-50 border-gray-100 hover:bg-gray-100"
-                  }`}
+                  className={'flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer hover:shadow-md ' + (badgeCfg
+                      ? (badgeCfg.bg) + ' ' + (badgeCfg.border)
+                      : "bg-gray-50 border-gray-100 hover:bg-gray-100")}
                 >
                   {/* Rank */}
                   <span
-                    className={`w-7 text-center font-bold text-sm ${
-                      badgeCfg ? badgeCfg.text : "text-gray-400"
-                    }`}
+                    className={'w-7 text-center font-bold text-sm ' + (badgeCfg ? badgeCfg.text : "text-gray-400")}
                   >
                     {badgeCfg ? badgeCfg.emoji : rankNum}
                   </span>
 
                   {/* Avatar */}
                   <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0 ${
-                      badgeCfg
-                        ? `ring-2 ${badgeCfg.ring}`
-                        : "ring-1 ring-gray-200"
-                    }`}
+                    className={'w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0 ' + (badgeCfg
+                        ? 'ring-2 ' + (badgeCfg.ring)
+                        : "ring-1 ring-gray-200")}
                     style={{
                       background:
                         "linear-gradient(135deg,#6366f1,#8b5cf6)",
