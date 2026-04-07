@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 /**
  * AdExpiryBadge
  * Shows remaining days on an XTOX ad (30-day lifecycle + 7-day grace).
- * Supports Arabic (RTL), German and English via `lang` prop.
+ * Supports Arabic (RTL), German and English via "lang" prop.
  * Colors: green >14d | orange 7-14d | red <7d | purple = grace period
  *
  * Props:
