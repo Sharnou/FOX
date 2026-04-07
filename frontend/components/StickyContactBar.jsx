@@ -4,6 +4,8 @@
  * Zero external dependencies — pure React + inline styles
  */
 
+'use client';
+
 import { useState, useEffect } from 'react';
 
 /* ── Arabic-Indic numeral converter ─────────────────────────────────────── */
