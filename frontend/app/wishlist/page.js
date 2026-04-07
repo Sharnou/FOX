@@ -211,7 +211,7 @@ export default function WishlistPage() {
           <div className="grid grid-cols-2 gap-4">
             {ads.map(ad => {
               const adId       = ad._id || ad.id;
-              const image      = ad.images?.[0] || ad.image || ad.thumbnail || null;
+              const image      = ad.media?.[0] || ad.images?.[0] || ad.image || ad.imageUrl || ad.thumbnail || ad.photo || null;
               const title      = ad.title || t.noTitle;
               const priceNum   = ad.price ?? ad.amount;
               const currency   = ad.currency || (isRTL ? '' : '');
