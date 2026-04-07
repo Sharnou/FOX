@@ -2,7 +2,6 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { fetchWithRetry } from '../lib/fetchWithRetry';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
 import AdCardSkeleton from './components/AdCardSkeleton';
 import CartoonMoodPopup from './components/CartoonMoodPopup';
@@ -101,23 +100,24 @@ export default function Home() {
   async function fetchAds(category, country) {
     setLoading(true);
     setError(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(function() { controller.abort(); }, 10000);
     try {
-      // FIX A: Do NOT filter by country — ads are stored with 'EG' country code,
+      // Do NOT filter by country — ads are stored with 'EG' country code,
       // but ipapi.co may detect a different country for the user, causing 0 results.
       // Country detection is only used for locale/UI, not for the ads query.
       const params = new URLSearchParams();
       if (category) params.append('category', category);
-      const res = await fetchWithRetry(API + '/api/ads?' + params, {}, {
-        retries: 3,
-        baseDelay: 500,
-        onRetry: (attempt) => console.log('[XTOX] Retry ' + attempt + '/3 for ads...'),
-      });
+      const res = await fetch(API + '/api/ads?' + params, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       setAds(Array.isArray(data) ? data : (data.ads || data.data || data.results || []));
       setError(null);
     } catch (e) {
+      clearTimeout(timeoutId);
       setAds([]);
-      setError(e.arabicMessage || (locale.lang === 'ar' ? 'تعذّر تحميل الإعلانات. حاول مجدداً.' : 'Failed to load ads. Please try again.'));
+      setError('تعذّر تحميل الإعلانات — تحقّق من اتصالك بالإنترنت وأعد المحاولة');
     }
     setLoading(false);
   }
