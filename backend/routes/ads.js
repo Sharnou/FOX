@@ -270,7 +270,7 @@ router.get('/:id', async (req, res) => {
     };
 
     // QR code — non-blocking
-    const qr = await generateQR(`${process.env.FRONTEND_URL || 'https://xtox.app'}/ads/${ad._id}`).catch(() => null);
+    const qr = await generateQR((process.env.FRONTEND_URL || 'https://xtox.app') + '/ads/' + ad._id).catch(() => null);
 
     res.json({ ...normalized, qrCode: qr });
   } catch (err) {
@@ -431,15 +431,15 @@ router.post('/', auth, upload.fields([
     const country = req.user.country || 'EG';
 
     // TEXT MODERATION
-    const textCheck = moderateText(`${title} ${description || ''}`);
-    if (!textCheck.clean) return res.status(400).json({ error: `Content blocked: ${textCheck.reason}` });
+    const textCheck = moderateText(title + ' ' + (description || ''));
+    if (!textCheck.clean) return res.status(400).json({ error: 'Content blocked: ' + textCheck.reason });
 
     // IMAGE AI MODERATION (scan every uploaded image)
     if (media && media.length > 0) {
       for (const imageUrl of media) {
         const imgCheck = await moderateImage(imageUrl).catch(() => ({ clean: true }));
         if (!imgCheck.clean) {
-          return res.status(400).json({ error: `Image blocked: contains ${imgCheck.reason}` });
+          return res.status(400).json({ error: 'Image blocked: contains ' + imgCheck.reason });
         }
       }
     }
@@ -450,7 +450,7 @@ router.post('/', auth, upload.fields([
     }
 
     // AUTO CATEGORY DETECTION (offline first)
-    const detected = detectCategoryOffline(`${title} ${description || ''}`);
+    const detected = detectCategoryOffline(title + ' ' + (description || ''));
     const finalCategory = category || detected.main;
     let finalSubcategory = detected.sub || subcategory || '';
     // Auto-assign subcategory via keyword matching if not provided or is 'Other'
@@ -494,8 +494,10 @@ router.post('/', auth, upload.fields([
     // ENSURE COUNTRY EXISTS
     await getOrCreateCountry(country, country).catch(() => {});
 
-    // Merge: prefer multer-uploaded images, fallback to sanitized media from body
-    const finalMedia = _uploadedImages.length ? _uploadedImages : (media || []);
+    // FIX: prefer Cloudinary-processed sanitized media when available
+    // When _uploadedImages has base64 but the pre-process converted body.media to Cloudinary URLs,
+    // the sanitized media[] will have the correct URLs -- always prefer those.
+    var finalMedia = (media && media.length > 0) ? media : (_uploadedImages.length ? _uploadedImages : []);
     const finalVideoUrl = _uploadedVideoUrl || null;
 
     const ad = await getAdModel().create({
@@ -557,7 +559,7 @@ router.post('/', auth, upload.fields([
           { _id: ad._id },
           { $set: { aiQualityScore: score, aiQualityTips: tips } }
         );
-        console.log(`[AIQuality] Ad ${ad._id} scored: ${score}/100`);
+        console.log('[AIQuality] Ad ' + ad._id + ' scored: ' + score + '/100');
       } catch (e) {
         console.warn('[AIQuality] Scoring failed:', e.message);
       }
@@ -605,7 +607,7 @@ router.post('/ai-generate', auth, async (req, res) => {
     if (image && (process.env.OPENAI_API_KEY || process.env.AI_KEYS)) {
       try {
         const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-        const tempPath = `/tmp/fox_ai_${Date.now()}.jpg`;
+        const tempPath = '/tmp/fox_ai_' + Date.now() + '.jpg';
         const { writeFile, unlink } = await import('fs/promises');
         await writeFile(tempPath, Buffer.from(base64Data, 'base64'));
 
@@ -680,8 +682,8 @@ router.put('/:id', auth, async (req, res) => {
     if (!ad) return res.status(404).json({ error: 'Ad not found or not owned by you' });
 
     // TEXT MODERATION on updated content
-    const textCheck = moderateText(`${title} ${description || ''}`);
-    if (!textCheck.clean) return res.status(400).json({ error: `Content blocked: ${textCheck.reason}` });
+    const textCheck = moderateText(title + ' ' + (description || ''));
+    if (!textCheck.clean) return res.status(400).json({ error: 'Content blocked: ' + textCheck.reason });
 
     // Apply sanitized updates
     ad.title = title;
