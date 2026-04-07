@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation';
 import AIQualityBadge from './AIQualityBadge';
 
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality, w_400=resize)
-function optimizeImage(url, width = 400) {
-  if (!url || !url.includes('cloudinary.com')) return url;
-  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
+// Fix D: Added null guard — prevents src={undefined} when url is falsy
+function optimizeImage(url, width) {
+  var w = width || 400;
+  if (!url || typeof url !== 'string') return '/placeholder.png';
+  if (!url.includes('cloudinary.com')) return url;
+  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + w + ',c_limit/');
 }
 
 // Convert Western numerals to Arabic-Indic numerals for RTL UI
