@@ -286,7 +286,7 @@ export default function SearchPage() {
             {sorted.map(ad => (
               <a key={ad._id} href={'/ads/' + ad._id} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit' }}>
                 <div style={{ height: 130, background: '#f0f0f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
-                  {ad.media?.[0] ? <img src={ad.media[0]} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title} /> : '📦'}
+                  {(ad.media?.[0] || ad.images?.[0]) ? <img src={ad.media?.[0] || ad.images?.[0]} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title} onError={function(e){e.target.style.display='none'}} /> : '📦'}
                 </div>
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ fontWeight: 'bold', fontSize: 13, margin: 0 }}>{ad.title?.slice(0, 30)}</p>
