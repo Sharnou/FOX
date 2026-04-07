@@ -313,13 +313,13 @@ export default function AdminPage() {
           <p style={{ color: '#8b949e', fontSize: 12 }}>Secure Control Center</p>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label style={{ color: '#00ff41', fontSize: 11, display: 'block', marginBottom: 5 }}>EMAIL</label>
+          <label htmlFor="admin-login-email" style={{ color: '#00ff41', fontSize: 11, display: 'block', marginBottom: 5 }}>EMAIL</label>
           <input id="admin-login-email" name="admin-login-email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} type="email"
             style={{ width: '100%', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '10px 12px', color: '#fff', fontSize: 14, boxSizing: 'border-box', fontFamily: 'monospace' }}
             placeholder="admin@email.com" autoComplete="username" onKeyDown={e => e.key === 'Enter' && login()} />
         </div>
         <div style={{ marginBottom: 20 }}>
-          <label style={{ color: '#00ff41', fontSize: 11, display: 'block', marginBottom: 5 }}>PASSWORD</label>
+          <label htmlFor="admin-login-password" style={{ color: '#00ff41', fontSize: 11, display: 'block', marginBottom: 5 }}>PASSWORD</label>
           <input id="admin-login-password" name="admin-login-password" value={loginPass} onChange={e => setLoginPass(e.target.value)} type="password"
             style={{ width: '100%', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '10px 12px', color: '#fff', fontSize: 14, boxSizing: 'border-box', fontFamily: 'monospace' }}
             placeholder="••••••••" autoComplete="current-password" onKeyDown={e => e.key === 'Enter' && login()} />

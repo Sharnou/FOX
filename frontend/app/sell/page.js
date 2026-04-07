@@ -614,7 +614,7 @@ export default function SellPage() {
               <CategoryPriceHint category={form.category} />
               {form.category && SUBCATS[form.category] && (
                 <div style={{ marginTop: 10 }}>
-                  <label style={labelStyle}>الفئة الفرعية</label>
+                  <label style={labelStyle} htmlFor="sell-subcategory">الفئة الفرعية</label>
                   <select
                     id="sell-subcategory"
                     name="sell-subcategory"
@@ -633,8 +633,10 @@ export default function SellPage() {
                 var _selSub = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
                 return _selSub && _selSub.subsubs && _selSub.subsubs.length > 0 ? (
                   <div style={{ marginTop: 10 }}>
-                    <label style={labelStyle}>التصنيف الدقيق</label>
+                    <label style={labelStyle} htmlFor="sell-subsub">التصنيف الدقيق</label>
                     <select
+                      id="sell-subsub"
+                      name="sell-subsub"
                       value={subsub}
                       onChange={e => setSubsub(e.target.value)}
                       aria-label="التصنيف الدقيق"

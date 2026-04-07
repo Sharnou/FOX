@@ -213,10 +213,14 @@ router.get('/my/all', auth, async (req, res) => {
       const expiredAt = ad.expiredAt || ad.expiresAt;
       const deadlineMs = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
       const daysLeft = Math.max(0, Math.ceil((deadlineMs - Date.now()) / (24 * 60 * 60 * 1000)));
-      return { ...ad.toObject(), daysLeftToReshare: daysLeft };
+      return { ...ad, daysLeftToReshare: daysLeft };  // FIX: lean() returns plain JS objects, toObject() is not available
     });
     res.json({ active, expired: expiredWithDeadline });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error('[GET /api/ads/my/all]', e.message);
+    if (res.headersSent) return;
+    res.status(500).json({ success: false, active: [], expired: [], error: e.message });
+  }
 });
 
 
@@ -450,8 +454,8 @@ router.post('/', auth, upload.fields([
       }
     }
 
-    // DUPLICATE CHECK
-    if (await checkDuplicate(title, category, city, req.user.id)) {
+    // DUPLICATE CHECK — non-fatal: if DB fails here, skip duplicate check rather than 500
+    if (await checkDuplicate(title, category, city, req.user.id).catch(() => false)) {
       return res.status(400).json({ error: 'Duplicate ad detected' });
     }
 
@@ -583,10 +587,13 @@ router.post('/', auth, upload.fields([
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
   } catch (e) {
     console.error('[POST /api/ads] crash:', e.stack || e.message);
-    return res.status(500).json({
-      message: e.message,
-      stack: process.env.NODE_ENV === 'development' ? e.stack : undefined
-    });
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        error: e.message,
+        message: e.message,
+      });
+    }
   }
 });
 
