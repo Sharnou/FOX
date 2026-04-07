@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import axios from 'axios';
 import AdCardSkeleton from '../components/AdCardSkeleton';
 
