@@ -30,8 +30,8 @@ const T = {
     status: "مسودة",
     category: "الفئة",
     price: "السعر",
-    age: (days) => `منذ ${toArabicIndic(days)} ${days === 1 ? "يوم" : "أيام"}`,
-    draftCount: (n) => `${toArabicIndic(n)} ${n === 1 ? "مسودة" : "مسودات"}`,
+    age: (days) => 'منذ ' + (toArabicIndic(days)) + ' ' + (days === 1 ? "يوم" : "أيام"),
+    draftCount: (n) => (toArabicIndic(n)) + ' ' + (n === 1 ? "مسودة" : "مسودات"),
   },
   en: {
     title: "My Drafts",
@@ -46,8 +46,8 @@ const T = {
     status: "Draft",
     category: "Category",
     price: "Price",
-    age: (days) => `${days} ${days === 1 ? "day" : "days"} ago`,
-    draftCount: (n) => `${n} ${n === 1 ? "draft" : "drafts"}`,
+    age: (days) => (days) + ' ' + (days === 1 ? "day" : "days") + ' ago',
+    draftCount: (n) => (n) + ' ' + (n === 1 ? "draft" : "drafts"),
   },
   de: {
     title: "Meine Entwürfe",
@@ -62,8 +62,8 @@ const T = {
     status: "Entwurf",
     category: "Kategorie",
     price: "Preis",
-    age: (days) => `vor ${days} ${days === 1 ? "Tag" : "Tagen"}`,
-    draftCount: (n) => `${n} ${n === 1 ? "Entwurf" : "Entwürfe"}`,
+    age: (days) => 'vor ' + (days) + ' ' + (days === 1 ? "Tag" : "Tagen"),
+    draftCount: (n) => (n) + ' ' + (n === 1 ? "Entwurf" : "Entwürfe"),
   },
 };
 
@@ -164,7 +164,7 @@ function DraftCard({ draft, t, lang, onResume, onDeleteRequest }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <h3
-            className={`font-bold text-gray-800 text-base truncate ${isRtl ? "font-cairo" : ""}`}
+            className={'font-bold text-gray-800 text-base truncate ' + (isRtl ? "font-cairo" : "")}
           >
             {draft.title || "—"}
           </h3>
@@ -245,7 +245,7 @@ export default function AdDraftManager({
   return (
     <div
       dir={isRtl ? "rtl" : "ltr"}
-      className={`min-h-[200px] transition-opacity duration-500 ${visible ? "opacity-100" : "opacity-0"}`}
+      className={'min-h-[200px] transition-opacity duration-500 ' + (visible ? "opacity-100" : "opacity-0")}
       style={{ fontFamily: isRtl ? "'Cairo', 'Tajawal', sans-serif" : "inherit" }}
     >
       {/* Header */}
@@ -302,7 +302,7 @@ export default function AdDraftManager({
       )}
 
       {/* Fade-in keyframes (injected once via style tag) */}
-      <style>{`
+      <style>{'
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0);   }
@@ -315,7 +315,7 @@ export default function AdDraftManager({
         li.animate-fade-in:nth-child(4)  { animation-delay: 0.15s; }
         li.animate-fade-in:nth-child(5)  { animation-delay: 0.20s; }
         li.animate-fade-in:nth-child(6)  { animation-delay: 0.25s; }
-      `}</style>
+      '}</style>
     </div>
   );
 }
