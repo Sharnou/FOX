@@ -5,7 +5,6 @@ import Link from 'next/link';
 
 var API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 var GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
-var APPLE_CLIENT_ID = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || '';
 
 /* -- helpers -- */
 function storeSession(data) {
@@ -73,15 +72,6 @@ export default function LoginClient() {
         });
       }
     };
-    document.head.appendChild(script);
-  }, []);
-
-  /* Load Apple JS SDK */
-  useEffect(function() {
-    if (!APPLE_CLIENT_ID) return;
-    var script = document.createElement('script');
-    script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
-    script.async = true;
     document.head.appendChild(script);
   }, []);
 
@@ -174,41 +164,6 @@ export default function LoginClient() {
     }
   }
 
-  /* -- Apple -- */
-  async function handleAppleLogin() {
-    setError('');
-    if (!window.AppleID) { setError('Apple SDK not loaded.'); return; }
-    try {
-      window.AppleID.auth.init({
-        clientId: APPLE_CLIENT_ID,
-        scope: 'name email',
-        redirectURI: window.location.origin + '/api/auth/apple/callback',
-        usePopup: true
-      });
-      var response = await window.AppleID.auth.signIn();
-      setLoading(true);
-      var res = await fetch(API + '/api/auth/apple', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identityToken: response.authorization.id_token,
-          user: response.user || {}
-        })
-      });
-      var data = await res.json();
-      if (!res.ok) { setError(data.error || 'Apple login failed'); return; }
-      storeSession(data);
-      var xtoxIdVal = (data.user && data.user.xtoxId) ? data.user.xtoxId : '';
-      setSuccess('Welcome! Your XTOX ID: ' + xtoxIdVal);
-      setTimeout(function() { window.location.href = '/'; }, 1500);
-    } catch (e) {
-      var errMsg = e && e.error ? e.error : (e && e.message ? e.message : '');
-      if (errMsg !== 'popup_closed_by_user') setError('Apple login failed: ' + errMsg);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   /* -- Styles -- */
   var inputStyle = {
     width: '100%', padding: '12px 16px', borderRadius: 12,
@@ -264,7 +219,6 @@ export default function LoginClient() {
         },
           React.createElement('button', { style: tabStyle(tab === 'whatsapp'), onClick: function() { setTab('whatsapp'); setError(''); } }, '\uD83D\uDCF1 \u0648\u0627\u062a\u0633\u0627\u0628'),
           React.createElement('button', { style: tabStyle(tab === 'google'), onClick: function() { setTab('google'); setError(''); } }, '\uD83D\uDD35 Google'),
-          React.createElement('button', { style: tabStyle(tab === 'apple'), onClick: function() { setTab('apple'); setError(''); } }, '\uF8FF Apple')
         ),
 
         /* Error */
@@ -326,25 +280,6 @@ export default function LoginClient() {
             React.createElement('img', { src: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg', width: 22, height: 22, alt: 'Google' }),
             '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0628\u0640 Google'
           )
-        ) : null,
-
-        /* Apple Tab */
-        tab === 'apple' ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' } },
-          React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151', textAlign: 'center' } },
-            '\u0633\u062c\u0651\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0628\u062d\u0633\u0627\u0628 Apple \u0627\u0644\u062d\u0642\u064a\u0642\u064a'
-          ),
-          React.createElement('button', {
-            onClick: handleAppleLogin,
-            style: {
-              width: '100%', padding: 13, borderRadius: 12,
-              border: 'none', background: '#000', color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 10, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit'
-            }
-          }, '\uF8FF Sign in with Apple'),
-          !APPLE_CLIENT_ID ? React.createElement('p', { style: { fontSize: 12, color: '#9ca3af', textAlign: 'center' } },
-            'Apple login requires NEXT_PUBLIC_APPLE_CLIENT_ID in Vercel settings'
-          ) : null
         ) : null,
 
         /* Footer */
