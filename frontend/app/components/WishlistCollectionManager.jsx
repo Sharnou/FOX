@@ -238,18 +238,16 @@ function CollectionCard({ collection, isActive, onClick, colorScheme, t }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-start rounded-2xl border-2 p-4 transition-all duration-200 ${
-        isActive
-          ? `${colorScheme.bg} ${colorScheme.border} shadow-md scale-[1.02]`
-          : "bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm"
-      }`}
+      className={'w-full text-start rounded-2xl border-2 p-4 transition-all duration-200 ' + (isActive
+          ? (colorScheme.bg) + ' ' + (colorScheme.border) + ' shadow-md scale-[1.02]'
+          : "bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm")}
     >
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl ${colorScheme.bg} ${colorScheme.border} border flex items-center justify-center text-xl flex-shrink-0`}>
+        <div className={'w-10 h-10 rounded-xl ' + (colorScheme.bg) + ' ' + (colorScheme.border) + ' border flex items-center justify-center text-xl flex-shrink-0'}>
           {collection.icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className={`font-bold text-sm truncate ${isActive ? colorScheme.text : "text-gray-800"}`}>
+          <p className={'font-bold text-sm truncate ' + (isActive ? colorScheme.text : "text-gray-800")}>
             {collection.name}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -257,7 +255,7 @@ function CollectionCard({ collection, isActive, onClick, colorScheme, t }) {
           </p>
         </div>
         {collection.shared && (
-          <span className={`text-xs px-2 py-0.5 rounded-full ${colorScheme.bg} ${colorScheme.text} font-medium flex-shrink-0`}>
+          <span className={'text-xs px-2 py-0.5 rounded-full ' + (colorScheme.bg) + ' ' + (colorScheme.text) + ' font-medium flex-shrink-0'}>
             🔗
           </span>
         )}
@@ -275,7 +273,7 @@ export default function WishlistCollectionManager({ lang = "ar", userId = "user_
   // State
   const [collections, setCollections] = useState(() => {
     const stored = typeof window !== "undefined"
-      ? localStorage.getItem(`xtox_wishlists_${userId}`)
+      ? localStorage.getItem('xtox_wishlists_' + (userId))
       : null;
     if (stored) return JSON.parse(stored);
     // Default collections
@@ -311,7 +309,7 @@ export default function WishlistCollectionManager({ lang = "ar", userId = "user_
   // Persist to localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem(`xtox_wishlists_${userId}`, JSON.stringify(collections));
+      localStorage.setItem('xtox_wishlists_' + (userId), JSON.stringify(collections));
     }
   }, [collections, userId]);
 
@@ -509,7 +507,7 @@ export default function WishlistCollectionManager({ lang = "ar", userId = "user_
                         t={t}
                       />
                       {/* Quick action buttons */}
-                      <div className={`absolute top-2 end-2 gap-1 hidden group-hover/col:flex`}>
+                      <div className={'absolute top-2 end-2 gap-1 hidden group-hover/col:flex'}>
                         <button
                           onClick={(e) => { e.stopPropagation(); setEditingId(col.id); setEditName(col.name); }}
                           className="w-6 h-6 bg-white border border-gray-200 rounded-full text-xs flex items-center justify-center hover:bg-gray-50 shadow-sm"
@@ -569,9 +567,7 @@ export default function WishlistCollectionManager({ lang = "ar", userId = "user_
             ) : (
               <>
                 {/* Collection header */}
-                <div className={`bg-white rounded-2xl border-2 p-5 mb-4 ${
-                  COLLECTION_COLORS[activeCollection.colorIndex % COLLECTION_COLORS.length].border
-                }`}>
+                <div className={'bg-white rounded-2xl border-2 p-5 mb-4 ' + (COLLECTION_COLORS[activeCollection.colorIndex % COLLECTION_COLORS.length].border)}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="text-3xl">{activeCollection.icon}</span>
@@ -615,11 +611,9 @@ export default function WishlistCollectionManager({ lang = "ar", userId = "user_
                     <div className="flex gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleToggleShared(activeCollection.id)}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                          activeCollection.shared
+                        className={'flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ' + (activeCollection.shared
                             ? "bg-blue-100 border-blue-300 text-blue-700"
-                            : "bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200"
-                        }`}
+                            : "bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200")}
                       >
                         {activeCollection.shared ? "🔗" : "🔒"}
                         {activeCollection.shared ? t.shared : t.private}
