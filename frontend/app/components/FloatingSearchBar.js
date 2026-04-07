@@ -79,6 +79,8 @@ export default function FloatingSearchBar() {
         </span>
 
         <input
+          id="floating-search-input"
+          name="floating-search-query"
           className="xtox-fsb-input"
           type="search"
           value={query}

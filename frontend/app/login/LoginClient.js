@@ -237,6 +237,7 @@ export default function LoginClient() {
             '\u0623\u062f\u062e\u0644 \u0631\u0642\u0645 \u0647\u0627\u062a\u0641\u0643 \u0648\u0633\u064a\u0635\u0644\u0643 \u0631\u0645\u0632 \u062a\u062d\u0642\u0642 \u0639\u0644\u0649 \u0648\u0627\u062a\u0633\u0627\u0628'
           ),
           React.createElement('input', {
+            id: 'login-phone', name: 'login-phone',
             type: 'tel', placeholder: '+201234567890', value: phone,
             onChange: function(e) { setPhone(e.target.value); },
             style: inputStyle, disabled: otpSent

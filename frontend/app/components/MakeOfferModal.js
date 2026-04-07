@@ -73,6 +73,8 @@ export default function MakeOfferModal({ ad, user, onClose }) {
               سعرك المقترح <span style={{ color: '#e44' }}>*</span>
             </label>
             <input
+              id="offer-amount"
+              name="offer-amount"
               type="number"
               min="1"
               placeholder="مثال: 1500"
