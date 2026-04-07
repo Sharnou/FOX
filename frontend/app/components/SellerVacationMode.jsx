@@ -121,7 +121,7 @@ function getDaysLeft(returnDate, lang) {
   const t = LABELS[lang] || LABELS.en;
   if (diff <= 0) return { text: t.expired, expired: true };
   const num = lang === "ar" ? toArabicNumerals(diff) : diff;
-  return { text: `${num} ${t.daysLeft}`, expired: false };
+  return { text: (num) + ' ' + (t.daysLeft), expired: false };
 }
 
 export default function SellerVacationMode({
@@ -135,7 +135,7 @@ export default function SellerVacationMode({
   const dir = isRTL ? "rtl" : "ltr";
   const fontClass = lang === "ar" ? "font-[Cairo,Tajawal,sans-serif]" : "font-sans";
 
-  const storageKey = `xtox_vacation_${sellerId}`;
+  const storageKey = 'xtox_vacation_' + (sellerId);
 
   const [vacationOn, setVacationOn] = useState(false);
   const [returnDate, setReturnDate] = useState("");
@@ -162,7 +162,7 @@ export default function SellerVacationMode({
     setLoaded(true);
 
     if (sellerId && apiBase) {
-      fetchWithRetry(`${apiBase}/api/sellers/${sellerId}/vacation`)
+      fetchWithRetry((apiBase) + '/api/sellers/' + (sellerId) + '/vacation')
         .then((r) => r.ok ? r.json() : null)
         .then((data) => {
           if (data) {
@@ -195,7 +195,7 @@ export default function SellerVacationMode({
     const payload = { vacationOn, returnDate, autoReplyMsg, hideAds, autoReplyOn };
     if (sellerId && apiBase) {
       try {
-        await fetchWithRetry(`${apiBase}/api/sellers/${sellerId}/vacation`, {
+        await fetchWithRetry((apiBase) + '/api/sellers/' + (sellerId) + '/vacation', {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -212,21 +212,19 @@ export default function SellerVacationMode({
   if (!loaded) return null;
 
   return (
-    <div dir={dir} className={`w-full max-w-lg mx-auto ${fontClass}`}>
+    <div dir={dir} className={'w-full max-w-lg mx-auto ' + (fontClass)}>
       {/* Status Banner */}
       <div
-        className={`rounded-2xl p-4 mb-4 flex items-center justify-between transition-all duration-500 ${
-          vacationOn
+        className={'rounded-2xl p-4 mb-4 flex items-center justify-between transition-all duration-500 ' + (vacationOn
             ? "bg-amber-50 border-2 border-amber-300"
-            : "bg-emerald-50 border-2 border-emerald-200"
-        }`}
+            : "bg-emerald-50 border-2 border-emerald-200")}
       >
         <div>
-          <p className={`font-bold text-lg ${vacationOn ? "text-amber-700" : "text-emerald-700"}`}>
+          <p className={'font-bold text-lg ' + (vacationOn ? "text-amber-700" : "text-emerald-700")}>
             {vacationOn ? t.status_active : t.status_inactive}
           </p>
           {vacationOn && daysLeft && (
-            <p className={`text-sm mt-1 ${daysLeft.expired ? "text-red-500" : "text-amber-600"}`}>
+            <p className={'text-sm mt-1 ' + (daysLeft.expired ? "text-red-500" : "text-amber-600")}>
               {daysLeft.text}
             </p>
           )}
@@ -236,18 +234,14 @@ export default function SellerVacationMode({
           onClick={handleToggle}
           aria-label={t.toggle}
           aria-pressed={vacationOn}
-          className={`relative w-14 h-8 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-            vacationOn
+          className={'relative w-14 h-8 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ' + (vacationOn
               ? "bg-amber-400 focus:ring-amber-400"
-              : "bg-gray-300 focus:ring-gray-400"
-          }`}
+              : "bg-gray-300 focus:ring-gray-400")}
         >
           <span
-            className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 ${
-              isRTL
+            className={'absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 ' + (isRTL
                 ? vacationOn ? "translate-x-1" : "-translate-x-6"
-                : vacationOn ? "translate-x-7" : "translate-x-1"
-            }`}
+                : vacationOn ? "translate-x-7" : "translate-x-1")}
           />
         </button>
       </div>
@@ -321,7 +315,7 @@ export default function SellerVacationMode({
               dir={dir}
               className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
-            <div className={`flex justify-between mt-1 text-xs text-gray-400 ${isRTL ? "flex-row-reverse" : ""}`}>
+            <div className={'flex justify-between mt-1 text-xs text-gray-400 ' + (isRTL ? "flex-row-reverse" : "")}>
               <button
                 type="button"
                 onClick={() => setShowPreview(!showPreview)}
@@ -331,8 +325,8 @@ export default function SellerVacationMode({
               </button>
               <span>
                 {lang === "ar"
-                  ? `${toArabicNumerals(autoReplyMsg.length)} / ${toArabicNumerals(maxChars)} ${t.charCount}`
-                  : `${autoReplyMsg.length} / ${maxChars} ${t.charCount}`}
+                  ? (toArabicNumerals(autoReplyMsg.length)) + ' / ' + (toArabicNumerals(maxChars)) + ' ' + (t.charCount)
+                  : (autoReplyMsg.length) + ' / ' + (maxChars) + ' ' + (t.charCount)}
               </span>
             </div>
 
@@ -340,7 +334,7 @@ export default function SellerVacationMode({
             {showPreview && autoReplyMsg && (
               <div
                 dir={dir}
-                className={`mt-3 rounded-2xl bg-amber-50 border border-amber-200 p-4 ${isRTL ? "rounded-tl-sm" : "rounded-tr-sm"}`}
+                className={'mt-3 rounded-2xl bg-amber-50 border border-amber-200 p-4 ' + (isRTL ? "rounded-tl-sm" : "rounded-tr-sm")}
               >
                 <p className="text-xs font-bold text-amber-700 mb-1">{t.previewFrom} · {t.previewTitle}</p>
                 <p className="text-sm text-gray-700 leading-relaxed">{autoReplyMsg}</p>
@@ -352,7 +346,7 @@ export default function SellerVacationMode({
         {/* Tips */}
         <div className="bg-blue-50 rounded-xl p-4">
           <p className="text-sm font-bold text-blue-700 mb-2">💡 {t.tips}</p>
-          <ul className={`space-y-1 ${isRTL ? "pr-4" : "pl-4"} list-disc`}>
+          <ul className={'space-y-1 ' + (isRTL ? "pr-4" : "pl-4") + ' list-disc'}>
             <li className="text-xs text-blue-600">{t.tip1}</li>
             <li className="text-xs text-blue-600">{t.tip2}</li>
             <li className="text-xs text-blue-600">{t.tip3}</li>
@@ -363,11 +357,9 @@ export default function SellerVacationMode({
         <button
           onClick={handleSave}
           disabled={saveState === "saving"}
-          className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-            saveState === "saved"
+          className={'w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ' + (saveState === "saved"
               ? "bg-emerald-500 text-white focus:ring-emerald-400"
-              : "bg-amber-500 hover:bg-amber-600 text-white focus:ring-amber-400"
-          } disabled:opacity-60`}
+              : "bg-amber-500 hover:bg-amber-600 text-white focus:ring-amber-400") + ' disabled:opacity-60'}
         >
           {saveState === "saving" ? t.saving : saveState === "saved" ? t.saved : t.save}
         </button>
