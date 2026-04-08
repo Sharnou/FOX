@@ -23,21 +23,42 @@ export default function ProfilePage() {
   const [myAds, setMyAds] = useState([]);
   const [adsLoading, setAdsLoading] = useState(false);
 
+
   const getToken = () =>
     localStorage.getItem('token') ||
     localStorage.getItem('xtox_token') ||
     localStorage.getItem('xtox_admin_token') ||
     localStorage.getItem('authToken') || '';
 
+  function handleLogout() {
+    try {
+      const keysToRemove = [
+        'token', 'xtox_token', 'xtox_admin_token', 'authToken',
+        'xtoxId', 'xtoxEmail', 'userName', 'userId', 'userAvatar',
+        'user', 'xtox_user', 'xtox_admin_user',
+      ];
+      keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+    } catch {}
+    router.push('/login');
+  }
+
   useEffect(() => {
-    const token = getToken();
+    let token;
+    try { token = getToken(); } catch { router.push('/login'); return; }
     if (!token) { router.push('/login'); return; }
 
     fetch(API + '/api/users/me', {
       headers: { Authorization: 'Bearer ' + token }
     })
       .then(async r => {
-        if (r.status === 401) { router.push('/login'); return null; }
+        if (r.status === 401 || r.status === 403) {
+          // Token invalid or expired — clear it and redirect
+          try {
+            ['token','xtox_token','xtox_admin_token','authToken','user'].forEach(k => localStorage.removeItem(k));
+          } catch {}
+          router.push('/login');
+          return null;
+        }
         return r.json();
       })
       .then(data => {
@@ -215,6 +236,11 @@ export default function ProfilePage() {
                 ➕ إعلان جديد
               </Link>
             </div>
+            <button
+              onClick={handleLogout}
+              style={{ width: '100%', marginTop: 12, padding: 12, background: '#fff0f0', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 'bold', fontFamily: 'inherit' }}>
+              🚪 تسجيل الخروج
+            </button>
           </>
         ) : (
           <>

@@ -19,10 +19,14 @@ export default function MyAdsPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const t = localStorage.getItem('token');
-    if (!t) { window.location.href = '/login'; return; }
-    setToken(t);
-    fetchMyAds(t);
+    try {
+      const t = localStorage.getItem('token');
+      if (!t) { window.location.href = '/login'; return; }
+      setToken(t);
+      fetchMyAds(t);
+    } catch {
+      window.location.href = '/login';
+    }
   }, []);
 
   // Reset selection when switching tabs
