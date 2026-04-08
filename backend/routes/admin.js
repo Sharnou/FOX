@@ -338,4 +338,17 @@ router.post('/users/:id/role', adminAuth, async (req, res) => {
   }
 });
 
+// DELETE ALL ADS — admin only (bulk cleanup)
+router.delete('/ads/all', adminAuth, async (req, res) => {
+  try {
+    const AdModel = getAdModel();
+    const result = await AdModel.deleteMany({});
+    // MongoDB returns { deletedCount }, MemAd returns { deletedCount }, Couchbase same
+    const deleted = (result && typeof result.deletedCount === 'number') ? result.deletedCount : 0;
+    res.json({ success: true, deleted, message: `Deleted ${deleted} ads` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
