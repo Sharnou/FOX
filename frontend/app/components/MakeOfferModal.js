@@ -69,7 +69,7 @@ export default function MakeOfferModal({ ad, user, onClose }) {
               </span>
             </p>
 
-            <label style={{ display: 'block', fontSize: 13, fontWeight: '500', color: '#444', marginBottom: 4 }}>
+            <label htmlFor="offer-amount" style={{ display: 'block', fontSize: 13, fontWeight: '500', color: '#444', marginBottom: 4 }}>
               سعرك المقترح <span style={{ color: '#e44' }}>*</span>
             </label>
             <input
@@ -83,10 +83,12 @@ export default function MakeOfferModal({ ad, user, onClose }) {
               onChange={(e) => setAmount(e.target.value)}
             />
 
-            <label style={{ display: 'block', fontSize: 13, fontWeight: '500', color: '#444', marginBottom: 4 }}>
+            <label htmlFor="offer-message" style={{ display: 'block', fontSize: 13, fontWeight: '500', color: '#444', marginBottom: 4 }}>
               رسالة للبائع (اختياري)
             </label>
             <textarea
+              id="offer-message"
+              name="offer-message"
               placeholder="اكتب ملاحظة للبائع..."
               style={{ width: '100%', border: '1px solid #ddd', borderRadius: 12, padding: '12px', marginBottom: 16, textAlign: 'right', fontSize: 13, boxSizing: 'border-box', resize: 'none', outline: 'none', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}
               rows={3}
