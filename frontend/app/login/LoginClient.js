@@ -92,7 +92,8 @@ export default function LoginClient() {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleCredential,
-          auto_select: false
+          auto_select: false,
+          use_fedcm_for_prompt: true
         });
       }
     };
