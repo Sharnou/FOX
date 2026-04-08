@@ -14,6 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
 const META_TOKEN = process.env.WHATSAPP_API_TOKEN || '';
 const META_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
 const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
 // -- Helpers -----------------------------------------------------------------
 
@@ -240,8 +241,20 @@ router.post('/google', async (req, res) => {
     var parts = credential.split('.');
     if (parts.length !== 3) return res.status(400).json({ error: 'Invalid credential format' });
 
-    var payloadStr = Buffer.from(parts[1], 'base64url').toString('utf-8');
-    var payload = JSON.parse(payloadStr);
+    var payloadStr;
+    var payload;
+    try {
+      payloadStr = Buffer.from(parts[1], 'base64url').toString('utf-8');
+      payload = JSON.parse(payloadStr);
+    } catch (parseErr) {
+      return res.status(400).json({ error: 'Invalid Google token format' });
+    }
+    if (!payload || typeof payload !== 'object') {
+      return res.status(400).json({ error: 'Invalid Google token' });
+    }
+    if (!GOOGLE_CLIENT_ID) {
+      console.warn('[Google auth] GOOGLE_CLIENT_ID env var not set — skipping audience check');
+    }
 
     var googleId = payload.sub;
     var email = payload.email;
@@ -258,6 +271,9 @@ router.post('/google', async (req, res) => {
       var verifyData = await verifyRes.json();
       if (verifyData.error || verifyData.sub !== googleId) {
         return res.status(401).json({ error: 'Google token verification failed' });
+      }
+      if (GOOGLE_CLIENT_ID && verifyData.aud !== GOOGLE_CLIENT_ID) {
+        return res.status(401).json({ error: 'Google token audience mismatch' });
       }
     } catch (ve) {
       console.warn('[Google auth] Token verify warning:', ve.message);
