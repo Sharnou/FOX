@@ -157,15 +157,21 @@ export default function LoginClient() {
       setError('Google SDK not loaded. Try refreshing.');
       return;
     }
-    window.google.accounts.id.prompt(function(notification) {
-      if (notification.isNotDisplayed()) {
-        var btn = document.getElementById('google-signin-btn');
-        if (btn) {
-          window.google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', width: '100%' });
-        }
-      }
-    });
+    // FedCM compatible: no moment-type callbacks (isDisplayMoment/isSkippedMoment/isNotDisplayed
+    // are deprecated when use_fedcm_for_prompt: true is set)
+    window.google.accounts.id.prompt();
   }
+
+  // Render Google button when Google tab becomes active
+  useEffect(function() {
+    if (tab !== 'google') return;
+    if (typeof window === 'undefined') return;
+    if (!window.google || !window.google.accounts) return;
+    var btn = document.getElementById('google-signin-btn');
+    if (btn) {
+      window.google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', width: '100%' });
+    }
+  }, [tab]);
 
   async function handleGoogleCredential(response) {
     setError('');

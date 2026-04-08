@@ -233,70 +233,104 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
 // -- Google Sign-In ----------------------------------------------------------
 // POST /api/auth/google
 // Body: { credential: '<Google ID token>' }
+// NEVER returns 500: 400 for bad input, 401 for invalid token, 403 for blocked,
+// 503 for DB/external failures.
 router.post('/google', async (req, res) => {
+  // ── 1. Validate credential format (no DB needed) ──────────────────────────
+  var credential = req.body.credential || req.body.token || '';
+  if (!credential) return res.status(400).json({ error: 'No Google credential provided' });
+
+  var parts = credential.split('.');
+  if (parts.length !== 3) return res.status(400).json({ error: 'Invalid credential format' });
+
+  var payload;
   try {
-    var credential = req.body.credential || req.body.token || '';
-    if (!credential) return res.status(400).json({ error: 'No Google credential' });
+    var payloadStr = Buffer.from(parts[1], 'base64url').toString('utf-8');
+    payload = JSON.parse(payloadStr);
+  } catch (_) {
+    return res.status(400).json({ error: 'Invalid Google token format' });
+  }
+  if (!payload || typeof payload !== 'object') {
+    return res.status(400).json({ error: 'Invalid Google token' });
+  }
 
-    var parts = credential.split('.');
-    if (parts.length !== 3) return res.status(400).json({ error: 'Invalid credential format' });
+  var googleId = payload.sub || '';
+  var email = payload.email || '';
+  var name = payload.name || payload.given_name || '';
+  var avatar = payload.picture || '';
+  var emailVerified = payload.email_verified;
 
-    var payloadStr;
-    var payload;
-    try {
-      payloadStr = Buffer.from(parts[1], 'base64url').toString('utf-8');
-      payload = JSON.parse(payloadStr);
-    } catch (parseErr) {
-      return res.status(400).json({ error: 'Invalid Google token format' });
+  if (!googleId) return res.status(400).json({ error: 'Google token missing sub claim' });
+  if (!emailVerified) return res.status(400).json({ error: 'Google email not verified' });
+
+  if (!GOOGLE_CLIENT_ID) {
+    console.warn('[Google auth] GOOGLE_CLIENT_ID env var not set — skipping audience check');
+  }
+
+  // ── 2. Verify token with Google tokeninfo (optional, soft-fail) ───────────
+  try {
+    var verifyRes = await fetch(
+      'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential),
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (!verifyRes.ok) {
+      console.warn('[Google auth] tokeninfo returned HTTP', verifyRes.status);
+      return res.status(401).json({ error: 'Google token verification failed' });
     }
-    if (!payload || typeof payload !== 'object') {
-      return res.status(400).json({ error: 'Invalid Google token' });
+    var verifyData = await verifyRes.json();
+    if (verifyData.error_description || verifyData.error) {
+      return res.status(401).json({ error: 'Google token rejected: ' + (verifyData.error_description || verifyData.error) });
     }
-    if (!GOOGLE_CLIENT_ID) {
-      console.warn('[Google auth] GOOGLE_CLIENT_ID env var not set — skipping audience check');
+    if (verifyData.sub !== googleId) {
+      return res.status(401).json({ error: 'Google token sub mismatch' });
     }
-
-    var googleId = payload.sub;
-    var email = payload.email;
-    var name = payload.name || payload.given_name || '';
-    var avatar = payload.picture || '';
-    var emailVerified = payload.email_verified;
-
-    if (!googleId) return res.status(400).json({ error: 'Invalid Google token' });
-    if (!emailVerified) return res.status(400).json({ error: 'Google email not verified' });
-
-    // Verify token with Google
-    try {
-      var verifyRes = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + credential);
-      var verifyData = await verifyRes.json();
-      if (verifyData.error || verifyData.sub !== googleId) {
-        return res.status(401).json({ error: 'Google token verification failed' });
-      }
-      if (GOOGLE_CLIENT_ID && verifyData.aud !== GOOGLE_CLIENT_ID) {
-        return res.status(401).json({ error: 'Google token audience mismatch' });
-      }
-    } catch (ve) {
-      console.warn('[Google auth] Token verify warning:', ve.message);
+    if (GOOGLE_CLIENT_ID && verifyData.aud !== GOOGLE_CLIENT_ID) {
+      return res.status(401).json({ error: 'Google token audience mismatch' });
     }
+  } catch (ve) {
+    if (ve.name === 'TimeoutError' || ve.name === 'AbortError') {
+      console.warn('[Google auth] tokeninfo timeout — proceeding with local payload');
+    } else {
+      console.warn('[Google auth] tokeninfo error:', ve.message, '— proceeding with local payload');
+    }
+    // On network failure: soft-fail so users are not blocked by Google outage
+  }
 
-    var User = await getUserModel();
+  // ── 3. Load User model ────────────────────────────────────────────────────
+  var User;
+  try {
+    User = await getUserModel();
+  } catch (modelErr) {
+    console.error('[Google auth] getUserModel failed:', modelErr.message);
+    return res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
+  }
 
+  // ── 4. Check blocked ──────────────────────────────────────────────────────
+  try {
     var blockedCheck = await checkBlocked(User, { googleId });
     if (blockedCheck) {
       return res.status(403).json({ error: 'This Google account has been permanently suspended from XTOX.' });
     }
+  } catch (blockErr) {
+    console.warn('[Google auth] Block check failed (skipping):', blockErr.message);
+  }
 
-    var user = await User.findOne({ $or: [{ googleId }, { email }] });
-    var isNew = false;
+  // ── 5. Find or create user ────────────────────────────────────────────────
+  var user;
+  var isNew = false;
+  try {
+    var query = [{ googleId }];
+    if (email) query.push({ email });
+    user = await User.findOne({ $or: query });
 
     if (!user) {
       isNew = true;
       var xtoxId = await generateXtoxId();
-      var baseName = name.split(' ')[0].toLowerCase().replace(/[^a-z]/g, '') || 'user';
+      var baseName = (name.split(' ')[0] || 'user').toLowerCase().replace(/[^a-z]/g, '') || 'user';
       var xtoxEmail = await assignUniqueXtoxEmail(User, baseName);
       user = await User.create({
         googleId,
-        email,
+        email: email || undefined,
         name,
         avatar,
         authProvider: 'google',
@@ -310,36 +344,48 @@ router.post('/google', async (req, res) => {
       if (!user.googleId) upd.googleId = googleId;
       if (!user.xtoxId) {
         upd.xtoxId = await generateXtoxId();
-        var bn = (user.name || name || 'user').split(' ')[0].toLowerCase().replace(/[^a-z]/g, '') || 'user';
+        var bn = ((user.name || name || 'user').split(' ')[0] || 'user').toLowerCase().replace(/[^a-z]/g, '') || 'user';
         upd.xtoxEmail = await assignUniqueXtoxEmail(User, bn);
       }
       if (avatar && !user.avatar) upd.avatar = avatar;
       user = await User.findByIdAndUpdate(user._id, upd, { new: true });
     }
-
-    if (user.blocked) {
-      return res.status(403).json({ error: 'This account has been permanently suspended.' });
+  } catch (dbErr) {
+    console.error('[Google auth] DB operation failed:', dbErr.message, dbErr.code || '');
+    // Duplicate key: another request just created the same user — retry findOne
+    if (dbErr.code === 11000) {
+      try {
+        user = await User.findOne({ $or: [{ googleId }, { email }] });
+      } catch (_) {}
     }
-
-    var token = issueToken(user);
-    res.json({
-      success: true,
-      token,
-      isNew,
-      user: {
-        id: user._id,
-        xtoxId: user.xtoxId,
-        xtoxEmail: user.xtoxEmail,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        authProvider: 'google'
-      }
-    });
-  } catch (e) {
-    console.error('[google auth]', e);
-    res.status(500).json({ error: 'Google authentication failed' });
+    if (!user) {
+      return res.status(503).json({ error: 'Database temporarily unavailable. Please try again.' });
+    }
   }
+
+  // ── 6. Final block check & respond ───────────────────────────────────────
+  if (!user) {
+    return res.status(503).json({ error: 'Could not retrieve user record. Please try again.' });
+  }
+  if (user.blocked) {
+    return res.status(403).json({ error: 'This account has been permanently suspended.' });
+  }
+
+  var token = issueToken(user);
+  return res.json({
+    success: true,
+    token,
+    isNew,
+    user: {
+      id: user._id,
+      xtoxId: user.xtoxId,
+      xtoxEmail: user.xtoxEmail,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      authProvider: 'google'
+    }
+  });
 });
 
 // -- Apple Sign In -----------------------------------------------------------
