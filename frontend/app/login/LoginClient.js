@@ -50,6 +50,29 @@ export default function LoginClient() {
   var countdown = countdownState[0];
   var setCountdown = countdownState[1];
 
+  /* ── Auto-redirect & URL token handling ─────────────────────── */
+  useEffect(function() {
+    if (typeof window === 'undefined') return;
+    try {
+      // If a token arrives via URL (Google OAuth callback redirect), store it
+      var params = new URLSearchParams(window.location.search);
+      var urlToken = params.get('token');
+      if (urlToken) {
+        localStorage.setItem('token', urlToken);
+        window.location.href = '/';
+        return;
+      }
+      // If user is already logged in, redirect to home
+      var existingToken = localStorage.getItem('token');
+      if (existingToken) {
+        window.location.href = '/';
+        return;
+      }
+    } catch (e) {
+      // localStorage might be unavailable (private mode, etc.)
+    }
+  }, []);
+
   /* OTP resend countdown */
   useEffect(function() {
     if (countdown <= 0) return;

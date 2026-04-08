@@ -63,9 +63,13 @@ export default function NotificationsPage() {
 
   /* ── auth token (client-only) ── */
   useEffect(() => {
-    const t = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
-    if (!t) { window.location.href = '/login'; return; }
-    setToken(t);
+    try {
+      const t = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+      if (!t) { window.location.href = '/login'; return; }
+      setToken(t);
+    } catch {
+      window.location.href = '/login';
+    }
   }, []);
 
   /* ── request browser notification permission ── */

@@ -182,7 +182,8 @@ export default function SellPage() {
     // Auto-detect currency based on user's country
     const currency = detectCurrency();
     setForm(f => ({ ...f, currency: currency.code }));
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    let user = {};
+    try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch {}
     if (user.phone) setForm(f => ({ ...f, phone: user.phone }));
     const lastPhone = localStorage.getItem('last_used_phone');
     if (lastPhone) setForm(f => ({ ...f, phone: f.phone || lastPhone }));

@@ -1,20 +1,31 @@
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
-
-const navItems = [
-  { icon: '🏠', label: 'الرئيسية', href: '/' },
-  { icon: '🔍', label: 'بحث', href: '/search' },
-  { icon: '➕', label: 'بيع', href: '/sell', highlight: true },
-  { icon: '❤️', label: 'المفضلة', href: '/wishlist' },
-  { icon: '👤', label: 'حسابي', href: '/login' },
-];
+import { useEffect, useState } from 'react';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Detect login state on client only
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('token');
+      setIsLoggedIn(!!token);
+    } catch {}
+  }, [pathname]); // re-check on every route change
 
   // Don't show on admin page
   if (pathname?.startsWith('/admin')) return null;
+
+  const navItems = [
+    { icon: '🏠', label: 'الرئيسية', href: '/' },
+    { icon: '🔍', label: 'بحث', href: '/search' },
+    { icon: '➕', label: 'بيع', href: '/sell', highlight: true },
+    { icon: '❤️', label: 'المفضلة', href: '/wishlist' },
+    // Navigate to /profile if logged in, otherwise /login
+    { icon: '👤', label: 'حسابي', href: isLoggedIn ? '/profile' : '/login' },
+  ];
 
   return (
     <>
@@ -40,7 +51,7 @@ export default function BottomNav() {
       }}>
         {navItems.map(item => {
           const isActive = pathname === item.href || 
-            (item.href !== '/' && pathname?.startsWith(item.href));
+            (item.href !== '/' && item.href !== '/login' && pathname?.startsWith(item.href));
           
           if (item.highlight) return (
             <button key={item.href} onClick={() => router.push(item.href)}
@@ -66,7 +77,7 @@ export default function BottomNav() {
           );
 
           return (
-            <button key={item.href} onClick={() => router.push(item.href)}
+            <button key={item.label} onClick={() => router.push(item.href)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',

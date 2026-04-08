@@ -98,19 +98,23 @@ export default function OffersPage() {
   const isRTL = lang === 'ar';
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    if (!storedToken) { router.push('/login'); return; }
-    setToken(storedToken);
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        setUserId(parsed._id || parsed.id);
-      } catch {}
+    try {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      if (!storedToken) { router.push('/login'); return; }
+      setToken(storedToken);
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          setUserId(parsed._id || parsed.id);
+        } catch {}
+      }
+      const country = localStorage.getItem('country') || '';
+      const arabicCountries = ['EG','SA','AE','KW','BH','QA','OM','JO','LB','SY','IQ','YE','LY','TN','DZ','MA'];
+      setLang(arabicCountries.includes(country) ? 'ar' : 'en');
+    } catch {
+      router.push('/login');
     }
-    const country = localStorage.getItem('country') || '';
-    const arabicCountries = ['EG','SA','AE','KW','BH','QA','OM','JO','LB','SY','IQ','YE','LY','TN','DZ','MA'];
-    setLang(arabicCountries.includes(country) ? 'ar' : 'en');
   }, [router]);
 
   const fetchOffers = useCallback(async () => {
