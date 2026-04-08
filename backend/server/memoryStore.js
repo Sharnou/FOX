@@ -199,8 +199,11 @@ export const MemAd = {
       _docs: docs,
       sort(s) {
         if (s && typeof s === 'object') {
-          const [f, d] = Object.entries(s)[0];
-          this._docs.sort((a, b) => d === -1 ? (b[f] > a[f] ? 1 : -1) : (a[f] > b[f] ? 1 : -1));
+          const entries = Object.entries(s);
+          if (entries.length > 0) {
+            const [f, d] = entries[0];
+            this._docs.sort((a, b) => d === -1 ? (b[f] > a[f] ? 1 : -1) : (a[f] > b[f] ? 1 : -1));
+          }
         }
         return this;
       },
@@ -226,8 +229,11 @@ export const MemAd = {
       _docs: docs,
       sort(s) {
         if (s && typeof s === 'object') {
-          const [f, d] = Object.entries(s)[0];
-          this._docs.sort((a, b) => d === -1 ? (b[f] > a[f] ? 1 : -1) : (a[f] > b[f] ? 1 : -1));
+          const entries = Object.entries(s);
+          if (entries.length > 0) {
+            const [f, d] = entries[0];
+            this._docs.sort((a, b) => d === -1 ? (b[f] > a[f] ? 1 : -1) : (a[f] > b[f] ? 1 : -1));
+          }
         }
         return this;
       },
@@ -276,9 +282,13 @@ export const MemAd = {
     const id = newId();
     const doc = {
       ...data, _id: id, id,
-      isDeleted: { $ne: true }, isExpired: { $ne: true }, isFeatured: false,
-      visibilityScore: 10, views: 0,
-      createdAt: now(), updatedAt: now(),
+      // FIX: Use actual boolean false (not query operators) so filters work correctly
+      isDeleted: data.isDeleted !== undefined ? data.isDeleted : false,
+      isExpired: data.isExpired !== undefined ? data.isExpired : false,
+      isFeatured: data.isFeatured || false,
+      visibilityScore: data.visibilityScore !== undefined ? data.visibilityScore : 10,
+      views: data.views || 0,
+      createdAt: data.createdAt || now(), updatedAt: now(),
     };
     store.ads.set(id, doc);
     return makeAdDoc(doc);
