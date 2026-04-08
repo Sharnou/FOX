@@ -22,12 +22,12 @@ const nextConfig = {
             // 'unsafe-inline' is needed for Next.js inline scripts and style-in-JS.
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://www.googletagmanager.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' data: https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https:",
-              "connect-src 'self' https: wss:",
-              "media-src 'self' blob: data:",
+              "font-src 'self' https://fonts.gstatic.com data:",
+              "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com",
+              "connect-src 'self' https://xtox-production.up.railway.app wss://xtox-production.up.railway.app",
+              "media-src 'self' blob: https://res.cloudinary.com",
               "worker-src 'self' blob:",
               "frame-ancestors 'self'",
             ].join('; '),
