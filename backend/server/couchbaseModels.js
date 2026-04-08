@@ -13,12 +13,24 @@ const userKey  = id => `user::${id}`;
 const chatKey  = id => `chat::${id}`;
 const reportKey = id => `report::${id}`;
 
+// ── Safe collection getter with null guard ───────────────────────────────────
+function getCol() {
+  const col = getCouchbaseCollection();
+  if (!col) throw new Error('Couchbase collection not available');
+  return col;
+}
+
 // ── N1QL helper ──────────────────────────────────────────────────────────────
 async function n1ql(sql, params = {}) {
   const cluster = getCouchbaseCluster();
   if (!cluster) throw new Error('Couchbase cluster not available');
-  const result = await cluster.query(sql, { namedParameters: params });
-  return result.rows;
+  try {
+    const result = await cluster.query(sql, { namedParameters: params });
+    return result.rows;
+  } catch (err) {
+    console.error('[Couchbase] n1ql query error:', err.message);
+    throw err;
+  }
 }
 
 // ── Simple filter matcher (mirrors MemStore match) ────────────────────────────
@@ -51,6 +63,7 @@ function match(doc, filter = {}) {
 // ── KV fetch all docs of a given type ────────────────────────────────────────
 async function fetchAllByType(type) {
   const rows = await n1ql(
+    // N1QL identifiers must use backticks — escaped here as \` inside the template literal
     `SELECT META().id as _cbid, \`${BUCKET}\`.* FROM \`${BUCKET}\` WHERE type = $type`,
     { type }
   ).catch(() => []);
@@ -149,39 +162,62 @@ export const CouchbaseAd = {
 
   async findById(id) {
     try {
-      const col = getCouchbaseCollection();
+      const col = getCol();
       const result = await col.get(adKey(id));
       const d = { _id: id, ...result.content };
       const doc = makeChainable(d);
       doc.save = async function () {
         const { save, lean, toObject, select, populate, constructor: _, ...data } = this;
-        await getCouchbaseCollection().replace(adKey(id), { ...data, type: 'ad' });
+        try {
+          await getCol().replace(adKey(id), { ...data, type: 'ad' });
+        } catch (err) {
+          console.error('[Couchbase] ad.save() error:', err.message);
+          throw err;
+        }
         return this;
       };
       doc.constructor = { updateOne: (...a) => CouchbaseAd.updateOne(...a) };
       return doc;
-    } catch { return null; }
+    } catch (err) {
+      if (!err.message.includes('collection not available')) {
+        // Document not found is expected; log other errors
+        if (!err.constructor?.name?.includes('DocumentNotFound') && err.code !== 101) {
+          console.error('[Couchbase] findById(ad) error:', err.message);
+        }
+      }
+      return null;
+    }
   },
 
   async findByIdAndDelete(id) {
-    const existing = await this.findById(id);
-    if (!existing) return null;
-    await getCouchbaseCollection().remove(adKey(id));
-    return existing;
+    try {
+      const existing = await this.findById(id);
+      if (!existing) return null;
+      await getCol().remove(adKey(id));
+      return existing;
+    } catch (err) {
+      console.error('[Couchbase] findByIdAndDelete(ad) error:', err.message);
+      return null;
+    }
   },
 
   async findByIdAndUpdate(id, update, opts = {}) {
-    const existing = await this.findById(id);
-    if (!existing) return null;
-    const set = update.$set || {};
-    const inc = update.$inc || {};
-    const updated = { ...existing.toObject(), ...set };
-    Object.entries(inc).forEach(([k, v]) => { updated[k] = (updated[k] || 0) + v; });
-    if (!update.$set && !update.$inc) Object.assign(updated, update);
-    updated.type = 'ad';
-    updated.updatedAt = new Date();
-    await getCouchbaseCollection().replace(adKey(id), updated);
-    return opts.new ? makeChainable(updated) : existing;
+    try {
+      const existing = await this.findById(id);
+      if (!existing) return null;
+      const set = update.$set || {};
+      const inc = update.$inc || {};
+      const updated = { ...existing.toObject(), ...set };
+      Object.entries(inc).forEach(([k, v]) => { updated[k] = (updated[k] || 0) + v; });
+      if (!update.$set && !update.$inc) Object.assign(updated, update);
+      updated.type = 'ad';
+      updated.updatedAt = new Date();
+      await getCol().replace(adKey(id), updated);
+      return opts.new ? makeChainable(updated) : existing;
+    } catch (err) {
+      console.error('[Couchbase] findByIdAndUpdate(ad) error:', err.message);
+      return null;
+    }
   },
 
   async countDocuments(filter = {}) {
@@ -190,61 +226,88 @@ export const CouchbaseAd = {
   },
 
   async create(data) {
-    const col = getCouchbaseCollection();
-    const id = randomUUID().replace(/-/g, '').slice(0, 24);
-    const doc = {
-      ...data,
-      _id: id,
-      type: 'ad',
-      isDeleted: { $ne: true },
-      isExpired: { $ne: true },
-      isFeatured: false,
-      visibilityScore: data.visibilityScore ?? 10,
-      views: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    await col.insert(adKey(id), doc);
-    const result = makeChainable(doc);
-    result.save = async function () {
-      const { save, lean, toObject, select, populate, constructor: _, ...d } = this;
-      await getCouchbaseCollection().replace(adKey(id), { ...d, type: 'ad' });
-      return this;
-    };
-    result.constructor = { updateOne: (...a) => CouchbaseAd.updateOne(...a) };
-    return result;
+    try {
+      const col = getCol();
+      const id = randomUUID().replace(/-/g, '').slice(0, 24);
+      const doc = {
+        ...data,
+        _id: id,
+        type: 'ad',
+        isDeleted: false,
+        isExpired: false,
+        isFeatured: false,
+        visibilityScore: data.visibilityScore ?? 10,
+        views: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      await col.insert(adKey(id), doc);
+      const result = makeChainable(doc);
+      result.save = async function () {
+        const { save, lean, toObject, select, populate, constructor: _, ...d } = this;
+        try {
+          await getCol().replace(adKey(id), { ...d, type: 'ad' });
+        } catch (err) {
+          console.error('[Couchbase] ad.save() error:', err.message);
+          throw err;
+        }
+        return this;
+      };
+      result.constructor = { updateOne: (...a) => CouchbaseAd.updateOne(...a) };
+      return result;
+    } catch (err) {
+      console.error('[Couchbase] create(ad) error:', err.message);
+      throw err;
+    }
   },
 
   async updateMany(filter, update) {
-    const all = await fetchAllByType('ad');
-    const matching = all.filter(d => match(d, filter));
-    const set = update.$set || {};
-    const col = getCouchbaseCollection();
-    await Promise.all(matching.map(doc => {
-      const updated = { ...doc, ...set, type: 'ad', updatedAt: new Date() };
-      return col.replace(adKey(doc._id), updated);
-    }));
-    return { modifiedCount: matching.length };
+    try {
+      const all = await fetchAllByType('ad');
+      const matching = all.filter(d => match(d, filter));
+      const set = update.$set || {};
+      const col = getCol();
+      await Promise.all(matching.map(doc => {
+        const updated = { ...doc, ...set, type: 'ad', updatedAt: new Date() };
+        return col.replace(adKey(doc._id), updated).catch(err => {
+          console.error('[Couchbase] updateMany(ad) replace error:', err.message);
+        });
+      }));
+      return { modifiedCount: matching.length };
+    } catch (err) {
+      console.error('[Couchbase] updateMany(ad) error:', err.message);
+      return { modifiedCount: 0 };
+    }
   },
 
   async updateOne(filter, update) {
-    const all = await fetchAllByType('ad');
-    const doc = all.find(d => match(d, filter));
-    if (!doc) return { modifiedCount: 0 };
-    const set = update.$set || {};
-    const inc = update.$inc || {};
-    const updated = { ...doc, ...set, type: 'ad', updatedAt: new Date() };
-    Object.entries(inc).forEach(([k, v]) => { updated[k] = (updated[k] || 0) + v; });
-    await getCouchbaseCollection().replace(adKey(doc._id), updated);
-    return { modifiedCount: 1 };
+    try {
+      const all = await fetchAllByType('ad');
+      const doc = all.find(d => match(d, filter));
+      if (!doc) return { modifiedCount: 0 };
+      const set = update.$set || {};
+      const inc = update.$inc || {};
+      const updated = { ...doc, ...set, type: 'ad', updatedAt: new Date() };
+      Object.entries(inc).forEach(([k, v]) => { updated[k] = (updated[k] || 0) + v; });
+      await getCol().replace(adKey(doc._id), updated);
+      return { modifiedCount: 1 };
+    } catch (err) {
+      console.error('[Couchbase] updateOne(ad) error:', err.message);
+      return { modifiedCount: 0 };
+    }
   },
 
   async deleteMany(filter) {
-    const all  = await fetchAllByType('ad');
-    const hits = all.filter(d => match(d, filter));
-    const col  = getCouchbaseCollection();
-    await Promise.all(hits.map(d => col.remove(adKey(d._id)).catch(() => {})));
-    return { deletedCount: hits.length };
+    try {
+      const all  = await fetchAllByType('ad');
+      const hits = all.filter(d => match(d, filter));
+      const col  = getCol();
+      await Promise.all(hits.map(d => col.remove(adKey(d._id)).catch(() => {})));
+      return { deletedCount: hits.length };
+    } catch (err) {
+      console.error('[Couchbase] deleteMany(ad) error:', err.message);
+      return { deletedCount: 0 };
+    }
   },
 };
 
@@ -268,17 +331,29 @@ export const CouchbaseUser = {
 
   async findById(id) {
     try {
-      const col = getCouchbaseCollection();
+      const col = getCol();
       const result = await col.get(userKey(id));
       const d = { _id: id, ...result.content };
       const doc = makeChainable(d);
       doc.save = async function () {
         const { save, lean, toObject, select, populate, constructor: _, ...data } = this;
-        await getCouchbaseCollection().replace(userKey(id), { ...data, type: 'user' });
+        try {
+          await getCol().replace(userKey(id), { ...data, type: 'user' });
+        } catch (err) {
+          console.error('[Couchbase] user.save() error:', err.message);
+          throw err;
+        }
         return this;
       };
       return doc;
-    } catch { return null; }
+    } catch (err) {
+      if (!err.message.includes('collection not available')) {
+        if (!err.constructor?.name?.includes('DocumentNotFound') && err.code !== 101) {
+          console.error('[Couchbase] findById(user) error:', err.message);
+        }
+      }
+      return null;
+    }
   },
 
   async find(filter = {}) {
@@ -292,53 +367,78 @@ export const CouchbaseUser = {
   },
 
   async create(data) {
-    const col = getCouchbaseCollection();
-    const id = randomUUID().replace(/-/g, '').slice(0, 24);
-    const doc = { ...data, _id: id, type: 'user', createdAt: new Date(), updatedAt: new Date() };
-    await col.insert(userKey(id), doc);
-    const result = makeChainable(doc);
-    result.save = async function () {
-      const { save, lean, toObject, select, populate, constructor: _, ...d } = this;
-      await getCouchbaseCollection().replace(userKey(id), { ...d, type: 'user' });
-      return this;
-    };
-    return result;
+    try {
+      const col = getCol();
+      const id = randomUUID().replace(/-/g, '').slice(0, 24);
+      const doc = { ...data, _id: id, type: 'user', createdAt: new Date(), updatedAt: new Date() };
+      await col.insert(userKey(id), doc);
+      const result = makeChainable(doc);
+      result.save = async function () {
+        const { save, lean, toObject, select, populate, constructor: _, ...d } = this;
+        try {
+          await getCol().replace(userKey(id), { ...d, type: 'user' });
+        } catch (err) {
+          console.error('[Couchbase] user.save() error:', err.message);
+          throw err;
+        }
+        return this;
+      };
+      return result;
+    } catch (err) {
+      console.error('[Couchbase] create(user) error:', err.message);
+      throw err;
+    }
   },
 
   async findByIdAndUpdate(id, update, opts = {}) {
-    const existing = await this.findById(id);
-    if (!existing) return null;
-    const set = update.$set || {};
-    const updated = { ...existing.toObject(), ...set, type: 'user', updatedAt: new Date() };
-    await getCouchbaseCollection().replace(userKey(id), updated);
-    return opts.new ? makeChainable(updated) : existing;
+    try {
+      const existing = await this.findById(id);
+      if (!existing) return null;
+      const set = update.$set || {};
+      const updated = { ...existing.toObject(), ...set, type: 'user', updatedAt: new Date() };
+      await getCol().replace(userKey(id), updated);
+      return opts.new ? makeChainable(updated) : existing;
+    } catch (err) {
+      console.error('[Couchbase] findByIdAndUpdate(user) error:', err.message);
+      return null;
+    }
   },
 
   async findOneAndUpdate(filter, update, opts = {}) {
-    const all = await fetchAllByType('user');
-    const doc = all.find(d => match(d, filter));
-    const col = getCouchbaseCollection();
-    if (!doc) {
-      if (opts.upsert) {
-        const id  = randomUUID().replace(/-/g, '').slice(0, 24);
-        const set = update.$set || update;
-        const newDoc = { ...set, _id: id, type: 'user', createdAt: new Date(), updatedAt: new Date() };
-        await col.insert(userKey(id), newDoc);
-        return opts.new ? makeChainable(newDoc) : null;
+    try {
+      const all = await fetchAllByType('user');
+      const doc = all.find(d => match(d, filter));
+      const col = getCol();
+      if (!doc) {
+        if (opts.upsert) {
+          const id  = randomUUID().replace(/-/g, '').slice(0, 24);
+          const set = update.$set || update;
+          const newDoc = { ...set, _id: id, type: 'user', createdAt: new Date(), updatedAt: new Date() };
+          await col.insert(userKey(id), newDoc);
+          return opts.new ? makeChainable(newDoc) : null;
+        }
+        return null;
       }
+      const set     = update.$set || {};
+      const updated = { ...doc, ...set, type: 'user', updatedAt: new Date() };
+      await col.replace(userKey(doc._id), updated);
+      return opts.new ? makeChainable(updated) : makeChainable(doc);
+    } catch (err) {
+      console.error('[Couchbase] findOneAndUpdate(user) error:', err.message);
       return null;
     }
-    const set     = update.$set || {};
-    const updated = { ...doc, ...set, type: 'user', updatedAt: new Date() };
-    await col.replace(userKey(doc._id), updated);
-    return opts.new ? makeChainable(updated) : makeChainable(doc);
   },
 
   async findByIdAndDelete(id) {
-    const existing = await this.findById(id);
-    if (!existing) return null;
-    await getCouchbaseCollection().remove(userKey(id));
-    return existing;
+    try {
+      const existing = await this.findById(id);
+      if (!existing) return null;
+      await getCol().remove(userKey(id));
+      return existing;
+    } catch (err) {
+      console.error('[Couchbase] findByIdAndDelete(user) error:', err.message);
+      return null;
+    }
   },
 };
 
@@ -368,34 +468,51 @@ export const CouchbaseChat = {
 
   async findById(id) {
     try {
-      const col    = getCouchbaseCollection();
+      const col    = getCol();
       const result = await col.get(chatKey(id));
       return makeChatDoc({ _id: id, ...result.content });
-    } catch { return null; }
+    } catch (err) {
+      if (!err.message.includes('collection not available')) {
+        if (!err.constructor?.name?.includes('DocumentNotFound') && err.code !== 101) {
+          console.error('[Couchbase] findById(chat) error:', err.message);
+        }
+      }
+      return null;
+    }
   },
 
   async create(data) {
-    const col = getCouchbaseCollection();
-    const id  = randomUUID().replace(/-/g, '').slice(0, 24);
-    const doc = {
-      ...data,
-      _id: id,
-      type: 'chat',
-      messages: data.messages || [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    await col.insert(chatKey(id), doc);
-    return makeChatDoc(doc);
+    try {
+      const col = getCol();
+      const id  = randomUUID().replace(/-/g, '').slice(0, 24);
+      const doc = {
+        ...data,
+        _id: id,
+        type: 'chat',
+        messages: data.messages || [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      await col.insert(chatKey(id), doc);
+      return makeChatDoc(doc);
+    } catch (err) {
+      console.error('[Couchbase] create(chat) error:', err.message);
+      throw err;
+    }
   },
 
   async findByIdAndUpdate(id, update, opts = {}) {
-    const existing = await this.findById(id);
-    if (!existing) return null;
-    const set     = update.$set || update;
-    const updated = { ...existing.toObject(), ...set, type: 'chat', updatedAt: new Date() };
-    await getCouchbaseCollection().replace(chatKey(id), updated);
-    return opts.new ? makeChatDoc(updated) : existing;
+    try {
+      const existing = await this.findById(id);
+      if (!existing) return null;
+      const set     = update.$set || update;
+      const updated = { ...existing.toObject(), ...set, type: 'chat', updatedAt: new Date() };
+      await getCol().replace(chatKey(id), updated);
+      return opts.new ? makeChatDoc(updated) : existing;
+    } catch (err) {
+      console.error('[Couchbase] findByIdAndUpdate(chat) error:', err.message);
+      return null;
+    }
   },
 };
 
@@ -410,7 +527,12 @@ function makeChatDoc(raw) {
   d.populate = function () { return this; };
   d.save     = async function () {
     const { toObject, lean, save, select, populate, ...data } = this;
-    await getCouchbaseCollection().replace(chatKey(data._id), { ...data, type: 'chat', updatedAt: new Date() });
+    try {
+      await getCol().replace(chatKey(data._id), { ...data, type: 'chat', updatedAt: new Date() });
+    } catch (err) {
+      console.error('[Couchbase] chat.save() error:', err.message);
+      throw err;
+    }
     return this;
   };
   return d;
@@ -421,11 +543,16 @@ function makeChatDoc(raw) {
 // ─────────────────────────────────────────────────────────────────────────────
 export const CouchbaseReport = {
   async create(data) {
-    const col = getCouchbaseCollection();
-    const id  = randomUUID().replace(/-/g, '').slice(0, 24);
-    const doc = { ...data, _id: id, type: 'report', createdAt: new Date() };
-    await col.insert(reportKey(id), doc);
-    return doc;
+    try {
+      const col = getCol();
+      const id  = randomUUID().replace(/-/g, '').slice(0, 24);
+      const doc = { ...data, _id: id, type: 'report', createdAt: new Date() };
+      await col.insert(reportKey(id), doc);
+      return doc;
+    } catch (err) {
+      console.error('[Couchbase] create(report) error:', err.message);
+      throw err;
+    }
   },
   async find(filter = {}) {
     const all = await fetchAllByType('report');
