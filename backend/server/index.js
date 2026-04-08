@@ -351,8 +351,8 @@ async function seedFakeAd() {
       username: 'xtox_seed',
       isFeatured: true,
       featuredStyle: 'gold',
-      isDeleted: { $ne: true },
-      isExpired: { $ne: true },
+      isDeleted: false,  // FIX: was { $ne: true } (query operator stored as field value)
+      isExpired: false,  // FIX: was { $ne: true } (query operator stored as field value)
       views: 42,
       country: 'EG',
       city: 'Cairo',

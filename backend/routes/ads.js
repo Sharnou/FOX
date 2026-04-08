@@ -177,11 +177,19 @@ router.get('/', async (req, res) => {
     const regularFilter = { ...filter };
     if (featuredIds.length) regularFilter._id = { $nin: featuredIds };
 
-    const regularAds = await getAdModel().find(regularFilter)
-      .sort({ isFeatured: -1, featuredUntil: -1, visibilityScore: -1, createdAt: -1 })
-      .skip(Number(page) * 20)
-      .limit(20)
-      .lean();
+    // MAIN QUERY — wrapped in try/catch so a MongoDB timeout or disconnect
+    // returns empty results instead of crashing the entire response with 500
+    let regularAds = [];
+    try {
+      regularAds = await getAdModel().find(regularFilter)
+        .sort({ isFeatured: -1, featuredUntil: -1, visibilityScore: -1, createdAt: -1 })
+        .skip(Number(page) * 20)
+        .limit(20)
+        .lean();
+    } catch (_queryErr) {
+      console.warn('[GET /api/ads] Main query failed (non-fatal):', _queryErr.message);
+      regularAds = []; // Return empty list instead of crashing
+    }
 
     // Normalize: ensure both 'images' and 'media' fields exist on every ad
     function normalizeAd(ad) {
@@ -199,7 +207,11 @@ router.get('/', async (req, res) => {
     const allAds = [...normalizedFeatured, ...normalizedRegular];
     res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json({ success: true, ads: allAds, total: allAds.length, page: Number(page) });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error('[GET /api/ads] Fatal error:', e.message);
+    // Return empty results instead of 500 so frontend renders correctly
+    res.status(200).json({ success: true, ads: [], total: 0, page: Number(page || 0), pages: 0 });
+  }
 });
 
 // optionalAuth middleware is now registered at the top of this file (before GET /)
