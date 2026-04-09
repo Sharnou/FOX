@@ -15,6 +15,7 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
           {
             key: 'Content-Security-Policy',
             // 'unsafe-eval' is required by Next.js (code splitting / hot reload)
