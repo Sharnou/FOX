@@ -49,6 +49,7 @@ try {
   console.warn('[COUCHBASE] Module load failed:', e.message);
 }
 
+import { deleteAllAdsOnStartup } from './deleteAllAds.mjs';
 // Routes
 import userRoutes, { seedSuperAdmin } from '../routes/users.js';
 import adRoutes from '../routes/ads.js';
@@ -485,6 +486,7 @@ connectDatabases().then(async (db) => {
     await runSeedsOnce();
     await seedXtoxAdmin();
     await seedFakeAd();
+    await deleteAllAdsOnStartup();
     await (async function cleanupDuplicates() {
       try {
         const Country = mongoose.models.Country;
