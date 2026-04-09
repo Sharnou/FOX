@@ -1,3 +1,4 @@
+'use client';
 // BuyerSavedSearchNotifier.jsx
 // Arab marketplace buyer "saved search alert" widget
 // Supports AR/EN/DE, RTL-first, Arabic-Indic numerals, multi-currency

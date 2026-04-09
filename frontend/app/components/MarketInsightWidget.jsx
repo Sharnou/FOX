@@ -1,3 +1,4 @@
+'use client';
 /**
  * MarketInsightWidget.jsx
  * Market Intelligence Widget for XTOX Arab Marketplace
