@@ -328,6 +328,9 @@ router.post('/', auth, upload.fields([
   try {
     // FIX A: null-safe body — multer may leave req.body undefined if Content-Type is wrong
     const body = req.body || {};
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
     // ── DB CONNECTION CHECK — return 503 if no DB is ready yet ──────────────
     const _activeDB = getActiveDB();
     if (_activeDB === 'mongodb' && mongoose.connection.readyState !== 1) {
