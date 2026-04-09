@@ -49,6 +49,10 @@ router.get('/', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.post('/start', auth, async (req, res) => {
   try {
+    // Log raw body + user at the very top for Railway debugging
+    console.log('[CHAT START] body=', JSON.stringify(req.body));
+    console.log('[CHAT START] user=', req.user?.id);
+
     // Accept sellerId OR targetId for compatibility
     const { sellerId, targetId, adId } = req.body;
     const otherId = sellerId || targetId;
@@ -110,8 +114,28 @@ router.post('/start', auth, async (req, res) => {
       };
       if (validAdId) createData.ad = validAdId;
 
-      chat = await getChat().create(createData);
-      console.log('[CHAT START] created chatId=', chat._id);
+      try {
+        chat = await getChat().create(createData);
+        console.log('[CHAT START] created chatId=', chat._id);
+      } catch (createErr) {
+        // E11000: duplicate key — race condition, another request already created the chat
+        if (createErr.code === 11000 || (createErr.message && createErr.message.includes('duplicate key'))) {
+          console.log('[CHAT START] duplicate key — fetching existing chat');
+          chat = await getChat().findOne(participantQuery);
+          if (!chat) {
+            // Fallback: find without adId
+            chat = await getChat().findOne({
+              $or: [
+                { buyer: req.user.id, seller: otherId },
+                { buyer: otherId,    seller: req.user.id },
+              ],
+            });
+          }
+          if (!chat) throw createErr; // unexpected — re-throw original
+        } else {
+          throw createErr;
+        }
+      }
     } else {
       console.log('[CHAT START] found existing chatId=', chat._id);
     }
@@ -361,7 +385,7 @@ router.post('/:chatId/messages', auth, async (req, res) => {
       createdAt: new Date(),
     };
     // Atomic update: $push + $slice prevents the 16MB document limit
-    const updateResult = await Chat.findOneAndUpdate(
+    const updateResult = await getChat().findOneAndUpdate(
       { _id: chat._id },
       {
         $push: { messages: { $each: [message], $slice: -500 } },

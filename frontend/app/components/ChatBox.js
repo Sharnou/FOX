@@ -78,7 +78,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + token,
         },
-        body: JSON.stringify({ targetId: targetId, adId: adId }),
+        body: JSON.stringify({ sellerId: targetId, targetId: targetId, adId: adId }),
       });
       const data = await res.json();
       const cid = data.chatId || data._id || (data.chat && data.chat._id);

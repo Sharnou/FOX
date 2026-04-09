@@ -261,7 +261,10 @@ export default function ChatPage() {
         var chatList = data.chats || (Array.isArray(data) ? data : []);
         setApiChats(chatList);
         var apiConvs = chatList.map(function(c) {
-          var otherId = (c.users || []).find(function(u) { return u !== myId; }) || '';
+          // Chat schema uses buyer/seller, NOT users[] array
+          var otherId = '';
+          if (c.buyer && String(c.buyer) !== String(myId)) otherId = String(c.buyer);
+          else if (c.seller && String(c.seller) !== String(myId)) otherId = String(c.seller);
           var lastMsg = c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1] : null;
           return { id: otherId, chatId: c._id, lastMessage: lastMsg ? (lastMsg.text || '') : '', lastTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
         }).filter(function(c) { return c.id; });
@@ -274,7 +277,10 @@ export default function ChatPage() {
         if (urlChatId) {
           var chat = chatList.find(function(c) { return String(c._id) === urlChatId; });
           if (chat) {
-            var otherId = (chat.users || []).find(function(u) { return u !== myId; });
+            // Chat schema uses buyer/seller, NOT users[] array
+            var otherId = '';
+            if (chat.buyer && String(chat.buyer) !== String(myId)) otherId = String(chat.buyer);
+            else if (chat.seller && String(chat.seller) !== String(myId)) otherId = String(chat.seller);
             if (otherId) setTargetId(function(prev) { return prev || otherId; });
             setChatId(urlChatId);
             chatIdRef.current = urlChatId;
