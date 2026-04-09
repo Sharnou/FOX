@@ -129,37 +129,6 @@ const SUBCATS = {
 function CategoryPriceHint({ category }) {
   const hint = CATEGORY_PRICE_HINTS[category];
   if (!hint) return null;
-  // ── GPS auto-detect location ─────────────────────────────────────────────────
-  async function detectLocation() {
-    if (!navigator.geolocation) {
-      setGpsError('المتصفح لا يدعم تحديد الموقع');
-      return;
-    }
-    setGpsLoading(true);
-    setGpsError('');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        setLatitude(lat);
-        setLongitude(lon);
-        try {
-          const r = await fetch('https://ipapi.co/' + lat + ',' + lon + '/json/');
-          const data = await r.json();
-          if (data && data.city) {
-            setForm(p => ({ ...p, city: data.city }));
-          }
-        } catch (_) {}
-        setGpsLoading(false);
-      },
-      () => {
-        setGpsError('تعذّر تحديد موقعك — يرجى السماح بالوصول للموقع');
-        setGpsLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }
-
   return (
     <div style={{
       marginTop: 6, padding: '7px 12px', borderRadius: 8,
@@ -238,7 +207,38 @@ export default function SellPage() {
     }
   }, []);
 
-  // ── handlePhotoSelect — max 5, silent auto-analysis on first photo ─────────
+  // ── GPS auto-detect location ─────────────────────────────────────────────────
+  async function detectLocation() {
+    if (!navigator.geolocation) {
+      setGpsError('المتصفح لا يدعم تحديد الموقع');
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        setLatitude(lat);
+        setLongitude(lon);
+        try {
+          const r = await fetch('https://ipapi.co/' + lat + ',' + lon + '/json/');
+          const data = await r.json();
+          if (data && data.city) {
+            setForm(p => ({ ...p, city: data.city }));
+          }
+        } catch (_) {}
+        setGpsLoading(false);
+      },
+      () => {
+        setGpsError('تعذّر تحديد موقعك — يرجى السماح بالوصول للموقع');
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+    // ── handlePhotoSelect — max 5, silent auto-analysis on first photo ─────────
   const handlePhotoSelect = async (e) => {
     const files = Array.from(e.target.files).slice(0, 5);
     if (!files.length) return;
