@@ -320,7 +320,9 @@ export default function AdPageClient({ params }) {
   useEffect(() => {
     if (!SOCKET_URL || !userId) return;
     var _s;
+    var _mounted = true;
     import('socket.io-client').then(function(_mod) {
+      if (!_mounted) return;
       var io = _mod.io;
       // Connect to default namespace only — no custom namespace to avoid "Invalid namespace" errors
       _s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('token') || 'guest' : 'guest' } });
@@ -347,7 +349,7 @@ export default function AdPageClient({ params }) {
       _s.on('call_end', function() { endCall(); setCallStatus('انتهت المكالمة'); });
       setSocket(_s);
     }).catch(function(err) { console.warn('[Socket] failed to load:', err.message); });
-    return function() { if (_s) _s.disconnect(); };
+    return function() { _mounted = false; if (_s) _s.disconnect(); };
   }, [userId]);
 
 
@@ -580,8 +582,8 @@ export default function AdPageClient({ params }) {
       )}
       {showReportSeller && (
         <ReportSeller
-          sellerId={(ad && ad.seller && ad.seller._id) || (ad && ad.sellerId)}
-          sellerName={(ad && ad.seller && ad.seller.name) || (ad && ad.sellerName) || ''}
+          sellerId={(ad.userId && ad.userId._id) || ad.userId || ''}
+          sellerName={(ad.userId && ad.userId.name) || ad.sellerName || ''}
           onClose={() => setShowReportSeller(false)}
           lang={lang || 'ar'}
         />

@@ -1,6 +1,6 @@
-// ─── XTOX Service Worker v10 ────────────────────────────────────────────────
+// ─── XTOX Service Worker v11 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v10';
+const CACHE_VERSION = 'v11';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -8,18 +8,24 @@ const PRECACHE_ASSETS = [
   '/offline.html',
 ];
 
-// ── INSTALL: precache offline page + skip waiting immediately ────────────────
+// ── INSTALL: delete ALL old caches immediately + precache offline page ───────
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS);
-    })
-  );
   // Skip waiting so this SW activates immediately without waiting for old tabs to close
   self.skipWaiting();
+  event.waitUntil(
+    // Delete ALL existing caches on install (don't wait for activate).
+    // This ensures stale JS chunks are purged the moment the new SW installs.
+    caches.keys().then(keys =>
+      Promise.all(keys.map(k => caches.delete(k)))
+    ).then(() =>
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.addAll(PRECACHE_ASSETS);
+      })
+    )
+  );
 });
 
-// ── ACTIVATE: delete ALL old caches, then claim all clients ─────────────────
+// ── ACTIVATE: delete any remaining old caches, then claim all clients ────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -36,6 +42,15 @@ self.addEventListener('activate', (event) => {
       return self.clients.claim();
     })
   );
+});
+
+// ── MESSAGE: handle SKIP_WAITING message from registration script ────────────
+// When the registration script detects a new waiting SW, it sends this message
+// to force the new SW to activate immediately without waiting for tabs to close.
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // ── FETCH: selective caching strategy ───────────────────────────────────────
