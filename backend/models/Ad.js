@@ -65,17 +65,18 @@ AdSchema.index({ country: 1, condition: 1, createdAt: -1 });     // condition fi
 
 // FIX C: Pre-validate hook — strip incomplete location before validation runs
 // Prevents { type: 'Point' } without coordinates from ever reaching the 2dsphere index.
-AdSchema.pre('validate', function(next) {
+// NOTE: async function() pattern — Mongoose v7+ does NOT pass `next` to async hooks.
+//       Using async + no-next is the only safe pattern in Mongoose v7+/v9.
+AdSchema.pre('validate', async function() {
   if (this.location && (!this.location.coordinates || this.location.coordinates.length < 2)) {
     this.location = undefined;
   }
-  next();
 });
 
 // FIX B: Pre-save hook — final safety net to clear invalid location objects
 // Catches any path (create, update, republish) that writes without valid coords.
 // NOTE: _id is immutable — MongoDB prevents _id modification automatically
-AdSchema.pre('save', function(next) {
+AdSchema.pre('save', async function() {
   if (this.location) {
     const coords = this.location.coordinates;
     if (
@@ -87,7 +88,6 @@ AdSchema.pre('save', function(next) {
       this.location = undefined;
     }
   }
-  next();
 });
 
 export default mongoose.model('Ad', AdSchema);

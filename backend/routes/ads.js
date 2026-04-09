@@ -18,6 +18,7 @@ import { getOrCreateCountry } from '../server/countries.js';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import multer from 'multer';
+import { CLOUDINARY_ENABLED } from '../server/cloudinary.js';
 
 // Smart model selector: MongoDB → Couchbase → in-memory
 function getAdModel() {
@@ -437,7 +438,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
       });
       console.log('[ADS POST] 3a: converted', _uploadedImages.length, 'files to base64');
       // Try Cloudinary for uploaded images — only when all 3 env vars are set
-      if (process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
+      if (CLOUDINARY_ENABLED) {
         try {
           const { default: cloudinaryClient } = await import('../server/cloudinary.js');
           const processed = [];
@@ -470,7 +471,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
       const v = _rawVideoFile;
       _uploadedVideoUrl = 'data:' + v.mimetype + ';base64,' + v.buffer.toString('base64');
       // Try Cloudinary for video — only when all 3 env vars are set
-      if (process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
+      if (CLOUDINARY_ENABLED) {
         try {
           const { default: cloudinaryClient } = await import('../server/cloudinary.js');
           const result = await cloudinaryClient.uploader.upload(_uploadedVideoUrl, {
@@ -497,9 +498,9 @@ router.post('/', auth, multerUpload, async (req, res) => {
 
     // ── PRE-PROCESS: Upload base64 images to Cloudinary before sanitization ──
     // Only import & attempt Cloudinary when the env vars are actually configured.
-    // When CLOUD_NAME/CLOUD_KEY/CLOUD_SECRET are missing, keep images as base64 data: URLs.
+    // When CLOUDINARY_ENABLED is false (missing/invalid env vars), keep images as base64 data: URLs.
     const rawMedia = Array.isArray(body.media) ? body.media : (body.media ? [body.media] : []);
-    if (rawMedia.some(u => String(u || '').startsWith('data:image/')) && process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
+    if (rawMedia.some(u => String(u || '').startsWith('data:image/')) && CLOUDINARY_ENABLED) {
       try {
         const { default: cloudinaryClient } = await import('../server/cloudinary.js');
         const processedMedia = [];
