@@ -166,7 +166,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
   const isRTL = ['ar', 'he', 'ur'].includes(lang);
 
   React.useEffect(() => {
-    if (!sellerId) return;
+    if (!sellerId || sellerId === 'undefined' || sellerId === 'null') return;
     fetch(API + '/api/profile/' + sellerId)
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSeller(data); setLoading(false); })
