@@ -41,7 +41,7 @@ export default function ProfilePage({ params }) {
   }, []);
 
   useEffect(() => {
-    if (params?.id) {
+    if (params?.id && params.id !== 'undefined' && params.id !== 'null') {
       fetch(API + '/api/profile/' + params.id)
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data) setData(data); })
@@ -101,6 +101,7 @@ export default function ProfilePage({ params }) {
   }
 
   async function submitReview() {
+    if (!params?.id || params.id === 'undefined' || params.id === 'null') return;
     if (!myRating) return alert('اختر تقييم أولاً');
     setSubmitting(true);
     try {

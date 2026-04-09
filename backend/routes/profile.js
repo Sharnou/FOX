@@ -8,6 +8,9 @@ const router = express.Router();
 
 // GET full seller profile
 router.get('/:id', async (req, res) => {
+  if (!req.params.id || req.params.id === 'undefined' || req.params.id === 'null') {
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
   try {
     const user = await User.findById(req.params.id).select('-password -registrationIp -fcmToken');
     if (!user) return res.status(404).json({ error: 'User not found' });
