@@ -376,7 +376,7 @@ export default function Home() {
         {/* User / Login */}
         {user ? (
           <a
-            href={'/profile/' + user.id}
+            href={(user._id || user.id) ? '/profile/' + (user._id || user.id) : '/profile'}
             aria-label={lang === 'ar' ? 'الملف الشخصي - ' + user.name : 'Profile - ' + user.name}
             style={{
               width: 38,
