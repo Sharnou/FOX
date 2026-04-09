@@ -5,13 +5,6 @@ import { dbState, MemAd } from '../server/memoryStore.js';
 import { getActiveDB } from '../server/dbManager.js';
 import { CouchbaseAd } from '../server/couchbaseModels.js';
 
-// Smart model selector: MongoDB → Couchbase → in-memory
-function getAdModel() {
-  const db = getActiveDB();
-  if (db === 'mongodb')   return Ad;
-  if (db === 'couchbase') return CouchbaseAd;
-  return MemAd;
-}
 import { auth } from '../middleware/auth.js';
 import { moderateText, moderateImage } from '../server/moderation.js';
 import { checkDuplicate } from '../server/duplicateDetector.js';
@@ -25,6 +18,14 @@ import { getOrCreateCountry } from '../server/countries.js';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import multer from 'multer';
+
+// Smart model selector: MongoDB → Couchbase → in-memory
+function getAdModel() {
+  const db = getActiveDB();
+  if (db === 'mongodb')   return Ad;
+  if (db === 'couchbase') return CouchbaseAd;
+  return MemAd;
+}
 
 // Multer: memory storage, max 50MB (for video)
 const upload = multer({
@@ -363,6 +364,8 @@ function multerUpload(req, res, next) {
 // ── POST new ad (AI moderation on ALL media) ──
 router.post('/', auth, multerUpload, async (req, res) => {
   try {
+    // CHECKPOINT 0: verify we entered the handler (if absent in logs = middleware crash)
+    console.log('[ADS POST] handler entered, user=', req.user?.id, 'method=', req.method);
     // CHECKPOINT 1: multer finished, inspect uploaded files
     console.log('[ADS POST] 1: multer done, files=', JSON.stringify(Object.keys(req.files || {})),
       'fileCount=', Object.values(req.files || {}).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 1), 0),
