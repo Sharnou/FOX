@@ -36,6 +36,11 @@ export const metadata = {
   keywords: ['سوق', 'بيع', 'شراء', 'إعلانات مجانية', 'marketplace', 'XTOX', 'سيارات', 'عقارات', 'إلكترونيات', 'وظائف', 'مصر', 'السعودية'],
   robots: { index: true, follow: true },
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.svg',
+  },
   openGraph: {
     type: 'website',
     siteName: 'XTOX',
@@ -61,7 +66,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
       <head>
-        <link rel="icon" href="/favicon.svg" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         {/* Viewport — maximum-scale=5 prevents iOS auto-zoom while allowing user zoom */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         {/* PWA / mobile web app */}

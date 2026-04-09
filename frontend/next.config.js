@@ -15,6 +15,7 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
           {
             key: 'Content-Security-Policy',

@@ -220,6 +220,23 @@ router.get('/', async (req, res) => {
     const normalizedFeatured = featuredAds.map(normalizeAd);
     const normalizedRegular = regularAds.map(normalizeAd);
 
+    // PROXIMITY SORT: when lat/lon provided, calculate haversine distance and sort by closeness
+    if (!isNaN(_lat) && !isNaN(_lon)) {
+      const R = 6371; // Earth radius in km
+      function haversine(ad) {
+        const coords = ad.location?.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2) return Infinity;
+        const [adLng, adLat] = coords;
+        const dLat = (adLat - _lat) * Math.PI / 180;
+        const dLng = (adLng - _lon) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(_lat * Math.PI / 180) * Math.cos(adLat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+      normalizedRegular.forEach(ad => { ad.distance = haversine(ad); });
+      normalizedRegular.sort((a, b) => a.distance - b.distance);
+    }
+
     // Return featured first, then ranked regular
     const allAds = [...normalizedFeatured, ...normalizedRegular];
     res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
@@ -469,8 +486,9 @@ router.post('/', auth, upload.fields([
     const whatsapp = body.whatsapp ? String(body.whatsapp).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined;
     const tags = body.tags ? (Array.isArray(body.tags) ? body.tags.slice(0,20).map(t=>String(t).trim()) : String(body.tags).split(',').map(t=>t.trim()).slice(0,20)) : [];
     // FIX D: Extract and validate coordinates — parseFloat + isNaN + non-zero check
-    const lng = parseFloat(body.lng);
-    const lat = parseFloat(body.lat);
+    // Accept both lat/lng and latitude/longitude field names for flexibility
+    const lng = parseFloat(body.lng || body.longitude);
+    const lat = parseFloat(body.lat || body.latitude);
     const validLocation = !isNaN(lng) && !isNaN(lat) && lng !== 0 && lat !== 0;
 
     // COUNTRY LOCK: always use country from JWT token — user cannot override

@@ -129,6 +129,37 @@ const SUBCATS = {
 function CategoryPriceHint({ category }) {
   const hint = CATEGORY_PRICE_HINTS[category];
   if (!hint) return null;
+  // ── GPS auto-detect location ─────────────────────────────────────────────────
+  async function detectLocation() {
+    if (!navigator.geolocation) {
+      setGpsError('المتصفح لا يدعم تحديد الموقع');
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        setLatitude(lat);
+        setLongitude(lon);
+        try {
+          const r = await fetch('https://ipapi.co/' + lat + ',' + lon + '/json/');
+          const data = await r.json();
+          if (data && data.city) {
+            setForm(p => ({ ...p, city: data.city }));
+          }
+        } catch (_) {}
+        setGpsLoading(false);
+      },
+      () => {
+        setGpsError('تعذّر تحديد موقعك — يرجى السماح بالوصول للموقع');
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
   return (
     <div style={{
       marginTop: 6, padding: '7px 12px', borderRadius: 8,
@@ -158,6 +189,10 @@ export default function SellPage() {
   const [aiDebounce, setAiDebounce] = useState(null);
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [subsub, setSubsub] = useState('Other');
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [gpsError, setGpsError] = useState('');
 
   // ── Multi-media state ──────────────────────────────────────────────────────
   const [mediaFiles, setMediaFiles] = useState([]); // up to 5 images OR 1 video
@@ -249,6 +284,7 @@ export default function SellPage() {
   function validate() {
     const e = {};
     if (!form.title.trim()) e.title = 'العنوان مطلوب';
+    if (!form.city || !form.city.trim()) e.city = 'المدينة مطلوبة';
     else if (form.title.trim().length < 5) e.title = 'العنوان قصير جداً (5 أحرف على الأقل)';
     if (!form.category) e.category = 'الفئة مطلوبة';
     if (form.price && isNaN(Number(form.price))) e.price = 'السعر يجب أن يكون رقماً';
@@ -299,6 +335,8 @@ export default function SellPage() {
       formData.append('condition', form.condition || '');
       formData.append('subcategory', form.subcategory || '');
       formData.append('subsub', subsub || 'Other');
+      if (latitude !== null) formData.append('latitude', String(latitude));
+      if (longitude !== null) formData.append('longitude', String(longitude));
 
       // Attach media files
       if (mediaType === 'images' && mediaFiles.length > 0) {
@@ -699,13 +737,48 @@ export default function SellPage() {
               )}
             </div>
 
-            {/* City */}
+            {/* City — required with GPS auto-detect */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="sell-city">المدينة</label>
-              <input id="sell-city" value={form.city}
-                onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-                placeholder="مثال: القاهرة، الرياض، دبي..."
-                style={inputStyle('city')} />
+              <label style={labelStyle} htmlFor="sell-city">
+                المدينة <span style={{ color: '#e53e3e' }}>*</span>
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                <input id="sell-city" value={form.city}
+                  required
+                  onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
+                  placeholder="مثال: القاهرة، الرياض، دبي..."
+                  style={{ ...inputStyle('city'), flex: 1 }} />
+                <button type="button" onClick={detectLocation}
+                  disabled={gpsLoading}
+                  title="تحديد الموقع تلقائياً"
+                  aria-label="تحديد الموقع تلقائياً"
+                  style={{
+                    padding: '10px 12px', borderRadius: 10,
+                    border: '1.5px solid #e0e0e0',
+                    background: gpsLoading ? '#f5f5f5' : '#fff',
+                    cursor: gpsLoading ? 'not-allowed' : 'pointer',
+                    fontSize: 18, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', flexShrink: 0,
+                    transition: 'background 0.2s',
+                  }}>
+                  {gpsLoading ? (
+                    <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
+                  ) : '📍'}
+                </button>
+              </div>
+              {gpsError && (
+                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
+                  ⚠️ {gpsError}
+                </p>
+              )}
+              {errors.city && (
+                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
+                  ⚠️ {errors.city}
+                </p>
+              )}
+              {/* Hidden GPS coordinates — submitted with form for geo-indexing */}
+              {latitude && <input type="hidden" name="latitude" value={latitude} />}
+              {longitude && <input type="hidden" name="longitude" value={longitude} />}
             </div>
 
             {/* Phone */}
