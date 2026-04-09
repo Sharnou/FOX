@@ -1,3 +1,4 @@
+'use client';
 /**
  * MarketplaceActivityFeed — Real-time marketplace activity ticker
  * Shows recent activity: new ads, price drops, sales, trending searches

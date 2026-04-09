@@ -1,3 +1,4 @@
+'use client';
 /**
  * ReferralProgramWidget.jsx
  * XTOX Marketplace — Referral Program Widget
