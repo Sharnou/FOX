@@ -155,6 +155,23 @@ router.get('/', async (req, res) => {
       ];
     }
 
+    // GEO FILTER: if lat/lon/radius params provided, filter by location proximity
+    // Uses $geoWithin/$centerSphere (no 2dsphere index required)
+    const _lat = parseFloat(req.query.lat);
+    const _lon = parseFloat(req.query.lon);
+    const _radius = parseFloat(req.query.radius) || 5; // km
+    if (!isNaN(_lat) && !isNaN(_lon) && _lat >= -90 && _lat <= 90 && _lon >= -180 && _lon <= 180) {
+      try {
+        filter.location = {
+          $geoWithin: {
+            $centerSphere: [[_lon, _lat], _radius / 6371] // radius in km ÷ Earth radius
+          }
+        };
+      } catch (_geoErr) {
+        console.warn('[GET /api/ads] Geo filter build failed (skipped):', _geoErr.message);
+      }
+    }
+
     // FEATURED FIRST: max 16, newest featured → top (only on page 0)
     let featuredAds = [];
     if (Number(page) === 0) {
