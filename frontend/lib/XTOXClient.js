@@ -50,16 +50,6 @@ const demoUsers = [
   { id: uuid(), email: 'admin@fox.app', mobile: '+10000000003', full_name: 'Super Admin', role: 'admin', verified_at: verifiedNow },
 ];
 
-const demoAds = [
-  {
-    id: uuid(), title: 'iPhone 15 Pro Max 256GB', price: 1199, currency: 'USD',
-    country: 'USA', city: 'New York', category: 'electronics', subcategory: 'phones',
-    description: 'Lightly used, great condition. Includes box and charger.',
-    images: ['https://images.unsplash.com/photo-1607252650355-f7fd0460ccdb?w=1200&auto=format&fit=crop'],
-    is_featured: true, ai_generated: false, status: 'active', created_by: demoUsers[0].email,
-    views_count: 128, contact_phone: '+1-212-555-0100',
-  },
-];
 
 const demoFavorites = [];
 const demoMessages = [];
@@ -179,7 +169,7 @@ async function callMultiProvider(payload) {
 // Mock client
 const mock = {
   entities: {
-    Ad: makeEntity(demoAds),
+    Ad: makeEntity([]),
     Favorite: makeEntity(demoFavorites),
     Message: makeEntity(demoMessages),
     SellerReview: makeEntity(demoReviews),

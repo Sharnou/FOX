@@ -320,52 +320,6 @@ async function seedXtoxAdmin() {
   }
 }
 
-// ── Seed fake ad on first startup ───────────────────────────────────────────
-async function seedFakeAd() {
-  try {
-    const AdModel = mongoose.models.Ad || (await import('../models/Ad.js')).default;
-    const UserModel = mongoose.models.User || (await import('../models/User.js')).default;
-    
-    // Check if fake ad already seeded
-    const existing = await AdModel.findOne({ username: 'xtox_seed', isDeleted: { $ne: true } });
-    if (existing) {
-      console.log('[Seed] Fake ad already exists:', existing._id.toString());
-      return;
-    }
-    
-    // Get xtox admin user (or any user) to assign as owner
-    const owner = await UserModel.findOne({ username: 'xtox' });
-    if (!owner) {
-      console.log('[Seed] Skipping fake ad — xtox user not found yet');
-      return;
-    }
-    
-    const ad = await AdModel.create({
-      title: 'iPhone 15 Pro — بحالة ممتازة',
-      description: 'آيفون 15 برو، لون تيتانيوم طبيعي، سعة 256 جيجابايت. استخدام خفيف جداً، يأتي مع الكرتونة الأصلية وجميع الملحقات. بدون خدوش. السعر قابل للتفاوض بشكل محدود.',
-      price: 3500,
-      currency: 'EGP',
-      category: 'electronics',
-      media: ['https://images.unsplash.com/photo-1696446701796-da61225697cc?w=600'],
-      userId: owner._id,
-      username: 'xtox_seed',
-      isFeatured: true,
-      featuredStyle: 'gold',
-      isDeleted: false,  // FIX: was { $ne: true } (query operator stored as field value)
-      isExpired: false,  // FIX: was { $ne: true } (query operator stored as field value)
-      views: 42,
-      country: 'EG',
-      city: 'Cairo',
-      visibilityScore: 10,
-      status: 'active',
-      expiresAt: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-    });
-    console.log('[Seed] Fake ad inserted, ID:', ad._id.toString());
-  } catch (e) {
-    console.error('[Seed] Fake ad seed failed:', e.message);
-  }
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
 const server = http.createServer(app);
@@ -484,7 +438,6 @@ connectDatabases().then(async (db) => {
     // ── Run seeds + cleanup ─────────────────────────────────────────────
     await runSeedsOnce();
     await seedXtoxAdmin();
-    await seedFakeAd();
     await (async function cleanupDuplicates() {
       try {
         const Country = mongoose.models.Country;
