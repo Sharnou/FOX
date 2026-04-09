@@ -481,7 +481,7 @@ router.post('/', auth, upload.fields([
 
     // ── FIELD-LEVEL SANITIZATION (run before anything else) ──
     const { errors, sanitized } = sanitizeAdFields(body);
-    if (errors.length) return res.status(400).json({ error: errors.join('; ') });
+    if (errors.length) return res.status(400).json({ error: errors.join('; '), received: Object.keys(body), receivedValues: { price: body.price, lat: body.lat, lng: body.lng, city: body.city, currency: body.currency } });
     const { title, description, category, subcategory, price, city, currency, media, video, featuredStyle, condition, phone } = sanitized;
     const whatsapp = body.whatsapp ? String(body.whatsapp).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined;
     const tags = body.tags ? (Array.isArray(body.tags) ? body.tags.slice(0,20).map(t=>String(t).trim()) : String(body.tags).split(',').map(t=>t.trim()).slice(0,20)) : [];
@@ -495,9 +495,14 @@ router.post('/', auth, upload.fields([
     // Fallback to 'EG' if country is missing from older JWT tokens
     const country = req.user.country || 'EG';
 
-    // TEXT MODERATION
-    const textCheck = moderateText(title + ' ' + (description || ''));
-    if (!textCheck.clean) return res.status(400).json({ error: 'Content blocked: ' + textCheck.reason });
+    // TEXT MODERATION — wrapped in try/catch so a moderation engine crash never returns 400
+    let textCheck = { clean: true };
+    try {
+      textCheck = moderateText(title + ' ' + (description || ''));
+    } catch (_modErr) {
+      console.warn('[POST /api/ads] moderateText threw (non-fatal, allowing ad):', _modErr.message);
+    }
+    if (!textCheck.clean) return res.status(400).json({ error: 'Content blocked: ' + textCheck.reason, received: Object.keys(body) });
 
     // IMAGE AI MODERATION (scan every uploaded image)
     if (media && media.length > 0) {
@@ -641,13 +646,16 @@ router.post('/', auth, upload.fields([
     };
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
   } catch (e) {
-    console.error('[POST /api/ads] Error:', e.message, e.stack?.split('\n')[1]);
+    console.error('[POST /api/ads] Unexpected error:', e.message, e.stack?.split('\n')[1]);
     if (!res.headersSent) {
-      return res.status(400).json({
+      // Return 500 for unexpected server errors (not validation failures)
+      // Include received field list for easier debugging
+      return res.status(500).json({
         success: false,
         error: e.message,
         message: e.message,
         field: e.field || null,
+        received: Object.keys(req.body || {}),
       });
     }
   }
