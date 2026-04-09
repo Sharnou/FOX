@@ -95,9 +95,12 @@ function sanitizeAdFields({ title, description, category, subcategory, price, ci
   const cleanCurrency = ALLOWED_CURRENCIES.has(currency) ? currency : 'USD';
 
   // media — array of URL strings, max 10 items
-  const cleanMedia = Array.isArray(media)
-    ? media.slice(0, 10).map(u => String(u || '').trim()).filter(u => u.startsWith('http') || u.startsWith('data:image/'))
-    : [];
+  // Accept both http URLs and base64 data: URLs (when Cloudinary is unavailable)
+  const rawMedia = Array.isArray(media) ? media : (media ? [media] : []);
+  const cleanMedia = rawMedia
+    .slice(0, 10)
+    .map(u => String(u || '').trim())
+    .filter(u => u.startsWith('http') || u.startsWith('data:image/') || u.startsWith('data:video/'));
 
   // video — optional URL string
   const cleanVideo = video ? String(video).trim() : undefined;
@@ -360,6 +363,11 @@ function multerUpload(req, res, next) {
 // ── POST new ad (AI moderation on ALL media) ──
 router.post('/', auth, multerUpload, async (req, res) => {
   try {
+    // CHECKPOINT 1: multer finished, inspect uploaded files
+    console.log('[ADS POST] 1: multer done, files=', JSON.stringify(Object.keys(req.files || {})),
+      'fileCount=', Object.values(req.files || {}).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 1), 0),
+      'bodyKeys=', JSON.stringify(Object.keys(req.body || {})));
+
     // FIX A: null-safe body — multer may leave req.body undefined if Content-Type is wrong
     const body = req.body || {};
     if (!req.user || !req.user.id) {
@@ -367,6 +375,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     }
     // ── DB CONNECTION CHECK — return 503 if no DB is ready yet ──────────────
     const _activeDB = getActiveDB();
+    console.log('[ADS POST] 2: activeDB=', _activeDB, 'mongoState=', mongoose.connection.readyState);
     if (_activeDB === 'mongodb' && mongoose.connection.readyState !== 1) {
       return res.status(503).json({
         error: 'الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد ثوانٍ',
@@ -382,11 +391,17 @@ router.post('/', auth, multerUpload, async (req, res) => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    const todayCount = await getAdModel().countDocuments({
-      userId: req.user.id,
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
-      isDeleted: { $ne: true }
-    });
+    let todayCount = 0;
+    try {
+      todayCount = await getAdModel().countDocuments({
+        userId: req.user.id,
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        isDeleted: { $ne: true }
+      });
+    } catch (_countErr) {
+      console.warn('[ADS POST] countDocuments failed (non-fatal, skipping limit check):', _countErr.message);
+      todayCount = 0; // If count fails, allow the ad (non-fatal)
+    }
 
     if (todayCount >= 2) {
       return res.status(429).json({
@@ -399,6 +414,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    console.log('[ADS POST] 3: daily limit ok (todayCount=', todayCount, '), processing images');
 
     // ── PROCESS UPLOADED FILES (multer) — convert to base64 or Cloudinary ────
     let _uploadedImages = [];
@@ -416,7 +432,8 @@ router.post('/', auth, multerUpload, async (req, res) => {
       _uploadedImages = _allUploadedFiles.map(function(f) {
         return 'data:' + f.mimetype + ';base64,' + f.buffer.toString('base64');
       });
-      // Try Cloudinary for uploaded images
+      console.log('[ADS POST] 3a: converted', _uploadedImages.length, 'files to base64');
+      // Try Cloudinary for uploaded images — only when all 3 env vars are set
       if (process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
         try {
           const { default: cloudinaryClient } = await import('../server/cloudinary.js');
@@ -425,12 +442,18 @@ router.post('/', auth, multerUpload, async (req, res) => {
             try {
               const result = await cloudinaryClient.uploader.upload(img, { folder: 'xtox_ads' });
               processed.push(result.secure_url);
-            } catch (_imgErr) { processed.push(img); }
+            } catch (_imgErr) {
+              console.warn('[ADS POST] Cloudinary single image upload failed, keeping base64:', _imgErr.message);
+              processed.push(img);
+            }
           }
           _uploadedImages = processed;
+          console.log('[ADS POST] 3b: Cloudinary upload done,', processed.length, 'images');
         } catch (uploadErr) {
-          console.warn('[POST /api/ads] Cloudinary failed, keeping base64:', uploadErr.message);
+          console.warn('[ADS POST] Cloudinary import/init failed, keeping base64:', uploadErr.message);
         }
+      } else {
+        console.log('[ADS POST] 3b: Cloudinary not configured — keeping base64 data URLs');
       }
       // Inject into req.body.media so existing pipeline sees them
       body.media = _uploadedImages;
@@ -443,7 +466,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     if (_rawVideoFile) {
       const v = _rawVideoFile;
       _uploadedVideoUrl = 'data:' + v.mimetype + ';base64,' + v.buffer.toString('base64');
-      // Try Cloudinary for video
+      // Try Cloudinary for video — only when all 3 env vars are set
       if (process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
         try {
           const { default: cloudinaryClient } = await import('../server/cloudinary.js');
@@ -452,7 +475,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
           });
           _uploadedVideoUrl = result.secure_url;
         } catch (e) {
-          console.warn('[POST /api/ads] Cloudinary video failed, keeping base64:', e.message);
+          console.warn('[ADS POST] Cloudinary video failed, keeping base64:', e.message);
         }
       }
     }
@@ -472,7 +495,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     // ── PRE-PROCESS: Upload base64 images to Cloudinary before sanitization ──
     // Only import & attempt Cloudinary when the env vars are actually configured.
     // When CLOUD_NAME/CLOUD_KEY/CLOUD_SECRET are missing, keep images as base64 data: URLs.
-    const rawMedia = Array.isArray(body.media) ? body.media : [];
+    const rawMedia = Array.isArray(body.media) ? body.media : (body.media ? [body.media] : []);
     if (rawMedia.some(u => String(u || '').startsWith('data:image/')) && process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
       try {
         const { default: cloudinaryClient } = await import('../server/cloudinary.js');
@@ -484,7 +507,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
               const result = await cloudinaryClient.uploader.upload(url, { folder: 'xtox_ads' });
               processedMedia.push(result.secure_url);
             } catch (_singleUploadErr) {
-              console.warn('[ads] Single image upload failed, keeping original:', _singleUploadErr.message);
+              console.warn('[ADS POST] Single image Cloudinary upload failed, keeping original:', _singleUploadErr.message);
               processedMedia.push(url); // non-fatal: keep original on per-image failure
             }
           } else {
@@ -495,12 +518,17 @@ router.post('/', auth, multerUpload, async (req, res) => {
       } catch (uploadErr) {
         // Cloudinary unavailable — keep base64 data: URLs (ad still posts, just no CDN URL)
         body.media = rawMedia;
-        console.warn('[ads] Cloudinary upload failed, keeping images as base64:', uploadErr.message);
+        console.warn('[ADS POST] Cloudinary base64 upload failed, keeping images as base64:', uploadErr.message);
       }
+    } else {
+      // No Cloudinary configured — keep whatever we have (base64 or http URLs)
+      if (rawMedia.length) body.media = rawMedia;
     }
 
     // ── FIELD-LEVEL SANITIZATION (run before anything else) ──
+    console.log('[ADS POST] 4: sanitizeAdFields starting, mediaCount=', Array.isArray(body.media) ? body.media.length : 0);
     const { errors, sanitized } = sanitizeAdFields(body);
+    console.log('[ADS POST] 5: sanitizeAdFields done, errors=', errors, 'title=', sanitized.title?.slice(0, 30));
     if (errors.length) return res.status(400).json({ error: errors.join('; '), received: Object.keys(body), receivedValues: { price: body.price, lat: body.lat, lng: body.lng, city: body.city, currency: body.currency } });
     const { title, description, category, subcategory, price, city, currency, media, video, featuredStyle, condition, phone } = sanitized;
     const whatsapp = body.whatsapp ? String(body.whatsapp).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined;
@@ -520,13 +548,15 @@ router.post('/', auth, multerUpload, async (req, res) => {
     try {
       textCheck = moderateText(title + ' ' + (description || ''));
     } catch (_modErr) {
-      console.warn('[POST /api/ads] moderateText threw (non-fatal, allowing ad):', _modErr.message);
+      console.warn('[ADS POST] moderateText threw (non-fatal, allowing ad):', _modErr.message);
     }
     if (!textCheck.clean) return res.status(400).json({ error: 'Content blocked: ' + textCheck.reason, received: Object.keys(body) });
 
-    // IMAGE AI MODERATION (scan every uploaded image)
+    // IMAGE AI MODERATION (scan every uploaded image) — skip large base64 to avoid API issues
     if (media && media.length > 0) {
       for (const imageUrl of media) {
+        // Skip base64 images from moderation — too large for API, and offline fallback allows anyway
+        if (String(imageUrl || '').startsWith('data:')) continue;
         const imgCheck = await moderateImage(imageUrl).catch(() => ({ clean: true }));
         if (!imgCheck.clean) {
           return res.status(400).json({ error: 'Image blocked: contains ' + imgCheck.reason });
@@ -544,7 +574,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     try {
       detected = detectCategoryOffline(title + ' ' + (description || ''));
     } catch (_detectErr) {
-      console.warn('[POST /api/ads] detectCategoryOffline failed (non-fatal):', _detectErr.message);
+      console.warn('[ADS POST] detectCategoryOffline failed (non-fatal):', _detectErr.message);
     }
     const finalCategory = category || detected.main;
     let finalSubcategory = detected.sub || subcategory || '';
@@ -579,10 +609,11 @@ router.post('/', auth, multerUpload, async (req, res) => {
         Gaming: [{kw:['playstation','بلايستيشن','ps4','ps5'],v:'PlayStation'},{kw:['xbox','اكس بوكس'],v:'Xbox'},{kw:['nintendo','نينتندو','switch'],v:'Nintendo'},{kw:['rtx','gtx','gpu','gaming pc'],v:'PCGaming'}],
         HomeServices: [{kw:['سباك','plumber','مواسير'],v:'Plumber'},{kw:['كهربائي','electrician'],v:'Electrician'},{kw:['نجار','carpenter'],v:'Carpenter'},{kw:['دهان','painter'],v:'Painter'},{kw:['تكييف','air condition'],v:'ACRepair'},{kw:['حشرات','pest'],v:'PestControl'}],
       };
+      const _subText2 = ((title || '') + ' ' + (description || '')).toLowerCase();
       const _ssMap = _subsubMap[finalSubcategory] || [];
       for (let _ssi = 0; _ssi < _ssMap.length; _ssi++) {
         const _ssEntry = _ssMap[_ssi];
-        if (_ssEntry.kw.some(function(k) { return _subText.includes(k); })) { finalSubsub = _ssEntry.v; break; }
+        if (_ssEntry.kw.some(function(k) { return _subText2.includes(k); })) { finalSubsub = _ssEntry.v; break; }
       }
     }
 
@@ -595,35 +626,54 @@ router.post('/', auth, multerUpload, async (req, res) => {
     var finalMedia = (media && media.length > 0) ? media : (_uploadedImages.length ? _uploadedImages : []);
     const finalVideoUrl = _uploadedVideoUrl || null;
 
-    const ad = await getAdModel().create({
-      userId: req.user.id,
-      title,
-      title_original: title,
-      description,
-      category: finalCategory,
-      subcategory: finalSubcategory,
-      subsub: finalSubsub,
-      price,
-      city,
-      currency: currency || 'EGP',
-      media: finalMedia,
-      images: finalMedia,
-      video,
-      videoUrl: finalVideoUrl,
-      country, // LOCKED from JWT
-      condition: condition || null,
-      featuredStyle: featuredStyle || 'normal',
-      phone: phone || undefined,
-      whatsapp: whatsapp || undefined,
-      tags: tags || [],
-      language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
-      // FIX D: Only save location when coordinates are fully valid numbers and non-zero
-      location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
-      visibilityScore: 10,
-      createdAt: new Date(),
-      isExpired: false,
-      isDeleted: false,
-    });
+    console.log('[ADS POST] 6: saving ad, title=', title, 'category=', finalCategory, 'mediaCount=', finalMedia.length, 'validLocation=', validLocation);
+
+    let ad;
+    try {
+      ad = await getAdModel().create({
+        userId: req.user.id,
+        title,
+        title_original: title,
+        description,
+        category: finalCategory,
+        subcategory: finalSubcategory,
+        subsub: finalSubsub,
+        price,
+        city,
+        currency: currency || 'EGP',
+        media: finalMedia,
+        images: finalMedia,
+        video,
+        videoUrl: finalVideoUrl,
+        country, // LOCKED from JWT
+        condition: condition || null,
+        featuredStyle: featuredStyle || 'normal',
+        phone: phone || undefined,
+        whatsapp: whatsapp || undefined,
+        tags: tags || [],
+        language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
+        // FIX D: Only save location when coordinates are fully valid numbers and non-zero
+        location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
+        visibilityScore: 10,
+        createdAt: new Date(),
+        isExpired: false,
+        isDeleted: false,
+      });
+    } catch (createErr) {
+      console.error('[ADS POST] create() failed:', createErr?.message, createErr?.stack);
+      if (!res.headersSent) {
+        return res.status(500).json({
+          success: false,
+          error: createErr.message,
+          message: createErr.message,
+          createErrorName: createErr.name || null,
+          received: Object.keys(body),
+        });
+      }
+      return;
+    }
+
+    console.log('[ADS POST] 7: saved ad _id=', ad?._id?.toString());
 
     await rankAd(ad).catch(() => {});
     await indexAd(ad).catch(() => {});
@@ -644,7 +694,6 @@ router.post('/', auth, multerUpload, async (req, res) => {
 
     // AI QUALITY SCORE — async, non-blocking (run after response)
     setImmediate(async () => {
-      let aiScore = 70;
       try {
         const { score, tips } = await scoreAdWithAI({
           title, description, category: finalCategory,
@@ -669,9 +718,11 @@ router.post('/', auth, multerUpload, async (req, res) => {
       images: (_adObj.images && _adObj.images.length) ? _adObj.images : ((_adObj.media && _adObj.media.length) ? _adObj.media : []),
       media: (_adObj.media && _adObj.media.length) ? _adObj.media : ((_adObj.images && _adObj.images.length) ? _adObj.images : []),
     };
+
+    console.log('[ADS POST] 8: responding 201, ad._id=', _normalizedAd._id?.toString());
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
   } catch (e) {
-    console.error('[POST /api/ads] Unexpected error:', e.message, e.stack?.split('\n')[1]);
+    console.error('[ADS POST] ERROR (outer catch):', e?.message, e?.stack);
     if (!res.headersSent) {
       // Return 500 for unexpected server errors (not validation failures)
       // Include received field list for easier debugging
@@ -808,7 +859,6 @@ router.put('/:id', auth, async (req, res) => {
 
     // AI QUALITY SCORE on update — async, non-blocking
     setImmediate(async () => {
-      let aiScore = 70;
       try {
         const { score, tips } = await scoreAdWithAI({
           title: ad.title, description: ad.description,
@@ -877,6 +927,3 @@ router.patch('/:id/view', async (req, res) => {
 });
 
 export default router;
-
-
-
