@@ -2,7 +2,8 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { analyzeImageForAd, checkAdSimilarity } from '../../lib/geminiAI';
+import { checkAdSimilarity } from '../../lib/geminiAI';
+import { classifyProduct, saveAICorrection, formatDescription } from '../../lib/imageClassifier';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
 import { detectLang, detectCurrency } from '../../lib/lang';
 
@@ -162,6 +163,9 @@ export default function SellPage() {
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
   const [gpsError, setGpsError] = useState('');
+  // AI detection state
+  const [aiDetectedLabel, setAiDetectedLabel] = useState(''); // raw MobileNet label
+  const [aiResult, setAiResult] = useState(null); // last AI result for correction tracking
 
   // ── Multi-media state ──────────────────────────────────────────────────────
   const [mediaFiles, setMediaFiles] = useState([]); // up to 5 images OR 1 video
@@ -206,6 +210,25 @@ export default function SellPage() {
       } catch {}
     }
   }, []);
+
+  // ── Auto-learning: watch for user corrections to AI detection ───────────────
+  // When user changes category/subcategory AFTER AI made a suggestion, save the
+  // correction so next time the same label maps to the user's choice.
+  const _prevCatRef = typeof window !== 'undefined' ? (window.__xtoxPrevCat = window.__xtoxPrevCat || {}) : {};
+  useEffect(() => {
+    if (!aiDetectedLabel || !form.category) return;
+    const saved = _prevCatRef.cat;
+    if (saved && (form.category !== saved.cat || form.subcategory !== saved.sub)) {
+      // User changed category/subcategory — save correction
+      saveAICorrection(aiDetectedLabel, {
+        category:    form.category,
+        subcategory: form.subcategory || 'Other',
+        subsub:      subsub || 'Other',
+      });
+    }
+    _prevCatRef.cat = { cat: form.category, sub: form.subcategory };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.category, form.subcategory]);
 
   // ── GPS auto-detect location ─────────────────────────────────────────────────
   // Fix 3: Verified detectLocation — correct URL format, correct field names,
@@ -265,7 +288,7 @@ export default function SellPage() {
     );
   }
 
-    // ── handlePhotoSelect — max 5, silent auto-analysis on first photo ─────────
+    // ── handlePhotoSelect — max 5, smart auto-fill with new KB classifier ────────
   const handlePhotoSelect = async (e) => {
     const files = Array.from(e.target.files).slice(0, 5);
     if (!files.length) return;
@@ -274,17 +297,70 @@ export default function SellPage() {
     setVideoFile(null);
     const previews = files.map(f => URL.createObjectURL(f));
     setMediaPreviews(previews);
+    setAiStatus('🔍 جاري تحليل الصورة...');
 
-    // Silent auto-analysis on first image
+    // Smart AI analysis using MobileNet + offline KB
     try {
-      const { analyzeImageFile } = await import('../components/ImageAnalyzer');
-      const result = await analyzeImageFile(files[0]);
+      const tf = await import('@tensorflow/tfjs');
+      const mobilenet = await import('@tensorflow-models/mobilenet');
+
+      // Create hidden img element for TF inference
+      const img = document.createElement('img');
+      img.crossOrigin = 'anonymous';
+      img.style.display = 'none';
+      document.body.appendChild(img);
+      const objUrl = URL.createObjectURL(files[0]);
+      img.src = objUrl;
+      await new Promise(r => { img.onload = r; img.onerror = r; });
+
+      // MobileNet v2 max quality — top 10 predictions
+      const model = await mobilenet.load({ version: 2, alpha: 1.0 });
+      const predictions = await model.classify(img, 10);
+
+      document.body.removeChild(img);
+      URL.revokeObjectURL(objUrl);
+
+      // Classify using offline KB — pass current title for keyword fallback
+      const result = classifyProduct(predictions, form.title);
+
       if (result) {
-        if (!form.title || form.title.length < 3) setForm(f => ({ ...f, title: result.title }));
-        if (!form.description || form.description.length < 10) setForm(f => ({ ...f, description: result.description }));
-        if (result.category && !form.category) setForm(f => ({ ...f, category: result.category }));
+        setAiDetectedLabel(result.detectedAs);
+        setAiResult(result);
+
+        // Auto-fill only empty fields — never override user input
+        setForm(f => {
+          const next = { ...f };
+          // Category — only if user hasn't chosen one
+          if (result.category && !f.category) next.category = result.category;
+          // Subcategory — only if user hasn't chosen one
+          if (result.subcategory && (!f.subcategory || f.subcategory === 'Other')) next.subcategory = result.subcategory;
+          // Title — only if empty
+          if (result.title && (!f.title || f.title.length < 3)) next.title = result.title;
+          // Description — only if empty
+          if (result.description && (!f.description || f.description.length < 10)) {
+            next.description = formatDescription(result.description, f.condition || 'used');
+          }
+          return next;
+        });
+
+        // Subsub — only if not already set
+        if (result.subsub && result.subsub !== 'Other') {
+          setSubsub(s => (s === 'Other' ? result.subsub : s));
+        }
+
+        if (result.category) {
+          const pct = Math.round((result.probability ?? result.confidence ?? 0) * 100);
+          setAiStatus('🤖 تم الكشف: ' + result.detectedAs + (pct > 0 ? ' (' + pct + '%)' : '') + (result.learned ? ' ✅ مُتعلَّم' : ''));
+        } else {
+          setAiStatus('⚠️ تعذّر التعرف على المنتج — يرجى اختيار الفئة يدوياً');
+        }
+      } else {
+        setAiStatus('⚠️ تعذّر التعرف على المنتج — يرجى اختيار الفئة يدوياً');
       }
-    } catch {}
+    } catch (err) {
+      console.warn('[AI] analysis failed:', err.message);
+      setAiStatus('');
+    }
   };
 
   // ── handleVideoSelect — validate 30s max ──────────────────────────────────
@@ -577,15 +653,34 @@ export default function SellPage() {
               </div>
             )}
 
-            {/* AI status */}
+            {/* AI detection badge */}
             {aiStatus && (
               <div style={{
                 padding: '10px 16px', borderRadius: 8, marginBottom: 12,
-                background: aiStatus.includes('✅') ? '#e8f5e9' : '#fff8e1',
-                color: aiStatus.includes('✅') ? '#2e7d32' : '#f57f17',
-                fontSize: 14, textAlign: 'center',
+                background: aiStatus.startsWith('🤖') ? 'rgba(99,102,241,0.08)'
+                          : aiStatus.startsWith('⚠️') ? '#fff8e1'
+                          : '#fff8e1',
+                border: '1px solid ' + (aiStatus.startsWith('🤖') ? 'rgba(99,102,241,0.25)' : '#f59e0b'),
+                color: aiStatus.startsWith('🤖') ? '#4338ca'
+                     : aiStatus.startsWith('🔍') ? '#92400e'
+                     : '#92400e',
+                fontSize: 13, textAlign: 'right', direction: 'rtl',
+                fontFamily: "'Cairo', 'Tajawal', system-ui",
+                display: 'flex', alignItems: 'center', gap: 6,
               }}>
-                {aiStatus}
+                <span style={{ flex: 1 }}>{aiStatus}</span>
+                {aiDetectedLabel && aiStatus.startsWith('🤖') && (
+                  <button
+                    type="button"
+                    onClick={() => { setAiStatus(''); setAiDetectedLabel(''); setAiResult(null); }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 16, color: '#6b7280', padding: '0 2px', lineHeight: 1,
+                    }}
+                    title="إلغاء التعبئة التلقائية"
+                    aria-label="إلغاء التعبئة التلقائية"
+                  >×</button>
+                )}
               </div>
             )}
 
@@ -671,7 +766,15 @@ export default function SellPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {CATS.map(cat => (
                   <button key={cat.en} type="button"
-                    onClick={() => { setForm(p => ({ ...p, category: cat.en, subcategory: 'Other' })); setSubsub('Other'); if (errors.category) setErrors(p => ({ ...p, category: '' })); }}
+                    onClick={() => {
+                      // If AI had detected something, track this as a correction
+                      if (aiDetectedLabel && form.category && cat.en !== form.category) {
+                        saveAICorrection(aiDetectedLabel, { category: cat.en, subcategory: 'Other', subsub: 'Other' });
+                      }
+                      setForm(p => ({ ...p, category: cat.en, subcategory: 'Other' }));
+                      setSubsub('Other');
+                      if (errors.category) setErrors(p => ({ ...p, category: '' }));
+                    }}
                     aria-pressed={form.category === cat.en}
                     style={{
                       padding: '10px 6px', borderRadius: 10,
