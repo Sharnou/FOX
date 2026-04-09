@@ -3,6 +3,7 @@ import React from 'react';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
@@ -18,7 +19,10 @@ function Stars({ rating }) {
 }
 
 export default function ProfilePage({ params }) {
+  const router = useRouter();
   const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [myRating, setMyRating] = useState(0);
   const [myComment, setMyComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +36,14 @@ export default function ProfilePage({ params }) {
   const [myUserId, setMyUserId] = React.useState('');
   const [token, setToken] = React.useState('');
 
+  // ── Fix 1: redirect if params.id is invalid ──────────────────────────
+  useEffect(() => {
+    const id = params?.id;
+    if (!id || id === 'undefined' || id === 'null') {
+      router.replace('/');
+    }
+  }, [params?.id]);
+
   useEffect(() => {
     // Initialize from localStorage (avoids hydration mismatch)
     if (typeof window !== 'undefined') {
@@ -40,13 +52,33 @@ export default function ProfilePage({ params }) {
     }
   }, []);
 
+  // ── Fix 2: handle fetch errors, show proper error state ───────────────
   useEffect(() => {
-    if (params?.id && params.id !== 'undefined' && params.id !== 'null') {
-      fetch(API + '/api/profile/' + params.id)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setData(data); })
-        .catch(() => {});
+    const id = params?.id;
+    if (!id || id === 'undefined' || id === 'null') {
+      setLoading(false);
+      return;
     }
+    setLoading(true);
+    fetch(API + '/api/profile/' + id)
+      .then(r => {
+        if (!r.ok) {
+          setError('المستخدم غير موجود');
+          setLoading(false);
+          return null;
+        }
+        return r.json();
+      })
+      .then(d => {
+        if (d) {
+          setData(d);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        setError('حدث خطأ، يرجى المحاولة لاحقاً');
+        setLoading(false);
+      });
   }, [params?.id]);
 
   useEffect(() => {
@@ -119,11 +151,26 @@ export default function ProfilePage({ params }) {
     setSubmitting(false);
   }
 
-  if (!data) return (
+  // ── Loading / Error states ────────────────────────────────────────────
+  if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: 20, color: '#002f34' }}>
       جار التحميل...
     </div>
   );
+
+  if (error) return (
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: 20, color: '#002f34', gap: 16 }} dir="rtl">
+      <div style={{ fontSize: 48 }}>🔍</div>
+      <p style={{ margin: 0, fontWeight: 'bold' }}>{error}</p>
+      <button
+        onClick={() => router.back()}
+        style={{ background: '#002f34', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
+        ← رجوع
+      </button>
+    </div>
+  );
+
+  if (!data) return null;
 
   const { user, ads, reviews, avgRating, reviewCount } = data;
   const isOwnProfile = myUserId === params?.id;
