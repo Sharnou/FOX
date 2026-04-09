@@ -620,12 +620,13 @@ router.post('/', auth, upload.fields([
     };
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
   } catch (e) {
-    console.error('[POST /api/ads] crash:', e.stack || e.message);
+    console.error('[POST /api/ads] Error:', e.message, e.stack?.split('\n')[1]);
     if (!res.headersSent) {
       return res.status(400).json({
         success: false,
         error: e.message,
         message: e.message,
+        field: e.field || null,
       });
     }
   }
