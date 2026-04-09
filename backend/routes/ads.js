@@ -439,8 +439,13 @@ router.post('/', auth, upload.fields([
         for (const m of rawMedia.slice(0, 10)) {
           const url = String(m || '').trim();
           if (url.startsWith('data:image/') && process.env.CLOUD_NAME) {
-            const result = await cloudinaryClient.uploader.upload(url, { folder: 'xtox_ads' });
-            processedMedia.push(result.secure_url);
+            try {
+              const result = await cloudinaryClient.uploader.upload(url, { folder: 'xtox_ads' });
+              processedMedia.push(result.secure_url);
+            } catch (_singleUploadErr) {
+              console.warn('[ads] Single image upload failed, keeping original:', _singleUploadErr.message);
+              processedMedia.push(url); // non-fatal: keep original on per-image failure
+            }
           } else {
             processedMedia.push(url);
           }
@@ -617,7 +622,7 @@ router.post('/', auth, upload.fields([
   } catch (e) {
     console.error('[POST /api/ads] crash:', e.stack || e.message);
     if (!res.headersSent) {
-      return res.status(500).json({
+      return res.status(400).json({
         success: false,
         error: e.message,
         message: e.message,
