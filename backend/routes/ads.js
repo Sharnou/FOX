@@ -336,12 +336,29 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// ── Multer error-handling wrapper ──
+// Wraps upload.fields() so multer errors are returned as JSON (not passed to
+// Express default error handler which would produce an HTML 500 response).
+// 'next' here is Express's next middleware — always a function, never undefined.
+function multerUpload(req, res, next) {
+  upload.fields([
+    { name: 'images', maxCount: 5 },
+    { name: 'media',  maxCount: 10 },
+    { name: 'video',  maxCount: 1 },
+  ])(req, res, function onMulterDone(err) {
+    if (!err) return next();
+    // Multer error — return useful JSON, not a raw Express 500
+    const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    const message =
+      err.code === 'LIMIT_FILE_SIZE'    ? 'الملف أكبر من الحد المسموح به (50 ميغابايت)' :
+      err.code === 'LIMIT_UNEXPECTED_FILE' ? ('حقل غير متوقع: ' + (err.field || '')) :
+      (err.message || 'خطأ في رفع الملف');
+    return res.status(status).json({ success: false, error: message, code: err.code || 'UPLOAD_ERROR' });
+  });
+}
+
 // ── POST new ad (AI moderation on ALL media) ──
-router.post('/', auth, upload.fields([
-  { name: 'images', maxCount: 5 },
-  { name: 'media', maxCount: 10 },
-  { name: 'video', maxCount: 1 }
-]), async (req, res) => {
+router.post('/', auth, multerUpload, async (req, res) => {
   try {
     // FIX A: null-safe body — multer may leave req.body undefined if Content-Type is wrong
     const body = req.body || {};
@@ -453,14 +470,16 @@ router.post('/', auth, upload.fields([
     // ─────────────────────────────────────────────────────────────────────────
 
     // ── PRE-PROCESS: Upload base64 images to Cloudinary before sanitization ──
+    // Only import & attempt Cloudinary when the env vars are actually configured.
+    // When CLOUD_NAME/CLOUD_KEY/CLOUD_SECRET are missing, keep images as base64 data: URLs.
     const rawMedia = Array.isArray(body.media) ? body.media : [];
-    if (rawMedia.some(u => String(u || '').startsWith('data:image/'))) {
+    if (rawMedia.some(u => String(u || '').startsWith('data:image/')) && process.env.CLOUD_NAME && process.env.CLOUD_KEY && process.env.CLOUD_SECRET) {
       try {
         const { default: cloudinaryClient } = await import('../server/cloudinary.js');
         const processedMedia = [];
         for (const m of rawMedia.slice(0, 10)) {
           const url = String(m || '').trim();
-          if (url.startsWith('data:image/') && process.env.CLOUD_NAME) {
+          if (url.startsWith('data:image/')) {
             try {
               const result = await cloudinaryClient.uploader.upload(url, { folder: 'xtox_ads' });
               processedMedia.push(result.secure_url);
@@ -474,10 +493,9 @@ router.post('/', auth, upload.fields([
         }
         body.media = processedMedia;
       } catch (uploadErr) {
-        // Cloudinary unavailable — strip base64 (do not store in DB)
-        // Keep base64 for prototype — do NOT strip files that were already uploaded by multer
-        body.media = rawMedia; // keep all (including base64 data: URLs)
-        console.warn('[ads] Cloudinary upload failed, keeping images as-is:', uploadErr.message);
+        // Cloudinary unavailable — keep base64 data: URLs (ad still posts, just no CDN URL)
+        body.media = rawMedia;
+        console.warn('[ads] Cloudinary upload failed, keeping images as base64:', uploadErr.message);
       }
     }
 
@@ -521,8 +539,13 @@ router.post('/', auth, upload.fields([
       return res.status(400).json({ error: 'Duplicate ad detected' });
     }
 
-    // AUTO CATEGORY DETECTION (offline first)
-    const detected = detectCategoryOffline(title + ' ' + (description || ''));
+    // AUTO CATEGORY DETECTION (offline first) — wrapped in try/catch (non-fatal)
+    let detected = { main: 'General', sub: 'Other' };
+    try {
+      detected = detectCategoryOffline(title + ' ' + (description || ''));
+    } catch (_detectErr) {
+      console.warn('[POST /api/ads] detectCategoryOffline failed (non-fatal):', _detectErr.message);
+    }
     const finalCategory = category || detected.main;
     let finalSubcategory = detected.sub || subcategory || '';
     // Auto-assign subcategory via keyword matching if not provided or is 'Other'
