@@ -16,13 +16,23 @@ function getChat() {
 
 const router = express.Router();
 
+/**
+ * Helper: build a query that matches chats where the given userId
+ * is either the buyer or the seller (Chat schema uses buyer/seller, NOT users[]).
+ */
+function userInChatQuery(userId) {
+  return { $or: [{ buyer: userId }, { seller: userId }] };
+}
+
 // ─────────────────────────────────────────────────────────────
 // GET /api/chat  — list all chats for the authenticated user
 // ─────────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   try {
-    const chats = await getChat().find({ users: req.user.id })
-      .sort({ lastMessage: -1 })
+    // FIX: Chat schema has buyer/seller fields, NOT a users[] array.
+    // Sort by updatedAt (schema field), not lastMessage (doesn't exist).
+    const chats = await getChat().find(userInChatQuery(req.user.id))
+      .sort({ updatedAt: -1 })
       .lean();
     res.json({ success: true, chats });
   } catch (e) {
@@ -42,6 +52,9 @@ router.post('/start', auth, async (req, res) => {
     // Accept sellerId OR targetId for compatibility
     const { sellerId, targetId, adId } = req.body;
     const otherId = sellerId || targetId;
+
+    console.log('[CHAT START] userId=', req.user.id, 'otherId=', otherId, 'adId=', adId);
+
     if (!otherId) {
       return res.status(400).json({
         success: false,
@@ -49,30 +62,63 @@ router.post('/start', auth, async (req, res) => {
         message: 'معرّف البائع مطلوب | sellerId is required',
       });
     }
-    if (req.user.id === otherId) {
+
+    if (String(req.user.id) === String(otherId)) {
       return res.status(400).json({
         success: false,
         error: 'Cannot chat with yourself',
         message: 'لا يمكنك التواصل مع نفسك | Cannot chat with yourself',
       });
     }
-    let chat = await getChat().findOne({
-      $or: [
-        { users: { $all: [req.user.id, otherId] }, adId: adId || { $exists: true } },
-        { users: { $all: [req.user.id, otherId] } },
-      ],
-    });
-    if (!chat) {
-      chat = await getChat().create({
-        users: [req.user.id, otherId],
-        adId: adId || null,
-        messages: [],
-        lastMessage: new Date(),
+
+    // Validate ObjectId format for otherId
+    if (!mongoose.Types.ObjectId.isValid(otherId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid sellerId format',
+        message: 'معرّف البائع غير صالح | Invalid sellerId format',
       });
     }
+
+    // Validate adId if provided
+    const validAdId = adId && mongoose.Types.ObjectId.isValid(adId) ? adId : null;
+
+    // FIX: Chat schema uses buyer/seller fields (not users[]) and ad (not adId).
+    // Search for an existing chat between these two participants in either role.
+    const participantQuery = {
+      $or: [
+        { buyer: req.user.id, seller: otherId },
+        { buyer: otherId,    seller: req.user.id },
+      ],
+    };
+    if (validAdId) {
+      participantQuery.ad = validAdId;
+    }
+
+    console.log('[CHAT START] participants=', { userId: req.user.id, otherId, adId: validAdId });
+    console.log('[CHAT START] looking for existing chat');
+
+    let chat = await getChat().findOne(participantQuery);
+
+    if (!chat) {
+      console.log('[CHAT START] creating chat');
+      // Create with correct schema fields: buyer, seller, ad (not users/adId/lastMessage)
+      const createData = {
+        buyer:    req.user.id,
+        seller:   otherId,
+        messages: [],
+      };
+      if (validAdId) createData.ad = validAdId;
+
+      chat = await getChat().create(createData);
+      console.log('[CHAT START] created chatId=', chat._id);
+    } else {
+      console.log('[CHAT START] found existing chatId=', chat._id);
+    }
+
     res.json({ success: true, chatId: chat._id, _id: chat._id, chat });
   } catch (e) {
-    console.error('[POST /api/chat/start]', e.message);
+    console.error('[CHAT START] ERROR:', e.message, e.stack);
     res.status(500).json({
       success: false,
       error: e.message,
@@ -87,7 +133,8 @@ router.post('/start', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.get('/unread-count', auth, async (req, res) => {
   try {
-    const chats = await getChat().find({ users: req.user.id }).lean();
+    // FIX: use buyer/seller query instead of users[]
+    const chats = await getChat().find(userInChatQuery(req.user.id)).lean();
     let total = 0;
     for (const chat of chats) {
       if (Array.isArray(chat.messages)) {
@@ -124,9 +171,10 @@ router.get('/:chatId/messages', auth, async (req, res) => {
       });
     }
 
+    // FIX: query by buyer/seller, not users[]
     const chat = await getChat().findOne({
       _id: chatId,
-      users: req.user.id,
+      ...userInChatQuery(req.user.id),
     }).lean();
 
     if (!chat) {
@@ -178,7 +226,11 @@ router.patch('/:chatId/read', auth, async (req, res) => {
       });
     }
 
-    const chat = await getChat().findOne({ _id: chatId, users: req.user.id });
+    // FIX: query by buyer/seller, not users[]
+    const chat = await getChat().findOne({
+      _id: chatId,
+      ...userInChatQuery(req.user.id),
+    });
     if (!chat) {
       return res.status(404).json({
         error: 'Chat not found',
@@ -197,6 +249,13 @@ router.patch('/:chatId/read', auth, async (req, res) => {
       }
       return msg;
     });
+
+    // Also reset unread counter for this user
+    if (String(chat.buyer) === userId) {
+      chat.unreadBuyer = 0;
+    } else if (String(chat.seller) === userId) {
+      chat.unreadSeller = 0;
+    }
 
     await chat.save();
 
@@ -228,7 +287,11 @@ router.delete('/:chatId/messages/:messageId', auth, async (req, res) => {
       });
     }
 
-    const chat = await getChat().findOne({ _id: chatId, users: req.user.id });
+    // FIX: query by buyer/seller, not users[]
+    const chat = await getChat().findOne({
+      _id: chatId,
+      ...userInChatQuery(req.user.id),
+    });
     if (!chat) {
       return res.status(404).json({
         error: 'Chat not found',
@@ -281,7 +344,12 @@ router.post('/:chatId/messages', auth, async (req, res) => {
     if (!text) {
       return res.status(400).json({ success: false, error: 'text is required', message: 'نص الرسالة مطلوب | text is required' });
     }
-    const chat = await getChat().findOne({ _id: chatId, users: req.user.id });
+
+    // FIX: query by buyer/seller, not users[]
+    const chat = await getChat().findOne({
+      _id: chatId,
+      ...userInChatQuery(req.user.id),
+    });
     if (!chat) {
       return res.status(404).json({ success: false, error: 'Chat not found or access denied', message: 'المحادثة غير موجودة | Chat not found' });
     }
@@ -297,8 +365,8 @@ router.post('/:chatId/messages', auth, async (req, res) => {
       { _id: chat._id },
       {
         $push: { messages: { $each: [message], $slice: -500 } },
-        $set: { lastMessage: new Date(), updatedAt: new Date() },
-        $inc: { messageCount: 1 },
+        $set:  { updatedAt: new Date() },
+        $inc:  { messageCount: 1 },
       },
       { new: true, select: { messages: { $slice: -1 } } }
     );
