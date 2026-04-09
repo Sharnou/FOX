@@ -30,7 +30,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com https://api.qrserver.com https://unpkg.com https://images.unsplash.com https://www.gstatic.com https://*.basemaps.cartocdn.com",
               // Fix 3: Added https://nominatim.openstreetmap.org for GPS reverse-geocoding fallback
-              "connect-src 'self' https://xtox-production.up.railway.app wss://xtox-production.up.railway.app https://ipapi.co https://api.cloudinary.com https://res.cloudinary.com https://api.openai.com https://api.groq.com https://generativelanguage.googleapis.com https://accounts.google.com https://*.basemaps.cartocdn.com https://tfhub.dev https://storage.googleapis.com https://www.kaggle.com https://nominatim.openstreetmap.org https://cdn.jsdelivr.net",
+              "connect-src 'self' blob: https://xtox-production.up.railway.app wss://xtox-production.up.railway.app https://ipapi.co https://api.cloudinary.com https://res.cloudinary.com https://api.openai.com https://api.groq.com https://generativelanguage.googleapis.com https://accounts.google.com https://*.basemaps.cartocdn.com https://tfhub.dev https://storage.googleapis.com https://www.kaggle.com https://nominatim.openstreetmap.org https://cdn.jsdelivr.net",
               "media-src 'self' blob: https://res.cloudinary.com",
               // Fix 1: Added https://cdn.jsdelivr.net for Tesseract.js Web Worker
               "worker-src 'self' blob: https://cdn.jsdelivr.net",

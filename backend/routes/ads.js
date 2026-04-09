@@ -389,7 +389,9 @@ router.post('/', auth, upload.fields([
 
     // FIX: null-safe access — multer may not populate req.files if Content-Type mismatch
     // Accept both 'images' and 'media' field names (frontend may use either)
-    const _imageFiles = (req.files && req.files.images) ? req.files.images : [];
+    const _imageFiles = req.files?.images
+      ? (Array.isArray(req.files.images) ? req.files.images : [req.files.images])
+      : [];
     const _mediaFiles = (req.files && req.files.media) ? req.files.media : [];
     const _allUploadedFiles = _imageFiles.concat(_mediaFiles);
 
