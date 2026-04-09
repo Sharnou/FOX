@@ -6,7 +6,6 @@ import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
 import AdCardSkeleton from './components/AdCardSkeleton';
 import CartoonMoodPopup from './components/CartoonMoodPopup';
 import BannerAds from './components/BannerAds';
-import AISearchBar from './components/AISearchBar';
 import { detectLang } from '../lib/lang';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -46,7 +45,6 @@ const CARTOONS = ['🦊', '🐨', '🦁', '🐸', '🦝', '🐙', '🦄', '🐼'
 export default function Home() {
   const [ads, setAds] = useState([]);
   const [catIdx, setCatIdx] = useState(0);
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [locale, setLocale] = useState({ lang: 'ar', dir: 'rtl', country: 'EG', currency: 'EGP' });
@@ -57,7 +55,6 @@ export default function Home() {
   const [savedCount, setSavedCount] = useState(0);
   const [toast, setToast] = useState(null);
   const [scrollY, setScrollY] = useState(0);
-  const searchRef = useRef(null);
   const catScrollRef = useRef(null);
 
   const showToast = useCallback((msg, type = 'info') => {
@@ -144,11 +141,6 @@ export default function Home() {
     } catch {}
   }
 
-  const handleSearchSubmit = useCallback((e) => {
-    e.preventDefault();
-    if (search.trim()) window.location.href = '/search?q=' + encodeURIComponent(search.trim());
-  }, [search]);
-
   const handleRetry = useCallback(() => {
     fetchAds(CAT_VALS[catIdx], locale.country);
   }, [catIdx, locale.country]);
@@ -156,7 +148,7 @@ export default function Home() {
   const isRTL = locale.dir === 'rtl';
   const lang = locale.lang;
   const featured = ads.filter(a => a.isFeatured);
-  const regular = ads.filter(a => !a.isFeatured).filter(ad => !search || ad.title?.toLowerCase().includes(search.toLowerCase()));
+  const regular = ads.filter(a => !a.isFeatured);
   const currentCatKey = CAT_KEYS[catIdx];
   const currentCatNameAr = CAT_NAMES_AR[currentCatKey] || 'جميع الإعلانات';
 
@@ -294,13 +286,6 @@ export default function Home() {
           XTOX
         </Link>
 
-        {/* AI Search Bar */}
-        <div style={{ flex: 1, position: 'relative' }}>
-          <AISearchBar
-            placeholder={t.search || (lang === 'ar' ? 'ابحث عن أي شيء...' : 'Search anything...')}
-            onSearch={(q) => { window.location.href = '/search?q=' + encodeURIComponent(q); }}
-          />
-        </div>
 
         {/* Sell CTA */}
         <Link

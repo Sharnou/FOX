@@ -1,4 +1,6 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
 import User from '../models/User.js';
 import Ad from '../models/Ad.js';
 import Review from '../models/Review.js';
@@ -90,6 +92,63 @@ router.put('/me', auth, async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password');
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ── Change 4: PATCH /api/profile/avatar — upload avatar ─────────────────────
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'));
+    }
+    cb(null, true);
+  },
+}).single('avatar');
+
+router.patch('/avatar', auth, (req, res) => {
+  avatarUpload(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    try {
+      let avatarUrl;
+      // Try Cloudinary if configured
+      if (process.env.CLOUDINARY_ENABLED === 'true' || process.env.CLOUDINARY_CLOUD_NAME) {
+        try {
+          const { v2: cloudinary } = await import('cloudinary');
+          cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+          });
+          const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              { folder: 'xtox/avatars', transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }] },
+              (error, result) => error ? reject(error) : resolve(result)
+            );
+            uploadStream.end(req.file.buffer);
+          });
+          avatarUrl = result.secure_url;
+        } catch (cloudErr) {
+          console.warn('[avatar] Cloudinary failed, using base64:', cloudErr.message);
+          // Fall through to base64
+        }
+      }
+      // Fallback: base64 data URL stored in MongoDB
+      if (!avatarUrl) {
+        avatarUrl = 'data:' + req.file.mimetype + ';base64,' + req.file.buffer.toString('base64');
+      }
+      const user = await User.findByIdAndUpdate(
+        req.user.id,
+        { avatar: avatarUrl },
+        { new: true }
+      ).select('-password');
+      res.json({ avatar: user.avatar, user });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 });
 
 export default router;
