@@ -141,6 +141,8 @@ function LocationCard({ msg }) {
 export default function ChatPage() {
   var [myId, setMyId]                   = useState('');
   var [targetId, setTargetId]           = useState('');
+  var [sellerName, setSellerName]       = useState('');
+  var [sellerAvatar, setSellerAvatar]   = useState('');
   var [joined, setJoined]               = useState(false);
   var [messages, setMessages]           = useState([]);
   var [msg, setMsg]                     = useState('');
@@ -222,6 +224,18 @@ export default function ChatPage() {
     } else {
       setUnreadCounts(storedUnread);
     }
+  }, [targetId]);
+
+  // Fetch seller name from profile API when targetId is set
+  useEffect(function() {
+    if (!targetId) return;
+    fetch(API_URL + '/api/profile/' + targetId)
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (data && data.name) setSellerName(data.name);
+        if (data && data.avatar) setSellerAvatar(data.avatar);
+      })
+      .catch(function() {});
   }, [targetId]);
 
   // Join chat when myId is ready
@@ -599,7 +613,7 @@ export default function ChatPage() {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontWeight: 'bold', fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {targetId ? '\u0645\u062d\u0627\u062f\u062b\u0629 \u0645\u0639 ' + targetId : '\u0627\u062e\u062a\u0631 \u0645\u062d\u0627\u062f\u062b\u0629 \u0644\u0644\u0628\u062f\u0621'}
+            {targetId ? '\u0645\u062d\u0627\u062f\u062b\u0629 \u0645\u0639 ' + (sellerName || targetId) : '\u0627\u062e\u062a\u0631 \u0645\u062d\u0627\u062f\u062b\u0629 \u0644\u0644\u0628\u062f\u0621'}
           </p>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
             {joined ? '\u0645\u062a\u0635\u0644' : '\u062c\u0627\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644...'}
@@ -629,7 +643,7 @@ export default function ChatPage() {
           <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', paddingTop: 60, textAlign: 'center', gap: 10 }}>
             <div style={{ fontSize: 56 }}>&#128172;</div>
             <p style={{ margin: 0, fontSize: 16, color: '#64748b', fontWeight: 600 }}>\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629</p>
-            <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>\u0623\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629 \u0644\u0644\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 {targetId}</p>
+            <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>\u0623\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629 \u0644\u0644\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 {sellerName || targetId}</p>
           </div>
         )}
         {messages.map(function(m, i) {
