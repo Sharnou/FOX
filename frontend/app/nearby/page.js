@@ -7,7 +7,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 // ─── Arabic constants & labels ───────────────────────────────────────────────
 const LABELS = {
   title: '🗺️ إعلانات قريبة',
-  searching: 'جارٍ البحث...',
+  searching: 'جارٍ البحث بالقرب منك...',
   adsFound: (n, r) => n + ' إعلان في نطاق ' + r + ' كم',
   noAds: 'لا توجد إعلانات في هذا النطاق',
   noAdsHint: 'جرّب توسيع نطاق البحث أو الانتقال لمنطقة أخرى',
@@ -269,7 +269,7 @@ export default function NearbyPage() {
       const price = ad.price
         ? Number(ad.price).toLocaleString('ar-EG') + ' ج.م'
         : LABELS.priceOnContact;
-      const dist  = ad.distance ? (ad.distance / 1000).toFixed(1) + ' ' + LABELS.km : '';
+      const dist  = ad.distance != null ? (typeof ad.distance === 'number' ? ad.distance.toFixed(1) : ad.distance) + ' ' + LABELS.km : '';
       const isSaved = savedAds.includes(ad._id);
 
       const icon = L.divIcon({
@@ -402,7 +402,16 @@ export default function NearbyPage() {
           () => {
             setGeoError(true);
             showToast(LABELS.geoError, 'error');
-            fetchAds(30.0444, 31.2357);
+            // Fall back: fetch all ads without geo sorting
+            fetch(API + '/api/ads')
+              .then(r => r.json())
+              .then(data => {
+                const adList = Array.isArray(data) ? data : (data.ads || []);
+                setAds(adList);
+                plotAds(adList);
+              })
+              .catch(() => setFetchError(LABELS.fetchError))
+              .finally(() => setLoading(false));
           },
           { enableHighAccuracy: true, timeout: 10000 }
         );
