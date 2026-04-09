@@ -329,18 +329,18 @@ export default function SellPage() {
 
         // Auto-fill only empty fields — never override user input
         setForm(f => {
-          const next = { ...f };
+          const updated = { ...f };
           // Category — only if user hasn't chosen one
-          if (result.category && !f.category) next.category = result.category;
+          if (result.category && !f.category) updated.category = result.category;
           // Subcategory — only if user hasn't chosen one
-          if (result.subcategory && (!f.subcategory || f.subcategory === 'Other')) next.subcategory = result.subcategory;
+          if (result.subcategory && (!f.subcategory || f.subcategory === 'Other')) updated.subcategory = result.subcategory;
           // Title — only if empty
-          if (result.title && (!f.title || f.title.length < 3)) next.title = result.title;
+          if (result.title && (!f.title || f.title.length < 3)) updated.title = result.title;
           // Description — only if empty
           if (result.description && (!f.description || f.description.length < 10)) {
-            next.description = formatDescription(result.description, f.condition || 'used');
+            updated.description = formatDescription(result.description, f.condition || 'used');
           }
-          return next;
+          return updated;
         });
 
         // Subsub — only if not already set
