@@ -55,10 +55,79 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
     } catch {}
   }, []);
 
+  // --- ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURN ---
+  // Rules of Hooks: hooks cannot be called after a conditional early return.
+  // These three hooks were previously placed after the early-return guard
+  // (if myId === targetId return null), which violated the Rules of Hooks
+  // and caused React to crash with "Rendered fewer hooks than expected".
+  // They are now moved here, before the conditional return.
+
+  // Socket cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  const sendMessage = useCallback(async () => {
+    if (!text.trim() || !chatId || sending) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+    const msgText = text.trim();
+    setText('');
+    setSending(true);
+    const optimisticId = 'tmp_' + Date.now();
+    const optimistic = {
+      _id: optimisticId,
+      sender: myId,
+      text: msgText,
+      createdAt: new Date().toISOString(),
+      _optimistic: true,
+    };
+    setMessages(prev => [...prev, optimistic]);
+    try {
+      const res = await fetch(API + '/api/chat/' + chatId + '/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({ text: msgText }),
+      });
+      const data = await res.json();
+      const savedMsg = data.message || data;
+      setMessages(prev => prev.map(m => m._id === optimisticId ? { ...savedMsg, _optimistic: false } : m));
+      // Also emit via socket for real-time delivery to other party
+      if (socketRef.current && targetId) {
+        socketRef.current.emit('send_message', {
+          to: targetId,
+          from: myId,
+          text: msgText,
+          chatId: chatId,
+        });
+      }
+    } catch {
+      setMessages(prev => prev.filter(m => m._id !== optimisticId));
+    }
+    setSending(false);
+  }, [text, chatId, sending, myId, targetId]);
+
+  // --- END OF HOOKS ---
+
   const t = T[lang] || T.ar;
   const isRTL = lang === 'ar';
 
-  // Don't render if viewer IS the seller
+  // Don't render if viewer IS the seller — safe here because all hooks are above
   if (myId && targetId && String(myId) === String(targetId)) return null;
 
   // Open chat — create/resume session
@@ -132,64 +201,6 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
     }).catch(() => {});
   };
 
-  useEffect(() => {
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
-
-  const sendMessage = useCallback(async () => {
-    if (!text.trim() || !chatId || sending) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) return;
-    const msgText = text.trim();
-    setText('');
-    setSending(true);
-    const optimisticId = 'tmp_' + Date.now();
-    const optimistic = {
-      _id: optimisticId,
-      sender: myId,
-      text: msgText,
-      createdAt: new Date().toISOString(),
-      _optimistic: true,
-    };
-    setMessages(prev => [...prev, optimistic]);
-    try {
-      const res = await fetch(API + '/api/chat/' + chatId + '/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token,
-        },
-        body: JSON.stringify({ text: msgText }),
-      });
-      const data = await res.json();
-      const savedMsg = data.message || data;
-      setMessages(prev => prev.map(m => m._id === optimisticId ? { ...savedMsg, _optimistic: false } : m));
-      // Also emit via socket for real-time delivery to other party
-      if (socketRef.current && targetId) {
-        socketRef.current.emit('send_message', {
-          to: targetId,
-          from: myId,
-          text: msgText,
-          chatId: chatId,
-        });
-      }
-    } catch {
-      setMessages(prev => prev.filter(m => m._id !== optimisticId));
-    }
-    setSending(false);
-  }, [text, chatId, sending, myId, targetId]);
-
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -233,7 +244,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
                   style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.4)' }} />
               ) : (
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 15 }}>
-                  {(sellerDisplayName[0] || '?').toUpperCase()}
+                  {((sellerDisplayName && sellerDisplayName[0]) || '?').toUpperCase()}
                 </div>
               )}
               <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{sellerDisplayName}</span>
