@@ -27,7 +27,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://accounts.google.com",
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com https://api.qrserver.com https://unpkg.com https://images.unsplash.com https://www.gstatic.com https://*.basemaps.cartocdn.com",
-              "connect-src 'self' https://xtox-production.up.railway.app wss://xtox-production.up.railway.app https://ipapi.co https://api.cloudinary.com https://res.cloudinary.com https://api.openai.com https://api.groq.com https://generativelanguage.googleapis.com https://accounts.google.com https://*.basemaps.cartocdn.com",
+              "connect-src 'self' https://xtox-production.up.railway.app wss://xtox-production.up.railway.app https://ipapi.co https://api.cloudinary.com https://res.cloudinary.com https://api.openai.com https://api.groq.com https://generativelanguage.googleapis.com https://accounts.google.com https://*.basemaps.cartocdn.com https://tfhub.dev https://storage.googleapis.com",
               "media-src 'self' blob: https://res.cloudinary.com",
               "worker-src 'self' blob:",
               "frame-ancestors 'self'",
