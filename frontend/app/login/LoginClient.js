@@ -58,21 +58,29 @@ export default function LoginClient() {
       // If a token arrives via URL (Google OAuth callback redirect), store it
       var params = new URLSearchParams(window.location.search);
       var urlToken = params.get('token');
+      var redirectTo = params.get('redirect') || '/';
       if (urlToken) {
         localStorage.setItem('token', urlToken);
-        window.location.href = '/';
+        window.location.href = redirectTo;
         return;
       }
-      // If user is already logged in, redirect to home
+      // If user is already logged in, redirect to intended page
       var existingToken = localStorage.getItem('token');
       if (existingToken) {
-        window.location.href = '/';
+        window.location.href = redirectTo;
         return;
       }
     } catch (e) {
       // localStorage might be unavailable (private mode, etc.)
     }
   }, []);
+
+  /* ── Helper: get post-login redirect URL ──────────────────────── */
+  function getRedirectUrl() {
+    if (typeof window === 'undefined') return '/';
+    var params = new URLSearchParams(window.location.search);
+    return params.get('redirect') || '/';
+  }
 
   /* OTP resend countdown */
   useEffect(function() {
@@ -143,7 +151,7 @@ export default function LoginClient() {
       storeSession(data);
       var xtoxIdVal = (data.user && data.user.xtoxId) ? data.user.xtoxId : '';
       setSuccess('Welcome! Your XTOX ID: ' + xtoxIdVal);
-      setTimeout(function() { window.location.href = '/'; }, 1500);
+      setTimeout(function() { window.location.href = getRedirectUrl(); }, 1500);
     } catch (e) {
       setError('Network error.');
     } finally {
@@ -188,7 +196,7 @@ export default function LoginClient() {
       storeSession(data);
       var xtoxIdVal = (data.user && data.user.xtoxId) ? data.user.xtoxId : '';
       setSuccess('Welcome! Your XTOX ID: ' + xtoxIdVal);
-      setTimeout(function() { window.location.href = '/'; }, 1500);
+      setTimeout(function() { window.location.href = getRedirectUrl(); }, 1500);
     } catch (e) {
       setError('Google login failed.');
     } finally {

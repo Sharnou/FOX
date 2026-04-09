@@ -273,6 +273,7 @@ export default function AdPageClient({ params }) {
 
   const [user, setUser] = useState(null);
   const [showChatBox, setShowChatBox] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [adNotFound, setAdNotFound] = useState(false);
   useEffect(() => {
     if (params && params.id) {
@@ -406,7 +407,16 @@ export default function AdPageClient({ params }) {
       await pc.setLocalDescription(offer);
       socket.emit('call_offer', { to: targetId, from: userId, offer: offer });
       setCallActive(true);
-    } catch (e) { setCallStatus('فشل الاتصال — تحقق من الميكروفون'); }
+    } catch (e) {
+      var errName = (e && e.name) || '';
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+        setCallStatus('يرجى السماح بالوصول إلى الميكروفون في إعدادات المتصفح');
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        setCallStatus('لم يتم العثور على ميكروفون');
+      } else {
+        setCallStatus('فشل الاتصال، حاول مرة أخرى');
+      }
+    }
   }
 
   function endCall() {
@@ -440,7 +450,11 @@ export default function AdPageClient({ params }) {
 
   const handleStartChat = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!token) { window.location.href = "/login"; return; }
+    if (!token) {
+      const returnUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
+      window.location.href = '/login?redirect=' + encodeURIComponent(returnUrl);
+      return;
+    }
     setShowChatBox(true);
   }
 
@@ -493,7 +507,7 @@ export default function AdPageClient({ params }) {
           </button>
         ) : !user ? (
           <button
-            onClick={() => { window.location.href = '/login'; }}
+            onClick={() => { const returnUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/'; window.location.href = '/login?redirect=' + encodeURIComponent(returnUrl); }}
             style={{ background: '#7c3aed', color: '#fff', border: 'none', textAlign: 'center', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}
           >
             💬 تواصل مع البائع
@@ -501,11 +515,11 @@ export default function AdPageClient({ params }) {
         ) : (
           <a href="/" style={{ background: '#e2e8f0', color: '#64748b', textAlign: 'center', padding: '14px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🏠 الرئيسية</a>
         )}
-        {!callActive ? (
-          <button onClick={startCall} style={{ background: '#00aa44', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>📞 مكالمة مباشرة</button>
-        ) : (
-          <button onClick={endCall} style={{ background: '#cc0000', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer', animation: 'pulse 1s infinite' }}>⛔ إنهاء المكالمة</button>
-        )}
+        <button onClick={() => {
+          const phone = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone);
+          if (!phone) { alert('رقم الهاتف غير متاح للاتصال'); return; }
+          setShowPhoneModal(true);
+        }} style={{ background: '#00aa44', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>📞 مكالمة مباشرة</button>
       </div>
       {showChatBox && ad && (
         <div id="chat" style={{ marginTop: 16 }}>
@@ -628,6 +642,48 @@ export default function AdPageClient({ params }) {
         <span>🚩</span>
         <span>{lang === 'ar' ? 'الإبلاغ عن البائع' : 'Report Seller'}</span>
       </button>
+      {showPhoneModal && (() => {
+        const phoneNum = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone) || '';
+        const waNum = phoneNum.replace(/\D/g, '').replace(/^0/, '20');
+        return (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => setShowPhoneModal(false)}
+          >
+            <div
+              dir="rtl"
+              style={{ background: 'white', borderRadius: 20, padding: '28px 24px', minWidth: 280, maxWidth: 340, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 52, marginBottom: 12 }}>📞</div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 20, color: '#002f34', fontWeight: 'bold' }}>اتصل بالبائع</h3>
+              <p style={{ margin: '0 0 20px', color: '#777', fontSize: 14 }}>انقر على الرقم للاتصال مباشرة</p>
+              <a
+                href={'tel:' + phoneNum}
+                style={{ display: 'block', background: '#00aa44', color: 'white', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 17, textDecoration: 'none', marginBottom: 10 }}
+              >
+                اتصل الآن: {phoneNum}
+              </a>
+              {waNum && (
+                <a
+                  href={'https://wa.me/' + waNum}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'block', background: '#25D366', color: 'white', padding: '12px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, textDecoration: 'none', marginBottom: 14 }}
+                >
+                  💬 واتساب
+                </a>
+              )}
+              <button
+                onClick={() => setShowPhoneModal(false)}
+                style={{ background: '#f0f0f0', border: 'none', padding: '10px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, color: '#555', fontFamily: 'inherit' }}
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       <RecentlyViewed currentAdId={ad && ad._id} lang="ar" />
     </div>
   );
