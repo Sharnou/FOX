@@ -159,8 +159,8 @@ export default function SellPage() {
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [subsub, setSubsub] = useState('Other');
   const [gpsLoading, setGpsLoading] = useState(false);
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
+  const [lat, setLat] = useState(null);
+  const [lng, setLng] = useState(null);
   const [gpsError, setGpsError] = useState('');
 
   // ── Multi-media state ──────────────────────────────────────────────────────
@@ -208,6 +208,9 @@ export default function SellPage() {
   }, []);
 
   // ── GPS auto-detect location ─────────────────────────────────────────────────
+  // Fix 3: Verified detectLocation — correct URL format, correct field names,
+  //         correct onClick binding, not disabled by default.
+  //         Added Nominatim fallback when ipapi.co fails.
   async function detectLocation() {
     if (!navigator.geolocation) {
       setGpsError('المتصفح لا يدعم تحديد الموقع');
@@ -217,17 +220,41 @@ export default function SellPage() {
     setGpsError('');
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        setLatitude(lat);
-        setLongitude(lon);
+        const posLat = pos.coords.latitude;
+        const posLon = pos.coords.longitude;
+        // Fix 2: use lat/lng state variables (matches backend field names)
+        setLat(posLat);
+        setLng(posLon);
+        // Primary: ipapi.co reverse geocoding
+        // URL format: https://ipapi.co/${lat},${lon}/json/ (comma between lat and lon)
+        let cityFound = false;
         try {
-          const r = await fetch('https://ipapi.co/' + lat + ',' + lon + '/json/');
+          const r = await fetch('https://ipapi.co/' + posLat + ',' + posLon + '/json/');
           const data = await r.json();
           if (data && data.city) {
             setForm(p => ({ ...p, city: data.city }));
+            cityFound = true;
           }
-        } catch (_) {}
+        } catch (_) {
+          // ipapi.co failed — fall through to Nominatim
+        }
+        // Fix 3: Nominatim fallback if ipapi.co fails or returns no city
+        if (!cityFound) {
+          try {
+            const r2 = await fetch(
+              'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + posLat + '&lon=' + posLon
+            );
+            const data2 = await r2.json();
+            const city = (data2 && data2.address)
+              ? (data2.address.city || data2.address.town || data2.address.county)
+              : null;
+            if (city) {
+              setForm(p => ({ ...p, city }));
+            }
+          } catch (_2) {
+            // Both geocoders failed — user can type city manually
+          }
+        }
         setGpsLoading(false);
       },
       () => {
@@ -326,7 +353,8 @@ export default function SellPage() {
       const formData = new FormData();
       formData.append('title', form.title);
       formData.append('description', form.description);
-      formData.append('price', form.price || '0');
+      // Fix 2: Send price as Number to ensure backend receives a valid numeric value
+      formData.append('price', Number(form.price || 0));
       formData.append('category', form.category);
       formData.append('city', form.city || '');
       formData.append('country', country || 'EG');
@@ -335,8 +363,9 @@ export default function SellPage() {
       formData.append('condition', form.condition || '');
       formData.append('subcategory', form.subcategory || '');
       formData.append('subsub', subsub || 'Other');
-      if (latitude !== null) formData.append('latitude', String(latitude));
-      if (longitude !== null) formData.append('longitude', String(longitude));
+      // Fix 2: Send lat/lng (backend primary field names) instead of latitude/longitude
+      if (lat !== null) formData.append('lat', String(lat));
+      if (lng !== null) formData.append('lng', String(lng));
 
       // Attach media files
       if (mediaType === 'images' && mediaFiles.length > 0) {
@@ -622,10 +651,23 @@ export default function SellPage() {
             </div>
 
             {/* Category */}
+            {/* Fix 4: Added htmlFor="sell-category" to label + hidden select for proper label association */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>
+              <label style={labelStyle} htmlFor="sell-category">
                 الفئة <span style={{ color: '#e53e3e' }}>*</span>
               </label>
+              {/* Visually hidden native select for label association — the visual buttons below control the actual selection */}
+              <select
+                id="sell-category"
+                value={form.category}
+                onChange={e => { setForm(p => ({ ...p, category: e.target.value, subcategory: 'Other' })); setSubsub('Other'); }}
+                aria-hidden="false"
+                tabIndex={-1}
+                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}
+              >
+                <option value="">اختر الفئة</option>
+                {CATS.map(cat => <option key={cat.en} value={cat.en}>{cat.ar}</option>)}
+              </select>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {CATS.map(cat => (
                   <button key={cat.en} type="button"
@@ -691,8 +733,21 @@ export default function SellPage() {
             </div>
 
             {/* Condition */}
+            {/* Fix 4: Added htmlFor="sell-condition" to label + hidden select for proper label association */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>حالة المنتج</label>
+              <label style={labelStyle} htmlFor="sell-condition">حالة المنتج</label>
+              {/* Visually hidden native select for label association — the visual buttons below control the actual selection */}
+              <select
+                id="sell-condition"
+                value={form.condition}
+                onChange={e => setForm(p => ({ ...p, condition: e.target.value }))}
+                aria-hidden="false"
+                tabIndex={-1}
+                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}
+              >
+                <option value="">اختر الحالة</option>
+                {CONDITIONS.map(c => <option key={c.en} value={c.en}>{c.ar}</option>)}
+              </select>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {CONDITIONS.map(c => (
                   <button key={c.en} type="button"
@@ -713,22 +768,28 @@ export default function SellPage() {
             </div>
 
             {/* Price + Currency */}
+            {/* Fix 4: Added explicit <label htmlFor="sell-currency"> for currency select */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="sell-price">السعر</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <select id="sell-currency" name="sell-currency" value={form.currency}
-                  onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}
-                  aria-label="العملة"
-                  style={{
-                    padding: '11px 10px', borderRadius: 10, border: '1.5px solid #e0e0e0',
-                    fontSize: 14, fontFamily: 'inherit', background: '#fff', direction: 'ltr',
-                  }}>
-                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input id="sell-price" value={form.price}
-                  onChange={e => { setForm(p => ({ ...p, price: e.target.value })); if (errors.price) setErrors(p => ({ ...p, price: '' })); }}
-                  type="number" min="0" placeholder="0" inputMode="numeric"
-                  style={{ ...inputStyle('price'), flex: 1, direction: 'ltr' }} />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div>
+                  <label style={labelStyle} htmlFor="sell-currency">العملة</label>
+                  <select id="sell-currency" name="sell-currency" value={form.currency}
+                    onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}
+                    aria-label="العملة"
+                    style={{
+                      padding: '11px 10px', borderRadius: 10, border: '1.5px solid #e0e0e0',
+                      fontSize: 14, fontFamily: 'inherit', background: '#fff', direction: 'ltr',
+                    }}>
+                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle} htmlFor="sell-price">السعر</label>
+                  <input id="sell-price" value={form.price}
+                    onChange={e => { setForm(p => ({ ...p, price: e.target.value })); if (errors.price) setErrors(p => ({ ...p, price: '' })); }}
+                    type="number" min="0" placeholder="0" inputMode="numeric"
+                    style={{ ...inputStyle('price'), direction: 'ltr' }} />
+                </div>
               </div>
               {errors.price && (
                 <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
@@ -748,6 +809,7 @@ export default function SellPage() {
                   onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
                   placeholder="مثال: القاهرة، الرياض، دبي..."
                   style={{ ...inputStyle('city'), flex: 1 }} />
+                {/* Fix 3: GPS button with onClick={detectLocation}, disabled only when loading */}
                 <button type="button" onClick={detectLocation}
                   disabled={gpsLoading}
                   title="تحديد الموقع تلقائياً"
@@ -776,9 +838,9 @@ export default function SellPage() {
                   ⚠️ {errors.city}
                 </p>
               )}
-              {/* Hidden GPS coordinates — submitted with form for geo-indexing */}
-              {latitude && <input type="hidden" name="latitude" value={latitude} />}
-              {longitude && <input type="hidden" name="longitude" value={longitude} />}
+              {/* Fix 2: Hidden GPS coordinates — sent as lat/lng (backend primary field names) */}
+              {lat && <input type="hidden" id="sell-lat" name="lat" value={lat} />}
+              {lng && <input type="hidden" id="sell-lng" name="lng" value={lng} />}
             </div>
 
             {/* Phone */}
