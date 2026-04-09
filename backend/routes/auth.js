@@ -8,6 +8,8 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import { getActiveDB } from '../server/dbManager.js';
+import { MemUser } from '../server/memoryStore.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
@@ -18,7 +20,12 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
 // -- Helpers -----------------------------------------------------------------
 
+// In-memory counter for XTOX IDs when MongoDB unavailable
+let _memSeq = 0;
+
 async function getUserModel() {
+  const db = getActiveDB();
+  if (db === 'memory') return MemUser;
   return mongoose.models.User || (await import('../models/User.js')).default;
 }
 
@@ -28,6 +35,11 @@ async function getCounterModel() {
 
 // Generate next XTOX ID: XTOX-000001, XTOX-000002, ...
 async function generateXtoxId() {
+  const db = getActiveDB();
+  if (db === 'memory') {
+    _memSeq = (_memSeq || 0) + 1;
+    return 'XTOX-' + String(_memSeq).padStart(6, '0');
+  }
   var Counter = await getCounterModel();
   var counter = await Counter.findByIdAndUpdate(
     'xtoxId',

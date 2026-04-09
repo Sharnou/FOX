@@ -169,7 +169,8 @@ export default function LoginClient() {
     if (!window.google || !window.google.accounts) return;
     var btn = document.getElementById('google-signin-btn');
     if (btn) {
-      window.google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', width: '100%' });
+      var gsiWidth = Math.min((btn.parentElement && btn.parentElement.offsetWidth) || 400, 400);
+      window.google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', width: gsiWidth });
     }
   }, [tab]);
 
