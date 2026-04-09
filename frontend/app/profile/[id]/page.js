@@ -35,6 +35,9 @@ export default function ProfilePage({ params }) {
   const remoteAudioRef = useRef(null);
   const [myUserId, setMyUserId] = React.useState('');
   const [token, setToken] = React.useState('');
+  const [avatarUploading, setAvatarUploading] = React.useState(false);
+  const [avatarUrl, setAvatarUrl] = React.useState(null);
+  const avatarInputRef = useRef(null);
 
   // ── Fix 1: redirect if params.id is invalid ──────────────────────────
   useEffect(() => {
@@ -151,6 +154,32 @@ export default function ProfilePage({ params }) {
     setSubmitting(false);
   }
 
+
+  // ── Change 4: Avatar upload handler ──────────────────────────────────────
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const tok = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!tok) return;
+    setAvatarUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('avatar', file);
+      const res = await fetch(API + '/api/profile/avatar', {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + tok },
+        body: fd,
+      });
+      const result = await res.json();
+      if (result.avatar) {
+        setAvatarUrl(result.avatar);
+        // Update in-memory data as well
+        setData(d => d ? { ...d, user: { ...d.user, avatar: result.avatar } } : d);
+      }
+    } catch {}
+    setAvatarUploading(false);
+  }
+
   // ── Loading / Error states ────────────────────────────────────────────
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: 20, color: '#002f34' }}>
@@ -188,13 +217,45 @@ export default function ProfilePage({ params }) {
       {/* Profile Card */}
       <div style={{ background: 'white', borderRadius: 20, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative' }}>
-            {user.avatar ? (
-              <img loading="lazy" src={user.avatar} style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid #002f34' }} alt="" />
+          <div style={{ position: 'relative', cursor: isOwnProfile ? 'pointer' : 'default' }}
+            onClick={() => isOwnProfile && avatarInputRef.current?.click()}
+          >
+            {/* Change 4: Hidden file input for avatar upload */}
+            {isOwnProfile && (
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleAvatarUpload}
+              />
+            )}
+            {/* Change 4: Loading overlay during upload */}
+            {avatarUploading && (
+              <div style={{
+                position: 'absolute', inset: 0, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.5)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', zIndex: 3, fontSize: 20,
+              }}>⏳</div>
+            )}
+            {(avatarUrl || user.avatar) ? (
+              <img loading="lazy" src={avatarUrl || user.avatar} style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid #002f34' }} alt="" />
             ) : (
               <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: 'white' }}>
                 {user.name?.[0]?.toUpperCase()}
               </div>
+            )}
+            {/* Change 4: Camera overlay on own profile */}
+            {isOwnProfile && !avatarUploading && (
+              <div style={{
+                position: 'absolute', bottom: 0, right: 0,
+                background: '#6366f1', borderRadius: '50%',
+                width: 28, height: 28, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                fontSize: 14, cursor: 'pointer', zIndex: 2,
+                boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
+                border: '2px solid white',
+              }}>📷</div>
             )}
             {user.role === 'admin' && <span style={{ position: 'absolute', bottom: 0, right: 0, background: '#ffd700', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>👑</span>}
             {/* Online Status Badge */}

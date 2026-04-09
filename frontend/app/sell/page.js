@@ -211,6 +211,20 @@ export default function SellPage() {
     }
   }, []);
 
+  // Auto-call detectLocation on mount — runs silently
+  useEffect(() => {
+    detectLocation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-fill phone from xtox_user in localStorage
+  useEffect(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('xtox_user') || '{}');
+      if (user.phone) setForm(f => ({ ...f, phone: user.phone }));
+    } catch {}
+  }, []);
+
   // ── Auto-learning: watch for user corrections to AI detection ───────────────
   // When user changes category/subcategory AFTER AI made a suggestion, save the
   // correction so next time the same label maps to the user's choice.
@@ -281,7 +295,7 @@ export default function SellPage() {
         setGpsLoading(false);
       },
       () => {
-        setGpsError('تعذّر تحديد موقعك — يرجى السماح بالوصول للموقع');
+        // GPS denied or failed — silently skip, user can fill city manually
         setGpsLoading(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -906,34 +920,14 @@ export default function SellPage() {
               <label style={labelStyle} htmlFor="sell-city">
                 المدينة <span style={{ color: '#e53e3e' }}>*</span>
               </label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                <input id="sell-city" value={form.city}
+              <input id="sell-city" value={form.city}
                   required
                   onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
                   placeholder="مثال: القاهرة، الرياض، دبي..."
-                  style={{ ...inputStyle('city'), flex: 1 }} />
-                {/* Fix 3: GPS button with onClick={detectLocation}, disabled only when loading */}
-                <button type="button" onClick={detectLocation}
-                  disabled={gpsLoading}
-                  title="تحديد الموقع تلقائياً"
-                  aria-label="تحديد الموقع تلقائياً"
-                  style={{
-                    padding: '10px 12px', borderRadius: 10,
-                    border: '1.5px solid #e0e0e0',
-                    background: gpsLoading ? '#f5f5f5' : '#fff',
-                    cursor: gpsLoading ? 'not-allowed' : 'pointer',
-                    fontSize: 18, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', flexShrink: 0,
-                    transition: 'background 0.2s',
-                  }}>
-                  {gpsLoading ? (
-                    <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
-                  ) : '📍'}
-                </button>
-              </div>
-              {gpsError && (
-                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
-                  ⚠️ {gpsError}
+                  style={inputStyle('city')} />
+              {gpsLoading && (
+                <p style={{ color: '#6366f1', fontSize: 12, margin: '4px 0 0', fontFamily: "'Cairo','Tajawal',system-ui" }}>
+                  📍 جارٍ تحديد موقعك...
                 </p>
               )}
               {errors.city && (
