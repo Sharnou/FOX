@@ -1,0 +1,1 @@
+{"id": 1, "name": "Mock Grand Hotel", "stars": 5, "price_per_night": 250, "location": {"city": "New York", "address": "1 Mock Street"}, "amenities": ["wifi", "pool", "gym", "restaurant"], "rating": 4.8}

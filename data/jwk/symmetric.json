@@ -1,0 +1,1 @@
+{"keys": [{"kty": "oct", "use": "sig", "kid": "mock-symmetric-key-id", "k": "bXlfc3VwZXJfc2VjcmV0X2tleV9mb3JfdGVzdGluZw==", "alg": "HS256"}]}

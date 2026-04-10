@@ -1,0 +1,1 @@
+{"campaigns": [{"id": 1, "name": "Summer Sale", "discount": "20%", "active": true}, {"id": 2, "name": "Winter Promo", "discount": "15%", "active": false}]}
