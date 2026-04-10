@@ -5,7 +5,6 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "node server.js",
     "healthcheckPath": "/whatsapp/debug",
     "restartPolicyType": "ON_FAILURE"
   }
