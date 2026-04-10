@@ -1,6 +1,6 @@
 /**
  * /api/auth -- Real authentication routes
- * - WhatsApp OTP (Meta Cloud API)
+ * - WhatsApp OTP (Meta Cloud API / Fake API for testing)
  * - Google Sign-In (real Google sub ID)
  * - Apple Sign In with Apple
  * - Blocking enforced on real identifiers
@@ -17,6 +17,8 @@ const META_TOKEN = process.env.WHATSAPP_API_TOKEN || '';
 const META_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
 const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const USE_FAKE_API = process.env.USE_FAKE_API === 'true';
+const FAKE_API_URL = process.env.FAKE_API_URL || '';
 
 // -- Helpers -----------------------------------------------------------------
 
@@ -129,34 +131,58 @@ router.post('/whatsapp/send-otp', async (req, res) => {
       { upsert: true, setDefaultsOnInsert: true }
     );
 
-    // Send via Meta WhatsApp Cloud API
-    if (META_TOKEN && META_PHONE_ID) {
-      var textPayload = JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: phone.replace('+', ''),
-        type: 'text',
-        text: { body: 'رمز التحقق الخاص بك في XTOX هو: ' + otp + '\nThis code expires in 10 minutes. Do not share it with anyone.' }
-      });
-      var metaUrl = 'https://graph.facebook.com/v19.0/' + META_PHONE_ID + '/messages';
+    if (USE_FAKE_API && FAKE_API_URL) {
+      // ── FAKE API MODE (testing) ──
       try {
-        var metaRes = await fetch(metaUrl, {
+        var fakeRes = await fetch(`${FAKE_API_URL}/whatsapp/send-otp`, {
           method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + META_TOKEN,
-            'Content-Type': 'application/json'
-          },
-          body: textPayload
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
         });
-        var metaData = await metaRes.json();
-        if (!metaRes.ok) {
-          console.error('[WhatsApp OTP] Meta API error:', metaData);
-        }
-      } catch (metaErr) {
-        console.error('[WhatsApp OTP] Meta fetch error:', metaErr.message);
+        var fakeData = await fakeRes.json();
+        return res.json({
+          success: true,
+          message: 'OTP sent (FAKE API - testing mode)',
+          debug_otp: fakeData.debug_otp,
+          phone
+        });
+      } catch (fakeErr) {
+        console.error('[WhatsApp OTP] Fake API error:', fakeErr.message);
+        return res.status(500).json({ success: false, message: 'Fake API unreachable', error: fakeErr.message });
       }
-    } else {
+    }
+
+    if (!META_TOKEN || !META_PHONE_ID) {
       // DEV MODE: log OTP to console
       console.log('[WhatsApp OTP DEV] Phone:', phone, 'OTP:', otp);
+      return res.json({ success: true, message: 'OTP logged (no API configured)', debug_otp: otp });
+    }
+
+    // ── REAL META CLOUD API ──
+    var textPayload = JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: phone.replace('+', ''),
+      type: 'text',
+      text: { body: 'رمز التحقق الخاص بك في XTOX هو: ' + otp + '\nThis code expires in 10 minutes. Do not share it with anyone.' }
+    });
+    var metaUrl = 'https://graph.facebook.com/v19.0/' + META_PHONE_ID + '/messages';
+    try {
+      var metaRes = await fetch(metaUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + META_TOKEN,
+          'Content-Type': 'application/json'
+        },
+        body: textPayload
+      });
+      var metaData = await metaRes.json();
+      if (!metaRes.ok) {
+        console.error('[WhatsApp OTP] Meta API error:', metaData);
+        return res.status(500).json({ success: false, message: 'Failed to send OTP via WhatsApp', error: metaData });
+      }
+    } catch (metaErr) {
+      console.error('[WhatsApp OTP] Meta fetch error:', metaErr.message);
+      return res.status(500).json({ success: false, message: 'Server error sending OTP' });
     }
 
     res.json({ success: true, message: 'OTP sent to WhatsApp' });
