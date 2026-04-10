@@ -12,9 +12,8 @@ services:
       - .env
 
   fake_api:
-    image: busybox:latest
-    volumes:
-      - ./data:/var/www/
+    build: .
     ports:
-      - "${FAKE_API_PORT:-8000}:80"
-    command: httpd -f -h /var/www/
+      - "${FAKE_API_PORT:-8000}:8000"
+    environment:
+      - PORT=8000

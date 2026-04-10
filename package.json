@@ -1,13 +1,14 @@
 {
-  "name": "xtox-backend",
-  "version": "2.0.0",
-  "description": "XTOX Marketplace Backend",
-  "type": "module",
+  "name": "xtox-fake-api",
+  "version": "1.0.0",
+  "description": "XTOX Fake API - OTP simulator + mock endpoints",
+  "main": "server.js",
   "scripts": {
-    "start": "cd backend && node server/index.js",
-    "build": "cd backend && npm install --legacy-peer-deps"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
-  "engines": {
-    "node": "24.x"
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
   }
 }
