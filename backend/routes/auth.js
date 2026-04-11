@@ -20,6 +20,12 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const USE_FAKE_API = process.env.USE_FAKE_API === 'true';
 const FAKE_API_URL = process.env.FAKE_API_URL || '';
 
+// [SECURITY] Warn loudly when fake API mode is active so it is never
+// accidentally shipped to production without a visible signal.
+if (USE_FAKE_API) {
+  console.warn('[WARNING] USE_FAKE_API is enabled — WhatsApp messages will NOT be sent');
+}
+
 // -- Helpers -----------------------------------------------------------------
 
 // In-memory counter for XTOX IDs when MongoDB unavailable
@@ -140,10 +146,15 @@ router.post('/whatsapp/send-otp', async (req, res) => {
           body: JSON.stringify({ phone })
         });
         var fakeData = await fakeRes.json();
+        // [SECURITY] Only expose debug_otp outside production, or when the fake
+        // API is explicitly enabled (developers chose to run in test mode).
+        var debugPayload = (USE_FAKE_API || process.env.NODE_ENV !== 'production')
+          ? { debug_otp: otp } // backend's own OTP, already saved in MongoDB (PR #59)
+          : {};
         return res.json({
           success: true,
           message: 'OTP sent (FAKE API - testing mode)',
-          debug_otp: otp, // backend's own OTP, already saved in MongoDB
+          ...debugPayload,
           phone
         });
       } catch (fakeErr) {
@@ -152,10 +163,11 @@ router.post('/whatsapp/send-otp', async (req, res) => {
       }
     }
 
+    // [SECURITY] If real WhatsApp credentials are not configured and fake API
+    // is not enabled, refuse to proceed rather than silently logging the OTP.
     if (!META_TOKEN || !META_PHONE_ID) {
-      // DEV MODE: log OTP to console
-      console.log('[WhatsApp OTP DEV] Phone:', phone, 'OTP:', otp);
-      return res.json({ success: true, message: 'OTP logged (no API configured)', debug_otp: otp });
+      console.error('[WhatsApp OTP] WHATSAPP_API_TOKEN or WHATSAPP_PHONE_NUMBER_ID is not set');
+      return res.status(500).json({ success: false, error: 'WhatsApp API not configured' });
     }
 
     // ── REAL META CLOUD API ──
