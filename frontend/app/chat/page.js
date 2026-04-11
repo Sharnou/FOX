@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -139,6 +140,7 @@ function LocationCard({ msg }) {
 
 // Main ChatPage component
 export default function ChatPage() {
+  var router = useRouter();
   var [myId, setMyId]                   = useState('');
   var [targetId, setTargetId]           = useState('');
   var [sellerName, setSellerName]       = useState('');
@@ -153,10 +155,11 @@ export default function ChatPage() {
   var [isTyping, setIsTyping]           = useState(false);
   var [conversations, setConversations] = useState([]);
   var [unreadCounts, setUnreadCounts]   = useState({});
-  var [showConvPanel, setShowConvPanel] = useState(false);
+  var [showConvPanel, setShowConvPanel] = useState(true); // default open
   var [chatId, setChatId]               = useState('');
   var [apiChats, setApiChats]           = useState([]);
   var [historyLoaded, setHistoryLoaded] = useState(false);
+  var [loginRequired, setLoginRequired] = useState(false);
 
   var pcRef          = useRef(null);
   var remoteAudioRef = useRef(null);
@@ -252,8 +255,18 @@ export default function ChatPage() {
   // Fetch conversations from API
   useEffect(function() {
     if (!myId) return;
-    var token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) return;
+    var token = null;
+    try {
+      var stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      var userObj = stored ? JSON.parse(stored) : null;
+      token = (userObj && userObj.token) || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+    } catch(e) {}
+    if (!token) {
+      setLoginRequired(true);
+      setHistoryLoaded(true);
+      return;
+    }
+    setLoginRequired(false);
     fetch(API_URL + '/api/chat', { headers: { Authorization: 'Bearer ' + token } })
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(async function(data) {
@@ -298,7 +311,7 @@ export default function ChatPage() {
           }
         }
       })
-      .catch(function() {});
+      .catch(function() { setHistoryLoaded(true); });
   }, [myId]);
 
   // Socket setup
@@ -540,9 +553,30 @@ export default function ChatPage() {
               &#x2715;
             </button>
           </div>
-          {conversations.length === 0 ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
-              <p style={{ margin: 0 }}>\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062d\u0627\u062f\u062b\u0627\u062a \u0628\u0639\u062f</p>
+          {loginRequired ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
+              <div style={{ fontSize: 36 }}>&#128274;</div>
+              <p style={{ margin: 0 }}>سجّل الدخول للمحادثات</p>
+              <a href="/login" style={{ color: '#23e5db', fontSize: 13, marginTop: 4 }}>تسجيل الدخول</a>
+            </div>
+          ) : !historyLoaded && apiChats.length === 0 ? (
+            <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[1,2,3].map(function(i) {
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.07)', opacity: 0.4 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ height: 12, background: 'rgba(255,255,255,0.15)', borderRadius: 6, marginBottom: 6, width: '60%' }} />
+                      <div style={{ height: 10, background: 'rgba(255,255,255,0.1)', borderRadius: 6, width: '80%' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : historyLoaded && apiChats.length === 0 ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
+              <div style={{ fontSize: 40 }}>&#128172;</div>
+              <p style={{ margin: 0, lineHeight: 1.6 }}>لا توجد محادثات بعد. ابدأ محادثة من صفحة أي إعلان!</p>
             </div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, flex: 1 }}>
@@ -563,7 +597,7 @@ export default function ChatPage() {
                         var dest = conv.chatId
                           ? '/chat?chatId=' + encodeURIComponent(conv.chatId) + '&target=' + encodeURIComponent(conv.id)
                           : '/chat?target=' + encodeURIComponent(conv.id);
-                        window.location.href = dest;
+                        router.push(dest);
                       }}
                       style={{ width: '100%', background: isActive ? 'rgba(35,229,219,0.15)' : 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'right' }}>
                       <div style={{ width: 42, height: 42, borderRadius: '50%', background: isActive ? '#23e5db' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, color: isActive ? '#002f34' : 'white', fontWeight: 'bold' }}>

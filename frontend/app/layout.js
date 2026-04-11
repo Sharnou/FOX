@@ -7,6 +7,7 @@ import BottomNav from './components/BottomNav';
 import FloatingSearchBar from './components/FloatingSearchBar';
 import ErrorCapture from './components/ErrorCapture';
 import MarkPoint from './components/MarkPoint';
+import ChatFloat from './components/ChatFloat';
 
 // JSON-LD structured data for rich Google search results
 const jsonLd = {
@@ -111,6 +112,7 @@ export default function RootLayout({ children }) {
         <ServiceWorkerRegistration />
         <UnifiedNotificationPrompt />
         <BottomNav />
+        <ChatFloat />
       </body>
     </html>
   );
