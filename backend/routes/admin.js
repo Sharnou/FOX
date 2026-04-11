@@ -183,6 +183,10 @@ router.post('/rank-ad', adminAuth, async (req, res) => {
 });
 router.post('/feature', adminAuth, async (req, res) => {
   const { adId, style } = req.body;
+  var days = parseInt(req.body.days) || 7;
+  if (days < 1) days = 1;
+  if (days > 90) days = 90;
+  var featuredUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
   // Get the ad to check its country
   const ad = await Ad.findById(adId);
@@ -197,9 +201,9 @@ router.post('/feature', adminAuth, async (req, res) => {
     isFeatured: true,
     featuredStyle: style || 'normal',
     featuredAt: new Date(), // timestamp for sorting new→top
-    featuredUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    featuredUntil: featuredUntil
   });
-  res.json({ ok: true, weeklyCount: count + 1 });
+  res.json({ ok: true, weeklyCount: count + 1, featuredUntil });
 });
 router.post('/promote-user', superAdminAuth, async (req, res) => {
   await User.findByIdAndUpdate(req.body.id, { role: req.body.role });
@@ -349,6 +353,12 @@ router.delete('/ads/all', adminAuth, async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+router.post('/ai-learn', adminAuth, async (req, res) => {
+  const { runWeeklyLearning } = await import('../server/weeklyLearner.js');
+  runWeeklyLearning().catch(() => {});
+  res.json({ success: true, message: 'AI subcategory learning job started' });
 });
 
 export default router;

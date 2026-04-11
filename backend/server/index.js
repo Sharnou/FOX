@@ -438,6 +438,17 @@ connectDatabases().then(async (db) => {
     // ── Run seeds + cleanup ─────────────────────────────────────────────
     await runSeedsOnce();
     await seedXtoxAdmin();
+
+    // Seed subcategory examples (non-blocking) and schedule weekly AI learner
+    try {
+      const { seedExamples } = await import('./exampleSeeder.js');
+      const { scheduleWeeklyLearner } = await import('./weeklyLearner.js');
+      seedExamples().catch(() => {});
+      scheduleWeeklyLearner();
+    } catch (_seedErr) {
+      console.warn('[SEED] exampleSeeder/weeklyLearner init failed (non-fatal):', _seedErr.message);
+    }
+
     await (async function cleanupDuplicates() {
       try {
         const Country = mongoose.models.Country;
