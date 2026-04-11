@@ -143,7 +143,7 @@ router.post('/whatsapp/send-otp', async (req, res) => {
         return res.json({
           success: true,
           message: 'OTP sent (FAKE API - testing mode)',
-          debug_otp: fakeData.debug_otp,
+          debug_otp: otp, // backend's own OTP, already saved in MongoDB
           phone
         });
       } catch (fakeErr) {
