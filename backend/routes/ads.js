@@ -12,6 +12,7 @@ import { rankAd } from '../server/ranking.js';
 import { indexAd } from '../server/search.js';
 import { buildAdFromMedia } from '../server/ai.js';
 import { detectCategoryOffline } from '../server/offlineDict.js';
+import { detectSubcategory } from '../server/categoryDetector.js';
 import { generateQR } from '../server/qr.js';
 import { scoreAdWithAI } from '../server/aiQualityScore.js';
 import { getOrCreateCountry } from '../server/countries.js';
@@ -130,7 +131,7 @@ function sanitizeAdFields({ title, description, category, subcategory, price, ci
 // ── GET all ads (country from JWT — locked, user cannot override) ──
 router.get('/', async (req, res) => {
   try {
-    const { category, city, page = 0, q, userId } = req.query;
+    const { category, city, page = 0, q, userId, subcategory: querySubcategory, subsub: querySubsub } = req.query;
     // FIX: Do NOT use req.user.country — logged-in users from different countries would see 0 ads
     const countryParam = req.query.country || req.headers['x-country'] || null;
 
@@ -152,6 +153,8 @@ router.get('/', async (req, res) => {
       filter.category = { $regex: new RegExp('^' + category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') };
     }
     if (city) filter.city = city;
+    if (querySubcategory) filter.subcategory = querySubcategory;
+    if (querySubsub) filter.subsub = querySubsub;
     // Full-text search using $or regex (works even without text index)
     if (q && q.trim()) {
       filter.$or = [
@@ -621,6 +624,19 @@ router.post('/', auth, multerUpload, async (req, res) => {
       }
     }
 
+    // Enhanced offline subcategory detection from DB examples
+    if (finalCategory && (!finalSubcategory || finalSubcategory === 'Other')) {
+      try {
+        const _dbDetected = await detectSubcategory(finalCategory, (title || '') + ' ' + (description || ''));
+        if (_dbDetected.confidence !== 'low') {
+          finalSubcategory = _dbDetected.subcategory;
+          if (_dbDetected.subsub && _dbDetected.subsub !== 'Other') {
+            finalSubsub = _dbDetected.subsub;
+          }
+        }
+      } catch (_dbDetErr) { /* non-fatal */ }
+    }
+
     // ENSURE COUNTRY EXISTS
     await getOrCreateCountry(country, country).catch(() => {});
 
@@ -928,6 +944,22 @@ router.patch('/:id/view', async (req, res) => {
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
     res.json({ views: ad.views });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /ai-learn — admin-triggered subcategory AI learning
+router.post('/ai-learn', auth, async (req, res) => {
+  try {
+    const User = (await import('../models/User.js')).default;
+    const user = await User.findById(req.user.id);
+    if (!user || !['admin', 'sub_admin', 'superadmin'].includes(user.role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { runWeeklyLearning } = await import('../server/weeklyLearner.js');
+    runWeeklyLearning().catch(() => {});
+    res.json({ success: true, message: 'AI learning started' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;

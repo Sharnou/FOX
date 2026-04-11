@@ -12,6 +12,18 @@ import { detectLang } from '../../lib/lang';
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];
 const CAT_MAP = { 'سيارات': 'Vehicles', 'إلكترونيات': 'Electronics', 'عقارات': 'Real Estate', 'وظائف': 'Jobs', 'خدمات': 'Services', 'سوبرماركت': 'Supermarket', 'صيدلية': 'Pharmacy', 'طعام': 'Fast Food', 'موضة': 'Fashion' };
+const SUBCATEGORY_MAP = {
+  'Vehicles': [{ value: '', label: 'كل الأنواع' }, { value: 'Cars', label: 'سيارات' }, { value: 'Motorcycles', label: 'موتوسيكلات' }, { value: 'Trucks', label: 'شاحنات' }, { value: 'Boats', label: 'قوارب' }, { value: 'CarParts', label: 'قطع غيار' }],
+  'Electronics': [{ value: '', label: 'كل الأنواع' }, { value: 'MobilePhones', label: 'موبايلات' }, { value: 'Laptops', label: 'لابتوب' }, { value: 'TVs', label: 'تليفزيونات' }, { value: 'Cameras', label: 'كاميرات' }, { value: 'Gaming', label: 'جيمنج' }, { value: 'Tablets', label: 'تابلت' }],
+  'Real Estate': [{ value: '', label: 'كل الأنواع' }, { value: 'Apartments', label: 'شقق' }, { value: 'Villas', label: 'فيلات' }, { value: 'Offices', label: 'مكاتب' }, { value: 'Land', label: 'أراضي' }],
+  'RealEstate': [{ value: '', label: 'كل الأنواع' }, { value: 'Apartments', label: 'شقق' }, { value: 'Villas', label: 'فيلات' }, { value: 'Offices', label: 'مكاتب' }, { value: 'Land', label: 'أراضي' }],
+  'Jobs': [{ value: '', label: 'كل الأنواع' }, { value: 'FullTime', label: 'دوام كامل' }, { value: 'PartTime', label: 'دوام جزئي' }, { value: 'Internship', label: 'تدريب' }],
+  'Services': [{ value: '', label: 'كل الأنواع' }, { value: 'HomeServices', label: 'خدمات منزلية' }, { value: 'Tutoring', label: 'دروس خصوصية' }, { value: 'Transport', label: 'نقل' }, { value: 'Beauty', label: 'تجميل' }],
+  'Fashion': [{ value: '', label: 'كل الأنواع' }, { value: 'MensClothing', label: 'ملابس رجالي' }, { value: 'WomensClothing', label: 'ملابس حريمي' }, { value: 'KidsClothing', label: 'ملابس أطفال' }, { value: 'Accessories', label: 'اكسسوارات' }],
+  'Supermarket': [{ value: '', label: 'كل الأنواع' }, { value: 'Groceries', label: 'مواد غذائية' }, { value: 'Household', label: 'منتجات منزلية' }],
+  'FastFood': [{ value: '', label: 'كل الأنواع' }, { value: 'Restaurants', label: 'مطاعم' }, { value: 'Cafes', label: 'كافيهات' }],
+  'Pharmacy': [{ value: '', label: 'كل الأنواع' }, { value: 'Medicines', label: 'أدوية' }, { value: 'BabyProducts', label: 'منتجات أطفال' }],
+};
 const POPULAR = ['عربية', 'آيفون', 'شقة', 'لابتوب', 'سباك', 'تليفزيون', 'موبايل', 'أثاث'];
 const MAX_RECENT = 8;
 
@@ -43,6 +55,7 @@ export default function SearchPage() {
   const [maxPrice, setMaxPrice] = useState('');
   const [city, setCity] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  const [subcategory, setSubcategory] = useState('');
   const [searched, setSearched] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [showRecent, setShowRecent] = useState(false);
@@ -81,6 +94,7 @@ export default function SearchPage() {
     try {
       const params = { country };
       if (category !== 'الكل') params.category = CAT_MAP[category] || category;
+      if (subcategory) params.subcategory = subcategory;
       if (city) params.city = city;
       const res = await axios.get(API + '/api/ads', { params });
       const _searchData = res.data;
@@ -250,10 +264,16 @@ export default function SearchPage() {
         <PriceAlert lang="ar" keyword={query} />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-          <select value={category} onChange={e => setCategory(e.target.value)}
+          <select value={category} onChange={e => { setCategory(e.target.value); setSubcategory(''); }}
             style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, background: 'white', fontFamily: 'inherit' }}>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          {category !== 'الكل' && SUBCATEGORY_MAP[CAT_MAP[category] || category] && (
+            <select value={subcategory} onChange={e => setSubcategory(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, background: 'white', fontFamily: 'inherit' }}>
+              {(SUBCATEGORY_MAP[CAT_MAP[category] || category] || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          )}
           <input value={city} onChange={e => setCity(e.target.value)} placeholder="المدينة" dir="rtl"
             style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit' }} />
           <input value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="أدنى سعر" type="number"
@@ -311,7 +331,7 @@ export default function SearchPage() {
           </p>
           {(minPrice || maxPrice || category !== 'الكل' || city) && (
             <button
-              onClick={() => { setMinPrice(''); setMaxPrice(''); setCategory('الكل'); setCity(''); doSearch(); }}
+              onClick={() => { setMinPrice(''); setMaxPrice(''); setCategory('الكل'); setCity(''); setSubcategory(''); doSearch(); }}
               style={{ padding: '10px 24px', background: '#f0f0f0', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 20, color: '#333', fontWeight: '600' }}
             >
               ✕ إزالة الفلاتر

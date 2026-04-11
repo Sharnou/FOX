@@ -44,6 +44,7 @@ export default function AdminPage() {
   const [logs, setLogs] = useState([]);
   const [errors, setErrors] = useState([]);
   const [scanLoading, setScanLoading] = useState(false);
+  const [featuredDays, setFeaturedDays] = useState({});
   const [analyzingId, setAnalyzingId] = useState(null);
   const [broadcast, setBroadcast] = useState('');
   const [aiChat, setAiChat] = useState([{ role: 'system', text: 'XTOX AI Developer ready.' }]);
@@ -229,7 +230,10 @@ export default function AdminPage() {
   }).then(r => r.json()).catch(e => ({ error: e.message }));
 
   const ban = (id, hours) => post('/api/admin/ban', { id, hours }).then(() => fetchAll());
-  const featureAd = (adId, style) => post('/api/admin/feature', { adId, style }).then(() => fetchAll());
+  const featureAd = (adId, style) => {
+    const days = parseInt(featuredDays[adId]) || 7;
+    return post('/api/admin/feature', { adId, style, days }).then(() => fetchAll());
+  };
   const fixCats = () => post('/api/admin/fix-categories', {}).then(r => alert('Fixed: ' + (r.fixed || 0) + ' ads'));
   const backup = () => window.open(RAILWAY + '/api/admin/backup', '_blank');
   const sendBroadcast = () => post('/api/admin/broadcast', { message: broadcast }).then(r => { if (r.error) alert('Error: ' + r.error); else { alert('Sent!'); setBroadcast(''); } });
@@ -486,7 +490,7 @@ export default function AdminPage() {
               <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead><tr style={{ borderBottom: '1px solid #30363d' }}>
-                    {['Title','Category','City','Views','Status','Actions'].map(h => <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#8b949e', fontWeight: 'normal' }}>{h}</th>)}
+                    {['Title','Category','City','Views','Status','Days','Expires','Actions'].map(h => <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#8b949e', fontWeight: 'normal' }}>{h}</th>)}
                   </tr></thead>
                   <tbody>
                     {filteredAds.map(a => (
@@ -496,6 +500,19 @@ export default function AdminPage() {
                         <td style={{ padding: '9px 12px', color: '#8b949e' }}>{a.city}</td>
                         <td style={{ padding: '9px 12px', color: '#00d4ff' }}>{a.views}</td>
                         <td style={{ padding: '9px 12px' }}><span style={{ color: a.isFeatured ? '#ffd700' : '#8b949e' }}>{a.isFeatured ? '⭐' : '—'}</span></td>
+                        <td style={{ padding: '4px 9px' }}>
+                          <input
+                            type="number"
+                            min={1}
+                            max={90}
+                            value={featuredDays[a._id] !== undefined ? featuredDays[a._id] : 7}
+                            onChange={e => setFeaturedDays(prev => ({ ...prev, [a._id]: e.target.value }))}
+                            style={{ width: 46, background: '#0d1117', border: '1px solid #30363d', borderRadius: 4, padding: '2px 4px', color: '#ffd700', fontSize: 11, fontFamily: 'monospace', textAlign: 'center' }}
+                          />
+                        </td>
+                        <td style={{ padding: '9px 12px', color: '#8b949e', fontSize: 10 }}>
+                          {a.featuredUntil ? ('exp ' + new Date(a.featuredUntil).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })) : '—'}
+                        </td>
                         <td style={{ padding: '9px 12px', display: 'flex', gap: 5 }}>
                           <button onClick={() => featureAd(a._id, 'normal')} style={{ background: '#2d2a1a', color: '#ffd700', border: '1px solid #ffd700', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>⭐</button>
                           <button onClick={() => featureAd(a._id, 'cartoon')} style={{ background: '#2d1a2d', color: '#bf5fff', border: '1px solid #bf5fff', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>🎨</button>
@@ -506,7 +523,7 @@ export default function AdminPage() {
                       </tr>
                     ))}
                     {filteredAds.length === 0 && (
-                      <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#8b949e', fontSize: 12 }}>
+                      <tr><td colSpan={8} style={{ padding: '20px', textAlign: 'center', color: '#8b949e', fontSize: 12 }}>
                         No ads found / لا يوجد إعلانات
                       </td></tr>
                     )}

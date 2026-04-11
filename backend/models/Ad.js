@@ -62,6 +62,8 @@ AdSchema.index({ userId: 1, createdAt: -1 });                    // my-ads page
 AdSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });     // TTL auto-expire
 AdSchema.index({ title: 'text', description: 'text', title_original: 'text' }, { default_language: 'none', weights: { title: 10, description: 5 } }); // text search
 AdSchema.index({ country: 1, condition: 1, createdAt: -1 });     // condition filter [run 84]
+AdSchema.index({ country: 1, subcategory: 1, createdAt: -1 }); // subcategory filter
+AdSchema.index({ country: 1, subsub: 1, createdAt: -1 });      // subsub filter
 
 // FIX C: Pre-validate hook — strip incomplete location before validation runs
 // Prevents { type: 'Point' } without coordinates from ever reaching the 2dsphere index.
