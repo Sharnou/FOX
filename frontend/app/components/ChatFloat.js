@@ -255,8 +255,17 @@ export default function ChatFloat() {
                       <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                         <button
                           onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv._id ? null : conv._id); }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280', padding: '2px 6px', borderRadius: 6 }}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            fontSize: 18, color: '#374151', padding: 0,
+                            minWidth: 36, minHeight: 36, borderRadius: '50%',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            lineHeight: 1, flexShrink: 0,
+                          }}
                           title="خيارات"
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.08)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                          aria-label="خيارات المحادثة"
                         >⋮</button>
                         {menuOpenId === conv._id && (
                           <div style={{ position: 'absolute', left: 0, top: 28, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 140, zIndex: 200, overflow: 'hidden', direction: 'rtl' }}>

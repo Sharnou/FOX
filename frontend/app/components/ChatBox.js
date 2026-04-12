@@ -460,7 +460,19 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
           }}>
             {/* Action menu (⋮) — placed first in RTL so it appears on the left */}
             <div style={{ position: 'relative' }}>
-              <button onClick={() => setShowMenu(m => !m)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer', padding: '0 8px' }}>⋮</button>
+              <button
+              onClick={() => setShowMenu(m => !m)}
+              style={{
+                background: 'none', border: 'none', color: '#fff',
+                fontSize: 22, cursor: 'pointer', padding: 0,
+                minWidth: 36, minHeight: 36, borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                lineHeight: 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+              aria-label="خيارات"
+            >⋮</button>
               {showMenu && (
                 <div style={{ position: 'absolute', top: 28, left: 0, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 160, zIndex: 100, overflow: 'hidden' }}>
                   {[
