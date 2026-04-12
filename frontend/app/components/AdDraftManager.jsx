@@ -302,7 +302,7 @@ export default function AdDraftManager({
       )}
 
       {/* Fade-in keyframes (injected once via style tag) */}
-      <style>{'
+      <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0);   }
@@ -315,7 +315,7 @@ export default function AdDraftManager({
         li.animate-fade-in:nth-child(4)  { animation-delay: 0.15s; }
         li.animate-fade-in:nth-child(5)  { animation-delay: 0.20s; }
         li.animate-fade-in:nth-child(6)  { animation-delay: 0.25s; }
-      '}</style>
+      `}</style>
     </div>
   );
 }

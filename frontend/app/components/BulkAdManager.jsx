@@ -279,10 +279,10 @@ export default function BulkAdManager({
   return (
     <>
       {/* Google Fonts — Cairo + Tajawal for Arabic */}
-      <style>{'
+      <style>{`
         @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap\');
         .font-cairo { font-family: \'Cairo\', \'Tajawal\', sans-serif; }
-      '}</style>
+      `}</style>
 
       {/* Confirmation modal */}
       {showConfirm && (
