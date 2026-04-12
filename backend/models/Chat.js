@@ -35,10 +35,23 @@ const ChatSchema = new mongoose.Schema({
 
   createdAt: { type: Date, default: Date.now, index: true },
   updatedAt: { type: Date, default: Date.now, index: true },
+
+  adTitle:    { type: String, default: '' },
+  mutedBy:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  ignoredBy:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  deletedBy:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  reportedBy: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: { type: String, default: '' },
+    at:     { type: Date, default: Date.now }
+  }],
 });
 
 // Compound index for fast buyer+seller lookup (dedup check)
 ChatSchema.index({ buyer: 1, seller: 1, ad: 1 }, { unique: true, sparse: true });
+
+// 30-day TTL index — auto-deletes chat documents 30 days after creation
+ChatSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 // Auto-update updatedAt on save
 ChatSchema.pre('save', function(next) {

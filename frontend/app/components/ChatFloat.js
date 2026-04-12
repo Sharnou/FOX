@@ -15,6 +15,8 @@ export default function ChatFloat() {
   const [loading, setLoading] = useState(false);
   // FIX B: top-level error state — if anything throws, silently hide the widget
   const [hasError, setHasError] = useState(false);
+  // Action menu per conversation
+  const [menuOpenId, setMenuOpenId] = useState(null);
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -43,8 +45,8 @@ export default function ChatFloat() {
   }, [user]);
 
   // Fetch conversations when panel opens
-  useEffect(() => {
-    if (!open || !user?.token) return;
+  const fetchConversations = () => {
+    if (!user?.token) return;
     setLoading(true);
     fetch(`${API}/api/chat`, { headers: { Authorization: `Bearer ${user.token}` } })
       .then(r => r.json())
@@ -54,6 +56,11 @@ export default function ChatFloat() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!open || !user?.token) return;
+    fetchConversations();
   }, [open, user]);
 
   // Socket connection for active mini-chat
@@ -65,6 +72,19 @@ export default function ChatFloat() {
       socketRef.current = socket;
       socket.emit('join', user.id || user._id);
       socket.on('receive_message', (data) => {
+        // F2: Sound on receive (check mute flag)
+        const soundMuted = localStorage.getItem('xtox_mute_sounds') === 'true';
+        if (!soundMuted) {
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.frequency.value = 880; gain.gain.value = 0.1;
+            osc.start(); osc.stop(ctx.currentTime + 0.15);
+            setTimeout(() => ctx.close(), 500);
+          } catch {}
+        }
         setMessages(prev => [...prev, data]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       });
@@ -102,6 +122,7 @@ export default function ChatFloat() {
     const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
     setActiveChat({ chatId: conv._id, targetId: otherId, name: otherName, avatar: otherAvatar });
     setMessages([]);
+    setMenuOpenId(null);
   }
 
   async function sendMsg() {
@@ -117,6 +138,27 @@ export default function ChatFloat() {
       body: JSON.stringify({ text: newMsg.text, from: myId })
     }).catch(() => {});
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  }
+
+  // F1: Action handlers per conversation
+  async function handleConvAction(action, chatId, e) {
+    e.stopPropagation();
+    if (!user?.token) return;
+    const token = user.token;
+    if (action === 'delete') {
+      await fetch(`${API}/api/chat/${chatId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      fetchConversations();
+    } else if (action === 'mute') {
+      await fetch(`${API}/api/chat/${chatId}/mute`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      fetchConversations();
+    } else if (action === 'ignore') {
+      await fetch(`${API}/api/chat/${chatId}/ignore`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      fetchConversations();
+    } else if (action === 'report') {
+      const reason = prompt('\u0633\u0628\u0628 \u0627\u0644\u0625\u0628\u0644\u0627\u063a') || '';
+      await fetch(`${API}/api/chat/${chatId}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason }) }).catch(() => {});
+    }
+    setMenuOpenId(null);
   }
 
   // Don't render if not logged in or an error occurred
@@ -172,23 +214,54 @@ export default function ChatFloat() {
                 const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
                 const lastMsg = conv.lastMessage || conv.messages?.[conv.messages.length - 1];
                 const unread = buyerId === myId ? conv.unreadBuyer : conv.unreadSeller;
+                const isMuted = conv.mutedBy?.map(id => id?.toString()).includes(myId);
                 return (
-                  <div key={conv._id} onClick={() => openConversation(conv)} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px',
-                    borderRadius: 10, cursor: 'pointer', borderBottom: '1px solid #f3f4f6',
-                    background: '#fff', transition: 'background 0.15s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, overflow: 'hidden' }}>
-                        {otherAvatar ? <img src={otherAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (otherName?.[0] || '\u061f')}
+                  <div key={conv._id} style={{ position: 'relative' }}>
+                    <div onClick={() => openConversation(conv)} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px',
+                      borderRadius: 10, cursor: 'pointer', borderBottom: '1px solid #f3f4f6',
+                      background: '#fff', transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, overflow: 'hidden' }}>
+                          {otherAvatar ? <img src={otherAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (otherName?.[0] || '\u061f')}
+                        </div>
+                        {unread > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unread}</span>}
                       </div>
-                      {unread > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unread}</span>}
-                    </div>
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#111' }}>{otherName}</div>
-                      <div style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg?.text || '\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629'}</div>
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: '#111', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {otherName}
+                          {isMuted && <span style={{ fontSize: 11 }}>🔇</span>}
+                        </div>
+                        {conv.adTitle && <div style={{ fontSize: 10, color: '#7c3aed', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conv.adTitle.slice(0, 25)}</div>}
+                        <div style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg?.text || '\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629'}</div>
+                      </div>
+                      {/* F1: ⋮ action button */}
+                      <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv._id ? null : conv._id); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280', padding: '2px 6px', borderRadius: 6 }}
+                          title="خيارات"
+                        >⋮</button>
+                        {menuOpenId === conv._id && (
+                          <div style={{ position: 'absolute', left: 0, top: 28, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 140, zIndex: 200, overflow: 'hidden', direction: 'rtl' }}>
+                            {[
+                              { label: isMuted ? '🔔 إلغاء الكتم' : '🔇 كتم', action: 'mute' },
+                              { label: '🚫 تجاهل', action: 'ignore' },
+                              { label: '🚩 إبلاغ', action: 'report' },
+                              { label: '🗑️ حذف', action: 'delete' },
+                            ].map(({ label, action }) => (
+                              <button key={action} onClick={e => handleConvAction(action, conv._id, e)}
+                                style={{ display: 'block', width: '100%', padding: '9px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, color: '#111', textAlign: 'right' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                              >{label}</button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -204,7 +277,8 @@ export default function ChatFloat() {
             <>
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {messages.map((m, i) => {
-                  const isMe = m.from === myId || m.from?._id === myId || m.sender?.toString() === myId;
+                  // F3: Fix isMe for DB messages
+                  const isMe = (m.from || m.sender?.toString?.()) === myId || m.from?._id === myId || m.sender?.toString() === myId;
                   return (
                     <div key={m._id || i} style={{ display: 'flex', justifyContent: isMe ? 'flex-start' : 'flex-end' }}>
                       <div style={{

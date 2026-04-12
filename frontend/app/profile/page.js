@@ -19,6 +19,9 @@ export default function ProfilePage() {
   const [chatEnabled, setChatEnabled] = useState(true);
   const [chatToggling, setChatToggling] = useState(false);
 
+  // ── Sound mute state ──────────────────────────────────────────────────
+  const [soundMuted, setSoundMuted] = useState(false);
+
   // ── My Ads state ──────────────────────────────────────────────────────
   const [myAds, setMyAds] = useState([]);
   const [adsLoading, setAdsLoading] = useState(false);
@@ -97,6 +100,11 @@ export default function ProfilePage() {
       .catch(() => {})
       .finally(() => setAdsLoading(false));
   }, [user]);
+
+  // ── Initialize soundMuted from localStorage ───────────────────────────
+  useEffect(() => {
+    setSoundMuted(localStorage.getItem('xtox_mute_sounds') === 'true');
+  }, []);
 
   const deleteMyAd = async (adId) => {
     if (!confirm('هل تريد حذف هذا الإعلان؟')) return;
@@ -202,6 +210,41 @@ export default function ProfilePage() {
               right: chatEnabled ? 3 : undefined,
               left: chatEnabled ? undefined : 3,
               transition: 'all 0.3s',
+            }} />
+          </button>
+        </div>
+
+        {/* Sound settings */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #f1f5f9' }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
+              🔔 {'صوت الإشعارات'}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+              {'تشغيل و إيقاف أصوات الرسائل'}
+            </div>
+          </div>
+          <button onClick={async () => {
+            const newVal = !soundMuted;
+            setSoundMuted(newVal);
+            localStorage.setItem('xtox_mute_sounds', newVal ? 'true' : 'false');
+            const token = localStorage.getItem('token');
+            if (token) {
+              fetch(`${API}/api/chat/sound-settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ muteSounds: newVal })
+              }).catch(() => {});
+            }
+          }} style={{
+            width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
+            background: soundMuted ? '#e2e8f0' : '#7c3aed', transition: 'background 0.2s',
+            position: 'relative'
+          }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: '50%', background: '#fff',
+              position: 'absolute', top: 3, transition: 'left 0.2s',
+              left: soundMuted ? 4 : 24, boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
             }} />
           </button>
         </div>
