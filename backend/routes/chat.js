@@ -49,91 +49,70 @@ router.get('/', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.post('/start', auth, async (req, res) => {
   try {
-    // Accept sellerId OR targetId for compatibility
     const { sellerId, targetId, adId } = req.body;
     const otherId = sellerId || targetId;
 
     if (!otherId) {
-      return res.status(400).json({
-        success: false,
-        error: 'sellerId is required',
-        message: 'معرّف البائع مطلوب | sellerId is required',
-      });
+      return res.status(400).json({ success: false, error: 'sellerId is required' });
     }
-
-    if (String(req.user.id) === String(otherId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Cannot chat with yourself',
-        message: 'لا يمكنك التواصل مع نفسك | Cannot chat with yourself',
-      });
-    }
-
-    // Validate ObjectId format for otherId
     if (!mongoose.Types.ObjectId.isValid(otherId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid sellerId format',
-        message: 'معرّف البائع غير صالح | Invalid sellerId format',
-      });
+      return res.status(400).json({ success: false, error: 'Invalid sellerId format' });
+    }
+    if (!req.user?.id || !mongoose.Types.ObjectId.isValid(req.user.id)) {
+      return res.status(401).json({ success: false, error: 'Invalid user token' });
+    }
+    if (String(req.user.id) === String(otherId)) {
+      return res.status(400).json({ success: false, error: 'Cannot chat with yourself' });
     }
 
-    // Validate adId if provided
     const validAdId = adId && mongoose.Types.ObjectId.isValid(adId) ? adId : null;
 
-    // FIX: Chat schema uses buyer/seller fields (not users[]) and ad (not adId).
-    // Search for an existing chat between these two participants in either role.
-    const participantQuery = {
+    // Try to find existing chat first (both buyer/seller orderings)
+    let chat = await getChat().findOne({
       $or: [
         { buyer: req.user.id, seller: otherId },
-        { buyer: otherId,    seller: req.user.id },
+        { buyer: otherId, seller: req.user.id },
       ],
-    };
-    if (validAdId) {
-      participantQuery.ad = validAdId;
-    }
-
-    let chat = await getChat().findOne(participantQuery);
+      ...(validAdId ? { ad: validAdId } : {}),
+    });
 
     if (!chat) {
-      // Create with correct schema fields: buyer, seller, ad (not users/adId/lastMessage)
-      const createData = {
-        buyer:    req.user.id,
-        seller:   otherId,
-        messages: [],
-      };
-      if (validAdId) createData.ad = validAdId;
-
+      // Use findOneAndUpdate with upsert for atomic create — avoids E11000 race conditions
       try {
-        chat = await getChat().create(createData);
+        chat = await getChat().findOneAndUpdate(
+          {
+            buyer: req.user.id,
+            seller: otherId,
+            ...(validAdId ? { ad: validAdId } : {}),
+          },
+          {
+            $setOnInsert: {
+              buyer: req.user.id,
+              seller: otherId,
+              messages: [],
+              unreadBuyer: 0,
+              unreadSeller: 0,
+              status: 'active',
+              ...(validAdId ? { ad: validAdId } : {}),
+            },
+          },
+          { upsert: true, new: true }
+        );
       } catch (createErr) {
-        // E11000: duplicate key — race condition, another request already created the chat
-        if (createErr.code === 11000 || (createErr.message && createErr.message.includes('duplicate key'))) {
-          chat = await getChat().findOne(participantQuery);
-          if (!chat) {
-            // Fallback: find without adId
-            chat = await getChat().findOne({
-              $or: [
-                { buyer: req.user.id, seller: otherId },
-                { buyer: otherId,    seller: req.user.id },
-              ],
-            });
-          }
-          if (!chat) throw createErr; // unexpected — re-throw original
-        } else {
-          throw createErr;
-        }
+        // Last resort: find any existing chat between these two users
+        chat = await getChat().findOne({
+          $or: [
+            { buyer: req.user.id, seller: otherId },
+            { buyer: otherId, seller: req.user.id },
+          ],
+        });
+        if (!chat) throw createErr;
       }
     }
 
     res.json({ success: true, chatId: chat._id, _id: chat._id, chat });
   } catch (e) {
-    console.error('[CHAT START] ERROR:', e.message, e.stack);
-    res.status(500).json({
-      success: false,
-      error: e.message,
-      message: 'حدث خطأ أثناء إنشاء المحادثة | Error creating chat',
-    });
+    res.status(500).json({ success: false, error: e.message || 'Error creating chat' });
   }
 });
 

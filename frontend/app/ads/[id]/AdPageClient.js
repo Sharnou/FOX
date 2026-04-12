@@ -292,7 +292,7 @@ export default function AdPageClient({ params }) {
               adData.media = adData.images || [];
             }
             setAd(adData);
-            recordRecentView(adData._id || params.id);
+            try { recordRecentView(adData._id || params.id); } catch {}
           } else {
             setAdNotFound(true);
           }

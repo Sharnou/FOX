@@ -297,7 +297,6 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
         setError(t.error);
       }
     } catch (e) {
-      console.error('[ChatBox] open error:', e);
       setError(t.error);
     }
     setLoading(false);
