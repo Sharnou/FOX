@@ -9,24 +9,24 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.r
 // Arabic relative time
 function arabicRelTime(ts) {
   var diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 10) return '\u0627\u0644\u0622\u0646';
-  if (diff < 60) return '\u0645\u0646\u0630 ' + diff + ' \u062b\u0627\u0646\u064a\u0629';
+  if (diff < 10) return 'الآن';
+  if (diff < 60) return 'منذ ' + diff + ' ثانية';
   var mins = Math.floor(diff / 60);
   if (mins < 60) {
-    if (mins === 1) return '\u0645\u0646\u0630 \u062f\u0642\u064a\u0642\u0629';
-    if (mins <= 10) return '\u0645\u0646\u0630 ' + mins + ' \u062f\u0642\u0627\u0626\u0642';
-    return '\u0645\u0646\u0630 ' + mins + ' \u062f\u0642\u064a\u0642\u0629';
+    if (mins === 1) return 'منذ دقيقة';
+    if (mins <= 10) return 'منذ ' + mins + ' دقائق';
+    return 'منذ ' + mins + ' دقيقة';
   }
   var hours = Math.floor(mins / 60);
   if (hours < 24) {
-    if (hours === 1) return '\u0645\u0646\u0630 \u0633\u0627\u0639\u0629';
-    if (hours <= 10) return '\u0645\u0646\u0630 ' + hours + ' \u0633\u0627\u0639\u0627\u062a';
-    return '\u0645\u0646\u0630 ' + hours + ' \u0633\u0627\u0639\u0629';
+    if (hours === 1) return 'منذ ساعة';
+    if (hours <= 10) return 'منذ ' + hours + ' ساعات';
+    return 'منذ ' + hours + ' ساعة';
   }
   var days = Math.floor(hours / 24);
-  if (days === 1) return '\u0645\u0646\u0630 \u064a\u0648\u0645';
-  if (days <= 10) return '\u0645\u0646\u0630 ' + days + ' \u0623\u064a\u0627\u0645';
-  return '\u0645\u0646\u0630 ' + days + ' \u064a\u0648\u0645';
+  if (days === 1) return 'منذ يوم';
+  if (days <= 10) return 'منذ ' + days + ' أيام';
+  return 'منذ ' + days + ' يوم';
 }
 
 // Format call duration mm:ss
@@ -41,7 +41,7 @@ function formatDuration(seconds) {
 // Typing indicator dots
 function TypingDots() {
   return (
-    <div dir="ltr" aria-label="\u064a\u0643\u062a\u0628..." style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 4 }}>
+    <div dir="ltr" aria-label="يكتب..." style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 4 }}>
       <div style={{ padding: '10px 16px', borderRadius: '18px 18px 18px 4px', background: '#e5e7eb', display: 'inline-flex', gap: 4, alignItems: 'center' }}>
         {[0, 1, 2].map(function(i) {
           return (
@@ -56,29 +56,29 @@ function TypingDots() {
 // Incoming call modal
 function IncomingCallModal({ from, onAccept, onReject }) {
   return (
-    <div role="dialog" aria-modal="true" aria-label="\u0645\u0643\u0627\u0644\u0645\u0629 \u0648\u0627\u0631\u062f\u0629"
+    <div role="dialog" aria-modal="true" aria-label="مكالمة واردة"
       style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div dir="rtl" style={{ background: 'white', borderRadius: 24, padding: '36px 28px', textAlign: 'center', minWidth: 280, maxWidth: 340, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.35)', animation: 'xtox-pop 0.2s ease-out' }}>
         <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12 }}>
           <div style={{ position: 'absolute', inset: -10, borderRadius: '50%', border: '3px solid #22c55e', animation: 'xtox-ring 1.5s ease-out infinite', opacity: 0 }} />
           <div style={{ fontSize: 52 }}>&#128222;</div>
         </div>
-        <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 'bold', color: '#111' }}>\u0645\u0643\u0627\u0644\u0645\u0629 \u0648\u0627\u0631\u062f\u0629</h2>
-        <p style={{ margin: '0 0 28px', color: '#6b7280', fontSize: 14 }}>\u0645\u0646 {from}</p>
+        <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 'bold', color: '#111' }}>مكالمة واردة</h2>
+        <p style={{ margin: '0 0 28px', color: '#6b7280', fontSize: 14 }}>من {from}</p>
         <div style={{ display: 'flex', gap: 24, justifyContent: 'center', alignItems: 'center' }}>
           <div style={{ textAlign: 'center' }}>
-            <button onClick={onReject} aria-label="\u0631\u0641\u0636 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629"
+            <button onClick={onReject} aria-label="رفض المكالمة"
               style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: 64, height: 64, fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(239,68,68,0.4)' }}>
               &#x2715;
             </button>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#ef4444', fontWeight: 600 }}>\u0631\u0641\u0636</span>
+            <span style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#ef4444', fontWeight: 600 }}>رفض</span>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <button onClick={onAccept} aria-label="\u0642\u0628\u0648\u0644 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629"
+            <button onClick={onAccept} aria-label="قبول المكالمة"
               style={{ background: '#22c55e', color: 'white', border: 'none', borderRadius: '50%', width: 64, height: 64, fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(34,197,94,0.4)' }}>
               &#128222;
             </button>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#22c55e', fontWeight: 600 }}>\u0642\u0628\u0648\u0644</span>
+            <span style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#22c55e', fontWeight: 600 }}>قبول</span>
           </div>
         </div>
       </div>
@@ -92,23 +92,23 @@ function ActiveCallOverlay({ callDuration, isMuted, onToggleMute, onEndCall, oth
     <div style={{ position: 'fixed', inset: 0, zIndex: 900, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div dir="rtl" style={{ background: '#1e293b', borderRadius: 24, padding: '40px 28px', textAlign: 'center', minWidth: 280, maxWidth: 340, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, margin: '0 auto 16px' }}>&#128222;</div>
-        <p style={{ margin: '0 0 4px', color: '#94a3b8', fontSize: 13 }}>\u0645\u062a\u0635\u0644 \u0645\u0639 | Connected with</p>
+        <p style={{ margin: '0 0 4px', color: '#94a3b8', fontSize: 13 }}>متصل مع | Connected with</p>
         <h2 style={{ margin: '0 0 8px', color: 'white', fontSize: 20, fontWeight: 'bold' }}>{otherId}</h2>
         <p style={{ margin: '0 0 32px', color: '#22c55e', fontSize: 24, fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' }}>{formatDuration(callDuration)}</p>
         <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
           <div style={{ textAlign: 'center' }}>
-            <button onClick={onToggleMute} aria-label={isMuted ? '\u0625\u0644\u063a\u0627\u0621 \u0643\u062a\u0645 \u0627\u0644\u0635\u0648\u062a' : '\u0643\u062a\u0645 \u0627\u0644\u0635\u0648\u062a'}
+            <button onClick={onToggleMute} aria-label={isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت'}
               style={{ background: isMuted ? '#374151' : '#1d4ed8', color: 'white', border: 'none', borderRadius: '50%', width: 60, height: 60, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {isMuted ? '🔇' : '🎤'}
             </button>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#94a3b8' }}>{isMuted ? '\u0645\u0643\u062a\u0648\u0645' : '\u0645\u0641\u062a\u0648\u062d'}</span>
+            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#94a3b8' }}>{isMuted ? 'مكتوم' : 'مفتوح'}</span>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <button onClick={onEndCall} aria-label="\u0625\u0646\u0647\u0627\u0621 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629"
+            <button onClick={onEndCall} aria-label="إنهاء المكالمة"
               style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: 60, height: 60, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(239,68,68,0.5)' }}>
               &#9743;
             </button>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#ef4444' }}>\u0625\u0646\u0647\u0627\u0621</span>
+            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#ef4444' }}>إنهاء</span>
           </div>
         </div>
       </div>
@@ -122,16 +122,16 @@ function LocationCard({ msg }) {
     <div style={{ background: '#f0f7ff', border: '1px solid #4285F4', borderRadius: 12, padding: '10px 14px', minWidth: 200 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 20 }}>&#128205;</span>
-        <div style={{ fontWeight: 700, fontSize: 14, color: '#002f34' }}>\u0645\u0648\u0642\u0639\u064a \u0627\u0644\u062d\u0627\u0644\u064a</div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#002f34' }}>موقعي الحالي</div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <a href={'https://www.google.com/maps?q=' + msg.lat + ',' + msg.lng} target="_blank" rel="noopener noreferrer"
           style={{ flex: 1, background: '#4285F4', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
-          &#128506; \u0639\u0631\u0636
+          &#128506; عرض
         </a>
         <a href={'https://www.google.com/maps/dir/?api=1&destination=' + msg.lat + ',' + msg.lng} target="_blank" rel="noopener noreferrer"
           style={{ flex: 1, background: '#002f34', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
-          &#128663; \u0627\u062a\u062c\u0627\u0647\u0627\u062a
+          &#128663; اتجاهات
         </a>
       </div>
     </div>
@@ -160,6 +160,7 @@ export default function ChatPage() {
   var [apiChats, setApiChats]           = useState([]);
   var [historyLoaded, setHistoryLoaded] = useState(false);
   var [loginRequired, setLoginRequired] = useState(false);
+  var [chatError, setChatError]           = useState('');
 
   var pcRef          = useRef(null);
   var remoteAudioRef = useRef(null);
@@ -245,6 +246,10 @@ export default function ChatPage() {
   useEffect(function() {
     if (myId && !joined) joinChat();
     return function() {
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -270,7 +275,7 @@ export default function ChatPage() {
     fetch(API_URL + '/api/chat', { headers: { Authorization: 'Bearer ' + token } })
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(async function(data) {
-        if (!data) { setHistoryLoaded(true); return; }
+        if (!data) { setChatError('فشل تحميل المحادثات'); setHistoryLoaded(true); return; }
         var chatList = data.chats || (Array.isArray(data) ? data : []);
         setApiChats(chatList);
         var apiConvs = chatList.map(function(c) {
@@ -311,7 +316,7 @@ export default function ChatPage() {
         }
         setHistoryLoaded(true);
       })
-      .catch(function() { setHistoryLoaded(true); });
+      .catch(function() { setChatError('فشل تحميل المحادثات'); setHistoryLoaded(true); });
   }, [myId]);
 
   // Socket setup
@@ -395,7 +400,7 @@ export default function ChatPage() {
   async function startCall() {
     if (!targetId || !socketRef.current) return;
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('\u0627\u0644\u0645\u062a\u0635\u0641\u062d \u0644\u0627 \u064a\u062f\u0639\u0645 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0627\u062a \u0627\u0644\u0635\u0648\u062a\u064a\u0629 | Browser does not support voice calls');
+      alert('المتصفح لا يدعم المكالمات الصوتية | Browser does not support voice calls');
       return;
     }
     setCallState('calling');
@@ -419,7 +424,7 @@ export default function ChatPage() {
     var offer = incomingCall.offer;
     setIncomingCall(null);
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('\u0627\u0644\u0645\u062a\u0635\u0641\u062d \u0644\u0627 \u064a\u062f\u0639\u0645 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0627\u062a \u0627\u0644\u0635\u0648\u062a\u064a\u0629 | Browser does not support voice calls');
+      alert('المتصفح لا يدعم المكالمات الصوتية | Browser does not support voice calls');
       return;
     }
     try {
@@ -500,11 +505,11 @@ export default function ChatPage() {
   }
 
   function shareLocation() {
-    if (!navigator.geolocation) { alert('GPS \u063a\u064a\u0631 \u0645\u062a\u0627\u062d'); return; }
+    if (!navigator.geolocation) { alert('GPS غير متاح'); return; }
     navigator.geolocation.getCurrentPosition(function(pos) {
       var lat = pos.coords.latitude;
       var lng = pos.coords.longitude;
-      var locationMsg = { type: 'location', lat: lat, lng: lng, label: '\u0645\u0648\u0642\u0639\u064a \u0627\u0644\u062d\u0627\u0644\u064a', text: '\u0645\u0648\u0642\u0639\u064a: ' + lat.toFixed(5) + ', ' + lng.toFixed(5), from: 'me', time: Date.now() };
+      var locationMsg = { type: 'location', lat: lat, lng: lng, label: 'موقعي الحالي', text: 'موقعي: ' + lat.toFixed(5) + ', ' + lng.toFixed(5), from: 'me', time: Date.now() };
       if (socketRef.current && targetId) socketRef.current.emit('send_message', Object.assign({ from: myId, to: targetId }, locationMsg));
       setMessages(function(prev) { return prev.concat([locationMsg]); });
     });
@@ -512,11 +517,11 @@ export default function ChatPage() {
 
   // Call button config
   var callConfig = {
-    idle:    { label: '\u0645\u0643\u0627\u0644\u0645\u0629',           bg: '#16a34a', action: startCall, disabled: false },
-    calling: { label: '\u062c\u0627\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644...',  bg: '#f97316', action: null,      disabled: true  },
-    ringing: { label: '\u0648\u0627\u0631\u062f\u0629...',          bg: '#22c55e', action: null,      disabled: true  },
-    active:  { label: '\u0625\u0646\u0647\u0627\u0621 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629',   bg: '#ef4444', action: endCall,   disabled: false },
-    ended:   { label: '\u0627\u0646\u062a\u0647\u062a',             bg: '#9ca3af', action: null,      disabled: true  },
+    idle:    { label: 'مكالمة',           bg: '#16a34a', action: startCall, disabled: false },
+    calling: { label: 'جار الاتصال...',  bg: '#f97316', action: null,      disabled: true  },
+    ringing: { label: 'واردة...',          bg: '#22c55e', action: null,      disabled: true  },
+    active:  { label: 'إنهاء المكالمة',   bg: '#ef4444', action: endCall,   disabled: false },
+    ended:   { label: 'انتهت',             bg: '#9ca3af', action: null,      disabled: true  },
   };
   var cc = callConfig[callState] || callConfig.idle;
 
@@ -542,11 +547,11 @@ export default function ChatPage() {
       )}
 
       {showConvPanel && (
-        <div dir="rtl" role="dialog" aria-label="\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a"
+        <div dir="rtl" role="dialog" aria-label="قائمة المحادثات"
           style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 300, maxWidth: '85vw', background: '#002f34', zIndex: 500, overflowY: 'auto', boxShadow: '-4px 0 24px rgba(0,0,0,0.4)', animation: 'xtox-slide-in 0.22s ease-out', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '16px', borderBottom: '1px solid rgba(35,229,219,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#001f23', flexShrink: 0 }}>
-            <h2 style={{ margin: 0, color: '#23e5db', fontSize: 16, fontWeight: 'bold' }}>\u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a</h2>
-            <button onClick={function() { setShowConvPanel(false); }} aria-label="\u0625\u063a\u0644\u0627\u0642"
+            <h2 style={{ margin: 0, color: '#23e5db', fontSize: 16, fontWeight: 'bold' }}>المحادثات</h2>
+            <button onClick={function() { setShowConvPanel(false); }} aria-label="إغلاق"
               style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: 6, width: 32, height: 32, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               &#x2715;
             </button>
@@ -554,8 +559,14 @@ export default function ChatPage() {
           {loginRequired ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 36 }}>&#128274;</div>
-              <p style={{ margin: 0 }}>{'\u0633\u062c\u0651\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0644\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a'}</p>
-              <a href="/login" style={{ color: '#23e5db', fontSize: 13, marginTop: 4 }}>{'\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644'}</a>
+              <p style={{ margin: 0 }}>{'سجّل الدخول للمحادثات'}</p>
+              <a href="/login" style={{ color: '#23e5db', fontSize: 13, marginTop: 4 }}>{'تسجيل الدخول'}</a>
+            </div>
+          ) : chatError && historyLoaded ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 14, gap: 10, padding: 24, textAlign: 'center' }}>
+              <div style={{ fontSize: 36 }}>⚠️</div>
+              <p style={{ margin: 0 }}>{chatError}</p>
+              <button onClick={function() { setChatError(''); setHistoryLoaded(false); window.location.reload(); }} style={{ color: '#23e5db', background: 'none', border: '1px solid #23e5db', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>إعادة المحاولة</button>
             </div>
           ) : !historyLoaded && apiChats.length === 0 ? (
             <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -574,7 +585,7 @@ export default function ChatPage() {
           ) : historyLoaded && apiChats.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 40 }}>&#128172;</div>
-              <p style={{ margin: 0, lineHeight: 1.6 }}>{'\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062d\u0627\u062f\u062b\u0627\u062a \u0628\u0639\u062f. \u0627\u0628\u062f\u0623 \u0645\u062d\u0627\u062f\u062b\u0629 \u0645\u0646 \u0635\u0641\u062d\u0629 \u0623\u064a \u0625\u0639\u0644\u0627\u0646!'}</p>
+              <p style={{ margin: 0, lineHeight: 1.6 }}>{'لا توجد محادثات بعد. ابدأ محادثة من صفحة أي إعلان!'}</p>
             </div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, flex: 1 }}>
@@ -612,7 +623,7 @@ export default function ChatPage() {
                         )}
                       </div>
                       {unread > 0 && (
-                        <span aria-label={unread + ' \u0631\u0633\u0627\u0644\u0629 \u063a\u064a\u0631 \u0645\u0642\u0631\u0648\u0621\u0629'}
+                        <span aria-label={unread + ' رسالة غير مقروءة'}
                           style={{ minWidth: 22, height: 22, background: '#23e5db', color: '#002f34', borderRadius: 11, fontSize: 12, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px', flexShrink: 0 }}>
                           {unread > 99 ? '99+' : unread}
                         </span>
@@ -632,15 +643,15 @@ export default function ChatPage() {
       )}
 
       <header role="banner" style={{ background: '#1e293b', color: 'white', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-        <button onClick={function() { history.back(); }} aria-label="\u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u062e\u0644\u0641"
+        <button onClick={function() { history.back(); }} aria-label="العودة للخلف"
           style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', fontSize: 18, cursor: 'pointer', borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           &#8594;
         </button>
-        <button onClick={function() { setShowConvPanel(function(p) { return !p; }); }} aria-label="\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a"
+        <button onClick={function() { setShowConvPanel(function(p) { return !p; }); }} aria-label="قائمة المحادثات"
           style={{ position: 'relative', background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', fontSize: 18, cursor: 'pointer', borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           &#128172;
           {totalUnread > 0 && (
-            <span aria-label={totalUnread + ' \u0631\u0633\u0627\u0626\u0644 \u063a\u064a\u0631 \u0645\u0642\u0631\u0648\u0621\u0629'}
+            <span aria-label={totalUnread + ' رسائل غير مقروءة'}
               style={{ position: 'absolute', top: -4, left: -4, minWidth: 18, height: 18, background: '#23e5db', color: '#002f34', borderRadius: 9, fontSize: 11, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
               {totalUnread > 99 ? '99+' : totalUnread}
             </span>
@@ -651,37 +662,37 @@ export default function ChatPage() {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontWeight: 'bold', fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {targetId ? '\u0645\u062d\u0627\u062f\u062b\u0629 \u0645\u0639 ' + (sellerName || targetId) : '\u0627\u062e\u062a\u0631 \u0645\u062d\u0627\u062f\u062b\u0629 \u0644\u0644\u0628\u062f\u0621'}
+            {targetId ? 'محادثة مع ' + (sellerName || targetId) : 'اختر محادثة للبدء'}
           </p>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
-            {joined ? '\u0645\u062a\u0635\u0644' : '\u062c\u0627\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644...'}
+            {joined ? 'متصل' : 'جار الاتصال...'}
           </p>
         </div>
         {targetId && (
           <button
             onClick={cc.action || undefined}
             disabled={cc.disabled}
-            aria-label={callState === 'active' ? '\u0625\u0646\u0647\u0627\u0621 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629 \u0627\u0644\u0635\u0648\u062a\u064a\u0629' : '\u0628\u062f\u0621 \u0645\u0643\u0627\u0644\u0645\u0629 \u0635\u0648\u062a\u064a\u0629'}
+            aria-label={callState === 'active' ? 'إنهاء المكالمة الصوتية' : 'بدء مكالمة صوتية'}
             style={{ background: cc.bg, color: 'white', border: 'none', padding: '8px 14px', borderRadius: 20, cursor: cc.disabled ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', opacity: cc.disabled ? 0.65 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
             {cc.label}
           </button>
         )}
       </header>
 
-      <main role="log" aria-label="\u0633\u062c\u0644 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629" aria-live="polite"
+      <main role="log" aria-label="سجل المحادثة" aria-live="polite"
         style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {!targetId && (
           <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', paddingTop: 80, textAlign: 'center', gap: 12 }}>
             <div style={{ fontSize: 72 }}>&#128172;</div>
-            <p style={{ margin: 0, fontSize: 20, fontWeight: 'bold', color: '#64748b' }}>\u0627\u062e\u062a\u0631 \u0645\u062d\u0627\u062f\u062b\u0629 \u0644\u0644\u0628\u062f\u0621</p>
-            <p style={{ margin: 0, fontSize: 14, color: '#94a3b8', maxWidth: 260, lineHeight: 1.6 }}>\u0627\u0628\u062d\u062b \u0639\u0646 \u0625\u0639\u0644\u0627\u0646 \u0648\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0628\u0627\u0626\u0639 \u0645\u0628\u0627\u0634\u0631\u0629</p>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 'bold', color: '#64748b' }}>اختر محادثة للبدء</p>
+            <p style={{ margin: 0, fontSize: 14, color: '#94a3b8', maxWidth: 260, lineHeight: 1.6 }}>ابحث عن إعلان وتواصل مع البائع مباشرة</p>
           </div>
         )}
         {targetId && messages.length === 0 && (
           <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', paddingTop: 60, textAlign: 'center', gap: 10 }}>
             <div style={{ fontSize: 56 }}>&#128172;</div>
-            <p style={{ margin: 0, fontSize: 16, color: '#64748b', fontWeight: 600 }}>\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629</p>
-            <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>\u0623\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629 \u0644\u0644\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 {sellerName || targetId}</p>
+            <p style={{ margin: 0, fontSize: 16, color: '#64748b', fontWeight: 600 }}>ابدأ المحادثة</p>
+            <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>أرسل رسالة للتواصل مع {sellerName || targetId}</p>
           </div>
         )}
         {messages.map(function(m, i) {
@@ -694,7 +705,7 @@ export default function ChatPage() {
                   <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right', color: '#64748b' }}>{arabicRelTime(m.time)}</div>
                 </div>
               ) : (
-                <div dir="rtl" role="article" aria-label={isSent ? '\u0631\u0633\u0627\u0644\u062a\u0643' : '\u0631\u0633\u0627\u0644\u0629 \u0645\u0646 ' + m.from}
+                <div dir="rtl" role="article" aria-label={isSent ? 'رسالتك' : 'رسالة من ' + m.from}
                   style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: isSent ? '18px 18px 4px 18px' : '18px 18px 18px 4px', background: isSent ? '#f97316' : '#ffffff', color: isSent ? '#ffffff' : '#1e293b', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', fontSize: 15, lineHeight: 1.55, wordBreak: 'break-word' }}>
                   <div>{m.text}</div>
                   <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right' }}>{arabicRelTime(m.time)}</div>
@@ -709,7 +720,7 @@ export default function ChatPage() {
 
       {targetId && (
         <footer style={{ position: 'sticky', bottom: 0, zIndex: 100, background: '#ffffff', padding: '10px 14px', paddingBottom: 'max(10px, env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', boxShadow: '0 -2px 8px rgba(0,0,0,0.07)', flexShrink: 0, direction: 'rtl' }}>
-          <button onClick={shareLocation} aria-label="\u0645\u0634\u0627\u0631\u0643\u0629 \u0627\u0644\u0645\u0648\u0642\u0639"
+          <button onClick={shareLocation} aria-label="مشاركة الموقع"
             style={{ background: '#f0f7ff', border: '1.5px solid #4285F4', borderRadius: '50%', width: 46, height: 46, cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             &#128205;
           </button>
@@ -719,14 +730,14 @@ export default function ChatPage() {
             value={msg}
             onChange={handleTyping}
             onKeyDown={function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-            placeholder="\u0627\u0643\u062a\u0628 \u0631\u0633\u0627\u0644\u0629..."
+            placeholder="اكتب رسالة..."
             dir="rtl"
-            aria-label="\u062d\u0642\u0644 \u0643\u062a\u0627\u0628\u0629 \u0627\u0644\u0631\u0633\u0627\u0644\u0629"
+            aria-label="حقل كتابة الرسالة"
             style={{ flex: 1, padding: '11px 16px', borderRadius: 24, border: '1.5px solid #e2e8f0', fontSize: 16, fontFamily: 'inherit', outline: 'none', background: '#f8fafc', color: '#1e293b' }}
             onFocus={function(e) { e.target.style.borderColor = '#f97316'; }}
             onBlur={function(e) { e.target.style.borderColor = '#e2e8f0'; }}
           />
-          <button onClick={sendMessage} disabled={!msg.trim()} aria-label="\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629"
+          <button onClick={sendMessage} disabled={!msg.trim()} aria-label="إرسال الرسالة"
             style={{ background: msg.trim() ? '#f97316' : '#e2e8f0', color: msg.trim() ? '#ffffff' : '#94a3b8', border: 'none', borderRadius: '50%', width: 46, height: 46, cursor: msg.trim() ? 'pointer' : 'not-allowed', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             &#8593;
           </button>

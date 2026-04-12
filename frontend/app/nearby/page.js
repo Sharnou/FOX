@@ -315,7 +315,6 @@ export default function NearbyPage() {
         }
       }
     } catch (e) {
-      console.error('[XTOX nearby]', e);
       setFetchError(LABELS.fetchError);
       if (!retrying) showToast(LABELS.fetchError, 'error');
     } finally {

@@ -58,6 +58,7 @@ export default function SearchPage() {
   const [subcategory, setSubcategory] = useState('');
   const [searched, setSearched] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
+  const [searchError, setSearchError] = useState('');
   const [showRecent, setShowRecent] = useState(false);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -99,6 +100,7 @@ export default function SearchPage() {
       const res = await axios.get(API + '/api/ads', { params });
       const _searchData = res.data;
       const _searchAds = Array.isArray(_searchData) ? _searchData : (_searchData.ads || _searchData.data || []);
+      setSearchError('');
       const filtered = (_searchAds || []).filter(ad =>
         !q.trim() ||
         ad.title?.toLowerCase().includes(q.toLowerCase()) ||
@@ -106,7 +108,7 @@ export default function SearchPage() {
         ad.city?.toLowerCase().includes(q.toLowerCase())
       );
       setResults(filtered);
-    } catch { setResults([]); }
+    } catch { setResults([]); setSearchError('تعذّر تحميل النتائج — تحقّق من اتصالك وأعد المحاولة'); }
     setLoading(false);
   }
 
@@ -319,7 +321,14 @@ export default function SearchPage() {
         </div>
       )}
 
-      {!loading && searched && sorted.length === 0 && (
+      {!loading && searched && searchError && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#e74c3c', fontSize: 15 }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+          <p style={{ margin: 0 }}>{searchError}</p>
+          <button onClick={() => doSearch()} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 8, border: 'none', background: '#002f34', color: 'white', cursor: 'pointer', fontSize: 13 }}>إعادة المحاولة</button>
+        </div>
+      )}
+      {!loading && searched && !searchError && sorted.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px 24px', color: '#555', background: 'white', borderRadius: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} dir="rtl" aria-label="لا توجد نتائج بحث">
           <div style={{ fontSize: 56, marginBottom: 12 }} aria-hidden="true">🔍</div>
           <h2 style={{ fontSize: 20, fontWeight: '700', color: '#002f34', margin: '0 0 8px' }}>

@@ -306,7 +306,6 @@ export default function VoiceCall({ socket, targetId, userId }) {
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
         }
       } catch (err) {
-        console.error('[VoiceCall] setRemoteDescription error', err);
         setErrorMsg(lang === 'ar' ? 'خطأ في بدء الاتصال' : 'Error starting connection');
         setCallStatus('ended');
         cleanup();

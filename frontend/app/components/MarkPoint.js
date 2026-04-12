@@ -138,7 +138,6 @@ export default function MarkPoint() {
       setSent(true);
       setTimeout(() => { setPopup(null); setSent(false); }, 1500);
     } catch (e) {
-      console.error('MarkPoint submit failed:', e);
     } finally {
       setSending(false);
     }

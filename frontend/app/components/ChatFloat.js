@@ -74,9 +74,8 @@ export default function ChatFloat() {
   // Socket connection for active mini-chat
   useEffect(() => {
     if (!activeChat || !user?.token) return;
-    let socket;
     import('socket.io-client').then(({ io }) => {
-      socket = io(SOCKET_URL, { auth: { token: user.token }, transports: ['websocket', 'polling'] });
+      const socket = io(SOCKET_URL, { auth: { token: user.token }, transports: ['websocket', 'polling'] });
       socketRef.current = socket;
       socket.emit('join', user.id || user._id);
       socket.on('receive_message', (data) => {
@@ -97,7 +96,13 @@ export default function ChatFloat() {
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       });
     }).catch(() => {});
-    return () => { socket?.disconnect(); };
+    // Use ref for cleanup to handle async import race condition
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
   }, [activeChat, user]);
 
   // Load message history when activeChat changes
@@ -125,8 +130,8 @@ export default function ChatFloat() {
     const sellerId = conv.seller?._id?.toString() || conv.seller?.toString() || '';
     const otherId = buyerId === myId ? sellerId : buyerId;
     const otherName = buyerId === myId
-      ? (conv.seller?.name || conv.seller?.xtoxId || '\u0628\u0627\u0626\u0639')
-      : (conv.buyer?.name || conv.buyer?.xtoxId || '\u0645\u0634\u062a\u0631\u064a');
+      ? (conv.seller?.name || conv.seller?.xtoxId || 'بائع')
+      : (conv.buyer?.name || conv.buyer?.xtoxId || 'مشتري');
     const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
     setActiveChat({ chatId: conv._id, targetId: otherId, name: otherName, avatar: otherAvatar });
     setMessages([]);
@@ -163,7 +168,7 @@ export default function ChatFloat() {
       await fetch(`${API}/api/chat/${chatId}/ignore`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
       fetchConversations();
     } else if (action === 'report') {
-      const reason = prompt('\u0633\u0628\u0628 \u0627\u0644\u0625\u0628\u0644\u0627\u063a') || '';
+      const reason = prompt('سبب الإبلاغ') || '';
       await fetch(`${API}/api/chat/${chatId}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason }) }).catch(() => {});
     }
     setMenuOpenId(null);
@@ -195,7 +200,7 @@ export default function ChatFloat() {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{activeChat.name}</span>
               </div>
             ) : (
-              <span style={{ fontWeight: 700, fontSize: 15 }}>&#128172; {'\u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a'}</span>
+              <span style={{ fontWeight: 700, fontSize: 15 }}>&#128172; {'المحادثات'}</span>
             )}
             <button onClick={() => { setOpen(false); setActiveChat(null); }} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>&#10005;</button>
           </div>
@@ -204,12 +209,12 @@ export default function ChatFloat() {
           {!activeChat && (
             <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
               {loading && <p style={{ textAlign: 'center', color: '#888', padding: 20, fontSize: 13 }}>
-                {'\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...'}
+                {'جاري التحميل...'}
               </p>}
               {!loading && conversations.length === 0 && (
                 <p style={{ textAlign: 'center', color: '#888', padding: 24, fontSize: 13 }}>
-                  {'\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062d\u0627\u062f\u062b\u0627\u062a \u0628\u0639\u062f.'}<br />
-                  {'\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629 \u0645\u0646 \u0623\u064a \u0625\u0639\u0644\u0627\u0646!'}
+                  {'لا توجد محادثات بعد.'}<br />
+                  {'ابدأ المحادثة من أي إعلان!'}
                 </p>
               )}
               {conversations.map(conv => {
@@ -217,8 +222,8 @@ export default function ChatFloat() {
                 const buyerId = conv.buyer?._id?.toString() || conv.buyer?.toString() || '';
                 const sellerId = conv.seller?._id?.toString() || conv.seller?.toString() || '';
                 const otherName = buyerId === myId
-                  ? (conv.seller?.name || conv.seller?.xtoxId || '\u0628\u0627\u0626\u0639')
-                  : (conv.buyer?.name || conv.buyer?.xtoxId || '\u0645\u0634\u062a\u0631\u064a');
+                  ? (conv.seller?.name || conv.seller?.xtoxId || 'بائع')
+                  : (conv.buyer?.name || conv.buyer?.xtoxId || 'مشتري');
                 const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
                 const lastMsg = conv.lastMessage || conv.messages?.[conv.messages.length - 1];
                 const unread = buyerId === myId ? conv.unreadBuyer : conv.unreadSeller;
@@ -234,7 +239,7 @@ export default function ChatFloat() {
                     onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                       <div style={{ position: 'relative', flexShrink: 0 }}>
                         <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, overflow: 'hidden' }}>
-                          {otherAvatar ? <img src={otherAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (otherName?.[0] || '\u061f')}
+                          {otherAvatar ? <img src={otherAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (otherName?.[0] || '؟')}
                         </div>
                         {unread > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unread}</span>}
                       </div>
@@ -244,22 +249,22 @@ export default function ChatFloat() {
                           {isMuted && <span style={{ fontSize: 11 }}>🔇</span>}
                         </div>
                         {conv.adTitle && <div style={{ fontSize: 10, color: '#7c3aed', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conv.adTitle.slice(0, 25)}</div>}
-                        <div style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg?.text || '\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629'}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg?.text || 'ابدأ المحادثة'}</div>
                       </div>
                       {/* F1: ⋮ action button */}
                       <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                         <button
                           onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv._id ? null : conv._id); }}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280', padding: '2px 6px', borderRadius: 6 }}
-                          title="\u062e\u064a\u0627\u0631\u0627\u062a"
+                          title="خيارات"
                         >⋮</button>
                         {menuOpenId === conv._id && (
                           <div style={{ position: 'absolute', left: 0, top: 28, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 140, zIndex: 200, overflow: 'hidden', direction: 'rtl' }}>
                             {[
-                              { label: isMuted ? '🔔 \u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u0643\u062a\u0645' : '🔇 \u0643\u062a\u0645', action: 'mute' },
-                              { label: '🚫 \u062a\u062c\u0627\u0647\u0644', action: 'ignore' },
-                              { label: '🚩 \u0625\u0628\u0644\u0627\u063a', action: 'report' },
-                              { label: '🗑️ \u062d\u0630\u0641', action: 'delete' },
+                              { label: isMuted ? '🔔 إلغاء الكتم' : '🔇 كتم', action: 'mute' },
+                              { label: '🚫 تجاهل', action: 'ignore' },
+                              { label: '🚩 إبلاغ', action: 'report' },
+                              { label: '🗑️ حذف', action: 'delete' },
                             ].map(({ label, action }) => (
                               <button key={action} onClick={e => handleConvAction(action, conv._id, e)}
                                 style={{ display: 'block', width: '100%', padding: '9px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, color: '#111', textAlign: 'right' }}
@@ -275,7 +280,7 @@ export default function ChatFloat() {
                 );
               })}
               <a href="/chat" style={{ display: 'block', textAlign: 'center', color: '#7C3AED', fontSize: 12, padding: '10px 0', textDecoration: 'none' }}>
-                {'\u0639\u0631\u0636 \u0643\u0644 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a \u2190'}
+                {'عرض كل المحادثات ←'}
               </a>
             </div>
           )}
@@ -306,7 +311,7 @@ export default function ChatFloat() {
                   value={msg}
                   onChange={e => setMsg(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && sendMsg()}
-                  placeholder={'\u0627\u0643\u062a\u0628 \u0631\u0633\u0627\u0644\u0629...'}
+                  placeholder={'اكتب رسالة...'}
                   style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 20, padding: '8px 14px', fontSize: 13, outline: 'none', direction: 'rtl' }}
                 />
                 <button onClick={sendMsg} style={{ background: '#7C3AED', color: '#fff', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&#8593;</button>
@@ -330,9 +335,9 @@ export default function ChatFloat() {
         }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-        title={'\u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a'}
+        title={'المحادثات'}
       >
-        {open ? '\u2715' : '\uD83D\uDCAC'}
+        {open ? '✕' : '💬'}
         {!open && unreadTotal > 0 && (
           <span style={{
             position: 'absolute', top: -2, right: -2,

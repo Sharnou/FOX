@@ -235,8 +235,8 @@ export default function LoginClient() {
   }
 
   var resendLabel = countdown > 0
-    ? ('\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0628\u0639\u062f ' + countdown + ' \u062b')
-    : '\u0625\u0639\u0627\u062f\u0629 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0645\u0632';
+    ? ('إعادة الإرسال بعد ' + countdown + ' ث')
+    : 'إعادة إرسال الرمز';
 
   return (
     React.createElement('div', {
@@ -257,15 +257,15 @@ export default function LoginClient() {
           React.createElement(Link, { href: '/' },
             React.createElement('span', { style: { fontSize: 32, fontWeight: 900, color: '#FF6B35', letterSpacing: -1 } }, 'XTOX')
           ),
-          React.createElement('p', { style: { margin: '4px 0 0', color: '#6b7280', fontSize: 14 } }, '\u0633\u0648\u0642 \u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062a \u0627\u0644\u0639\u0631\u0628\u064a')
+          React.createElement('p', { style: { margin: '4px 0 0', color: '#6b7280', fontSize: 14 } }, 'سوق الإعلانات العربي')
         ),
 
         /* Tabs */
         React.createElement('div', {
           style: { display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 12, padding: 4, marginBottom: 24 }
         },
-          React.createElement('button', { style: tabStyle(tab === 'whatsapp'), onClick: function() { setTab('whatsapp'); setError(''); } }, '\uD83D\uDCF1 \u0648\u0627\u062a\u0633\u0627\u0628'),
-          React.createElement('button', { style: tabStyle(tab === 'google'), onClick: function() { setTab('google'); setError(''); } }, '\uD83D\uDD35 Google'),
+          React.createElement('button', { style: tabStyle(tab === 'whatsapp'), onClick: function() { setTab('whatsapp'); setError(''); } }, '📱 واتساب'),
+          React.createElement('button', { style: tabStyle(tab === 'google'), onClick: function() { setTab('google'); setError(''); } }, '🔵 Google'),
         ),
 
         /* Error */
@@ -281,7 +281,7 @@ export default function LoginClient() {
         /* WhatsApp Tab */
         tab === 'whatsapp' ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
           React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151' } },
-            '\u0623\u062f\u062e\u0644 \u0631\u0642\u0645 \u0647\u0627\u062a\u0641\u0643 \u0648\u0633\u064a\u0635\u0644\u0643 \u0631\u0645\u0632 \u062a\u062d\u0642\u0642 \u0639\u0644\u0649 \u0648\u0627\u062a\u0633\u0627\u0628'
+            'أدخل رقم هاتفك وسيصلك رمز تحقق على واتساب'
           ),
           React.createElement('input', {
             id: 'login-phone', name: 'login-phone',
@@ -291,16 +291,16 @@ export default function LoginClient() {
           }),
           !otpSent
             ? React.createElement('button', { onClick: sendOtp, disabled: loading, style: btnStyle },
-                loading ? '...' : '\u0625\u0631\u0633\u0627\u0644 \u0631\u0645\u0632 \u0648\u0627\u062a\u0633\u0627\u0628'
+                loading ? '...' : 'إرسال رمز واتساب'
               )
             : React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
                 React.createElement('input', {
-                  type: 'number', placeholder: '\u0631\u0645\u0632 \u0627\u0644\u062a\u062d\u0642\u0642 (6 \u0623\u0631\u0642\u0627\u0645)',
+                  type: 'number', placeholder: 'رمز التحقق (6 أرقام)',
                   value: otp, onChange: function(e) { setOtp(e.target.value.slice(0, 6)); },
                   style: inputStyle, maxLength: 6
                 }),
                 React.createElement('button', { onClick: verifyOtp, disabled: loading, style: btnStyle },
-                  loading ? '...' : '\u062a\u062d\u0642\u0642 \u0648\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644'
+                  loading ? '...' : 'تحقق وتسجيل الدخول'
                 ),
                 React.createElement('button', {
                   onClick: function() { if (countdown === 0) { setOtpSent(false); setOtp(''); sendOtp(); } },
@@ -313,7 +313,7 @@ export default function LoginClient() {
         /* Google Tab */
         tab === 'google' ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' } },
           React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151', textAlign: 'center' } },
-            '\u0633\u062c\u0651\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0628\u062d\u0633\u0627\u0628 Google \u0627\u0644\u062d\u0642\u064a\u0642\u064a'
+            'سجّل الدخول بحساب Google الحقيقي'
           ),
           React.createElement('div', { id: 'google-signin-btn', style: { width: '100%' } }),
           React.createElement('button', {
@@ -326,16 +326,16 @@ export default function LoginClient() {
             }
           },
             React.createElement('img', { src: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg', width: 22, height: 22, alt: 'Google' }),
-            '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0628\u0640 Google'
+            'تسجيل الدخول بـ Google'
           )
         ) : null,
 
         /* Footer */
         React.createElement('p', { style: { marginTop: 24, textAlign: 'center', fontSize: 12, color: '#9ca3af' } },
-          '\u0628\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0623\u0646\u062a \u062a\u0648\u0627\u0641\u0642 \u0639\u0644\u0649 ',
-          React.createElement(Link, { href: '/terms', style: { color: '#FF6B35' } }, '\u0627\u0644\u0634\u0631\u0648\u0637 \u0648\u0627\u0644\u0623\u062d\u0643\u0627\u0645'),
-          ' \u0648',
-          React.createElement(Link, { href: '/privacy', style: { color: '#FF6B35' } }, '\u0633\u064a\u0627\u0633\u0629 \u0627\u0644\u062e\u0635\u0648\u0635\u064a\u0629')
+          'بتسجيل الدخول أنت توافق على ',
+          React.createElement(Link, { href: '/terms', style: { color: '#FF6B35' } }, 'الشروط والأحكام'),
+          ' و',
+          React.createElement(Link, { href: '/privacy', style: { color: '#FF6B35' } }, 'سياسة الخصوصية')
         )
       )
     )
