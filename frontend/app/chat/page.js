@@ -99,7 +99,7 @@ function ActiveCallOverlay({ callDuration, isMuted, onToggleMute, onEndCall, oth
           <div style={{ textAlign: 'center' }}>
             <button onClick={onToggleMute} aria-label={isMuted ? '\u0625\u0644\u063a\u0627\u0621 \u0643\u062a\u0645 \u0627\u0644\u0635\u0648\u062a' : '\u0643\u062a\u0645 \u0627\u0644\u0635\u0648\u062a'}
               style={{ background: isMuted ? '#374151' : '#1d4ed8', color: 'white', border: 'none', borderRadius: '50%', width: 60, height: 60, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {​isMuted ? '🔇' : '🎤'}
+              {isMuted ? '🔇' : '🎤'}
             </button>
             <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#94a3b8' }}>{isMuted ? '\u0645\u0643\u062a\u0648\u0645' : '\u0645\u0641\u062a\u0648\u062d'}</span>
           </div>
