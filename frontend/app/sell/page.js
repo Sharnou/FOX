@@ -160,6 +160,9 @@ export default function SellPage() {
   const subsubRef = useRef(null);
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [subsub, setSubsub] = useState('');
+  const [editAdId, setEditAdId] = useState(null);         // non-null = edit mode
+  const [verificationError, setVerificationError] = useState(false);
+  const [backendDupError, setBackendDupError] = useState(null); // { existingAdId }
   const [gpsLoading, setGpsLoading] = useState(false);
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
@@ -210,6 +213,38 @@ export default function SellPage() {
         sessionStorage.removeItem('ai_generated_listing');
       } catch {}
     }
+
+    // Edit mode: check ?edit=adId in URL
+    try {
+      const _params = new URLSearchParams(window.location.search);
+      const _editId = _params.get('edit');
+      if (_editId) {
+        setEditAdId(_editId);
+        // Load the existing ad data and pre-fill the form
+        const _editT = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || '';
+        fetch((process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app') + '/api/ads/' + _editId, {
+          headers: _editT ? { Authorization: 'Bearer ' + _editT } : {}
+        }).then(r => r.json()).then(adData => {
+          const _ad = adData._id ? adData : (adData.ad || adData);
+          if (!_ad || !_ad._id) return;
+          setForm(f => ({
+            ...f,
+            title: _ad.title || f.title,
+            description: _ad.description || f.description,
+            category: _ad.category || f.category,
+            subcategory: _ad.subcategory || f.subcategory,
+            price: _ad.price !== undefined ? String(_ad.price) : f.price,
+            city: _ad.city || f.city,
+            phone: _ad.phone || f.phone,
+            currency: _ad.currency || f.currency,
+            condition: _ad.condition || f.condition,
+          }));
+          if (_ad.subsub && _ad.subsub !== 'Other') setSubsub(_ad.subsub);
+          // Jump straight to the form step
+          setStep('form');
+        }).catch(() => { /* silently skip if load fails */ });
+      }
+    } catch {}
   }, []);
 
   // Auto-call detectLocation on mount — runs silently
@@ -476,14 +511,29 @@ export default function SellPage() {
       const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
       // FIX E: Debug FormData before submit — visible in browser console
       console.log('Submitting FormData entries:', [...formData.entries()].map(([k,v]) => [k, typeof v === 'string' ? v.slice(0,50) : v.name]));
-      const res = await fetch(API + '/api/ads', {
-        method: 'POST',
+      // Edit mode: PUT to update existing ad; otherwise POST to create new
+      const _isEdit = !!editAdId;
+      const _url = _isEdit ? (API + '/api/ads/' + editAdId) : (API + '/api/ads');
+      const _method = _isEdit ? 'PUT' : 'POST';
+
+      const res = await fetch(_url, {
+        method: _method,
         headers: { Authorization: 'Bearer ' + t }, // NO Content-Type — FormData sets it
         body: formData,
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 403 && err.code === 'UNVERIFIED_USER') {
+          setVerificationError(true);
+          setLoading(false);
+          return;
+        }
+        if (res.status === 409 && err.code === 'DUPLICATE_AD') {
+          setBackendDupError({ existingAdId: err.existingAdId });
+          setLoading(false);
+          return;
+        }
         if (res.status === 429) {
           setErrors({ submit: 'لقد وصلت للحد اليومي: يمكنك نشر إعلانين فقط في اليوم الواحد' });
         } else {
@@ -499,7 +549,11 @@ export default function SellPage() {
       var _adResult = (resData && resData.ad && resData.ad._id) ? resData.ad : resData;
       // Redirect to the new ad if we got an ID, otherwise to homepage
       var newAdId = (resData && resData._id) || (_adResult && _adResult._id) || (resData && resData.id);
-      window.location.href = newAdId ? ('/ads/' + newAdId + '?published=1') : '/?published=1';
+      if (_isEdit) {
+        window.location.href = '/ads/' + editAdId + '?updated=1';
+      } else {
+        window.location.href = newAdId ? ('/ads/' + newAdId + '?published=1') : '/?published=1';
+      }
     } catch (e) {
       setErrors({ submit: 'حدث خطأ في الاتصال، يرجى المحاولة مجدداً' });
     }
@@ -539,7 +593,7 @@ export default function SellPage() {
           →
         </button>
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: 'white', margin: 0, fontSize: 18, fontWeight: 'bold' }}>نشر إعلان جديد</h1>
+          <h1 style={{ color: 'white', margin: 0, fontSize: 18, fontWeight: 'bold' }}>{editAdId ? 'تعديل الإعلان' : 'نشر إعلان جديد'}</h1>
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
             {[1, 2].map(n => (
               <div key={n} style={{
@@ -553,6 +607,44 @@ export default function SellPage() {
       </div>
 
       <div style={{ padding: '20px 16px' }}>
+        {/* Verification error banner — shown when backend returns UNVERIFIED_USER */}
+        {verificationError && (
+          <div role="alert" style={{
+            background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8,
+            padding: 16, marginBottom: 16, textAlign: 'center', direction: 'rtl',
+            fontFamily: 'Cairo, sans-serif',
+          }}>
+            <p style={{ color: '#dc2626', fontWeight: 'bold', margin: 0, fontSize: 15 }}>يجب التحقق من حسابك أولاً</p>
+            <p style={{ color: '#6b7280', fontSize: 14, margin: '8px 0 0' }}>قم بالتحقق من رقم واتساب أو البريد الإلكتروني للمتابعة</p>
+            <a href="/login" style={{ color: '#1d4ed8', fontSize: 14, display: 'inline-block', marginTop: 8 }}>الذهاب للتحقق ←</a>
+          </div>
+        )}
+
+        {/* Backend duplicate error banner — shown when backend returns DUPLICATE_AD */}
+        {backendDupError && (
+          <div role="alert" style={{
+            background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: 12,
+            padding: '14px 16px', marginBottom: 16, direction: 'rtl', fontFamily: 'Cairo, sans-serif',
+          }}>
+            <p style={{ margin: '0 0 10px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>
+              لديك إعلان مشابه بالفعل. لا يمكن نشر إعلانات متكررة.
+            </p>
+            {backendDupError.existingAdId && (
+              <a href={'/ads/' + backendDupError.existingAdId}
+                style={{ color: '#1d4ed8', fontSize: 13, display: 'inline-block', marginBottom: 8 }}>
+                عرض الإعلان الموجود ←
+              </a>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setBackendDupError(null)}
+                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db',
+                  background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>
+                ✏️ تعديل الإعلان
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Duplicate warning */}
         {duplicateWarning && (
           <div role="alert" style={{
@@ -998,9 +1090,9 @@ export default function SellPage() {
                 gap: 10, transition: 'background 0.2s',
               }}>
               {loading ? (
-                <><span style={{ display: 'inline-block' }}>⏳</span> جار النشر...</>
+                <><span style={{ display: 'inline-block' }}>⏳</span> {editAdId ? 'جار التحديث...' : 'جار النشر...'}</>
               ) : (
-                <>🚀 نشر الإعلان</>
+                <>{editAdId ? '✏️ تحديث الإعلان' : '🚀 نشر الإعلان'}</>
               )}
             </button>
 
