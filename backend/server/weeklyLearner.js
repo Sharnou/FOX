@@ -56,6 +56,12 @@ Respond ONLY as JSON: {"subcategory":"...","keywords":["...","..."]}`;
   }
 
   invalidateCache();
+
+  // ── Also run location language learning after weekly AI learning ──────────
+  try {
+    const { learnLocationLanguages } = await import('./locationLanguageLearner.js');
+    await learnLocationLanguages();
+  } catch { /* non-fatal */ }
 }
 
 // Run weekly (every Sunday at 3am)

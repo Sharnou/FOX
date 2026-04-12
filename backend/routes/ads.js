@@ -627,7 +627,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     // Enhanced offline subcategory detection from DB examples
     if (finalCategory && (!finalSubcategory || finalSubcategory === 'Other')) {
       try {
-        const _dbDetected = await detectSubcategory(finalCategory, (title || '') + ' ' + (description || ''));
+        const _dbDetected = await detectSubcategory(finalCategory, (title || '') + ' ' + (description || ''), country);
         if (_dbDetected.confidence !== 'low') {
           finalSubcategory = _dbDetected.subcategory;
           if (_dbDetected.subsub && _dbDetected.subsub !== 'Other') {
