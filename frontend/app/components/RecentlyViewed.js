@@ -40,7 +40,7 @@ export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
   if (!ads.length) return null;
 
   const isRtl = lang === 'ar';
-  const label = lang === 'ar' ? '\u0634\u0627\u0647\u062f\u062a\u0647\u0627 \u0645\u0624\u062e\u0631\u0627\u064b' : 'Recently Viewed';
+  const label = lang === 'ar' ? 'شاهدتها مؤخراً' : 'Recently Viewed';
 
   return (
     <section dir={isRtl ? 'rtl' : 'ltr'} className="py-4 px-4">
@@ -52,7 +52,7 @@ export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
             <div className="w-full h-20 bg-gray-100 overflow-hidden">
               {ad.images?.[0]
                 ? <img src={ad.images && ad.images[0] ? optimizeImage(ad.images[0]) : '/placeholder.png'} alt={ad.title} className="w-full h-full object-cover" loading="lazy" />
-                : <div className="w-full h-full flex items-center justify-center text-2xl">\ud83c\udff7\ufe0f</div>}
+                : <div className="w-full h-full flex items-center justify-center text-2xl">🏷️</div>}
             </div>
             <div className="p-1.5">
               <p className="text-xs font-semibold text-gray-800 truncate leading-tight">{ad.title}</p>

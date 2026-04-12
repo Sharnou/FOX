@@ -15,7 +15,6 @@ export async function GET(request) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (e) {
-    console.error('[price-suggest proxy]', e.message);
     return NextResponse.json(null, { status: 500 });
   }
 }

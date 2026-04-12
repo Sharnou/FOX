@@ -117,7 +117,7 @@ function analyzeAd(ad) {
   results.price = price !== undefined && price !== null && price !== "";
   results.category = category.length > 0;
   results.location = location.length > 0;
-  results.arabicText = /[\u0600-\u06FF]/.test(desc);
+  results.arabicText = /[؀-ۿ]/.test(desc);
 
   const weights = {
     titleLength: 15,

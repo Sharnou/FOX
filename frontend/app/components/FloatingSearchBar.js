@@ -39,9 +39,9 @@ export default function FloatingSearchBar() {
 
   if (!visible) return null;
 
-  const placeholder = rtl ? '\u0627\u0628\u062d\u062b \u0639\u0646 \u0623\u064a \u0634\u064a\u0621...' : 'Search anything...';
-  const btnLabel   = rtl ? '\u0628\u062d\u062b' : 'Search';
-  const ariaLabel  = rtl ? '\u0634\u0631\u064a\u0637 \u0627\u0644\u0628\u062d\u062b \u0627\u0644\u0633\u0631\u064a\u0639' : 'Quick search bar';
+  const placeholder = rtl ? 'ابحث عن أي شيء...' : 'Search anything...';
+  const btnLabel   = rtl ? 'بحث' : 'Search';
+  const ariaLabel  = rtl ? 'شريط البحث السريع' : 'Quick search bar';
 
   return (
     <div

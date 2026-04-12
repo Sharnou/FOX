@@ -18,7 +18,7 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
   const total = images.length;
 
   const labels = {
-    ar: { prev: '\u0627\u0644\u0633\u0627\u0628\u0642', next: '\u0627\u0644\u062a\u0627\u0644\u064a', close: '\u0625\u063a\u0644\u0627\u0642', image: '\u0635\u0648\u0631\u0629', of: '\u0645\u0646', expand: '\u0639\u0631\u0636 \u0643\u0627\u0645\u0644', thumb: '\u0635\u0648\u0631\u0629 \u0645\u0635\u063a\u0631\u0629' },
+    ar: { prev: 'السابق', next: 'التالي', close: 'إغلاق', image: 'صورة', of: 'من', expand: 'عرض كامل', thumb: 'صورة مصغرة' },
     en: { prev: 'Previous', next: 'Next', close: 'Close', image: 'Image', of: 'of', expand: 'Full view', thumb: 'Thumbnail' },
   };
   const t = labels[lang] || labels['ar'];
@@ -64,7 +64,7 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
   if (!images || total === 0) {
     return (
       <div style={{ width: '100%', height: 240, background: '#f0f0f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 14 }}>
-        {lang === 'ar' ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0635\u0648\u0631' : 'No images'}
+        {lang === 'ar' ? 'لا توجد صور' : 'No images'}
       </div>
     );
   }
@@ -102,14 +102,14 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
               aria-label={t.prev}
               style={navBtnStyle(isRTL ? 'right' : 'left')}
             >
-              {isRTL ? '\u203a' : '\u2039'}
+              {isRTL ? '›' : '‹'}
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); goNext(); }}
               aria-label={t.next}
               style={navBtnStyle(isRTL ? 'left' : 'right')}
             >
-              {isRTL ? '\u2039' : '\u203a'}
+              {isRTL ? '‹' : '›'}
             </button>
           </>
         )}
@@ -121,7 +121,7 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
 
         {/* Expand icon */}
         <div style={{ position: 'absolute', top: 10, [isRTL ? 'right' : 'left']: 12, background: 'rgba(0,0,0,0.45)', color: '#fff', borderRadius: 8, padding: '4px 8px', fontSize: 11, backdropFilter: 'blur(4px)' }}>
-          \u26f6 {t.expand}
+          ⛶ {t.expand}
         </div>
       </div>
 
@@ -163,13 +163,13 @@ export default function AdImageGallery({ images = [], alt = '', lang = 'ar' }) {
           onTouchEnd={onTouchEnd}
           dir={isRTL ? 'rtl' : 'ltr'}
         >
-          <button onClick={() => setLightbox(false)} aria-label={t.close} style={{ position: 'absolute', top: 16, [isRTL ? 'left' : 'right']: 16, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 22, borderRadius: 8, width: 40, height: 40, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>\u2715</button>
+          <button onClick={() => setLightbox(false)} aria-label={t.close} style={{ position: 'absolute', top: 16, [isRTL ? 'left' : 'right']: 16, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 22, borderRadius: 8, width: 40, height: 40, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           <img src={images[current]} alt={alt + ' ' + current + 1} style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }} />
           {total > 1 && (
             <div style={{ display: 'flex', gap: 20, marginTop: 20 }}>
-              <button onClick={goPrev} style={lbNavBtn}>{isRTL ? '\u203a' : '\u2039'} {t.prev}</button>
+              <button onClick={goPrev} style={lbNavBtn}>{isRTL ? '›' : '‹'} {t.prev}</button>
               <span style={{ color: '#aaa', fontSize: 13, alignSelf: 'center' }}>{counterText}</span>
-              <button onClick={goNext} style={lbNavBtn}>{t.next} {isRTL ? '\u2039' : '\u203a'}</button>
+              <button onClick={goNext} style={lbNavBtn}>{t.next} {isRTL ? '‹' : '›'}</button>
             </div>
           )}
         </div>

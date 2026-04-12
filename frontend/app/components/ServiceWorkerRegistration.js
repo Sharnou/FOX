@@ -56,7 +56,6 @@ export default function ServiceWorkerRegistration() {
             }, 60 * 60 * 1000);
           })
           .catch((error) => {
-            console.error('[XTOX SW] Registration failed:', error);
           });
       });
     }

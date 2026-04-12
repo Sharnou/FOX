@@ -141,7 +141,6 @@ export default function UnifiedNotificationPrompt() {
       }
       localStorage.setItem('xtox_notif_pref', result);
     } catch (err) {
-      console.error('[UnifiedNotificationPrompt] requestPermission error:', err);
       setPhase('idle');
     }
   };

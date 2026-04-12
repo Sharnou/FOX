@@ -6,16 +6,16 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox-productio
 
 const T = {
   ar: {
-    btn: '\u{1F4AC} \u0631\u0627\u0633\u0644 \u0627\u0644\u0628\u0627\u0626\u0639',
-    loginBtn: '\u{1F4AC} \u0633\u062c\u0644 \u062f\u062e\u0648\u0644 \u0644\u0644\u062a\u0648\u0627\u0635\u0644',
-    placeholder: '\u0627\u0643\u062a\u0628 \u0631\u0633\u0627\u0644\u0629...',
-    send: '\u0625\u0631\u0633\u0627\u0644',
-    sending: '\u062c\u0627\u0631\u064a...',
-    loading: '\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644...',
-    empty: '\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629',
-    close: '\u00d7',
-    seller: '\u0627\u0644\u0628\u0627\u0626\u0639',
-    error: '\u062d\u062f\u062b \u062e\u0637\u0623\u060c \u062d\u0627\u0648\u0644 \u0645\u062c\u062f\u062f\u0627\u064b',
+    btn: '\u{1F4AC} راسل البائع',
+    loginBtn: '\u{1F4AC} سجل دخول للتواصل',
+    placeholder: 'اكتب رسالة...',
+    send: 'إرسال',
+    sending: 'جاري...',
+    loading: 'جاري تحميل...',
+    empty: 'ابدأ المحادثة',
+    close: '×',
+    seller: 'البائع',
+    error: 'حدث خطأ، حاول مجدداً',
   },
   en: {
     btn: '\u{1F4AC} Chat with Seller',
@@ -25,7 +25,7 @@ const T = {
     sending: 'Sending...',
     loading: 'Loading chat...',
     empty: 'Start the conversation!',
-    close: '\u00d7',
+    close: '×',
     seller: 'Seller',
     error: 'Something went wrong. Try again.',
   },
@@ -252,7 +252,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
   async function reportChat() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!chatId || !token) return;
-    const reason = prompt('\u0633\u0628\u0628 \u0627\u0644\u0625\u0628\u0644\u0627\u063a') || '';
+    const reason = prompt('سبب الإبلاغ') || '';
     await fetch(`${API}/api/chat/${chatId}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason }) }).catch(() => {});
     setShowMenu(false);
   }
@@ -399,7 +399,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
 
   // Format distance
   const distLabel = adDistance !== null
-    ? (adDistance < 1 ? Math.round(adDistance * 1000) + ' \u0645' : adDistance.toFixed(1) + ' \u0643\u0645')
+    ? (adDistance < 1 ? Math.round(adDistance * 1000) + ' م' : adDistance.toFixed(1) + ' كم')
     : null;
 
   const locationLine = adCity
@@ -464,10 +464,10 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
               {showMenu && (
                 <div style={{ position: 'absolute', top: 28, left: 0, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 160, zIndex: 100, overflow: 'hidden' }}>
                   {[
-                    { icon: '🔇', label: chatMuted ? '\u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u0643\u062a\u0645' : '\u0643\u062a\u0645', fn: muteChat },
-                    { icon: '🚫', label: '\u062a\u062c\u0627\u0647\u0644', fn: ignoreChat },
-                    { icon: '🚩', label: '\u0625\u0628\u0644\u0627\u063a', fn: reportChat },
-                    { icon: '🗑️', label: '\u062d\u0630\u0641', fn: deleteChat },
+                    { icon: '🔇', label: chatMuted ? 'إلغاء الكتم' : 'كتم', fn: muteChat },
+                    { icon: '🚫', label: 'تجاهل', fn: ignoreChat },
+                    { icon: '🚩', label: 'إبلاغ', fn: reportChat },
+                    { icon: '🗑️', label: 'حذف', fn: deleteChat },
                   ].map(({ icon, label, fn }) => (
                     <button key={label} onClick={fn} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#111', textAlign: 'right', direction: 'rtl' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
