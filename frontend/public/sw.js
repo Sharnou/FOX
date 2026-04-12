@@ -1,6 +1,6 @@
 // ─── XTOX Service Worker v11 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v11';
+const CACHE_VERSION = 'v12';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
 
   // 2. NEVER intercept Railway.app API calls — always go straight to network.
   //    Caching API responses would cause stale data bugs.
-  if (url.hostname.includes('railway.app')) return;
+  if (url.hostname.includes('railway.app') || url.hostname.includes('up.railway')) return;
 
   // 3. NEVER intercept cross-origin requests to CDNs we don't own
   //    (jsdelivr, cartocdn, basemaps, etc.) — let the browser handle them.
