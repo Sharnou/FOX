@@ -149,12 +149,15 @@ function Confetti({ active }) {
 
   return (
     <>
-      <style>{'
+      <style>{`
         @keyframes confetti-fall {
           0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
           100% { opacity: 0; transform: translateY(120px) rotate(720deg); }
         }
       '}</style>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
+        {particles.current.map((p) => (
+          <ConfettiParticle key=`}</style>
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
         {particles.current.map((p) => (
           <ConfettiParticle key={p.id} style={p} />
@@ -190,12 +193,30 @@ function StarRow({ value, onChange, labels, size = "lg", disabled = false }) {
             aria-checked={value === star}
             onMouseEnter={() => !disabled && setHovered(star)}
             onClick={() => !disabled && onChange(star)}
-            className={'
-              ' + (cls) + ' transition-transform duration-150 focus:outline-none
+            className={`
+              ${cls} transition-transform duration-150 focus:outline-none
               focus-visible:ring-2 focus-visible:ring-amber-400 rounded
-              ' + (disabled ? "cursor-default" : "cursor-pointer hover:scale-125 active:scale-110") + '
-              ' + (filled ? "text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" : "text-slate-300 dark:text-slate-600") + '
+              ${disabled ? "cursor-default" : "cursor-pointer hover:scale-125 active:scale-110"}
+              ${filled ? "text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" : "text-slate-300 dark:text-slate-600"}
             '}
+          >
+            ★
+          </button>
+        );
+      })}
+      {(hovered || value) > 0 && (
+        <span className="text-sm text-amber-500 font-medium ms-2">
+          {labels[hovered || value]}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Toast sub-component
+   ───────────────────────────────────────────── */
+function Toa`}
           >
             ★
           </button>
@@ -225,12 +246,16 @@ function Toast({ type, title, body, onDismiss }) {
 
   return (
     <>
-      <style>{'
+      <style>{`
         @keyframes slide-up {
           from { transform: translateY(40px); opacity: 0; }
           to   { transform: translateY(0); opacity: 1; }
         }
       '}</style>
+      <div className={(base) + ' ${colour}} role="alert">
+        <span className="text-xl mt-0.5">{icon}</span>
+        <div>
+          <p cla`}</style>
       <div className={(base) + ' ' + (colour)} role="alert">
         <span className="text-xl mt-0.5">{icon}</span>
         <div>
@@ -412,10 +437,17 @@ export default function SellerRatingSubmissionModal({
   return (
     <>
       {/* Font import */}
-      <style>{'
+      <style>{`
         @import url(\'https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap\');
-        .rating-modal { font-family: ' + (lang === "ar" ? "'Cairo', 'Tajawal'" : "'Cairo'") + ', sans-serif; }
+        .rating-modal { font-family: ${lang === "ar" ? "'Cairo', 'Tajawal'" : "'Cairo'"}, sans-serif; }
       '}</style>
+
+      {/* Backdrop */}
+      <div
+        ref={overlayRef}
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+        onClick={(e) => {
+          if (e.target === o`}</style>
 
       {/* Backdrop */}
       <div
@@ -430,11 +462,11 @@ export default function SellerRatingSubmissionModal({
       >
         {/* Panel */}
         <div
-          className={'
+          className={`
             rating-modal relative w-full sm:max-w-lg bg-white dark:bg-slate-900
             rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden
             flex flex-col max-h-[95dvh]
-            ' + (isRtl ? "text-right" : "text-left") + '
+            ${isRtl ? "text-right" : "text-left"}
           '}
           dir={isRtl ? "rtl" : "ltr"}
         >
@@ -444,10 +476,28 @@ export default function SellerRatingSubmissionModal({
           <div
             className={'
               relative px-6 pt-6 pb-4 flex items-start justify-between gap-4
+`}
+          dir={isRtl ? "rtl" : "ltr"}
+        >
+          <Confetti active={showConfetti} />
+
+          {/* ── Header ── */}
+          <div
+            className={`
+              relative px-6 pt-6 pb-4 flex items-start justify-between gap-4
               border-b border-slate-100 dark:border-slate-800
-              ' + (overall > 0 ? 'bg-gradient-to-br ' + (ratingGradients[overall]) + ' dark:from-slate-800 dark:to-slate-900' : "") + '
+              ${overall > 0 ? 'bg-gradient-to-br ${ratingGradients[overall]} dark:from-slate-800 dark:to-slate-900' : ""}
               transition-colors duration-500
             '}
+          >
+            <div className="flex-1 min-w-0">
+              <h2
+                id="rating-modal-title"
+                className="text-xl font-bold text-slate-800 dark:text-white leading-tight"
+              >
+                {L.title}
+              </h2>
+              <p className="text-sm text-slate-50`}
           >
             <div className="flex-1 min-w-0">
               <h2
@@ -547,14 +597,25 @@ export default function SellerRatingSubmissionModal({
                     placeholder={L.reviewPlaceholder}
                     rows={4}
                     disabled={status === "submitting"}
-                    className={'
+                    className={`
                       w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700
                       bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100
                       placeholder:text-slate-400 dark:placeholder:text-slate-500
                       resize-none focus:outline-none focus:ring-2 focus:ring-amber-400
                       text-sm leading-relaxed disabled:opacity-50
-                      ' + (isRtl ? "text-right" : "text-left") + '
+                      ${isRtl ? "text-right" : "text-left"}
                     '}
+                    dir={isRtl ? "rtl" : "ltr"}
+                    aria-label={L.reviewLabel}
+                  />
+                  <p className={'text-xs mt-1 text-slate-400 ${isRtl ? "text-start" : "text-end"}}>
+                    {L.charsLeft(MAX_REVIEW_CHARS - review.length)}
+                  </p>
+                </section>
+
+                {/* ── Anonymous toggle ── */}
+                <section>
+                  <label className="flex items-center gap-3 cursor-poi`}
                     dir={isRtl ? "rtl" : "ltr"}
                     aria-label={L.reviewLabel}
                   />
@@ -575,19 +636,33 @@ export default function SellerRatingSubmissionModal({
                         className="sr-only"
                       />
                       <div
-                        className={'
+                        className={`
                           w-11 h-6 rounded-full transition-colors duration-200
-                          ' + (anonymous ? "bg-amber-400" : "bg-slate-200 dark:bg-slate-700") + '
+                          ${anonymous ? "bg-amber-400" : "bg-slate-200 dark:bg-slate-700"}
                         '}
                       />
                       <div
                         className={'
                           absolute top-0.5 w-5 h-5 bg-white rounded-full shadow
+     `}
+                      />
+                      <div
+                        className={`
+                          absolute top-0.5 w-5 h-5 bg-white rounded-full shadow
                           transition-transform duration-200
-                          ' + (isRtl
+                          ${isRtl
                             ? anonymous ? "translate-x-[-22px]" : "translate-x-[-2px]"
-                            : anonymous ? "translate-x-[22px]" : "translate-x-[2px]") + '
+                            : anonymous ? "translate-x-[22px]" : "translate-x-[2px]"}
                         '}
+                      />
+                    </div>
+                    <span className="text-sm text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-white transition">
+                      {L.anonymous}
+                    </span>
+                  </label>
+                </section>
+
+                {/* ── Photo pro`}
                       />
                     </div>
                     <span className="text-sm text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-white transition">
@@ -636,12 +711,19 @@ export default function SellerRatingSubmissionModal({
                         onKeyDown={(e) => e.key === "Enter" && addPhoto()}
                         placeholder={L.photoPlaceholder}
                         disabled={status === "submitting"}
-                        className={'
+                        className={`
                           flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700
                           bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100
                           text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500
                           focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50
                         '}
+                        dir="ltr"
+                      />
+                      <button
+                        type="button"
+                        onClick={addPhoto}
+                        disabled={!photoInput.trim() || status === "submitting"}
+                        className="px-3 py-2 bg-amber-400 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition disable`}
                         dir="ltr"
                       />
                       <button
@@ -675,13 +757,20 @@ export default function SellerRatingSubmissionModal({
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className={'
+                className={`
                   flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-200
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400
-                  ' + (canSubmit
+                  ${canSubmit
                     ? "bg-amber-400 hover:bg-amber-500 active:scale-95 text-white shadow-md shadow-amber-200 dark:shadow-amber-900"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed") + '
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"}
                 '}
+              >
+                {status === "submitting" ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    `}
               >
                 {status === "submitting" ? (
                   <span className="flex items-center justify-center gap-2">

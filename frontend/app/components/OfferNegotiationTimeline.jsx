@@ -200,10 +200,10 @@ function OfferBubble({ offer, isOwn, lang, currency, originalPrice, onAccept, on
 
       {/* Bubble */}
       <div
-        className={'relative max-w-xs rounded-2xl px-4 py-3 shadow-sm border
-          ' + (isOwn
+        className={`relative max-w-xs rounded-2xl px-4 py-3 shadow-sm border
+          ${isOwn
             ? "bg-indigo-600 text-white border-indigo-500 rounded-br-sm"
-            : "bg-white text-gray-800 border-gray-200 rounded-bl-sm")}
+            : "bg-white text-gray-800 border-gray-200 rounded-bl-sm"}`}
       >
         {/* Amount */}
         <p className={'text-xl font-bold mb-1 ' + (isAr ? "text-right font-[Cairo,sans-serif]" : "")}>
@@ -212,8 +212,8 @@ function OfferBubble({ offer, isOwn, lang, currency, originalPrice, onAccept, on
 
         {/* Discount tag */}
         {pct > 0 && (
-          <span className={'inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-1
-            ' + (isOwn ? "bg-indigo-400 text-white" : "bg-indigo-50 text-indigo-600")}>
+          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-1
+            ${isOwn ? "bg-indigo-400 text-white" : "bg-indigo-50 text-indigo-600"}`}>
             {isAr
               ? (t.discount) + ' ' + (toArabicIndic(pct, lang)) + '٪'
               : (pct) + '% ' + (t.discount)}
