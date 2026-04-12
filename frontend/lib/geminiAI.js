@@ -61,17 +61,21 @@ export async function getSmartSearchSuggestions(query) {
 /**
  * AI Image Analysis for Ad Creation
  * Returns suggested title, description, category, condition, price
+ * Language is auto-detected from the image content — no hardcoded lang param.
  * @param {string} base64Image - base64 encoded image or data URL
  * @param {string} mimeType - image MIME type (default: image/jpeg)
- * @param {string} lang - language for response ('ar' or 'en')
  */
-export async function analyzeImageForAd(base64Image, mimeType = 'image/jpeg', lang = 'ar') {
+export async function analyzeImageForAd(base64Image, mimeType = 'image/jpeg') {
   const key = process.env.NEXT_PUBLIC_GEMINI_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!key) return null;
 
-  const prompt = lang === 'ar'
-    ? 'حلل هذه الصورة وأعطني بيانات الإعلان بالعربية: العنوان (title)، الوصف (description)، الفئة (category من: Vehicles/Electronics/Real Estate/Jobs/Services/Supermarket/Pharmacy/Fast Food/Fashion/General)، الحالة (condition: new/used/excellent/rent)، السعر المقترح (price كرقم). أجب بـ JSON فقط بدون markdown.'
-    : 'Analyze this image and give me ad data in English as JSON only (no markdown): title, description, category (one of: Vehicles/Electronics/Real Estate/Jobs/Services/Supermarket/Pharmacy/Fast Food/Fashion/General), condition (new/used/excellent/rent), price (number suggestion).';
+  // Language-neutral prompt — Gemini responds in the language of the visible text/item
+  const prompt =
+    'Analyze this image and return ad listing data as JSON only (no markdown). ' +
+    'Use the language of any visible text in the image, or the most appropriate local language. ' +
+    'Fields: title (string), description (string), ' +
+    'category (one of: Vehicles/Electronics/Real Estate/Jobs/Services/Supermarket/Pharmacy/Fast Food/Fashion/General), ' +
+    'condition (one of: new/used/excellent/rent), price (number).';
 
   try {
     const text = await callGemini(prompt, base64Image, mimeType);
@@ -109,3 +113,4 @@ export async function checkAdSimilarity(newTitle, existingAds) {
 }
 
 export default { getSmartSearchSuggestions, analyzeImageForAd, checkAdSimilarity };
+

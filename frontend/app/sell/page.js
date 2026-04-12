@@ -487,7 +487,7 @@ export default function SellPage() {
         if (res.status === 429) {
           setErrors({ submit: 'لقد وصلت للحد اليومي: يمكنك نشر إعلانين فقط في اليوم الواحد' });
         } else {
-          setErrors({ submit: err.message || err.error || 'خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+          setErrors({ submit: 'حدث خطأ أثناء نشر الإعلان، يرجى المحاولة مجدداً' });
         }
         setLoading(false);
         return;
@@ -501,7 +501,7 @@ export default function SellPage() {
       var newAdId = (resData && resData._id) || (_adResult && _adResult._id) || (resData && resData.id);
       window.location.href = newAdId ? ('/ads/' + newAdId + '?published=1') : '/?published=1';
     } catch (e) {
-      setErrors({ submit: e.message || 'خطأ في الاتصال بالخادم' });
+      setErrors({ submit: 'حدث خطأ في الاتصال، يرجى المحاولة مجدداً' });
     }
     setLoading(false);
   }

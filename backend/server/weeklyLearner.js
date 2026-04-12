@@ -27,7 +27,7 @@ async function runWeeklyLearning() {
       const text = `${ad.title || ''} ${ad.description || ''}`.trim();
       if (!text || text.length < 5) continue;
 
-      const prompt = `You are a product classifier for an Arabic marketplace. Given this listing text, return the most fitting subcategory as a short English value (like "MobilePhones", "Cars", "Apartments", "FullTime", "HomeServices", etc.) and 3-5 Arabic/English keywords that identify this subcategory.
+      const prompt = `You are a product classifier for a multilingual marketplace. Given this listing text (which may be in Arabic, English, French, or any language), return the most fitting subcategory as a short English value (like "MobilePhones", "Cars", "Apartments", "FullTime", "HomeServices", etc.) and 3-5 keywords in the same language as the listing text that identify this subcategory.
 
 Listing: "${text}"
 Category hint: ${ad.category || 'unknown'}
