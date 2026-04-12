@@ -880,8 +880,8 @@ export default function Home() {
                     : (ad.media?.[0] || ad.images?.[0])
                       ? <img src={ad.media?.[0] || ad.images?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" loading="lazy" />
                       : <span aria-hidden="true">📦</span>}
-                  {/* Category badge on image */}
-                  {ad.category && (
+                  {/* Second-subcategory badge on image — sort/group by subsub */}
+                  {(ad.subsub || ad.category) && (
                     <span style={{
                       position: 'absolute',
                       top: 8,
@@ -894,7 +894,7 @@ export default function Home() {
                       padding: '2px 7px',
                       backdropFilter: 'blur(6px)',
                     }}>
-                      {ad.category}
+                      {(ad.subsub && ad.subsub !== 'Other') ? ad.subsub : ad.category}
                     </span>
                   )}
                 </div>

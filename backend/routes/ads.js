@@ -207,7 +207,7 @@ router.get('/', async (req, res) => {
     let regularAds = [];
     try {
       regularAds = await getAdModel().find(regularFilter)
-        .sort({ isFeatured: -1, featuredUntil: -1, visibilityScore: -1, createdAt: -1 })
+        .sort({ isFeatured: -1, featuredUntil: -1, subsub: 1, visibilityScore: -1, createdAt: -1 })
         .skip(Number(page) * 20)
         .limit(20)
         .lean();

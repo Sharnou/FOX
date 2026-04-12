@@ -24,6 +24,19 @@ const SUBCATEGORY_MAP = {
   'FastFood': [{ value: '', label: 'كل الأنواع' }, { value: 'Restaurants', label: 'مطاعم' }, { value: 'Cafes', label: 'كافيهات' }],
   'Pharmacy': [{ value: '', label: 'كل الأنواع' }, { value: 'Medicines', label: 'أدوية' }, { value: 'BabyProducts', label: 'منتجات أطفال' }],
 };
+const SUBSUB_MAP = {
+  'Cars': [{ value: '', label: 'كل الأنواع' }, { value: 'Sedan', label: 'سيدان' }, { value: 'SUV', label: 'SUV / دفع رباعي' }, { value: 'Pickup', label: 'بيك آب' }, { value: 'Coupe', label: 'كوبيه' }, { value: 'Electric', label: 'كهربائية' }],
+  'Motorcycles': [{ value: '', label: 'كل الأنواع' }, { value: 'Sport', label: 'رياضية' }, { value: 'Scooter', label: 'سكوتر' }, { value: 'OffRoad', label: 'أوف رود' }],
+  'MobilePhones': [{ value: '', label: 'كل الأنواع' }, { value: 'iPhone', label: 'آيفون' }, { value: 'Samsung', label: 'سامسونج' }, { value: 'Huawei', label: 'هواوي' }, { value: 'Xiaomi', label: 'شاومي' }, { value: 'Oppo', label: 'أوبو' }],
+  'Laptops': [{ value: '', label: 'كل الأنواع' }, { value: 'MacBook', label: 'ماك بوك' }, { value: 'GamingLaptop', label: 'جيمينج' }, { value: 'Business', label: 'للأعمال' }],
+  'Gaming': [{ value: '', label: 'كل الأنواع' }, { value: 'PlayStation', label: 'بلايستيشن' }, { value: 'Xbox', label: 'إكس بوكس' }, { value: 'Nintendo', label: 'نينتندو' }, { value: 'PCGaming', label: 'PC' }],
+  'Apartments': [{ value: '', label: 'كل الأنواع' }, { value: 'Studio', label: 'استوديو' }, { value: '1BR', label: 'غرفة واحدة' }, { value: '2BR', label: 'غرفتان' }, { value: '3BR', label: '3 غرف' }, { value: '4BR', label: '4 غرف+' }, { value: 'Duplex', label: 'دوبلكس' }],
+  'Villas': [{ value: '', label: 'كل الأنواع' }, { value: 'Independent', label: 'مستقلة' }, { value: 'Compound', label: 'كمبوند' }, { value: 'TwinHouse', label: 'توين هاوس' }, { value: 'TownHouse', label: 'تاون هاوس' }],
+  'HomeServices': [{ value: '', label: 'كل الأنواع' }, { value: 'Plumber', label: 'سباكة' }, { value: 'Electrician', label: 'كهرباء' }, { value: 'Carpenter', label: 'نجارة' }, { value: 'Painter', label: 'دهانات' }],
+  'MensClothing': [{ value: '', label: 'كل الأنواع' }, { value: 'Formal', label: 'رسمي' }, { value: 'Casual', label: 'كاجوال' }, { value: 'Sports', label: 'رياضي' }],
+  'WomensClothing': [{ value: '', label: 'كل الأنواع' }, { value: 'Abayas', label: 'عبايات' }, { value: 'Dresses', label: 'فساتين' }, { value: 'Casual', label: 'كاجوال' }],
+  'Shoes': [{ value: '', label: 'كل الأنواع' }, { value: 'Sneakers', label: 'سنيكرز' }, { value: 'Sandals', label: 'صنادل' }, { value: 'Sports', label: 'رياضي' }, { value: 'Formal', label: 'رسمي' }],
+};
 const POPULAR = ['عربية', 'آيفون', 'شقة', 'لابتوب', 'سباك', 'تليفزيون', 'موبايل', 'أثاث'];
 const MAX_RECENT = 8;
 
@@ -56,6 +69,7 @@ export default function SearchPage() {
   const [city, setCity] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [subcategory, setSubcategory] = useState('');
+  const [subsub2, setSubsub2] = useState('');
   const [searched, setSearched] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [searchError, setSearchError] = useState('');
@@ -96,6 +110,7 @@ export default function SearchPage() {
       const params = { country };
       if (category !== 'الكل') params.category = CAT_MAP[category] || category;
       if (subcategory) params.subcategory = subcategory;
+      if (subsub2) params.subsub = subsub2;
       if (city) params.city = city;
       const res = await axios.get(API + '/api/ads', { params });
       const _searchData = res.data;
@@ -119,6 +134,7 @@ export default function SearchPage() {
   }
 
   const sorted = [...results].sort((a, b) => {
+    if (sortBy === 'subsub') return (a.subsub || '').localeCompare(b.subsub || '');
     if (sortBy === 'price_low') return (a.price || 0) - (b.price || 0);
     if (sortBy === 'price_high') return (b.price || 0) - (a.price || 0);
     if (sortBy === 'views') return (b.views || 0) - (a.views || 0);
@@ -266,14 +282,21 @@ export default function SearchPage() {
         <PriceAlert lang="ar" keyword={query} />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-          <select value={category} onChange={e => { setCategory(e.target.value); setSubcategory(''); }}
+          <select value={category} onChange={e => { setCategory(e.target.value); setSubcategory(''); setSubsub2(''); }}
             style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, background: 'white', fontFamily: 'inherit' }}>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           {category !== 'الكل' && (SUBCATEGORY_MAP[CAT_MAP[category] || category] || null) && (
-            <select value={subcategory} onChange={e => setSubcategory(e.target.value)}
+            <select value={subcategory} onChange={e => { setSubcategory(e.target.value); setSubsub2(''); }}
               style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, background: 'white', fontFamily: 'inherit' }}>
               {(SUBCATEGORY_MAP[CAT_MAP[category] || category] || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          )}
+          {subcategory && (SUBSUB_MAP[subcategory] || null) && (
+            <select value={subsub2} onChange={e => setSubsub2(e.target.value)}
+              title="التصنيف الفرعي الثاني"
+              style={{ padding: '8px 12px', borderRadius: 10, border: '2px solid #6366f1', fontSize: 13, background: 'white', fontFamily: 'inherit', fontWeight: 600 }}>
+              {(SUBSUB_MAP[subcategory] || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           )}
           <input value={city} onChange={e => setCity(e.target.value)} placeholder="المدينة" dir="rtl"
@@ -285,6 +308,7 @@ export default function SearchPage() {
           <select value={sortBy} onChange={e => setSortBy(e.target.value)}
             style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, background: 'white', fontFamily: 'inherit' }}>
             <option value="newest">الأحدث</option>
+            <option value="subsub">بالتصنيف الفرعي</option>
             <option value="price_low">السعر: الأقل</option>
             <option value="price_high">السعر: الأعلى</option>
             <option value="views">الأكثر مشاهدة</option>
