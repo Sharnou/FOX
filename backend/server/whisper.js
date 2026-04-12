@@ -17,10 +17,9 @@ export async function transcribeAudio(filePath) {
         throw new Error('No audio data');
       }
       form.append('model', 'whisper-1');
-      // Removed hardcoded language: 'ar' — let Whisper auto-detect to avoid
-      // "language override unsupported" errors for non-Arabic audio input.
-      // The prompt instructs Whisper to favour Arabic when ambiguous.
-      form.append('prompt', 'Arabic marketplace listing. Transcribe accurately.');
+      // No language override — Whisper auto-detects language from audio
+      // (previously had language:'ar' hardcoded, which caused 'language override unsupported' errors)
+      form.append('prompt', 'Marketplace listing. Transcribe accurately in the original spoken language.');
       const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, ...form.getHeaders() },
@@ -35,3 +34,4 @@ export async function transcribeAudio(filePath) {
     return '';
   }
 }
+
