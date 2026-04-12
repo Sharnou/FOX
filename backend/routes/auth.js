@@ -19,6 +19,9 @@ var ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE || '';
 var ULTRAMSG_TOKEN = process.env.ULTRAMSG_TOKEN || '';
 const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://fox-kohl-eight.vercel.app';
+const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'https://xtox-production.up.railway.app/api/auth/google/callback';
 const USE_FAKE_API = process.env.USE_FAKE_API === 'true';
 const FAKE_API_URL = process.env.FAKE_API_URL || '';
 
@@ -296,6 +299,185 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
     console.error('[verify-otp]', e);
     res.status(500).json({ error: 'Verification failed' });
   }
+});
+
+
+// -- Google OAuth redirect (mobile-safe) ------------------------------------
+// GET /api/auth/google  →  redirects to Google consent page (works on ALL browsers/mobile)
+// GET /api/auth/google/callback  →  exchanges code, issues JWT, redirects to frontend
+//
+// WHY: window.google.accounts.id.prompt() uses FedCM or popup which is BLOCKED
+// on iOS Safari and older Android browsers. A server-side redirect flow works
+// universally because it opens a first-party page, not a popup.
+
+router.get('/google', (req, res) => {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    return res.redirect(FRONTEND_URL + '/login?error=google_not_configured');
+  }
+  var state = '';
+  try {
+    state = Buffer.from(JSON.stringify({ redirect: req.query.redirect || '/' })).toString('base64url');
+  } catch (_) { state = 'e30'; }
+
+  var authParams = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_CALLBACK_URL,
+    response_type: 'code',
+    scope: 'openid email profile',
+    state: state,
+    access_type: 'online',
+    prompt: 'select_account'
+  });
+  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + authParams.toString());
+});
+
+router.get('/google/callback', async (req, res) => {
+  var loginPage = FRONTEND_URL + '/login';
+  var code = req.query.code || '';
+  var stateRaw = req.query.state || '';
+  var redirectTo = '/';
+
+  if (req.query.error || !code) {
+    return res.redirect(loginPage + '?error=google_cancelled');
+  }
+
+  try {
+    var stateObj = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf-8'));
+    redirectTo = stateObj.redirect || '/';
+  } catch (_) {}
+
+  // Exchange auth code for tokens
+  var idToken;
+  try {
+    var tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_CALLBACK_URL,
+        grant_type: 'authorization_code'
+      }).toString(),
+      signal: AbortSignal.timeout(8000)
+    });
+    var tokenData = await tokenRes.json();
+    if (!tokenData.id_token) {
+      return res.redirect(loginPage + '?error=google_token_failed');
+    }
+    idToken = tokenData.id_token;
+  } catch (_) {
+    return res.redirect(loginPage + '?error=google_timeout');
+  }
+
+  // Decode id_token payload (JWT middle part)
+  var idPayload;
+  try {
+    var idParts = idToken.split('.');
+    idPayload = JSON.parse(Buffer.from(idParts[1], 'base64url').toString('utf-8'));
+  } catch (_) {
+    return res.redirect(loginPage + '?error=google_token_invalid');
+  }
+
+  var googleId = idPayload.sub || '';
+  var email = idPayload.email || '';
+  var name = idPayload.name || idPayload.given_name || '';
+  var avatar = idPayload.picture || '';
+  var emailVerified = idPayload.email_verified;
+
+  if (!googleId || !emailVerified) {
+    return res.redirect(loginPage + '?error=google_unverified');
+  }
+
+  // Load User model
+  var User;
+  try {
+    User = await getUserModel();
+  } catch (_) {
+    return res.redirect(loginPage + '?error=db_unavailable');
+  }
+
+  // Check blocked
+  try {
+    var blockedCheck = await checkBlocked(User, { googleId });
+    if (blockedCheck) {
+      return res.redirect(loginPage + '?error=account_suspended');
+    }
+  } catch (_) {}
+
+  // Find or create user — NEVER creates a duplicate for an existing googleId or email
+  // Uses findOne first, then findByIdAndUpdate for existing users (preserves _id and xtoxId)
+  var user;
+  var isNew = false;
+  try {
+    var cbQuery = [{ googleId }];
+    if (email) cbQuery.push({ email });
+    user = await User.findOne({ $or: cbQuery });
+
+    if (!user) {
+      isNew = true;
+      var xtoxId = await generateXtoxId();
+      var baseName = (name.split(' ')[0] || 'user').toLowerCase().replace(/[^a-z]/g, '') || 'user';
+      var xtoxEmail = await assignUniqueXtoxEmail(User, baseName);
+      user = await User.create({
+        googleId: googleId,
+        email: email || undefined,
+        name: name,
+        avatar: avatar,
+        authProvider: 'google',
+        xtoxId: xtoxId,
+        xtoxEmail: xtoxEmail,
+        country: 'unknown',
+        lastSeen: new Date()
+      });
+    } else {
+      // Existing user — only update metadata, never reassign _id or xtoxId
+      var cbUpd = { lastSeen: new Date() };
+      if (!user.googleId) cbUpd.googleId = googleId;
+      if (!user.xtoxId) {
+        cbUpd.xtoxId = await generateXtoxId();
+        var cbBn = ((user.name || name || 'user').split(' ')[0] || 'user').toLowerCase().replace(/[^a-z]/g, '') || 'user';
+        cbUpd.xtoxEmail = await assignUniqueXtoxEmail(User, cbBn);
+      }
+      if (avatar && !user.avatar) cbUpd.avatar = avatar;
+      user = await User.findByIdAndUpdate(user._id, cbUpd, { new: true });
+    }
+  } catch (dbErr) {
+    // Duplicate key race condition — another request just created the same user
+    if (dbErr.code === 11000) {
+      try {
+        user = await User.findOne({ $or: [{ googleId: googleId }, { email: email }] });
+      } catch (_) {}
+    }
+    if (!user) {
+      return res.redirect(loginPage + '?error=db_error');
+    }
+  }
+
+  if (!user || user.blocked) {
+    return res.redirect(loginPage + '?error=account_suspended');
+  }
+
+  var cbToken = issueToken(user);
+
+  // Encode full session as base64url so the frontend can store it without an extra API call
+  var sessionData = {
+    token: cbToken,
+    isNew: isNew,
+    user: {
+      id: user._id,
+      xtoxId: user.xtoxId,
+      xtoxEmail: user.xtoxEmail,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      authProvider: 'google'
+    }
+  };
+  var sessionEncoded = Buffer.from(JSON.stringify(sessionData)).toString('base64url');
+  return res.redirect(
+    loginPage + '?session=' + sessionEncoded + '&redirect=' + encodeURIComponent(redirectTo)
+  );
 });
 
 // -- Google Sign-In ----------------------------------------------------------
