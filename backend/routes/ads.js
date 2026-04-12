@@ -744,7 +744,8 @@ router.post('/', auth, multerUpload, async (req, res) => {
         phone: phone || undefined,
         whatsapp: whatsapp || undefined,
         tags: tags || [],
-        language: /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en',
+        // FIXED: 'ar'/'en' cause MongoDB text index language override error — use null (fail-open)
+        language: null,
         // FIX D: Only save location when coordinates are fully valid numbers and non-zero
         location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
         visibilityScore: 10,
@@ -757,10 +758,8 @@ router.post('/', auth, multerUpload, async (req, res) => {
       if (!res.headersSent) {
         return res.status(500).json({
           success: false,
-          error: createErr.message,
-          message: createErr.message,
-          createErrorName: createErr.name || null,
-          received: Object.keys(body),
+          error: 'حدث خطأ أثناء نشر الإعلان. يرجى المحاولة مرة أخرى.',
+          message: 'Failed to create ad. Please try again.',
         });
       }
       return;
@@ -821,10 +820,8 @@ router.post('/', auth, multerUpload, async (req, res) => {
       // Include received field list for easier debugging
       return res.status(500).json({
         success: false,
-        error: e.message,
-        message: e.message,
-        field: e.field || null,
-        received: Object.keys(req.body || {}),
+        error: 'حدث خطأ في الخادم. يرجى المحاولة مرة أخرى.',
+        message: 'Server error. Please try again.',
       });
     }
   }

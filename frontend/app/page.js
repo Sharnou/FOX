@@ -381,7 +381,7 @@ export default function Home() {
             }}
           >
             {user.avatar
-              ? <img src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt={user.name || ''} />
+              ? <img src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt={user.name || ''} loading="eager" />
               : user.name?.[0]?.toUpperCase()}
           </a>
         ) : (
@@ -755,7 +755,7 @@ export default function Home() {
                 )}
                 <div style={{ height: 115, background: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, position: 'relative' }}>
                   {(ad.media?.[0] || ad.images?.[0])
-                    ? <img src={ad.media?.[0] || ad.images?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title || ''} loading="lazy" />
+                    ? <img src={ad.media?.[0] || ad.images?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title || ''} loading="eager" />
                     : <span aria-hidden="true">📦</span>}
                 </div>
                 <div style={{ padding: '10px 12px' }}>

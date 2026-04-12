@@ -771,7 +771,7 @@ export default function SellPage() {
                 {mediaType === 'images' && mediaPreviews.map((src, i) => (
                   <div key={i} style={{ position: 'relative' }}>
                     <img src={src} alt={'صورة ' + (i + 1)}
-                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }} />
+                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }} loading="eager" />
                     <button onClick={() => {
                       const newFiles = mediaFiles.filter((_, idx) => idx !== i);
                       const newPreviews = mediaPreviews.filter((_, idx) => idx !== i);
