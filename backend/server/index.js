@@ -449,6 +449,14 @@ connectDatabases().then(async (db) => {
       console.warn('[SEED] exampleSeeder/weeklyLearner init failed (non-fatal):', _seedErr.message);
     }
 
+    // Schedule location language learner — daily at 4am
+    try {
+      const { scheduleLocationLanguageLearner } = await import('./locationLanguageLearner.js');
+      scheduleLocationLanguageLearner();
+    } catch (_locErr) {
+      console.warn('[SEED] locationLanguageLearner init failed (non-fatal):', _locErr.message);
+    }
+
     await (async function cleanupDuplicates() {
       try {
         const Country = mongoose.models.Country;

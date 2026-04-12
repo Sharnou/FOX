@@ -361,4 +361,27 @@ router.post('/ai-learn', adminAuth, async (req, res) => {
   res.json({ success: true, message: 'AI subcategory learning job started' });
 });
 
+// GET /api/admin/location-vocab — returns learned vocabulary per country (admin monitoring)
+router.get('/location-vocab', adminAuth, async (req, res) => {
+  try {
+    const LocationVocab = (await import('../models/LocationVocab.js')).default;
+    const vocabs = await LocationVocab.find({}, { terms: 0 })
+      .sort({ updatedAt: -1 }).lean();
+    res.json({ success: true, count: vocabs.length, vocabs });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/admin/location-vocab/run — manually trigger location language learning
+router.post('/location-vocab/run', adminAuth, async (req, res) => {
+  try {
+    const { learnLocationLanguages } = await import('../server/locationLanguageLearner.js');
+    learnLocationLanguages().catch(() => {});
+    res.json({ success: true, message: 'Location language learning job started' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 export default router;
