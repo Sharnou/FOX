@@ -446,6 +446,23 @@ export const MemChat = {
     store.chats.set(String(id), updated);
     return opts.new ? makeChatDoc(updated) : makeChatDoc(doc);
   },
+  async findOneAndUpdate(filter, update, opts = {}) {
+    store.chats = store.chats || new Map();
+    const doc = [...store.chats.values()].find(d => match(d, filter));
+    if (opts.upsert && !doc) {
+      // Create new doc using $setOnInsert or $set or plain update
+      const id = newId();
+      const insertData = update.$setOnInsert || update.$set || update;
+      const newDoc = { _id: id, id, ...insertData, messages: insertData.messages || [], createdAt: now(), updatedAt: now() };
+      store.chats.set(id, newDoc);
+      return opts.new ? makeChatDoc(newDoc) : null;
+    }
+    if (!doc) return null;
+    const set = update.$set || update;
+    const updated = { ...doc, ...set, updatedAt: now() };
+    store.chats.set(String(doc._id), updated);
+    return opts.new ? makeChatDoc(updated) : makeChatDoc(doc);
+  },
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
