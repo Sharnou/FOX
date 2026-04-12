@@ -160,6 +160,17 @@ export default function SellPage() {
   const subsubRef = useRef(null);
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [subsub, setSubsub] = useState('');
+  // Inject subsubPulse animation
+  useEffect(() => {
+    const _id = 'xtox-subsub-pulse';
+    if (!document.getElementById(_id)) {
+      const _s = document.createElement('style');
+      _s.id = _id;
+      _s.textContent = '@keyframes subsubPulse{0%,100%{border-color:#e53e3e}50%{border-color:rgba(229,62,62,.35)}}';
+      document.head.appendChild(_s);
+    }
+    return () => { const _s = document.getElementById('xtox-subsub-pulse'); if(_s) _s.remove(); };
+  }, []);
 
   // Inject subsubPulse keyframe animation via JS
   useEffect(() => {
