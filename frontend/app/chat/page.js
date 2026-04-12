@@ -99,7 +99,7 @@ function ActiveCallOverlay({ callDuration, isMuted, onToggleMute, onEndCall, oth
           <div style={{ textAlign: 'center' }}>
             <button onClick={onToggleMute} aria-label={isMuted ? '\u0625\u0644\u063a\u0627\u0621 \u0643\u062a\u0645 \u0627\u0644\u0635\u0648\u062a' : '\u0643\u062a\u0645 \u0627\u0644\u0635\u0648\u062a'}
               style={{ background: isMuted ? '#374151' : '#1d4ed8', color: 'white', border: 'none', borderRadius: '50%', width: 60, height: 60, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isMuted ? '&#128263;' : '&#127908;'}
+              {​isMuted ? '🔇' : '🎤'}
             </button>
             <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#94a3b8' }}>{isMuted ? '\u0645\u0643\u062a\u0648\u0645' : '\u0645\u0641\u062a\u0648\u062d'}</span>
           </div>
@@ -155,7 +155,7 @@ export default function ChatPage() {
   var [isTyping, setIsTyping]           = useState(false);
   var [conversations, setConversations] = useState([]);
   var [unreadCounts, setUnreadCounts]   = useState({});
-  var [showConvPanel, setShowConvPanel] = useState(true); // default open
+  var [showConvPanel, setShowConvPanel] = useState(false);
   var [chatId, setChatId]               = useState('');
   var [apiChats, setApiChats]           = useState([]);
   var [historyLoaded, setHistoryLoaded] = useState(false);
@@ -270,7 +270,7 @@ export default function ChatPage() {
     fetch(API_URL + '/api/chat', { headers: { Authorization: 'Bearer ' + token } })
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(async function(data) {
-        if (!data) return;
+        if (!data) { setHistoryLoaded(true); return; }
         var chatList = data.chats || (Array.isArray(data) ? data : []);
         setApiChats(chatList);
         var apiConvs = chatList.map(function(c) {
@@ -305,11 +305,11 @@ export default function ChatPage() {
                 setMessages(msgs.map(function(m) {
                   return { from: m.sender === myId ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now() };
                 }));
-                setHistoryLoaded(true);
               }
             } catch(e) {}
           }
         }
+        setHistoryLoaded(true);
       })
       .catch(function() { setHistoryLoaded(true); });
   }, [myId]);
@@ -367,7 +367,7 @@ export default function ChatPage() {
         try {
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
           setCallState('active');
-        } catch(e) { console.error('[WebRTC] setRemoteDescription:', e); }
+        } catch(e) {}
       }
     });
     s.on('ice_candidate', async function(candidate) {
@@ -408,7 +408,6 @@ export default function ChatPage() {
       await pc.setLocalDescription(offer);
       socketRef.current.emit('call_offer', { to: targetId, from: myId, offer: pc.localDescription });
     } catch(e) {
-      console.error('[WebRTC] startCall:', e);
       setCallState('idle');
     }
   }
@@ -434,7 +433,6 @@ export default function ChatPage() {
       socketRef.current.emit('call_answer', { to: from, answer: pc.localDescription });
       setCallState('active');
     } catch(e) {
-      console.error('[WebRTC] acceptCall:', e);
       setCallState('idle');
     }
   }
@@ -556,8 +554,8 @@ export default function ChatPage() {
           {loginRequired ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 36 }}>&#128274;</div>
-              <p style={{ margin: 0 }}>سجّل الدخول للمحادثات</p>
-              <a href="/login" style={{ color: '#23e5db', fontSize: 13, marginTop: 4 }}>تسجيل الدخول</a>
+              <p style={{ margin: 0 }}>{'\u0633\u062c\u0651\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0644\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a'}</p>
+              <a href="/login" style={{ color: '#23e5db', fontSize: 13, marginTop: 4 }}>{'\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644'}</a>
             </div>
           ) : !historyLoaded && apiChats.length === 0 ? (
             <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -576,7 +574,7 @@ export default function ChatPage() {
           ) : historyLoaded && apiChats.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 40 }}>&#128172;</div>
-              <p style={{ margin: 0, lineHeight: 1.6 }}>لا توجد محادثات بعد. ابدأ محادثة من صفحة أي إعلان!</p>
+              <p style={{ margin: 0, lineHeight: 1.6 }}>{'\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062d\u0627\u062f\u062b\u0627\u062a \u0628\u0639\u062f. \u0627\u0628\u062f\u0623 \u0645\u062d\u0627\u062f\u062b\u0629 \u0645\u0646 \u0635\u0641\u062d\u0629 \u0623\u064a \u0625\u0639\u0644\u0627\u0646!'}</p>
             </div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, flex: 1 }}>

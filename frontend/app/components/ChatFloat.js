@@ -243,15 +243,15 @@ export default function ChatFloat() {
                         <button
                           onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv._id ? null : conv._id); }}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280', padding: '2px 6px', borderRadius: 6 }}
-                          title="خيارات"
+                          title="\u062e\u064a\u0627\u0631\u0627\u062a"
                         >⋮</button>
                         {menuOpenId === conv._id && (
                           <div style={{ position: 'absolute', left: 0, top: 28, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 140, zIndex: 200, overflow: 'hidden', direction: 'rtl' }}>
                             {[
-                              { label: isMuted ? '🔔 إلغاء الكتم' : '🔇 كتم', action: 'mute' },
-                              { label: '🚫 تجاهل', action: 'ignore' },
-                              { label: '🚩 إبلاغ', action: 'report' },
-                              { label: '🗑️ حذف', action: 'delete' },
+                              { label: isMuted ? '🔔 \u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u0643\u062a\u0645' : '🔇 \u0643\u062a\u0645', action: 'mute' },
+                              { label: '🚫 \u062a\u062c\u0627\u0647\u0644', action: 'ignore' },
+                              { label: '🚩 \u0625\u0628\u0644\u0627\u063a', action: 'report' },
+                              { label: '🗑️ \u062d\u0630\u0641', action: 'delete' },
                             ].map(({ label, action }) => (
                               <button key={action} onClick={e => handleConvAction(action, conv._id, e)}
                                 style={{ display: 'block', width: '100%', padding: '9px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, color: '#111', textAlign: 'right' }}
@@ -282,7 +282,7 @@ export default function ChatFloat() {
                   return (
                     <div key={m._id || i} style={{ display: 'flex', justifyContent: isMe ? 'flex-start' : 'flex-end' }}>
                       <div style={{
-                        maxWidth: '75%', padding: '7px 11px', borderRadius: isMe ? '12px 12px 12px 2px' : '12px 12px 2px 12px',
+                        maxWidth: '75%', padding: '7px 11px', borderRadius: isMe ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                         background: isMe ? '#7C3AED' : '#f3f4f6',
                         color: isMe ? '#fff' : '#111', fontSize: 13, lineHeight: 1.4
                       }}>

@@ -430,6 +430,9 @@ router.post('/:chatId/messages', auth, async (req, res) => {
   try {
     const { chatId } = req.params;
     const { text, type = 'text' } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(chatId)) {
+      return res.status(400).json({ success: false, error: 'Invalid chatId', message: 'معرّف المحادثة غير صالح | Invalid chat ID' });
+    }
     if (!text) {
       return res.status(400).json({ success: false, error: 'text is required', message: 'نص الرسالة مطلوب | text is required' });
     }
@@ -462,7 +465,6 @@ router.post('/:chatId/messages', auth, async (req, res) => {
     const savedMessage = updateResult?.messages?.[0] || message;
     res.json({ success: true, message: savedMessage });
   } catch (e) {
-    console.error('[POST /api/chat/:chatId/messages]', e.message);
     res.status(500).json({ success: false, error: e.message, message: 'حدث خطأ أثناء إرسال الرسالة | Error sending message' });
   }
 });
