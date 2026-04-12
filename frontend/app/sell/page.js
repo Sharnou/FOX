@@ -942,12 +942,12 @@ export default function SellPage() {
                     animation: !subsub ? 'subsubPulse 1.5s ease-in-out infinite' : 'none',
                     transition: 'border-color 0.3s, background 0.3s',
                   }}>
-                    <style>{'
+                    <style>{`
                       @keyframes subsubPulse {
                         0%,100%{ border-color: #e53e3e; }
                         50%{ border-color: rgba(229,62,62,0.35); }
                       }
-                    '}</style>
+                    `}</style>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 15, color: '#002f34' }} htmlFor="sell-subsub">
                       التصنيف الفرعي الثاني <span style={{ color: '#e53e3e', fontWeight: 900 }}>*</span>
                       {!subsub && <span style={{ marginRight: 6, fontSize: 12, background: '#e53e3e', color: '#fff', borderRadius: 6, padding: '1px 7px', fontWeight: 700 }}>مطلوب</span>}
