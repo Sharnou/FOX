@@ -13,6 +13,8 @@ export default function ChatFloat() {
   const [msg, setMsg] = useState('');
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // FIX B: top-level error state — if anything throws, silently hide the widget
+  const [hasError, setHasError] = useState(false);
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -21,7 +23,9 @@ export default function ChatFloat() {
     try {
       const stored = localStorage.getItem('user');
       if (stored) setUser(JSON.parse(stored));
-    } catch {}
+    } catch {
+      setHasError(true);
+    }
   }, []);
 
   // Fetch unread count for badge (every 30s)
@@ -29,7 +33,9 @@ export default function ChatFloat() {
     if (!user?.token) return;
     const fetchUnread = () => {
       fetch(`${API}/api/chat/unread-count`, { headers: { Authorization: `Bearer ${user.token}` } })
-        .then(r => r.json()).then(d => setUnreadTotal(d.count || 0)).catch(() => {});
+        .then(r => r.json())
+        .then(d => setUnreadTotal(d.count || d.unreadCount || 0))
+        .catch(() => {});
     };
     fetchUnread();
     const t = setInterval(fetchUnread, 30000);
@@ -62,7 +68,7 @@ export default function ChatFloat() {
         setMessages(prev => [...prev, data]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       });
-    });
+    }).catch(() => {});
     return () => { socket?.disconnect(); };
   }, [activeChat, user]);
 
@@ -85,17 +91,22 @@ export default function ChatFloat() {
   }, [activeChat, user]);
 
   function openConversation(conv) {
-    const myId = user?.id || user?._id;
-    const otherId = conv.buyer?._id === myId ? conv.seller?._id : conv.buyer?._id;
-    const otherName = conv.buyer?._id === myId ? (conv.seller?.name || 'بائع') : (conv.buyer?.name || 'مشتري');
-    const otherAvatar = conv.buyer?._id === myId ? conv.seller?.avatar : conv.buyer?.avatar;
+    const myId = (user?.id || user?._id || '').toString();
+    // FIX D: safe ID resolution — works whether buyer/seller are ObjectIds or populated objects
+    const buyerId = conv.buyer?._id?.toString() || conv.buyer?.toString() || '';
+    const sellerId = conv.seller?._id?.toString() || conv.seller?.toString() || '';
+    const otherId = buyerId === myId ? sellerId : buyerId;
+    const otherName = buyerId === myId
+      ? (conv.seller?.name || conv.seller?.xtoxId || '\u0628\u0627\u0626\u0639')
+      : (conv.buyer?.name || conv.buyer?.xtoxId || '\u0645\u0634\u062a\u0631\u064a');
+    const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
     setActiveChat({ chatId: conv._id, targetId: otherId, name: otherName, avatar: otherAvatar });
     setMessages([]);
   }
 
   async function sendMsg() {
     if (!msg.trim() || !activeChat) return;
-    const myId = user?.id || user?._id;
+    const myId = (user?.id || user?._id || '').toString();
     const newMsg = { from: myId, to: activeChat.targetId, text: msg.trim(), time: new Date().toISOString(), _id: Date.now() };
     setMessages(prev => [...prev, newMsg]);
     setMsg('');
@@ -108,10 +119,10 @@ export default function ChatFloat() {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
   }
 
-  // Don't render if not logged in
-  if (!user) return null;
+  // Don't render if not logged in or an error occurred
+  if (!user || hasError) return null;
 
-  const myId = user?.id || user?._id;
+  const myId = (user?.id || user?._id || '').toString();
 
   return (
     <div style={{ position: 'fixed', bottom: 80, right: 20, zIndex: 9999, fontFamily: 'sans-serif', direction: 'rtl' }}>
@@ -129,29 +140,38 @@ export default function ChatFloat() {
           <div style={{ background: '#7C3AED', color: '#fff', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {activeChat ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={() => setActiveChat(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', padding: 0 }}>←</button>
+                <button onClick={() => setActiveChat(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', padding: 0 }}>&#8592;</button>
                 {activeChat.avatar && <img src={activeChat.avatar} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />}
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{activeChat.name}</span>
               </div>
             ) : (
-              <span style={{ fontWeight: 700, fontSize: 15 }}>💬 المحادثات</span>
+              <span style={{ fontWeight: 700, fontSize: 15 }}>&#128172; {'\u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a'}</span>
             )}
-            <button onClick={() => { setOpen(false); setActiveChat(null); }} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            <button onClick={() => { setOpen(false); setActiveChat(null); }} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>&#10005;</button>
           </div>
 
           {/* Conversations list */}
           {!activeChat && (
             <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-              {loading && <p style={{ textAlign: 'center', color: '#888', padding: 20, fontSize: 13 }}>جاري التحميل...</p>}
+              {loading && <p style={{ textAlign: 'center', color: '#888', padding: 20, fontSize: 13 }}>
+                {'\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...'}
+              </p>}
               {!loading && conversations.length === 0 && (
-                <p style={{ textAlign: 'center', color: '#888', padding: 24, fontSize: 13 }}>لا توجد محادثات بعد.<br />ابدأ محادثة من أي إعلان!</p>
+                <p style={{ textAlign: 'center', color: '#888', padding: 24, fontSize: 13 }}>
+                  {'\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062d\u0627\u062f\u062b\u0627\u062a \u0628\u0639\u062f.'}<br />
+                  {'\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629 \u0645\u0646 \u0623\u064a \u0625\u0639\u0644\u0627\u0646!'}
+                </p>
               )}
               {conversations.map(conv => {
-                const otherId = conv.buyer?._id === myId ? conv.seller?._id : conv.buyer?._id;
-                const otherName = conv.buyer?._id === myId ? (conv.seller?.name || 'بائع') : (conv.buyer?.name || 'مشتري');
-                const otherAvatar = conv.buyer?._id === myId ? conv.seller?.avatar : conv.buyer?.avatar;
+                // FIX D: safe ID resolution — works whether buyer/seller are ObjectIds or populated objects
+                const buyerId = conv.buyer?._id?.toString() || conv.buyer?.toString() || '';
+                const sellerId = conv.seller?._id?.toString() || conv.seller?.toString() || '';
+                const otherName = buyerId === myId
+                  ? (conv.seller?.name || conv.seller?.xtoxId || '\u0628\u0627\u0626\u0639')
+                  : (conv.buyer?.name || conv.buyer?.xtoxId || '\u0645\u0634\u062a\u0631\u064a');
+                const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
                 const lastMsg = conv.lastMessage || conv.messages?.[conv.messages.length - 1];
-                const unread = conv.buyer?._id === myId ? conv.unreadBuyer : conv.unreadSeller;
+                const unread = buyerId === myId ? conv.unreadBuyer : conv.unreadSeller;
                 return (
                   <div key={conv._id} onClick={() => openConversation(conv)} style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px',
@@ -162,18 +182,20 @@ export default function ChatFloat() {
                   onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                     <div style={{ position: 'relative', flexShrink: 0 }}>
                       <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, overflow: 'hidden' }}>
-                        {otherAvatar ? <img src={otherAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (otherName?.[0] || '؟')}
+                        {otherAvatar ? <img src={otherAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (otherName?.[0] || '\u061f')}
                       </div>
                       {unread > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unread}</span>}
                     </div>
                     <div style={{ flex: 1, overflow: 'hidden' }}>
                       <div style={{ fontWeight: 600, fontSize: 13, color: '#111' }}>{otherName}</div>
-                      <div style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg?.text || 'ابدأ المحادثة'}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg?.text || '\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629'}</div>
                     </div>
                   </div>
                 );
               })}
-              <a href="/chat" style={{ display: 'block', textAlign: 'center', color: '#7C3AED', fontSize: 12, padding: '10px 0', textDecoration: 'none' }}>عرض كل المحادثات →</a>
+              <a href="/chat" style={{ display: 'block', textAlign: 'center', color: '#7C3AED', fontSize: 12, padding: '10px 0', textDecoration: 'none' }}>
+                {'\u0639\u0631\u0636 \u0643\u0644 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a \u2190'}
+              </a>
             </div>
           )}
 
@@ -182,7 +204,7 @@ export default function ChatFloat() {
             <>
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {messages.map((m, i) => {
-                  const isMe = m.from === myId || m.from?._id === myId;
+                  const isMe = m.from === myId || m.from?._id === myId || m.sender?.toString() === myId;
                   return (
                     <div key={m._id || i} style={{ display: 'flex', justifyContent: isMe ? 'flex-start' : 'flex-end' }}>
                       <div style={{
@@ -202,10 +224,10 @@ export default function ChatFloat() {
                   value={msg}
                   onChange={e => setMsg(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && sendMsg()}
-                  placeholder="اكتب رسالة..."
+                  placeholder={'\u0627\u0643\u062a\u0628 \u0631\u0633\u0627\u0644\u0629...'}
                   style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 20, padding: '8px 14px', fontSize: 13, outline: 'none', direction: 'rtl' }}
                 />
-                <button onClick={sendMsg} style={{ background: '#7C3AED', color: '#fff', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↑</button>
+                <button onClick={sendMsg} style={{ background: '#7C3AED', color: '#fff', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&#8593;</button>
               </div>
             </>
           )}
@@ -226,9 +248,9 @@ export default function ChatFloat() {
         }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-        title="المحادثات"
+        title={'\u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a'}
       >
-        {open ? '✕' : '💬'}
+        {open ? '\u2715' : '\uD83D\uDCAC'}
         {!open && unreadTotal > 0 && (
           <span style={{
             position: 'absolute', top: -2, right: -2,
