@@ -157,8 +157,9 @@ export default function SellPage() {
   const [country, setCountry] = useState('EG');
   const [charCount, setCharCount] = useState(0);
   const [aiDebounce, setAiDebounce] = useState(null);
+  const subsubRef = useRef(null);
   const [duplicateWarning, setDuplicateWarning] = useState(null);
-  const [subsub, setSubsub] = useState('Other');
+  const [subsub, setSubsub] = useState('');
   const [gpsLoading, setGpsLoading] = useState(false);
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
@@ -406,6 +407,14 @@ export default function SellPage() {
     if (!form.category) e.category = 'الفئة مطلوبة';
     if (form.price && isNaN(Number(form.price))) e.price = 'السعر يجب أن يكون رقماً';
     if (form.phone && !/^[\d\s+\-()]{7,15}$/.test(form.phone)) e.phone = 'رقم الهاتف غير صحيح';
+    // Require second subcategory when available
+    if (form.category && SUBCATS[form.category]) {
+      const _selSub2 = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
+      if (_selSub2 && _selSub2.subsubs && _selSub2.subsubs.length > 0 && !subsub) {
+        e.subsub = 'يجب اختيار التصنيف الفرعي الثاني';
+        if (subsubRef.current) subsubRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -769,7 +778,7 @@ export default function SellPage() {
               <select
                 id="sell-category"
                 value={form.category}
-                onChange={e => { setForm(p => ({ ...p, category: e.target.value, subcategory: 'Other' })); setSubsub('Other'); }}
+                onChange={e => { setForm(p => ({ ...p, category: e.target.value, subcategory: 'Other' })); setSubsub(''); }}
                 aria-hidden="false"
                 tabIndex={-1}
                 style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}
@@ -786,7 +795,7 @@ export default function SellPage() {
                         saveAICorrection(aiDetectedLabel, { category: cat.en, subcategory: 'Other', subsub: 'Other' });
                       }
                       setForm(p => ({ ...p, category: cat.en, subcategory: 'Other' }));
-                      setSubsub('Other');
+                      setSubsub('');
                       if (errors.category) setErrors(p => ({ ...p, category: '' }));
                     }}
                     aria-pressed={form.category === cat.en}
@@ -817,7 +826,7 @@ export default function SellPage() {
                     id="sell-subcategory"
                     name="sell-subcategory"
                     value={form.subcategory || 'Other'}
-                    onChange={e => { setForm(p => ({ ...p, subcategory: e.target.value })); setSubsub('Other'); }}
+                    onChange={e => { setForm(p => ({ ...p, subcategory: e.target.value })); setSubsub(''); if (errors.subsub) setErrors(p => ({ ...p, subsub: '' })); setTimeout(() => { if (subsubRef.current) subsubRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }}
                     aria-label="الفئة الفرعية"
                     style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
                   >
@@ -830,20 +839,44 @@ export default function SellPage() {
               {form.category && SUBCATS[form.category] && (function() {
                 var _selSub = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
                 return _selSub && _selSub.subsubs && _selSub.subsubs.length > 0 ? (
-                  <div style={{ marginTop: 10 }}>
-                    <label style={labelStyle} htmlFor="sell-subsub">التصنيف الدقيق</label>
+                  <div ref={subsubRef} style={{
+                    marginTop: 12,
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    background: !subsub ? 'rgba(229,62,62,0.04)' : 'rgba(99,102,241,0.04)',
+                    border: !subsub
+                      ? '2px solid #e53e3e'
+                      : '2px solid rgba(99,102,241,0.25)',
+                    animation: !subsub ? 'subsubPulse 1.5s ease-in-out infinite' : 'none',
+                    transition: 'border-color 0.3s, background 0.3s',
+                  }}>
+                    <style>{'
+                      @keyframes subsubPulse {
+                        0%,100%{ border-color: #e53e3e; }
+                        50%{ border-color: rgba(229,62,62,0.35); }
+                      }
+                    '}</style>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 15, color: '#002f34' }} htmlFor="sell-subsub">
+                      التصنيف الفرعي الثاني <span style={{ color: '#e53e3e', fontWeight: 900 }}>*</span>
+                      {!subsub && <span style={{ marginRight: 6, fontSize: 12, background: '#e53e3e', color: '#fff', borderRadius: 6, padding: '1px 7px', fontWeight: 700 }}>مطلوب</span>}
+                    </label>
                     <select
                       id="sell-subsub"
                       name="sell-subsub"
                       value={subsub}
-                      onChange={e => setSubsub(e.target.value)}
-                      aria-label="التصنيف الدقيق"
-                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
+                      onChange={e => { setSubsub(e.target.value); if (errors.subsub) setErrors(p => ({ ...p, subsub: '' })); }}
+                      aria-required="true"
+                      aria-label="التصنيف الفرعي الثاني"
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid ' + (errors.subsub ? '#e53e3e' : '#c7d2fe'), fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', fontWeight: 600 }}
                     >
+                      <option value="">-- اختر التصنيف الفرعي الثاني --</option>
                       {_selSub.subsubs.map(function(ss) { return (
                         <option key={ss.v} value={ss.v}>{ss.ar}</option>
                       ); })}
                     </select>
+                    <p style={{ margin: '6px 0 0', fontSize: 12, color: errors.subsub ? '#e53e3e' : '#6366f1', fontWeight: 600 }}>
+                      {errors.subsub ? ('⚠️ ' + errors.subsub) : 'هذا الحقل مهم جداً لظهور إعلانك في التصنيف الصحيح'}
+                    </p>
                   </div>
                 ) : null;
               })()}

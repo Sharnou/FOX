@@ -256,8 +256,22 @@ export default function NearbyPage() {
     const L = window.L;
     clusterGroup.current.clearLayers();
 
+    // Map chip keys to known subsub values for each top-level category
+    const CAT_SUBSUB_MAP = {
+      cars: ['Cars','Motorcycles','SpareParts','Trucks','Boats','Sedan','SUV','Pickup','Coupe','Electric','Sport','Scooter','OffRoad','Cruiser','Engine','Tires','BodyParts','LightTruck','HeavyTruck','FishingBoat','Yacht'],
+      real_estate: ['Apartments','Villas','Land','Commercial','Offices','Rooms','Studio','1BR','2BR','3BR','4BR','Duplex','Penthouse','Independent','Compound','TwinHouse','TownHouse','Residential','Agricultural','Shop','Warehouse','Restaurant','Private','Shared','Single','Double'],
+      electronics: ['MobilePhones','Laptops','Tablets','TVs','Cameras','Gaming','Audio','Accessories','iPhone','Samsung','Huawei','Xiaomi','Oppo','MacBook','GamingLaptop','Business','iPad','SamsungTab','SmartTV','OLED','LED','DSLR','Mirrorless','Security','PlayStation','Xbox','Nintendo','PCGaming','Headphones','Earbuds','Speakers','Chargers','Cases','PowerBanks'],
+      jobs: ['FullTime','PartTime','Freelance','Internship','Remote','IT','Engineering','Medical','Marketing','Finance','Education','Sales','Delivery','Tutoring','CustomerService','Design','Development','Writing','Translation','Technical','Content'],
+      services: ['HomeServices','Cleaning','Repairs','Education','Health','Transport','Design','Plumber','Electrician','Carpenter','Painter','ACRepair','PestControl','HomeCleaning','OfficeCleaning','CarWash','SofaCleaning','Electronics','Appliances','Furniture','Math','Science','Languages','Quran','Music','Fitness','Nutrition','Salon','Spa','FurnitureMoving','AirportTransfer','LogoDesign','Print','WebDesign','Video','Photography'],
+    };
     const filtered = categoryFilter
-      ? adList.filter(ad => (ad.category || '').toLowerCase() === categoryFilter)
+      ? adList.filter(ad => {
+          const subsubList = CAT_SUBSUB_MAP[categoryFilter] || [];
+          if (ad.subsub && ad.subsub !== 'Other' && subsubList.length > 0) {
+            return subsubList.includes(ad.subsub);
+          }
+          return (ad.category || '').toLowerCase() === categoryFilter || (ad.subcategory || '').toLowerCase().includes(categoryFilter);
+        })
       : adList;
 
     filtered.forEach(ad => {
@@ -281,7 +295,7 @@ export default function NearbyPage() {
       const waUrl   = 'https://wa.me/?text=' + encodeURIComponent(ad.title + ' - ' + window.location.origin + '/ads/' + ad._id);
       const mapUrl  = 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng;
 
-      const popupContent = '\n        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;max-width:250px">\n          ' + (img ? '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display=\'none\'" alt="' + (ad.title || 'إعلان') + '" loading="lazy">' + '" loading="lazy">' : '') + '\n          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (ad.title || '') + '">' + (ad.title || 'إعلان') + '</div>\n          ' + (ad.category ? '<div style="background:#f0f7f4;color:#002f34;font-size:10px;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">' + ad.category + '</div>' + '</div>' : '') + '\n          <div style="color:#e74c3c;font-weight:700;font-size:14px;margin-bottom:4px">' + price + '</div>\n          ' + (dist ? '<div style="color:#888;font-size:11px;margin-bottom:8px">📍 ' + dist + '</div>' + '</div>' : '') + '\n          <div style="display:flex;gap:6px;flex-wrap:wrap">\n            <a href="/ads/' + ad._id + '" style="flex:1;min-width:80px;background:#002f34;color:#fff;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">' + LABELS.viewAdFull + '</a>\n            <a href="' + mapUrl + '" target="_blank" rel="noopener" style="background:#4285F4;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="الاتجاهات">' + LABELS.navigate + '</a>\n            <a href="' + waUrl + '" target="_blank" rel="noopener" style="background:#25D366;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="مشاركة واتساب">💬</a>\n          </div>\n        </div>\n      ';
+      const popupContent = '\n        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;max-width:250px">\n          ' + (img ? '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display=\'none\'" alt="' + (ad.title || 'إعلان') + '" loading="lazy">' + '" loading="lazy">' : '') + '\n          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (ad.title || '') + '">' + (ad.title || 'إعلان') + '</div>\n          ' + ((ad.subsub && ad.subsub !== 'Other') || ad.category ? '<div style="background:#f0f7f4;color:#002f34;font-size:10px;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">' + ((ad.subsub && ad.subsub !== 'Other') ? ad.subsub : ad.category) + '</div>' + '</div>' : '') + '\n          <div style="color:#e74c3c;font-weight:700;font-size:14px;margin-bottom:4px">' + price + '</div>\n          ' + (dist ? '<div style="color:#888;font-size:11px;margin-bottom:8px">📍 ' + dist + '</div>' + '</div>' : '') + '\n          <div style="display:flex;gap:6px;flex-wrap:wrap">\n            <a href="/ads/' + ad._id + '" style="flex:1;min-width:80px;background:#002f34;color:#fff;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">' + LABELS.viewAdFull + '</a>\n            <a href="' + mapUrl + '" target="_blank" rel="noopener" style="background:#4285F4;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="الاتجاهات">' + LABELS.navigate + '</a>\n            <a href="' + waUrl + '" target="_blank" rel="noopener" style="background:#25D366;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="مشاركة واتساب">💬</a>\n          </div>\n        </div>\n      ';
 
       const marker = L.marker([lat, lng], { icon });
       marker.bindPopup(popupContent, { maxWidth: 260, className: 'xtox-popup' });
