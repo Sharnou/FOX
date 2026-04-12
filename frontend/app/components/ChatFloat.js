@@ -20,11 +20,19 @@ export default function ChatFloat() {
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // Load user from localStorage
+  // Load user from localStorage (with token fallback for backwards compat)
   useEffect(() => {
     try {
       const stored = localStorage.getItem('user');
-      if (stored) setUser(JSON.parse(stored));
+      if (stored) {
+        const u = JSON.parse(stored);
+        // If user object has no token (old format), attach it from standalone key
+        if (!u.token) {
+          const t = localStorage.getItem('token') || '';
+          if (t) u.token = t;
+        }
+        setUser(u);
+      }
     } catch {
       setHasError(true);
     }

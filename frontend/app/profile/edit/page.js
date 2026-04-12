@@ -92,7 +92,7 @@ export default function EditProfilePage() {
     // Then fetch fresh data from server
     fetch(API + '/api/users/me', { headers: { Authorization: 'Bearer ' + t } })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) { const u = data.user || data; hydrateForm(u); localStorage.setItem('user', JSON.stringify(u)); } })
+      .then(data => { if (data) { const u = data.user || data; hydrateForm(u); try { localStorage.setItem('user', JSON.stringify(Object.assign({}, u, { token: t }))); } catch (_) {} } })
       .catch(() => {})
       .finally(() => setFetching(false));
   }, []);
@@ -181,7 +181,7 @@ export default function EditProfilePage() {
         throw new Error(err.error || 'خطأ ' + res.status);
       }
       const updated = await res.json();
-      localStorage.setItem('user', JSON.stringify(updated));
+      try { localStorage.setItem('user', JSON.stringify(Object.assign({}, updated, { token: token }))); } catch (_) {}
       showToast('تم حفظ التغييرات بنجاح ✓', 'success');
     } catch (e) {
       showToast(e.message || 'حدث خطأ أثناء الحفظ', 'error');

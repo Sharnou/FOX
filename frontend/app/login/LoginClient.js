@@ -16,6 +16,13 @@ function storeSession(data) {
   localStorage.setItem('userName', (data.user && data.user.name) ? data.user.name : '');
   localStorage.setItem('userId', (data.user && data.user.id) ? data.user.id : '');
   localStorage.setItem('userAvatar', (data.user && data.user.avatar) ? data.user.avatar : '');
+  // Cache full user object with token so all components read it instantly on next navigation
+  // without hitting the backend API on every page load (fixes memory lag / not-loading issues)
+  if (data.user) {
+    try {
+      localStorage.setItem('user', JSON.stringify(Object.assign({}, data.user, { token: data.token })));
+    } catch (_) {}
+  }
 }
 
 export default function LoginClient() {
