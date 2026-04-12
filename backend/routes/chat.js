@@ -31,8 +31,11 @@ router.get('/', auth, async (req, res) => {
   try {
     // FIX: Chat schema has buyer/seller fields, NOT a users[] array.
     // Sort by updatedAt (schema field), not lastMessage (doesn't exist).
+    // Populate buyer and seller so the frontend gets actual user names and avatars.
     const chats = await getChat().find(userInChatQuery(req.user.id))
       .sort({ updatedAt: -1 })
+      .populate('buyer', 'name avatar xtoxId whatsappPhone')
+      .populate('seller', 'name avatar xtoxId whatsappPhone')
       .lean();
     res.json({ success: true, chats });
   } catch (e) {
@@ -136,6 +139,7 @@ router.get('/unread-count', auth, async (req, res) => {
     }
     res.json({
       unreadCount: total,
+      count: total,
       // مجموع الرسائل غير المقروءة
     });
   } catch (e) {
