@@ -126,6 +126,26 @@ async function detectSubcategory(category, text, country) {
   }
 }
 
+// ─── CHANGE 5: detectTextLanguage ───────────────────────────────────────────
+/**
+ * Fast offline language detection from ad text.
+ * Returns 'ar', 'fr', 'en', or 'unknown'.
+ * Used to record language patterns without blocking ad publishing.
+ */
+function detectTextLanguage(text) {
+  if (!text || typeof text !== 'string') return 'unknown';
+  const arabicChars = (text.match(/[؀-ۿ]/g) || []).length;
+  const latinChars = (text.match(/[a-zA-Z]/g) || []).length;
+  const total = arabicChars + latinChars;
+  if (total === 0) return 'unknown';
+  if (arabicChars / total > 0.4) return 'ar';
+  // Check for French-specific characters
+  const frenchChars = (text.match(/[àâäéèêëîïôùûüçœæ]/gi) || []).length;
+  if (frenchChars > 2) return 'fr';
+  if (latinChars > 0) return 'en';
+  return 'unknown';
+}
+
 function invalidateCache() {
   _cache = null;
   // Also clear location vocab cache
@@ -133,4 +153,4 @@ function invalidateCache() {
   _locVocabCacheTime = {};
 }
 
-export { detectSubcategory, invalidateCache, loadExamples, getLocationVocab };
+export { detectSubcategory, invalidateCache, loadExamples, getLocationVocab, detectTextLanguage };

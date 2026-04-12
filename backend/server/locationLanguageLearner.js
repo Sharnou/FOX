@@ -272,9 +272,95 @@ function scheduleLocationLanguageLearner() {
   })();
 }
 
+// ─── CHANGE 4 & 5: recordDetectedLanguage ────────────────────────────────────
+/**
+ * Called every time a new language is detected in any content (audio, text, etc.).
+ * Records it in LocationVocab for the given country so future Whisper calls can
+ * use the right vocabulary prompt.
+ * NEVER throws.
+ */
+async function recordDetectedLanguage(langCode, context) {
+  try {
+    if (!context) return;
+    const country = (context.country || 'XX').toUpperCase();
+
+    // Determine language from langCode or from sample text
+    let lang = langCode || '';
+    if (!lang && context.sampleText) {
+      lang = detectLanguage([context.sampleText]);
+    }
+    if (!lang || lang === 'unknown') return;
+
+    await LocationVocab.findOneAndUpdate(
+      { country },
+      {
+        $set: { language: lang, updatedAt: new Date() },
+        $setOnInsert: { country, terms: [], topWords: [], sampleAds: [] }
+      },
+      { upsert: true, new: true }
+    );
+
+    // Also record in the GLOBAL catch-all entry
+    await LocationVocab.findOneAndUpdate(
+      { country: 'GLOBAL' },
+      {
+        $addToSet: { topWords: lang },
+        $set: { updatedAt: new Date() }
+      },
+      { upsert: true, new: true }
+    );
+
+    // If we have a sample text, extract top tokens and push to sampleAds / topWords
+    if (context.sampleText && context.sampleText.length > 5) {
+      const tokens = tokenize(context.sampleText).slice(0, 10);
+      if (tokens.length > 0) {
+        await LocationVocab.findOneAndUpdate(
+          { country },
+          {
+            $addToSet: { topWords: { $each: tokens } },
+            $push: { sampleAds: { $each: [context.sampleText.slice(0, 80)], $slice: -20 } },
+            $set: { updatedAt: new Date() }
+          },
+          { upsert: true }
+        );
+      }
+    }
+  } catch { /* NEVER throw from learning functions */ }
+}
+
+// ─── CHANGE 5: buildLanguagePrompt ───────────────────────────────────────────
+/**
+ * Builds a Whisper initial_prompt string from learned vocabulary for a country.
+ * Returns a comma-separated string of top local words, or null if no vocab exists.
+ * Used by whisper.js to nudge transcription toward the correct local language.
+ * NEVER throws.
+ */
+async function buildLanguagePrompt(country) {
+  try {
+    if (!country) return null;
+    const key = String(country).toUpperCase().trim();
+
+    // Try local cache first
+    const cached = await getLocationVocab(key);
+    if (!cached || !cached.topWords || cached.topWords.length === 0) return null;
+
+    // Return top 10 words as a natural-language prompt hint
+    const words = cached.topWords
+      .filter(w => typeof w === 'string' && w.length > 1 && w.length < 30)
+      .slice(0, 10);
+    if (words.length === 0) return null;
+
+    return words.join('، ');
+  } catch {
+    return null; // NEVER throw
+  }
+}
+
 export {
   learnLocationLanguages,
   scheduleLocationLanguageLearner,
   getLocationVocab,
-  invalidateLocVocabCache
+  invalidateLocVocabCache,
+  recordDetectedLanguage,
+  buildLanguagePrompt
 };

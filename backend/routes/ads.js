@@ -5,6 +5,7 @@ import { dbState, MemAd } from '../server/memoryStore.js';
 import { getActiveDB } from '../server/dbManager.js';
 import { CouchbaseAd } from '../server/couchbaseModels.js';
 
+import User from '../models/User.js';
 import { auth } from '../middleware/auth.js';
 import { moderateText, moderateImage } from '../server/moderation.js';
 import { checkDuplicate } from '../server/duplicateDetector.js';
@@ -380,6 +381,40 @@ router.post('/', auth, multerUpload, async (req, res) => {
     if (!req.user || !req.user.id) {
       return res.status(401).json({ success: false, error: 'Authentication required' });
     }
+
+    // GATE 1: Only verified users can post ads
+    // Fetch the full user record to check real verification fields (JWT only has id/role/xtoxId)
+    {
+      let _gateUser = null;
+      try {
+        _gateUser = await User.findById(req.user.id).select('googleId whatsappPhone authProvider xtoxId').lean();
+      } catch (_gateErr) {
+        // DB lookup failed — fall back to JWT data only (non-fatal)
+        _gateUser = null;
+      }
+
+      const _isVerified = (
+        !!(_gateUser && _gateUser.whatsappPhone) ||   // verified WhatsApp number on file
+        !!(_gateUser && _gateUser.googleId) ||         // logged in via Google = email verified
+        (_gateUser && _gateUser.authProvider && _gateUser.authProvider !== 'email') // apple/whatsapp
+      );
+
+      if (!_isVerified) {
+        return res.status(403).json({
+          error: 'يجب التحقق من هويتك قبل نشر إعلان. يرجى التحقق من رقم واتساب أو البريد الإلكتروني.',
+          code: 'UNVERIFIED_USER'
+        });
+      }
+
+      // GATE 2: Must have xtoxId (use JWT field or DB field)
+      const _hasXtoxId = req.user.xtoxId || (_gateUser && _gateUser.xtoxId);
+      if (!_hasXtoxId) {
+        return res.status(403).json({
+          error: 'حساب غير مكتمل. يرجى إكمال ملفك الشخصي أولاً.',
+          code: 'NO_XTOX_ID'
+        });
+      }
+    }
     // ── DB CONNECTION CHECK — return 503 if no DB is ready yet ──────────────
     const _activeDB = getActiveDB();
     console.log('[ADS POST] 2: activeDB=', _activeDB, 'mongoState=', mongoose.connection.readyState);
@@ -637,6 +672,39 @@ router.post('/', auth, multerUpload, async (req, res) => {
       } catch (_dbDetErr) { /* non-fatal */ }
     }
 
+    // CHANGE 2: Prevent same user posting duplicate title or description
+    {
+      const _titleTrimmed = (title || '').trim();
+      const _descTrimmed = (description || '').trim();
+
+      if (_titleTrimmed.length > 0) {
+        try {
+          const _orClauses = [
+            { title: { $regex: new RegExp('^' + _titleTrimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') } }
+          ];
+          if (_descTrimmed.length > 20) {
+            _orClauses.push({ description: { $regex: new RegExp(_descTrimmed.slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } });
+          }
+          const _dup = await Ad.findOne({
+            userId: req.user.id,
+            $or: _orClauses,
+            isDeleted: { $ne: true },
+            isExpired: { $ne: true }
+          }).lean();
+
+          if (_dup) {
+            return res.status(409).json({
+              error: 'لديك إعلان مشابه بالفعل. لا يمكن نشر إعلانات متكررة من نفس الحساب.',
+              code: 'DUPLICATE_AD',
+              existingAdId: _dup._id
+            });
+          }
+        } catch (_dupErr) {
+          // Duplicate check failure is non-fatal — allow the ad
+        }
+      }
+    }
+
     // ENSURE COUNTRY EXISTS
     await getOrCreateCountry(country, country).catch(() => {});
 
@@ -851,8 +919,15 @@ router.put('/:id', auth, async (req, res) => {
     const updateTags = req.body.tags ? (Array.isArray(req.body.tags) ? req.body.tags.slice(0,20).map(t=>String(t).trim()) : String(req.body.tags).split(',').map(t=>t.trim()).slice(0,20)) : undefined;
 
     // Ownership check — only the original owner may edit
-    const ad = await getAdModel().findOne({ _id: req.params.id, userId: req.user.id, isDeleted: { $ne: true } });
-    if (!ad) return res.status(404).json({ error: 'Ad not found or not owned by you' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'معرف الإعلان غير صالح' });
+    }
+    const ad = await getAdModel().findOne({
+      _id: req.params.id,
+      $or: [{ userId: req.user.id }, { seller: req.user.id }],
+      isDeleted: { $ne: true }
+    });
+    if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود أو لا يخصك' });
 
     // TEXT MODERATION on updated content
     const textCheck = moderateText(title + ' ' + (description || ''));
@@ -870,6 +945,19 @@ router.put('/:id', auth, async (req, res) => {
     if (featuredStyle && featuredStyle !== 'normal') ad.featuredStyle = featuredStyle;
     if (updateWhatsapp !== undefined) ad.whatsapp = updateWhatsapp;
     if (updateTags !== undefined) ad.tags = updateTags;
+    // Re-detect subsub when title or description changed
+    if (req.body.title !== undefined || req.body.description !== undefined) {
+      const _reText = (title || ad.title || '') + ' ' + (description || ad.description || '');
+      try {
+        const _reCat = category || ad.category;
+        const _reDetected = await detectSubcategory(_reCat, _reText, ad.country);
+        if (_reDetected && _reDetected.subcategory && _reDetected.confidence !== 'low') {
+          if (!ad.subcategory || ad.subcategory === 'Other') ad.subcategory = _reDetected.subcategory;
+          if (_reDetected.subsub && _reDetected.subsub !== 'Other') ad.subsub = _reDetected.subsub;
+        }
+      } catch (_reErr) { /* non-fatal — keep existing subsub */ }
+    }
+    ad.updatedAt = new Date();
     ad.editedAt = new Date();
     ad.language = /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en';
 
@@ -895,7 +983,7 @@ router.put('/:id', auth, async (req, res) => {
     });
 
     res.json({ ok: true, ad });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'فشل تحديث الإعلان', code: 'UPDATE_ERROR' }); }
 });
 
 // ── DELETE ad ──
