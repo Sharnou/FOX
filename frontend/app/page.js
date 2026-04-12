@@ -897,6 +897,23 @@ export default function Home() {
                       {(ad.subsub && ad.subsub !== 'Other') ? ad.subsub : ad.category}
                     </span>
                   )}
+                  {/* Bubble / cartoon speech bubble badge */}
+                  {ad.bubble && (!ad.bubbleUntil || new Date(ad.bubbleUntil) > new Date()) && (
+                    <span className="bubble-badge" style={{
+                      position: 'absolute',
+                      bottom: 8,
+                      [isRTL ? 'left' : 'right']: 8,
+                      background: 'linear-gradient(135deg, #bf5fff, #7c3aed)',
+                      color: 'white',
+                      borderRadius: 999,
+                      fontSize: 13,
+                      padding: '3px 7px',
+                      boxShadow: '0 2px 8px rgba(191,95,255,0.5)',
+                      lineHeight: 1,
+                    }}>
+                      🫧
+                    </span>
+                  )}
                 </div>
 
                 {/* Card Body */}

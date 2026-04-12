@@ -15,6 +15,8 @@ const AdSchema = new mongoose.Schema({
   bumpedAt: { type: Date, default: null },
   featuredStyle: { type: String, enum: ['normal', 'cartoon', 'gold', 'banner'], default: 'normal' },
   featuredAt: { type: Date },
+  bubble: { type: Boolean, default: false },
+  bubbleUntil: { type: Date, default: null },
   status: { type: String, default: 'active' },
   visibilityScore: { type: Number, default: 10 },
   isDuplicate: Boolean, fixedByAI: Boolean, isDeleted: { type: Boolean, default: false }, deletedAt: Date,
