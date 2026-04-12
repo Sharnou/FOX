@@ -29,10 +29,11 @@ function userInChatQuery(userId) {
 // ─────────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   try {
-    // FIX: Chat schema has buyer/seller fields, NOT a users[] array.
-    // Sort by updatedAt (schema field), not lastMessage (doesn't exist).
-    // Populate buyer and seller so the frontend gets actual user names and avatars.
-    const chats = await getChat().find(userInChatQuery(req.user.id))
+    // Filter out chats where user is in deletedBy
+    const chats = await getChat().find({
+      ...userInChatQuery(req.user.id),
+      deletedBy: { $ne: req.user.id }
+    })
       .sort({ updatedAt: -1 })
       .populate('buyer', 'name avatar xtoxId whatsappPhone')
       .populate('seller', 'name avatar xtoxId whatsappPhone')
@@ -113,6 +114,19 @@ router.post('/start', auth, async (req, res) => {
       }
     }
 
+    // Store adTitle if missing
+    if (validAdId && (!chat.adTitle || chat.adTitle === '')) {
+      try {
+        const Ad = (await import('../models/Ad.js')).default;
+        const ad = await Ad.findById(validAdId).select('title').lean();
+        if (ad?.title) {
+          await getChat().findByIdAndUpdate(chat._id, { adTitle: ad.title.slice(0, 60) });
+          chat = chat.toObject ? chat.toObject() : { ...chat };
+          chat.adTitle = ad.title.slice(0, 60);
+        }
+      } catch {}
+    }
+
     res.json({ success: true, chatId: chat._id, _id: chat._id, chat });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message || 'Error creating chat' });
@@ -148,6 +162,88 @@ router.get('/unread-count', auth, async (req, res) => {
       message: 'حدث خطأ أثناء حساب الرسائل غير المقروءة | Error counting unread messages',
     });
   }
+});
+
+// ─────────────────────────────────────────────────────────────
+// PATCH /api/chat/sound-settings — save sound mute preference
+// Must be BEFORE /:chatId routes
+// ─────────────────────────────────────────────────────────────
+router.patch('/sound-settings', auth, async (req, res) => {
+  try {
+    const { muteSounds } = req.body;
+    const User = (await import('../models/User.js')).default;
+    await User.findByIdAndUpdate(req.user.id, { muteSounds: !!muteSounds });
+    res.json({ success: true, muteSounds: !!muteSounds });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────
+// DELETE /api/chat/:chatId — soft delete for current user
+// ─────────────────────────────────────────────────────────────
+router.delete('/:chatId', auth, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(chatId)) return res.status(400).json({ success: false, error: 'Invalid chatId' });
+    await getChat().findOneAndUpdate(
+      { _id: chatId, ...userInChatQuery(req.user.id) },
+      { $addToSet: { deletedBy: req.user.id } }
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/:chatId/mute — toggle mute
+// ─────────────────────────────────────────────────────────────
+router.post('/:chatId/mute', auth, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(chatId)) return res.status(400).json({ success: false, error: 'Invalid chatId' });
+    const chat = await getChat().findOne({ _id: chatId, ...userInChatQuery(req.user.id) });
+    if (!chat) return res.status(404).json({ success: false, error: 'Chat not found' });
+    const isMuted = chat.mutedBy?.map(id => id.toString()).includes(req.user.id.toString());
+    await getChat().findByIdAndUpdate(chatId, isMuted
+      ? { $pull: { mutedBy: req.user.id } }
+      : { $addToSet: { mutedBy: req.user.id } }
+    );
+    res.json({ success: true, muted: !isMuted });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/:chatId/ignore — toggle ignore
+// ─────────────────────────────────────────────────────────────
+router.post('/:chatId/ignore', auth, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(chatId)) return res.status(400).json({ success: false, error: 'Invalid chatId' });
+    const chat = await getChat().findOne({ _id: chatId, ...userInChatQuery(req.user.id) });
+    if (!chat) return res.status(404).json({ success: false, error: 'Chat not found' });
+    const isIgnored = chat.ignoredBy?.map(id => id.toString()).includes(req.user.id.toString());
+    await getChat().findByIdAndUpdate(chatId, isIgnored
+      ? { $pull: { ignoredBy: req.user.id } }
+      : { $addToSet: { ignoredBy: req.user.id } }
+    );
+    res.json({ success: true, ignored: !isIgnored });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/:chatId/report — report chat
+// ─────────────────────────────────────────────────────────────
+router.post('/:chatId/report', auth, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { reason = '' } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(chatId)) return res.status(400).json({ success: false, error: 'Invalid chatId' });
+    const alreadyReported = await getChat().findOne({ _id: chatId, 'reportedBy.userId': req.user.id });
+    if (alreadyReported) return res.json({ success: true, message: 'Already reported' });
+    await getChat().findOneAndUpdate(
+      { _id: chatId, ...userInChatQuery(req.user.id) },
+      { $push: { reportedBy: { userId: req.user.id, reason: reason.slice(0, 200), at: new Date() } } }
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ─────────────────────────────────────────────────────────────

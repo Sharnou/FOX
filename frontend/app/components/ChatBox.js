@@ -145,6 +145,13 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
   const socketRef = useRef(null);
   const bottomRef = useRef(null);
 
+  // Action menu state
+  const [showMenu, setShowMenu] = useState(false);
+  const [chatMuted, setChatMuted] = useState(false);
+
+  // Dubizzle-style header: ad title
+  const [adTitle, setAdTitle] = useState('');
+
   // Detect lang and user
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -197,14 +204,15 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
     }
   }, [messages]);
 
-  // Play receive sound when new messages arrive
+  // Play receive sound when new messages arrive (D4: check localStorage mute flag)
   useEffect(() => {
     if (messages.length > prevMsgCount.current) {
       const lastMsg = messages[messages.length - 1];
       const senderId = lastMsg?.sender ? (typeof lastMsg.sender === 'object' ? (lastMsg.sender._id || lastMsg.sender.id) : lastMsg.sender) : null;
       // Only play receive sound for messages from the other party
       if (senderId && myId && String(senderId) !== String(myId)) {
-        playCartoonSound('receive');
+        const soundMuted = localStorage.getItem('xtox_mute_sounds') === 'true';
+        if (!soundMuted) playCartoonSound('receive');
         setIsWaiting(false);
       }
     }
@@ -215,6 +223,39 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
   useEffect(() => {
     setIsTyping(text.length > 0);
   }, [text]);
+
+  // Action functions
+  async function deleteChat() {
+    if (!chatId) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+    await fetch(`${API}/api/chat/${chatId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    setOpen(false);
+  }
+
+  async function muteChat() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!chatId || !token) return;
+    const r = await fetch(`${API}/api/chat/${chatId}/mute`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => ({}));
+    const d = await r.json?.() || {};
+    setChatMuted(d.muted);
+    setShowMenu(false);
+  }
+
+  async function ignoreChat() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!chatId || !token) return;
+    await fetch(`${API}/api/chat/${chatId}/ignore`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    setOpen(false);
+  }
+
+  async function reportChat() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!chatId || !token) return;
+    const reason = prompt('\u0633\u0628\u0628 \u0627\u0644\u0625\u0628\u0644\u0627\u063a') || '';
+    await fetch(`${API}/api/chat/${chatId}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason }) }).catch(() => {});
+    setShowMenu(false);
+  }
 
   const sendMessage = useCallback(async (msgText) => {
     const textToSend = msgText || text;
@@ -291,6 +332,15 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
       const cid = data.chatId || data._id || (data.chat && data.chat._id);
       if (cid) {
         setChatId(cid);
+        // D3: Fetch ad title from chat list
+        fetch(`${API}/api/chat`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json()).then(chatData => {
+            const chats = Array.isArray(chatData) ? chatData : (chatData.chats || []);
+            const thisChat = chats.find(c => c._id === cid || c._id?.toString() === cid);
+            if (thisChat?.adTitle) setAdTitle(thisChat.adTitle);
+          }).catch(() => {});
+        // Also check data.chat directly for adTitle
+        if (data.chat?.adTitle) setAdTitle(data.chat.adTitle);
         await loadMessages(cid, token);
         connectSocket(cid, token);
       } else {
@@ -399,17 +449,38 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
           border: '1.5px solid #e5e7eb', borderRadius: 18, overflow: 'hidden',
           display: 'flex', flexDirection: 'column', height: 480,
           boxShadow: '0 8px 32px rgba(124,58,237,0.15)', marginTop: 8,
-          // Change 5: Gradient background
           background: 'linear-gradient(135deg, #667eea22 0%, #764ba222 50%, #f093fb22 100%)',
           position: 'relative',
         }}>
-          {/* Change 5: Header */}
+          {/* Header */}
           <div style={{
             background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
             padding: '12px 16px', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', flexShrink: 0,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Action menu (⋮) — placed first in RTL so it appears on the left */}
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setShowMenu(m => !m)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer', padding: '0 8px' }}>⋮</button>
+              {showMenu && (
+                <div style={{ position: 'absolute', top: 28, left: 0, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 160, zIndex: 100, overflow: 'hidden' }}>
+                  {[
+                    { icon: '🔇', label: chatMuted ? 'إلغاء الكتم' : 'كتم', fn: muteChat },
+                    { icon: '🚫', label: 'تجاهل', fn: ignoreChat },
+                    { icon: '🚩', label: 'إبلاغ', fn: reportChat },
+                    { icon: '🗑️', label: 'حذف', fn: deleteChat },
+                  ].map(({ icon, label, fn }) => (
+                    <button key={label} onClick={fn} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#111', textAlign: 'right', direction: 'rtl' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      {icon} {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Seller name + ad title (Dubizzle-style) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, justifyContent: 'center' }}>
               {otherAvatar ? (
                 <img src={otherAvatar} alt={sellerDisplayName}
                   style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.4)' }} />
@@ -419,8 +490,8 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
                 </div>
               )}
               <div>
-                {/* Change 3: location under seller name */}
                 <span style={{ color: '#fff', fontWeight: 700, fontSize: 14, display: 'block' }}>{sellerDisplayName}</span>
+                {adTitle && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{adTitle.slice(0, 30)}</span>}
                 {locationLine && (
                   <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, display: 'block', marginTop: 1 }}>
                     {locationLine}
@@ -428,6 +499,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
                 )}
               </div>
             </div>
+
             <button onClick={() => setOpen(false)} style={{
               background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff',
               borderRadius: 8, width: 28, height: 28, cursor: 'pointer', fontSize: 16,
@@ -435,7 +507,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
             }}>{t.close}</button>
           </div>
 
-          {/* Change 5: Messages with cartoon bubbles */}
+          {/* Messages with cartoon bubbles */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', position: 'relative' }}>
             {loading ? (
               <div style={{ textAlign: 'center', color: '#9ca3af', paddingTop: 60, fontSize: 14 }}>{t.loading}</div>
@@ -446,7 +518,9 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
             ) : (
               messages.map((msg, i) => {
                 const senderId = msg.sender ? (typeof msg.sender === 'object' ? (msg.sender._id || msg.sender.id) : msg.sender) : null;
-                const isOwn = senderId && myId && String(senderId) === String(myId);
+                // D1: Fix isMe check for DB messages
+                const isOwn = senderId && myId && String(senderId) === String(myId)
+                  || ((msg.from || msg.sender?.toString() || msg.sender) === myId);
                 return (
                   <div key={msg._id || i} className={msg._new ? 'cartoon-msg' : ''} style={{
                     display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', marginBottom: 12,
@@ -455,7 +529,6 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
                       className={isOwn ? 'cartoon-msg-sent' : ''}
                       style={{
                         maxWidth: '75%', padding: '10px 14px',
-                        // Change 5: Cartoon 3D speech bubbles
                         borderRadius: isOwn ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
                         background: isOwn
                           ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
@@ -482,7 +555,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
             )}
             <div ref={bottomRef} />
 
-            {/* Change 5: Cartoon characters at bottom corners */}
+            {/* Cartoon characters at bottom corners */}
             {!loading && !error && (
               <>
                 <div style={{
@@ -497,7 +570,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
             )}
           </div>
 
-          {/* Change 5: Quick emoji reactions */}
+          {/* Quick emoji reactions */}
           <div style={{
             padding: '6px 12px', borderTop: '1px solid rgba(99,102,241,0.12)',
             display: 'flex', gap: 6, flexShrink: 0, justifyContent: 'center',

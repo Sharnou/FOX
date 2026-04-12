@@ -268,7 +268,7 @@ export default function SearchPage() {
             style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, background: 'white', fontFamily: 'inherit' }}>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          {category !== 'الكل' && SUBCATEGORY_MAP[CAT_MAP[category] || category] && (
+          {category !== 'الكل' && (SUBCATEGORY_MAP[CAT_MAP[category] || category] || null) && (
             <select value={subcategory} onChange={e => setSubcategory(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, background: 'white', fontFamily: 'inherit' }}>
               {(SUBCATEGORY_MAP[CAT_MAP[category] || category] || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
