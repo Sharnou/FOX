@@ -208,7 +208,7 @@ export default function RegisterPage() {
         localStorage.setItem('fox_token', data.token);
         // Save user object so sell/profile/admin pages can read role, phone, etc.
         if (data.user) {
-          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.setItem('user', JSON.stringify(Object.assign({}, data.user, { token: data.token })));
           localStorage.setItem('userId', data.user.id || '');
           localStorage.setItem('country', data.user.country || 'EG');
           if (data.user.role === 'admin' || data.user.role === 'sub_admin') {

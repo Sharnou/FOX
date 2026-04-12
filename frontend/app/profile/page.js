@@ -50,12 +50,34 @@ export default function ProfilePage() {
     try { token = getToken(); } catch { router.push('/login'); return; }
     if (!token) { router.push('/login'); return; }
 
+    // ── FIX: Read cached user from localStorage first (instant render) ──
+    try {
+      const cached = JSON.parse(localStorage.getItem('user') || 'null');
+      if (cached) {
+        setUser(cached);
+        setForm({
+          username: cached.username || cached.name || '',
+          email: cached.email || '',
+          phone: cached.phone || '',
+          city: cached.city || '',
+          bio: cached.bio || ''
+        });
+        setChatEnabled(cached.chatEnabled !== false);
+        setLoading(false); // show cached data immediately — no blank screen
+      }
+    } catch (_) {}
+
+    // ── Background-refresh from API with timeout (8 s) to prevent stuck loading ──
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => { ctrl.abort(); }, 8000);
+
     fetch(API + '/api/users/me', {
-      headers: { Authorization: 'Bearer ' + token }
+      headers: { Authorization: 'Bearer ' + token },
+      signal: ctrl.signal
     })
       .then(async r => {
+        clearTimeout(timeout);
         if (r.status === 401 || r.status === 403) {
-          // Token invalid or expired — clear it and redirect
           try {
             ['token','xtox_token','xtox_admin_token','authToken','user'].forEach(k => localStorage.removeItem(k));
           } catch {}
@@ -76,11 +98,13 @@ export default function ProfilePage() {
           bio: u.bio || ''
         });
         setChatEnabled(u.chatEnabled !== false);
-        // Keep localStorage in sync
-        try { localStorage.setItem('user', JSON.stringify(u)); } catch {}
+        // ── FIX: preserve token when caching user object ──
+        try {
+          localStorage.setItem('user', JSON.stringify(Object.assign({}, u, { token: token })));
+        } catch {}
       })
-      .catch(() => router.push('/login'))
-      .finally(() => setLoading(false));
+      .catch(() => {}) // on network error: keep showing cached data, don't redirect
+      .finally(() => { clearTimeout(timeout); setLoading(false); });
   }, []);
 
   // ── Fetch My Ads when user is loaded ─────────────────────────────────
@@ -130,7 +154,7 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error(data.message || data.error || 'فشل الحفظ');
       const updated = data.user || { ...user, ...form };
       setUser(u => ({ ...u, ...updated }));
-      try { localStorage.setItem('user', JSON.stringify({ ...user, ...updated })); } catch {}
+      try { localStorage.setItem('user', JSON.stringify(Object.assign({}, user, updated, { token: getToken() }))); } catch {}
       setEditing(false);
       setMsg('✅ تم الحفظ بنجاح');
     } catch (e) { setMsg('❌ ' + e.message); }
