@@ -465,11 +465,12 @@ export default function SellPage() {
     if (!form.category) e.category = 'الفئة مطلوبة';
     if (form.price && isNaN(Number(form.price))) e.price = 'السعر يجب أن يكون رقماً';
     if (form.phone && !/^[\d\s+\-()]{7,15}$/.test(form.phone)) e.phone = 'رقم الهاتف غير صحيح';
-    // Require second subcategory when available
+    // Soft validation for second subcategory — scroll to it as a hint but never block
+    // subsub 'Other' is a valid value (backend accepts it); hard block removed
     if (form.category && SUBCATS[form.category]) {
       const _selSub2 = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
-      if (_selSub2 && _selSub2.subsubs && _selSub2.subsubs.length > 0 && !subsub) {
-        e.subsub = 'يجب اختيار التصنيف الفرعي الثاني';
+      if (_selSub2 && _selSub2.subsubs && _selSub2.subsubs.length > 0 && (!subsub || subsub === 'Other')) {
+        // Scroll to subsub selector as a soft hint, but do NOT add to e{} (never blocks submit)
         if (subsubRef.current) subsubRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }

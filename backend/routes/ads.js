@@ -386,14 +386,19 @@ router.post('/', auth, multerUpload, async (req, res) => {
     // Fetch the full user record to check real verification fields (JWT only has id/role/xtoxId)
     {
       let _gateUser = null;
+      let _gateDbFailed = false;
       try {
-        _gateUser = await User.findById(req.user.id).select('googleId whatsappPhone authProvider xtoxId').lean();
+        if (mongoose.Types.ObjectId.isValid(req.user.id)) {
+          _gateUser = await User.findById(req.user.id).select('googleId whatsappPhone authProvider xtoxId').lean();
+        }
       } catch (_gateErr) {
-        // DB lookup failed — fall back to JWT data only (non-fatal)
+        // DB lookup failed — fail open, do not block the user
+        _gateDbFailed = true;
         _gateUser = null;
       }
 
-      const _isVerified = (
+      // Fail open if DB threw; only block when user record definitively has no verification
+      const _isVerified = _gateDbFailed || (
         !!(_gateUser && _gateUser.whatsappPhone) ||   // verified WhatsApp number on file
         !!(_gateUser && _gateUser.googleId) ||         // logged in via Google = email verified
         (_gateUser && _gateUser.authProvider && _gateUser.authProvider !== 'email') // apple/whatsapp
