@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 var API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-var GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+// GOOGLE_CLIENT_ID: GIS SDK removed — using redirect-based OAuth (see GET /api/auth/google)
 
 /* -- helpers -- */
 function storeSession(data) {
@@ -62,15 +62,51 @@ export default function LoginClient() {
   useEffect(function() {
     if (typeof window === 'undefined') return;
     try {
-      // If a token arrives via URL (Google OAuth callback redirect), store it
       var params = new URLSearchParams(window.location.search);
-      var urlToken = params.get('token');
       var redirectTo = params.get('redirect') || '/';
+
+      // Handle Google OAuth redirect callback — full session data encoded as base64url
+      var sessionParam = params.get('session');
+      if (sessionParam) {
+        try {
+          // base64url → base64 decode
+          var b64 = sessionParam.replace(/-/g, '+').replace(/_/g, '/');
+          var pad = b64.length % 4;
+          if (pad) b64 += '===='.slice(0, 4 - pad);
+          var sessionData = JSON.parse(atob(b64));
+          storeSession(sessionData);
+          window.location.href = redirectTo;
+          return;
+        } catch (_) {}
+      }
+
+      // Handle Google OAuth error codes
+      var errorParam = params.get('error');
+      if (errorParam) {
+        var errorMessages = {
+          google_cancelled: 'تم إلغاء تسجيل الدخول بـ Google.',
+          account_suspended: 'هذا الحساب موقوف بشكل دائم.',
+          db_unavailable: 'الخدمة غير متاحة مؤقتاً. حاول مجدداً.',
+          google_not_configured: 'تسجيل الدخول بـ Google غير مهيأ بعد.',
+          google_failed: 'فشل تسجيل الدخول بـ Google.',
+          google_timeout: 'انتهت مهلة الاتصال بـ Google. حاول مجدداً.',
+          google_unverified: 'البريد الإلكتروني لـ Google غير مؤكد.',
+          db_error: 'خطأ في قاعدة البيانات. حاول مجدداً.'
+        };
+        setError(errorMessages[errorParam] || 'حدث خطأ. حاول مجدداً.');
+        // Clean URL without redirect
+        try { window.history.replaceState({}, '', '/login'); } catch (_) {}
+        return;
+      }
+
+      // Legacy: token passed directly in URL (backward compat)
+      var urlToken = params.get('token');
       if (urlToken) {
         localStorage.setItem('token', urlToken);
         window.location.href = redirectTo;
         return;
       }
+
       // If user is already logged in, redirect to intended page
       var existingToken = localStorage.getItem('token');
       if (existingToken) {
@@ -96,24 +132,9 @@ export default function LoginClient() {
     return function() { clearTimeout(t); };
   }, [countdown]);
 
-  /* Load Google Identity SDK */
-  useEffect(function() {
-    if (!GOOGLE_CLIENT_ID) return;
-    var script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.onload = function() {
-      if (window.google && window.google.accounts) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCredential,
-          auto_select: false,
-          use_fedcm_for_prompt: true
-        });
-      }
-    };
-    document.head.appendChild(script);
-  }, []);
+  /* Google Identity SDK removed — using redirect-based OAuth (mobile-safe).
+     The GIS popup/FedCM flow is blocked on iOS Safari and older Android Chrome.
+     The button below is a plain <a> link to the backend redirect endpoint. */
 
   /* -- WhatsApp OTP -- */
   async function sendOtp() {
@@ -166,49 +187,10 @@ export default function LoginClient() {
     }
   }
 
-  /* -- Google -- */
-  function handleGoogleLogin() {
-    if (!window.google || !window.google.accounts) {
-      setError('Google SDK not loaded. Try refreshing.');
-      return;
-    }
-    // FedCM compatible: no moment-type callbacks (isDisplayMoment/isSkippedMoment/isNotDisplayed
-    // are deprecated when use_fedcm_for_prompt: true is set)
-    window.google.accounts.id.prompt();
-  }
-
-  // Render Google button when Google tab becomes active
-  useEffect(function() {
-    if (tab !== 'google') return;
-    if (typeof window === 'undefined') return;
-    if (!window.google || !window.google.accounts) return;
-    var btn = document.getElementById('google-signin-btn');
-    if (btn) {
-      var gsiWidth = Math.min((btn.parentElement && btn.parentElement.offsetWidth) || 400, 400);
-      window.google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', width: gsiWidth });
-    }
-  }, [tab]);
-
-  async function handleGoogleCredential(response) {
-    setError('');
-    setLoading(true);
-    try {
-      var res = await fetch(API + '/api/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: response.credential })
-      });
-      var data = await res.json();
-      if (!res.ok) { setError(data.error || 'Google login failed'); setLoading(false); return; }
-      storeSession(data);
-      var xtoxIdVal = (data.user && data.user.xtoxId) ? data.user.xtoxId : '';
-      setSuccess('Welcome! Your XTOX ID: ' + xtoxIdVal);
-      setTimeout(function() { window.location.href = getRedirectUrl(); }, 1500);
-    } catch (e) {
-      setError('Google login failed.');
-    } finally {
-      setLoading(false);
-    }
+  /* -- Google redirect flow -- */
+  function getGoogleLoginUrl() {
+    var redirectParam = encodeURIComponent(getRedirectUrl());
+    return API + '/api/auth/google?redirect=' + redirectParam;
   }
 
   /* -- Styles -- */
@@ -310,23 +292,26 @@ export default function LoginClient() {
               )
         ) : null,
 
-        /* Google Tab */
+        /* Google Tab — redirect-based (works on iOS Safari + all mobile browsers) */
         tab === 'google' ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' } },
           React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151', textAlign: 'center' } },
             'سجّل الدخول بحساب Google الحقيقي'
           ),
-          React.createElement('div', { id: 'google-signin-btn', style: { width: '100%' } }),
-          React.createElement('button', {
-            onClick: handleGoogleLogin,
+          React.createElement('a', {
+            href: getGoogleLoginUrl(),
             style: {
               width: '100%', padding: 13, borderRadius: 12,
               border: '1.5px solid #e5e7eb', background: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 10, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit'
+              gap: 10, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
+              textDecoration: 'none', color: '#111', boxSizing: 'border-box'
             }
           },
             React.createElement('img', { src: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg', width: 22, height: 22, alt: 'Google' }),
             'تسجيل الدخول بـ Google'
+          ),
+          React.createElement('p', { style: { fontSize: 12, color: '#9ca3af', margin: 0, textAlign: 'center' } },
+            'ستُحال إلى صفحة Google لتسجيل الدخول'
           )
         ) : null,
 
