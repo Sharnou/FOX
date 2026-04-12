@@ -238,7 +238,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
     if (!chatId || !token) return;
     const r = await fetch(`${API}/api/chat/${chatId}/mute`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => ({}));
     const d = await r.json?.() || {};
-    setChatMuted(d.muted);
+    setChatMuted(!!d.muted);
     setShowMenu(false);
   }
 
@@ -399,7 +399,7 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
 
   // Format distance
   const distLabel = adDistance !== null
-    ? (adDistance < 1 ? Math.round(adDistance * 1000) + ' م' : adDistance.toFixed(1) + ' كم')
+    ? (adDistance < 1 ? Math.round(adDistance * 1000) + ' \u0645' : adDistance.toFixed(1) + ' \u0643\u0645')
     : null;
 
   const locationLine = adCity
@@ -464,10 +464,10 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
               {showMenu && (
                 <div style={{ position: 'absolute', top: 28, left: 0, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 160, zIndex: 100, overflow: 'hidden' }}>
                   {[
-                    { icon: '🔇', label: chatMuted ? 'إلغاء الكتم' : 'كتم', fn: muteChat },
-                    { icon: '🚫', label: 'تجاهل', fn: ignoreChat },
-                    { icon: '🚩', label: 'إبلاغ', fn: reportChat },
-                    { icon: '🗑️', label: 'حذف', fn: deleteChat },
+                    { icon: '🔇', label: chatMuted ? '\u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u0643\u062a\u0645' : '\u0643\u062a\u0645', fn: muteChat },
+                    { icon: '🚫', label: '\u062a\u062c\u0627\u0647\u0644', fn: ignoreChat },
+                    { icon: '🚩', label: '\u0625\u0628\u0644\u0627\u063a', fn: reportChat },
+                    { icon: '🗑️', label: '\u062d\u0630\u0641', fn: deleteChat },
                   ].map(({ icon, label, fn }) => (
                     <button key={label} onClick={fn} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#111', textAlign: 'right', direction: 'rtl' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
