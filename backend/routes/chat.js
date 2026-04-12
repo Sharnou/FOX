@@ -49,15 +49,9 @@ router.get('/', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.post('/start', auth, async (req, res) => {
   try {
-    // Log raw body + user at the very top for Railway debugging
-    console.log('[CHAT START] body=', JSON.stringify(req.body));
-    console.log('[CHAT START] user=', req.user?.id);
-
     // Accept sellerId OR targetId for compatibility
     const { sellerId, targetId, adId } = req.body;
     const otherId = sellerId || targetId;
-
-    console.log('[CHAT START] userId=', req.user.id, 'otherId=', otherId, 'adId=', adId);
 
     if (!otherId) {
       return res.status(400).json({
@@ -99,13 +93,9 @@ router.post('/start', auth, async (req, res) => {
       participantQuery.ad = validAdId;
     }
 
-    console.log('[CHAT START] participants=', { userId: req.user.id, otherId, adId: validAdId });
-    console.log('[CHAT START] looking for existing chat');
-
     let chat = await getChat().findOne(participantQuery);
 
     if (!chat) {
-      console.log('[CHAT START] creating chat');
       // Create with correct schema fields: buyer, seller, ad (not users/adId/lastMessage)
       const createData = {
         buyer:    req.user.id,
@@ -116,11 +106,9 @@ router.post('/start', auth, async (req, res) => {
 
       try {
         chat = await getChat().create(createData);
-        console.log('[CHAT START] created chatId=', chat._id);
       } catch (createErr) {
         // E11000: duplicate key — race condition, another request already created the chat
         if (createErr.code === 11000 || (createErr.message && createErr.message.includes('duplicate key'))) {
-          console.log('[CHAT START] duplicate key — fetching existing chat');
           chat = await getChat().findOne(participantQuery);
           if (!chat) {
             // Fallback: find without adId
@@ -136,8 +124,6 @@ router.post('/start', auth, async (req, res) => {
           throw createErr;
         }
       }
-    } else {
-      console.log('[CHAT START] found existing chatId=', chat._id);
     }
 
     res.json({ success: true, chatId: chat._id, _id: chat._id, chat });
