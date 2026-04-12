@@ -110,10 +110,10 @@ const AI_PROVIDERS = [
   {
     name: 'gemini',
     get key() { return getEnv('NEXT_PUBLIC_GEMINI_API_KEY'); },
-    url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+    url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
     call: async (payload, key) => {
       const body = { contents: [{ parts: [{ text: payload.prompt || '' }] }] };
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error('gemini fail');
