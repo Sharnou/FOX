@@ -39,6 +39,11 @@ const SUBSUB_MAP = {
   'Shoes': [{ value: '', label: 'كل الأنواع' }, { value: 'Sneakers', label: 'سنيكرز' }, { value: 'Sandals', label: 'صنادل' }, { value: 'Sports', label: 'رياضي' }, { value: 'Formal', label: 'رسمي' }],
 };
 const POPULAR = ['عربية', 'آيفون', 'شقة', 'لابتوب', 'سباك', 'تليفزيون', 'موبايل', 'أثاث'];
+
+function cloudinaryHQ(url) {
+  if (!url || !url.includes('cloudinary.com')) return url || '';
+  return url.replace('/upload/', '/upload/q_auto,f_auto,w_800/');
+}
 const MAX_RECENT = 8;
 
 function saveRecentSearch(term) {
@@ -332,8 +337,18 @@ export default function SearchPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
             {sorted.map(ad => (
               <a key={ad._id} href={'/ads/' + ad._id} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textDecoration: 'none', color: 'inherit' }}>
-                <div style={{ height: 130, background: '#f0f0f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
-                  {(ad.media?.[0] || ad.images?.[0]) ? <img src={ad.media?.[0] || ad.images?.[0]} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title} onError={function(e){e.target.style.display='none'}} /> : '📦'}
+                <div style={{ position: 'relative', overflow: 'hidden' }}>
+                  {(ad.media?.[0] || ad.images?.[0])
+                    ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} loading="lazy" style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} alt={ad.title} onError={function(e){e.target.style.display='none'}} />
+                    : <div style={{ width: '100%', height: '160px', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📦</div>}
+                  <span style={{
+                    position: 'absolute', bottom: 6, right: 6,
+                    background: 'rgba(0,0,0,0.6)', color: '#fff',
+                    borderRadius: 20, padding: '2px 8px', fontSize: 11,
+                    display: 'flex', alignItems: 'center', gap: 3, pointerEvents: 'none'
+                  }}>
+                    👁 {ad.views || 0}
+                  </span>
                 </div>
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ fontWeight: 'bold', fontSize: 13, margin: 0 }}>{ad.title?.slice(0, 30)}</p>

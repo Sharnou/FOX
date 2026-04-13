@@ -8,6 +8,7 @@ import VerifiedBadge from './components/VerifiedBadge';
 import CartoonMoodPopup from './components/CartoonMoodPopup';
 import BannerAds from './components/BannerAds';
 import { detectLang } from '../lib/lang';
+import SeasonalBanner from './components/SeasonalBanner';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -42,6 +43,11 @@ const EMPTY_STATE_ICONS = {
 
 const POPUP_INTERVAL = 4 * 60 * 60 * 1000;
 const CARTOONS = ['🦊', '🐨', '🦁', '🐸', '🦝', '🐙', '🦄', '🐼'];
+
+function cloudinaryHQ(url) {
+  if (!url || !url.includes('cloudinary.com')) return url || '';
+  return url.replace('/upload/', '/upload/q_auto,f_auto,w_800/');
+}
 
 export default function Home() {
   const [ads, setAds] = useState([]);
@@ -411,72 +417,7 @@ export default function Home() {
       {/* ══════════════════════════════════════════
           SEASONAL / CELEBRATION BANNER (auto-expires)
       ══════════════════════════════════════════ */}
-      {(function() {
-        const activeBanner = getActiveBanner();
-        if (!activeBanner) return null;
-        return (
-          <div
-            role="banner"
-            aria-label={activeBanner.title}
-            style={{
-              width: '100%',
-              background: activeBanner.gradient,
-              backgroundSize: '300% 300%',
-              padding: '18px 20px',
-              textAlign: 'center',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 4px 24px rgba(168,237,234,0.4), 0 2px 8px rgba(0,0,0,0.08)',
-              borderBottom: '3px solid rgba(255,255,255,0.6)',
-            }}
-          >
-            {/* Decorative circles */}
-            <div aria-hidden="true" style={{ position: 'absolute', top: -30, left: -30, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', pointerEvents: 'none' }} />
-            <div aria-hidden="true" style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
-
-            {/* Emoji row */}
-            <div style={{ marginBottom: 8, fontSize: 28 }} aria-hidden="true">
-              {activeBanner.emoji} {activeBanner.emoji} {activeBanner.emoji}
-            </div>
-
-            {/* Main card */}
-            <div style={{
-              display: 'inline-block',
-              background: 'rgba(255,255,255,0.72)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              borderRadius: 20,
-              padding: '14px 28px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-              border: '2px solid rgba(255,255,255,0.8)',
-              maxWidth: 600,
-              width: '100%',
-            }}>
-              <p style={{
-                margin: '0 0 4px',
-                fontSize: 20,
-                fontWeight: 900,
-                color: activeBanner.textColor,
-                direction: 'rtl',
-                lineHeight: 1.5,
-                fontFamily: "'Cairo', 'Noto Sans Arabic', 'Tajawal', system-ui, sans-serif",
-              }}>
-                {activeBanner.title}
-              </p>
-              <p style={{
-                margin: 0,
-                fontSize: 14,
-                fontWeight: 700,
-                color: activeBanner.textColor,
-                opacity: 0.8,
-                lineHeight: 1.5,
-              }}>
-                {activeBanner.subtitle}
-              </p>
-            </div>
-          </div>
-        );
-      })()}
+      <SeasonalBanner />
 
             {/* ══════════════════════════════════════════
           ANIMATED GRADIENT HERO
@@ -704,10 +645,18 @@ export default function Home() {
                     {ad.featuredStyle === 'gold' ? '🥇' : ad.featuredStyle === 'banner' ? '🏆' : '🎨'}
                   </div>
                 )}
-                <div style={{ height: 115, background: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, position: 'relative' }}>
+                <div style={{ position: 'relative', overflow: 'hidden' }}>
                   {(ad.media?.[0] || ad.images?.[0])
-                    ? <img src={ad.media?.[0] || ad.images?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={ad.title || ''} loading="eager" />
-                    : <span aria-hidden="true">📦</span>}
+                    ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '12px 12px 0 0', display: 'block' }} alt={ad.title || ''} loading="eager" />
+                    : <div style={{ width: '100%', height: '200px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}><span aria-hidden="true">📦</span></div>}
+                  <span style={{
+                    position: 'absolute', bottom: 6, right: 6,
+                    background: 'rgba(0,0,0,0.6)', color: '#fff',
+                    borderRadius: 20, padding: '2px 8px', fontSize: 11,
+                    display: 'flex', alignItems: 'center', gap: 3, pointerEvents: 'none'
+                  }}>
+                    👁 {ad.views || 0}
+                  </span>
                 </div>
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ fontWeight: 700, fontSize: 12, margin: '0 0 4px', lineHeight: 1.4, color: '#1e293b' }}>{ad.title?.slice(0, 30)}</p>
@@ -817,20 +766,23 @@ export default function Home() {
               >
                 {/* Image / Video */}
                 <div style={{
-                  height: 145,
                   background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
                   overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 40,
                   position: 'relative',
                 }}>
                   {ad.video
-                    ? <video src={ad.video} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay muted loop playsInline aria-hidden="true" />
+                    ? <video src={ad.video} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} autoPlay muted loop playsInline aria-hidden="true" />
                     : (ad.media?.[0] || ad.images?.[0])
-                      ? <img src={ad.media?.[0] || ad.images?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" loading="lazy" />
-                      : <span aria-hidden="true">📦</span>}
+                      ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} alt="" loading="lazy" />
+                      : <div style={{ width: '100%', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}><span aria-hidden="true">📦</span></div>}
+                  <span style={{
+                    position: 'absolute', bottom: 6, right: 6,
+                    background: 'rgba(0,0,0,0.6)', color: '#fff',
+                    borderRadius: 20, padding: '2px 8px', fontSize: 11,
+                    display: 'flex', alignItems: 'center', gap: 3, pointerEvents: 'none'
+                  }}>
+                    👁 {ad.views || 0}
+                  </span>
                   {/* Second-subcategory badge on image — sort/group by subsub */}
                   {(ad.subsub || ad.category) && (
                     <span style={{
