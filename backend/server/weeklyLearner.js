@@ -62,6 +62,67 @@ Respond ONLY as JSON: {"subcategory":"...","keywords":["...","..."]}`;
     const { learnLocationLanguages } = await import('./locationLanguageLearner.js');
     await learnLocationLanguages();
   } catch { /* non-fatal */ }
+
+  // ── Learn new subsub options from recent ads ─────────────────────────────
+  try {
+    await learnNewSubsubOptions();
+  } catch { /* non-fatal */ }
+}
+
+async function learnNewSubsubOptions() {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_KEY);
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const Ad = await getAdModel();
+
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  // Query last 7 days of ads
+  const recentAds = await Ad.find({
+    createdAt: { $gte: weekAgo },
+    subsub: { $exists: true, $ne: null, $ne: '', $ne: 'Other' },
+    category: { $exists: true, $ne: null, $ne: '' },
+    subcategory: { $exists: true, $ne: null, $ne: '', $ne: 'Other' },
+    isDeleted: { $ne: true },
+    isExpired: { $ne: true },
+  }).lean();
+
+  if (!recentAds.length) return;
+
+  // Group by category + subcategory → collect unique subsub values
+  const groups = {};
+  for (const ad of recentAds) {
+    const key = `${ad.category}||${ad.subcategory}`;
+    if (!groups[key]) groups[key] = { category: ad.category, subcategory: ad.subcategory, subsubs: new Set() };
+    if (ad.subsub) groups[key].subsubs.add(ad.subsub);
+  }
+
+  const SubsubOption = (await import('../models/SubsubOption.js')).default;
+
+  for (const key of Object.keys(groups)) {
+    const { category, subcategory, subsubs } = groups[key];
+    const subsubList = [...subsubs].slice(0, 30);
+    if (subsubList.length < 2) continue;
+
+    try {
+      const prompt = `These are user-submitted sub-subcategory values for category '${category}' > subcategory '${subcategory}' on an Arab marketplace:
+${subsubList.join('\n')}
+
+Return a JSON array of the best 10 sub-subcategory labels in Arabic and English for this category.
+Format: [{"ar": "...", "en": "..."}]`;
+
+      const result = await model.generateContent(prompt);
+      const raw = result.response.text().replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(raw);
+
+      if (Array.isArray(parsed) && parsed.length) {
+        await SubsubOption.findOneAndUpdate(
+          { category, subcategory },
+          { $set: { options: parsed, updatedAt: new Date() } },
+          { upsert: true }
+        );
+      }
+    } catch { /* skip individual failures silently */ }
+  }
 }
 
 // Run weekly (every Sunday at 3am)
@@ -82,4 +143,4 @@ function scheduleWeeklyLearner() {
   }, getNextSunday3am());
 }
 
-export { scheduleWeeklyLearner, runWeeklyLearning };
+export { scheduleWeeklyLearner, runWeeklyLearning, learnNewSubsubOptions };
