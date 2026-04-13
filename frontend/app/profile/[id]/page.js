@@ -331,6 +331,13 @@ export default function ProfilePage({ params }) {
         {!isOwnProfile && (
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
             <a href={'/chat?target=' + params.id}
+              onClick={(e) => {
+                const token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+                if (!token) {
+                  e.preventDefault();
+                  window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                }
+              }}
               style={{ flex: 1, background: '#002f34', color: 'white', textAlign: 'center', padding: '12px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 14 }}>
               💬 مراسلة
             </a>

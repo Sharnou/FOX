@@ -197,6 +197,13 @@ export default function PharmacyPage() {
                   href={'/chat?target=' + (item.userId?._id || item.userId?.id || (typeof item.userId === 'string' ? item.userId : ''))}
                   className="flex-1 bg-brand text-white text-center py-2 rounded-xl text-xs font-medium hover:opacity-90 transition-opacity"
                   aria-label={'تواصل بخصوص ' + item.title}
+                  onClick={(e) => {
+                    const token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+                    if (!token) {
+                      e.preventDefault();
+                      window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    }
+                  }}
                 >
                   💬 تواصل
                 </a>

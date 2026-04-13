@@ -450,6 +450,14 @@ connectDatabases().then(async (db) => {
     await runSeedsOnce();
     await seedXtoxAdmin();
 
+    // ── Delete anonymous chats on startup (one-time cleanup) ────────────────
+    try {
+      const { deleteAnonymousChats } = await import('../jobs/chatCleanup.js');
+      await deleteAnonymousChats();
+    } catch (e) {
+      console.warn('[Startup] deleteAnonymousChats failed (non-fatal):', e.message);
+    }
+
     // Seed subcategory examples (non-blocking) and schedule weekly AI learner
     try {
       const { seedExamples } = await import('./exampleSeeder.js');

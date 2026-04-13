@@ -72,6 +72,18 @@ router.post('/start', auth, async (req, res) => {
 
     const validAdId = adId && mongoose.Types.ObjectId.isValid(adId) ? adId : null;
 
+    // Verify seller exists in the User collection — prevents anonymous chats
+    try {
+      const User = (await import('../models/User.js')).default;
+      const sellerExists = await User.exists({ _id: otherId });
+      if (!sellerExists) {
+        return res.status(404).json({ success: false, error: 'البائع غير موجود' });
+      }
+    } catch (verifyErr) {
+      // Non-fatal: if User model fails to load (e.g. memory mode), continue
+      console.warn('[Chat/start] Could not verify seller existence:', verifyErr.message);
+    }
+
     // Try to find existing chat first (both buyer/seller orderings)
     let chat = await getChat().findOne({
       $or: [

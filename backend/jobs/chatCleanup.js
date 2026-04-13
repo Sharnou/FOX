@@ -2,6 +2,9 @@
  * chatCleanup.js — Hourly cron job: permanently delete archived chats past their closeAt date.
  * Like dubizzle: when an ad is sold or deleted, linked chats are scheduled for deletion after 7 days.
  * This job performs the actual hard-delete + Cloudinary media cleanup.
+ *
+ * Also includes deleteAnonymousChats() — called ONCE on server startup to remove any
+ * chats where buyer or seller is null/missing (anonymous chats that should never exist).
  */
 
 import Chat from '../models/Chat.js';
@@ -49,11 +52,42 @@ async function runChatCleanup() {
       deleted++;
     }
 
-    console.log(`[ChatCleanup] Deleted ${deleted} expired chats (closeAt <= ${now.toISOString()})`);
+    if (deleted > 0) {
+      console.log(`[ChatCleanup] Deleted ${deleted} expired chats (closeAt <= ${now.toISOString()})`);
+    }
+
+    // Also delete anonymous chats in the hourly run
+    await deleteAnonymousChats();
   } catch (err) {
     console.error('[ChatCleanup] Error:', err.message);
   }
 }
 
-export { runChatCleanup };
+/**
+ * deleteAnonymousChats — removes chats where buyer or seller is null/missing.
+ * Called once on server startup AND included in the hourly cleanup cron.
+ *
+ * Anonymous chats definition: any Chat document where buyer or seller is null,
+ * undefined, or the field is entirely absent — meaning the chat was created without
+ * a valid authenticated user on either side.
+ */
+async function deleteAnonymousChats() {
+  try {
+    const result = await Chat.deleteMany({
+      $or: [
+        { buyer: null },
+        { seller: null },
+        { buyer: { $exists: false } },
+        { seller: { $exists: false } },
+      ],
+    });
+    if (result.deletedCount > 0) {
+      console.log(`[ChatCleanup] Deleted ${result.deletedCount} anonymous chats`);
+    }
+  } catch (err) {
+    console.error('[ChatCleanup] deleteAnonymousChats error:', err.message);
+  }
+}
+
+export { runChatCleanup, deleteAnonymousChats };
 export default runChatCleanup;

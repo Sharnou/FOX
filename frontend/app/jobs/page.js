@@ -109,6 +109,13 @@ function JobCard({ job }) {
         <a
           href={'/chat?target=' + (job.userId?._id || job.userId?.id || (typeof job.userId === 'string' ? job.userId : ''))}
           aria-label={'محادثة بخصوص وظيفة ' + job.title}
+          onClick={(e) => {
+            const token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+            if (!token) {
+              e.preventDefault();
+              window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+            }
+          }}
           style={{
             flex: 1, background: '#002f34', color: '#fff',
             textAlign: 'center', padding: '10px 12px',
