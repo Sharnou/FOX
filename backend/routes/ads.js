@@ -1108,4 +1108,20 @@ router.post('/detect-category', async (req, res) => {
   }
 });
 
+
+// ── GET /api/ads/subsub-options — return AI-learned subsub options for a category+subcategory ──
+router.get('/subsub-options', async (req, res) => {
+  try {
+    const { category, subcategory } = req.query;
+    if (!category || !subcategory) {
+      return res.status(400).json({ success: false, error: 'category and subcategory are required' });
+    }
+    const SubsubOption = (await import('../models/SubsubOption.js')).default;
+    const doc = await SubsubOption.findOne({ category, subcategory }).lean();
+    return res.json({ success: true, options: doc ? doc.options : [] });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 export default router;
