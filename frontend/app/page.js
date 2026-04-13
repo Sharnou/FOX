@@ -409,126 +409,76 @@ export default function Home() {
 
 
       {/* ══════════════════════════════════════════
-          SHAM EL NESSIM HOLIDAY BANNER
+          SEASONAL / CELEBRATION BANNER (auto-expires)
       ══════════════════════════════════════════ */}
-      <div
-        role="banner"
-        aria-label="Sham El Nessim Holiday Banner"
-        style={{
-          width: '100%',
-          background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 25%, #a1c4fd 50%, #d4fc79 75%, #ffecd2 100%)',
-          backgroundSize: '300% 300%',
-          animation: 'shamBannerShift 6s ease infinite',
-          padding: '18px 20px',
-          textAlign: 'center',
-          position: 'relative',
-          overflow: 'hidden',
-          boxShadow: '0 4px 24px rgba(168,237,234,0.4), 0 2px 8px rgba(0,0,0,0.08)',
-          borderBottom: '3px solid rgba(255,255,255,0.6)',
-        }}
-      >
-        <style>{`
-          @keyframes shamBannerShift {
-            0%   { background-position: 0% 50%; }
-            50%  { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
-          @keyframes shamFloat {
-            0%, 100% { transform: translateY(0px) rotate(-2deg); }
-            50%       { transform: translateY(-6px) rotate(2deg); }
-          }
-          @keyframes shamSpin {
-            from { transform: rotate(0deg); }
-            to   { transform: rotate(360deg); }
-          }
-          .sham-emoji {
-            display: inline-block;
-            animation: shamFloat 2.5s ease-in-out infinite;
-            font-size: 26px;
-            margin: 0 4px;
-          }
-          .sham-emoji:nth-child(2) { animation-delay: 0.3s; }
-          .sham-emoji:nth-child(3) { animation-delay: 0.6s; }
-          .sham-emoji:nth-child(4) { animation-delay: 0.9s; }
-          .sham-emoji:nth-child(5) { animation-delay: 1.2s; }
-        `}</style>
+      {(function() {
+        const activeBanner = getActiveBanner();
+        if (!activeBanner) return null;
+        return (
+          <div
+            role="banner"
+            aria-label={activeBanner.title}
+            style={{
+              width: '100%',
+              background: activeBanner.gradient,
+              backgroundSize: '300% 300%',
+              padding: '18px 20px',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 4px 24px rgba(168,237,234,0.4), 0 2px 8px rgba(0,0,0,0.08)',
+              borderBottom: '3px solid rgba(255,255,255,0.6)',
+            }}
+          >
+            {/* Decorative circles */}
+            <div aria-hidden="true" style={{ position: 'absolute', top: -30, left: -30, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', pointerEvents: 'none' }} />
+            <div aria-hidden="true" style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
 
-        {/* Decorative circles */}
-        <div aria-hidden="true" style={{
-          position: 'absolute', top: -30, left: -30,
-          width: 100, height: 100, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.25)',
-          pointerEvents: 'none',
-        }} />
-        <div aria-hidden="true" style={{
-          position: 'absolute', bottom: -20, right: -20,
-          width: 80, height: 80, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.2)',
-          pointerEvents: 'none',
-        }} />
-        <div aria-hidden="true" style={{
-          position: 'absolute', top: '50%', left: '10%',
-          transform: 'translateY(-50%)',
-          width: 60, height: 60, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.15)',
-          pointerEvents: 'none',
-        }} />
+            {/* Emoji row */}
+            <div style={{ marginBottom: 8, fontSize: 28 }} aria-hidden="true">
+              {activeBanner.emoji} {activeBanner.emoji} {activeBanner.emoji}
+            </div>
 
-        {/* Floating emojis row */}
-        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <span className="sham-emoji" aria-hidden="true">🌸</span>
-          <span className="sham-emoji" aria-hidden="true">🐟</span>
-          <span className="sham-emoji" aria-hidden="true">🥚</span>
-          <span className="sham-emoji" aria-hidden="true">🌺</span>
-          <span className="sham-emoji" aria-hidden="true">🌿</span>
-        </div>
+            {/* Main card */}
+            <div style={{
+              display: 'inline-block',
+              background: 'rgba(255,255,255,0.72)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              borderRadius: 20,
+              padding: '14px 28px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+              border: '2px solid rgba(255,255,255,0.8)',
+              maxWidth: 600,
+              width: '100%',
+            }}>
+              <p style={{
+                margin: '0 0 4px',
+                fontSize: 20,
+                fontWeight: 900,
+                color: activeBanner.textColor,
+                direction: 'rtl',
+                lineHeight: 1.5,
+                fontFamily: "'Cairo', 'Noto Sans Arabic', 'Tajawal', system-ui, sans-serif",
+              }}>
+                {activeBanner.title}
+              </p>
+              <p style={{
+                margin: 0,
+                fontSize: 14,
+                fontWeight: 700,
+                color: activeBanner.textColor,
+                opacity: 0.8,
+                lineHeight: 1.5,
+              }}>
+                {activeBanner.subtitle}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
-        {/* Main card */}
-        <div style={{
-          display: 'inline-block',
-          background: 'rgba(255,255,255,0.72)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          borderRadius: 20,
-          padding: '14px 28px',
-          boxShadow: '0 8px 32px rgba(168,237,234,0.3), 0 2px 8px rgba(0,0,0,0.08)',
-          border: '2px solid rgba(255,255,255,0.8)',
-          maxWidth: 600,
-          width: '100%',
-        }}>
-          {/* Arabic line */}
-          <p style={{
-            margin: '0 0 4px',
-            fontSize: 20,
-            fontWeight: 900,
-            color: '#2d6a4f',
-            direction: 'rtl',
-            textShadow: '0 1px 4px rgba(45,106,79,0.15)',
-            lineHeight: 1.5,
-            fontFamily: "'Cairo', 'Noto Sans Arabic', 'Tajawal', system-ui, sans-serif",
-          }}>
-            كل عام وأنتم بخير! 🌸 شم النسيم المبارك
-          </p>
-          {/* English line */}
-          <p style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 700,
-            color: '#1d6fa4',
-            textShadow: '0 1px 3px rgba(29,111,164,0.12)',
-            lineHeight: 1.5,
-          }}>
-            Happy Sham El Nessim! Enjoy the spring festival 🐟🥚🌺
-          </p>
-        </div>
-
-        {/* Bottom emoji strip */}
-        <div style={{ marginTop: 8, fontSize: 18, letterSpacing: 4, opacity: 0.75 }} aria-hidden="true">
-          🌷🐠🥚🌻🌿🌸🐟🌼🥚🌺🌱
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════
+            {/* ══════════════════════════════════════════
           ANIMATED GRADIENT HERO
       ══════════════════════════════════════════ */}
       <section
