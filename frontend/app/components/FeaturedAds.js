@@ -90,8 +90,9 @@ function FeaturedCard({ ad }) {
               <img
                 src={ad.media[0]}
                 alt={ad.title}
-                loading="lazy"
-                decoding="async"
+                loading={featIdx < 2 ? 'eager' : 'lazy'}
+                fetchPriority={featIdx === 0 ? 'high' : 'auto'}
+                decoding={featIdx < 2 ? 'sync' : 'async'}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 onError={e => { e.currentTarget.style.display = 'none'; }}
               />
@@ -263,7 +264,7 @@ export default function FeaturedAds({ ads = [], loading = false }) {
 
           {loading
             ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
-            : featured.map(ad => (
+            : featured.map((ad, featIdx) => (
                 <div key={ad._id} role="listitem" className="featured-card">
                   <FeaturedCard ad={ad} />
                 </div>

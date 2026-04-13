@@ -340,6 +340,17 @@ cron.schedule('0 2 * * *', async () => {
   logger.info('Daily cleanup done');
 });
 
+// Hourly cron: permanently delete archived chats past their 7-day closeAt deadline
+// Chats are scheduled for deletion when their linked ad is sold or deleted (dubizzle-style)
+cron.schedule('0 * * * *', async () => {
+  try {
+    const { runChatCleanup } = await import('../jobs/chatCleanup.js');
+    await runChatCleanup();
+  } catch (e) {
+    logger.error('[ChatCleanup cron] Error:', e.message);
+  }
+});
+
 // Auto backup every 24 hours at 3am
 cron.schedule('0 3 * * *', async () => {
   const { autoBackup } = await import('./archiveManager.js');

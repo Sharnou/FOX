@@ -74,7 +74,8 @@ export default function BannerAds({ ads = [], lang = 'ar' }) {
                 <img
                   src={ad.media[0]}
                   alt={ad.title || ''}
-                  loading="lazy"
+                  loading="eager"
+                  fetchPriority="high"
                   style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 10, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}
                 />
               )}
@@ -151,7 +152,8 @@ export default function BannerAds({ ads = [], lang = 'ar' }) {
                     <img
                       src={ad.media[0]}
                       alt={ad.title || ''}
-                      loading="lazy"
+                      loading="eager"
+                      fetchPriority="high"
                       style={{ width: '100%', height: 70, objectFit: 'cover' }}
                     />
                   ) : (

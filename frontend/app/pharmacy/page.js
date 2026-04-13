@@ -194,7 +194,7 @@ export default function PharmacyPage() {
               {/* Action buttons */}
               <div className="flex gap-2 mt-1">
                 <a
-                  href={'/chat?target=' + item.userId}
+                  href={'/chat?target=' + (item.userId?._id || item.userId?.id || (typeof item.userId === 'string' ? item.userId : ''))}
                   className="flex-1 bg-brand text-white text-center py-2 rounded-xl text-xs font-medium hover:opacity-90 transition-opacity"
                   aria-label={'تواصل بخصوص ' + item.title}
                 >

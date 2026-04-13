@@ -1027,7 +1027,7 @@ router.patch('/:id/sold', auth, async (req, res) => {
       const result = await Chat.updateMany(
         { ad: req.params.id, status: { $ne: 'archived' } },
         {
-          $set: { status: 'archived', updatedAt: new Date() },
+          $set: { status: 'archived', updatedAt: new Date(), closeAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
           $push: {
             messages: {
               $each: [{
@@ -1064,44 +1064,34 @@ router.delete('/:id', auth, async (req, res) => {
     // Soft-delete the ad
     ad.isDeleted = true; ad.deletedAt = new Date(); await ad.save();
 
-    // ── Cascade: delete all linked chats + their Cloudinary media ──
-    // Run asynchronously so the response is not delayed.
+    // ── Cascade: archive + schedule 7-day auto-delete for linked chats ──
+    // Like dubizzle: chats are archived immediately, then permanently deleted after 7 days.
+    // The actual hard-delete + Cloudinary cleanup is done by the chatCleanup cron job.
     (async () => {
       try {
         const Chat = (await import('../models/Chat.js')).default;
-        const { deleteMedia, CLOUDINARY_ENABLED } = await import('../server/cloudinary.js');
-
-        // Find all chats for this ad
-        const chats = await Chat.find({ ad: req.params.id }).lean();
-
-        if (chats.length > 0) {
-          // Delete Cloudinary media from chat messages (voice notes, images)
-          if (CLOUDINARY_ENABLED) {
-            for (const chat of chats) {
-              for (const msg of (chat.messages || [])) {
-                // Voice messages stored at xtox_voice/<id>
-                if (msg.type === 'image' || msg.type === 'voice') {
-                  const url = msg.text || '';
-                  // Extract Cloudinary public_id from the URL
-                  // e.g. https://res.cloudinary.com/<cloud>/video/upload/xtox_voice/abc123.webm
-                  const match = url.match(/\/(?:image|video|raw)\/upload\/(?:v\d+\/)?(.+?)(?:\.\w+)?$/);
-                  if (match && match[1]) {
-                    const publicId = match[1];
-                    const resourceType = msg.type === 'voice' ? 'video' : 'image';
-                    deleteMedia(publicId, resourceType).catch(() => {});
-                  }
-                }
+        const closeAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const result = await Chat.updateMany(
+          { ad: req.params.id, status: { $ne: 'archived' } },
+          {
+            $set: { status: 'archived', updatedAt: new Date(), closeAt },
+            $push: {
+              messages: {
+                $each: [{
+                  sender: req.user.id,
+                  text: 'تم حذف هذا الإعلان. سيتم حذف المحادثة تلقائياً خلال 7 أيام.',
+                  type: 'system',
+                  createdAt: new Date(),
+                }],
+                $slice: -500,
               }
             }
           }
-
-          // Hard-delete all chats for this ad
-          await Chat.deleteMany({ ad: req.params.id });
-          console.log('[DELETE /api/ads/:id] Deleted', chats.length, 'chats for ad', req.params.id);
-        }
+        );
+        console.log('[DELETE /api/ads/:id] Scheduled', result.modifiedCount, 'chats for deletion in 7 days for ad', req.params.id);
       } catch (cascadeErr) {
         // Non-fatal — log but don't fail the ad deletion
-        console.warn('[DELETE /api/ads/:id] Chat cascade delete failed (non-fatal):', cascadeErr.message);
+        console.warn('[DELETE /api/ads/:id] Chat schedule-delete failed (non-fatal):', cascadeErr.message);
       }
     })();
 

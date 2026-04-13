@@ -167,6 +167,7 @@ export default function ChatPage() {
   var [socketInstance, setSocketInstance] = useState(null);
   var [chatStatus, setChatStatus]       = useState('active'); // 'active' | 'archived' | 'blocked'
   var [adStatus, setAdStatus]           = useState('');       // 'sold' | '' | etc.
+  var [closeAt, setCloseAt]             = useState(null);     // Date when chat will be permanently deleted (7 days after ad sold/deleted)
 
   var pcRef          = useRef(null);
   var remoteAudioRef = useRef(null);
@@ -350,6 +351,8 @@ export default function ChatPage() {
               }
             // Read chat status (archived = ad sold or admin closed)
             if (chat.status) setChatStatus(chat.status);
+            // Set closeAt for 7-day countdown display
+            if (chat.closeAt) setCloseAt(new Date(chat.closeAt));
             // If chat is linked to an ad, fetch the ad status to show sold banner
             if (chat.ad) {
               try {
@@ -809,9 +812,16 @@ export default function ChatPage() {
               {/* ── Sold / Archived banner ──────────────────────────────────── */}
               {(chatStatus === 'archived' || adStatus === 'sold') && (
                 <div role="status" aria-live="polite" dir="rtl"
-                  style={{ background: '#1e3a5f', color: '#93c5fd', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, flexShrink: 0, borderTop: '1px solid rgba(147,197,253,0.2)' }}>
-                  <span style={{ fontSize: 18 }}>🏷️</span>
-                  <span>تم بيع هذا الإعلان — المحادثة مغلقة ولا يمكن إرسال رسائل جديدة</span>
+                  style={{ background: '#1e3a5f', color: '#93c5fd', padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, fontWeight: 600, flexShrink: 0, borderTop: '1px solid rgba(147,197,253,0.2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>🏷️</span>
+                    <span>تم بيع هذا الإعلان — المحادثة مغلقة ولا يمكن إرسال رسائل جديدة</span>
+                  </div>
+                  {closeAt && (
+                    <div style={{ fontSize: 12, color: '#fca5a5', marginRight: 28 }}>
+                      ⏳ سيتم حذف هذه المحادثة تلقائياً في غضون {Math.max(1, Math.ceil((closeAt - Date.now()) / (1000 * 60 * 60 * 24)))} {Math.max(1, Math.ceil((closeAt - Date.now()) / (1000 * 60 * 60 * 24))) === 1 ? 'يوم' : 'أيام'}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -216,7 +216,7 @@ export default function ServicesPage() {
                 {/* Action Buttons */}
                 <div className="flex gap-2 mt-1">
                   <a
-                    href={'/chat?target=' + s.userId}
+                    href={'/chat?target=' + (s.userId?._id || s.userId?.id || (typeof s.userId === 'string' ? s.userId : ''))}
                     className="flex-1 bg-[#002f34] text-white text-center py-2 rounded-xl text-sm font-medium hover:opacity-90 transition"
                   >
                     💬 تواصل

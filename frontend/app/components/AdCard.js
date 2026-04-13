@@ -91,7 +91,7 @@ function ConditionBadge({ condition }) {
   );
 }
 
-export default function AdCard({ ad }) {
+export default function AdCard({ ad, eager = false }) {
   const router = useRouter();
   const [shared, setShared] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -324,8 +324,9 @@ export default function AdCard({ ad }) {
             muted loop autoPlay playsInline />
         ) : firstImage ? (
           <img
-            loading="lazy"
-            decoding="async"
+            loading={eager ? 'eager' : 'lazy'}
+            fetchPriority={eager ? 'high' : 'auto'}
+            decoding={eager ? 'sync' : 'async'}
             src={optimizeImage(allImages[imgIndex] || firstImage)}
             alt={ad?.title || 'إعلان'}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}

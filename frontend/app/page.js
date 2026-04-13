@@ -752,7 +752,7 @@ export default function Home() {
             className="ads-grid"
             style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}
           >
-            {regular.map(ad => (
+            {regular.map((ad, adIdx) => (
               <a
                 key={ad._id}
                 href={'/ads/' + ad._id}
@@ -773,7 +773,7 @@ export default function Home() {
                   {ad.video
                     ? <video src={ad.video} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} autoPlay muted loop playsInline aria-hidden="true" />
                     : (ad.media?.[0] || ad.images?.[0])
-                      ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} alt="" loading="lazy" />
+                      ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} alt="" loading={adIdx < 2 ? 'eager' : 'lazy'} fetchPriority={adIdx === 0 ? 'high' : 'auto'} />
                       : <div style={{ width: '100%', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}><span aria-hidden="true">📦</span></div>}
                   <span style={{
                     position: 'absolute', bottom: 6, right: 6,

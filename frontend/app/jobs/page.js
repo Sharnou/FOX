@@ -107,7 +107,7 @@ function JobCard({ job }) {
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <a
-          href={'/chat?target=' + (job.userId?._id || job.userId)}
+          href={'/chat?target=' + (job.userId?._id || job.userId?.id || (typeof job.userId === 'string' ? job.userId : ''))}
           aria-label={'محادثة بخصوص وظيفة ' + job.title}
           style={{
             flex: 1, background: '#002f34', color: '#fff',
