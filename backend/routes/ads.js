@@ -115,8 +115,8 @@ function sanitizeAdFields({ title, description, category, subcategory, price, ci
   const cleanFeaturedStyle = STYLES.has(featuredStyle) ? featuredStyle : 'normal';
 
   // condition — whitelist only
-  const CONDITIONS = new Set(['new', 'used', 'excellent', 'rent']);
-  const cleanCondition = CONDITIONS.has(condition) ? condition : null;
+  
+  const cleanCondition = condition ? sanitizeText(String(condition), 50) : null;
 
   // subcategory — optional, max 60 chars
   const cleanSubcategory = subcategory ? sanitizeText(subcategory, 60) : '';
@@ -659,6 +659,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
 
     // Auto-detect sub-subcategory (level 3)
     let finalSubsub = req.body.subsub || 'Other';
+    const level4 = req.body.level4 ? String(req.body.level4).trim().slice(0, 100) : null;
     if (!req.body.subsub || req.body.subsub === 'Other') {
       const _subsubMap = {
         Cars: [{kw:['sedan','سيدان'],v:'Sedan'},{kw:['suv','دفع رباعي','jeep','جيب'],v:'SUV'},{kw:['بيك اب','pickup','pick up','هايلكس','hilux'],v:'Pickup'},{kw:['كوبيه','coupe'],v:'Coupe'},{kw:['كهربائي','electric','ev','tesla'],v:'Electric'}],
@@ -746,6 +747,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
         category: finalCategory,
         subcategory: finalSubcategory,
         subsub: finalSubsub,
+        level4: level4 || null,
         price,
         city,
         currency: currency || 'EGP',
@@ -932,6 +934,7 @@ router.put('/:id', auth, async (req, res) => {
     if (errors.length) return res.status(400).json({ error: errors.join('; ') });
     const { title, description, category, price, city, currency, media, video, featuredStyle } = sanitized;
     const updateWhatsapp = req.body.whatsapp ? String(req.body.whatsapp).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined;
+    const updateLevel4 = req.body.level4 ? String(req.body.level4).trim().slice(0, 100) : undefined;
     const updateTags = req.body.tags ? (Array.isArray(req.body.tags) ? req.body.tags.slice(0,20).map(t=>String(t).trim()) : String(req.body.tags).split(',').map(t=>t.trim()).slice(0,20)) : undefined;
 
     // Ownership check — only the original owner may edit
@@ -960,6 +963,7 @@ router.put('/:id', auth, async (req, res) => {
     if (video !== undefined) ad.video = video;
     if (featuredStyle && featuredStyle !== 'normal') ad.featuredStyle = featuredStyle;
     if (updateWhatsapp !== undefined) ad.whatsapp = updateWhatsapp;
+    if (updateLevel4 !== undefined) ad.level4 = updateLevel4;
     if (updateTags !== undefined) ad.tags = updateTags;
     // Re-detect subsub when title or description changed
     if (req.body.title !== undefined || req.body.description !== undefined) {
@@ -1105,22 +1109,6 @@ router.post('/detect-category', async (req, res) => {
     });
   } catch (e) {
     return res.status(500).json({ error: 'Detection failed', message: e.message });
-  }
-});
-
-
-// ── GET /api/ads/subsub-options — return AI-learned subsub options for a category+subcategory ──
-router.get('/subsub-options', async (req, res) => {
-  try {
-    const { category, subcategory } = req.query;
-    if (!category || !subcategory) {
-      return res.status(400).json({ success: false, error: 'category and subcategory are required' });
-    }
-    const SubsubOption = (await import('../models/SubsubOption.js')).default;
-    const doc = await SubsubOption.findOne({ category, subcategory }).lean();
-    return res.json({ success: true, options: doc ? doc.options : [] });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
   }
 });
 

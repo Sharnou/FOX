@@ -34,26 +34,19 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 
 // Arabic category names mapped to English backend values
 const CATS = [
-  { ar: 'مركبات',         en: 'Vehicles',     icon: '🚗' },
+  { ar: 'سيارات',         en: 'Vehicles',     icon: '🚗' },
   { ar: 'إلكترونيات',     en: 'Electronics',  icon: '📱' },
   { ar: 'عقارات',         en: 'Real Estate',  icon: '🏠' },
   { ar: 'وظائف',          en: 'Jobs',         icon: '💼' },
   { ar: 'خدمات',          en: 'Services',     icon: '🔧' },
   { ar: 'سوبرماركت',      en: 'Supermarket',  icon: '🛒' },
   { ar: 'صيدلية',         en: 'Pharmacy',     icon: '💊' },
-  { ar: 'طعام سريع',      en: 'Fast Food',    icon: '🍔' },
-  { ar: 'أزياء',          en: 'Fashion',      icon: '👗' },
+  { ar: 'طعام',           en: 'Fast Food',    icon: '🍔' },
+  { ar: 'موضة',           en: 'Fashion',      icon: '👗' },
   { ar: 'عام',            en: 'General',      icon: '📦' },
 ];
 
 const CURRENCIES = ['EGP', 'SAR', 'AED', 'USD', 'EUR', 'MAD', 'TND', 'LYD', 'IQD', 'JOD'];
-
-const CONDITIONS = [
-  { ar: 'جديد',       en: 'new',       icon: '✨' },
-  { ar: 'مستعمل',     en: 'used',      icon: '🔄' },
-  { ar: 'ممتاز',      en: 'excellent',  icon: '⭐' },
-  { ar: 'للإيجار',    en: 'rent',      icon: '🔑' },
-];
 
 const CATEGORY_PRICE_HINTS = {
   'Vehicles':    { min: 5000,    max: 500000,  symbol: 'ج.م' },
@@ -68,85 +61,206 @@ const CATEGORY_PRICE_HINTS = {
   'General':     { min: 10,      max: 10000,   symbol: 'ج.م' },
 };
 
+// SUBCATS — 3 levels with optional level4 data
 const SUBCATS = {
   Vehicles: [
-    {v:'Cars', ar:'سيارات', subsubs:[{v:'Sedan',ar:'سيدان'},{v:'SUV',ar:'SUV / دفع رباعي'},{v:'Pickup',ar:'بيك آب'},{v:'Coupe',ar:'كوبيه'},{v:'Hatchback',ar:'هاتشباك'},{v:'Minivan',ar:'ميني فان'},{v:'Crossover',ar:'كروس أوفر'},{v:'Electric',ar:'كهربائية'},{v:'Other',ar:'أخرى'}]},
-    {v:'Motorcycles', ar:'دراجات نارية', subsubs:[{v:'Sport',ar:'رياضية'},{v:'Scooter',ar:'سكوتر'},{v:'OffRoad',ar:'أوف رود'},{v:'Other',ar:'أخرى'}]},
-    {v:'SpareParts', ar:'قطع غيار', subsubs:[{v:'Engine',ar:'محرك وجير'},{v:'Tires',ar:'إطارات وجنوط'},{v:'BodyParts',ar:'هيكل وبودي'},{v:'Electrical',ar:'كهرباء وإلكترونيات'},{v:'Oils',ar:'زيوت وفلاتر'},{v:'Accessories',ar:'اكسسوارات'},{v:'Other',ar:'أخرى'}]},
-    {v:'Trucks', ar:'شاحنات', subsubs:[{v:'LightTruck',ar:'خفيفة'},{v:'HeavyTruck',ar:'ثقيلة'},{v:'Van',ar:'فان / ميكروباص'},{v:'TukTuk',ar:'توك توك'},{v:'Tractor',ar:'جرار / تراكتور'},{v:'Other',ar:'أخرى'}]},
-    {v:'Boats', ar:'قوارب', subsubs:[{v:'FishingBoat',ar:'قارب صيد'},{v:'Yacht',ar:'يخت'},{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'ملاكي', ar:'ملاكي',
+      subsubs:[{v:'سيدان',ar:'سيدان'},{v:'هاتشباك',ar:'هاتشباك'},{v:'SUV',ar:'SUV'},{v:'كوبيه',ar:'كوبيه'},{v:'مينيفان',ar:'مينيفان'},{v:'بيك أب',ar:'بيك أب'},{v:'كروس أوفر',ar:'كروس أوفر'},{v:'أخرى',ar:'أخرى'}],
+      level4:['تويوتا','هوندا','كيا','هيونداي','نيسان','مرسيدس','بي إم دبليو','أودي','شيري','MG','رينو','بيجو','فولكسفاغن','لكزس','إنفينيتي','سكودا','أوبل','فيات','سوزوكي','ميتسوبيشي','سيات','فورد','شيفروليه','جيب','لاند روفر','بورش','أخرى'],
+    },
+    { v:'دراجات نارية', ar:'دراجات نارية',
+      subsubs:[{v:'رياضية',ar:'رياضية'},{v:'طرق وعرة',ar:'طرق وعرة'},{v:'سكوتر',ar:'سكوتر'},{v:'كلاسيك',ar:'كلاسيك'},{v:'ثلاثية العجلات',ar:'ثلاثية العجلات'},{v:'كهربائية',ar:'كهربائية'},{v:'أخرى',ar:'أخرى'}],
+      level4:['هوندا','ياماها','سوزوكي','كاواساكي','KTM','بي إم دبليو','هارلي ديفيدسون','صيني','أخرى'],
+    },
+    { v:'تجاري', ar:'تجاري',
+      subsubs:[{v:'شاحنة نقل',ar:'شاحنة نقل'},{v:'ميكروباص',ar:'ميكروباص'},{v:'ونيت',ar:'ونيت'},{v:'جرار أرضي',ar:'جرار أرضي'},{v:'توك توك',ar:'توك توك'},{v:'كرفانة',ar:'كرفانة'},{v:'مقطورة',ar:'مقطورة'},{v:'أخرى',ar:'أخرى'}],
+      level4:['إيسوزو','مرسيدس','مان','فولفو','كيا','فورد','هيونداي','هونغ يانغ','يونايتد','أخرى'],
+    },
+    { v:'قطع غيار', ar:'قطع غيار',
+      subsubs:[{v:'محرك وقير',ar:'محرك وقير'},{v:'كهرباء وإلكترونيات',ar:'كهرباء وإلكترونيات'},{v:'هيكل وبودي',ar:'هيكل وبودي'},{v:'إطارات وجنوط',ar:'إطارات وجنوط'},{v:'زيوت وفلاتر',ar:'زيوت وفلاتر'},{v:'اكسسوارات',ar:'اكسسوارات'},{v:'أخرى',ar:'أخرى'}],
+      level4:['أصلي OEM','جينيون','تشاينيز','مستعمل بحالة جيدة','أخرى'],
+    },
+    { v:'مراكب وقوارب', ar:'مراكب وقوارب',
+      subsubs:[{v:'قارب بمحرك',ar:'قارب بمحرك'},{v:'قارب صيد',ar:'قارب صيد'},{v:'يخت',ar:'يخت'},{v:'زورق',ar:'زورق'},{v:'كانو وكياك',ar:'كانو وكياك'},{v:'جت سكي',ar:'جت سكي'},{v:'أخرى',ar:'أخرى'}],
+      level4:['هيومان','باهيا','مركبة مصرية','مستورد','أخرى'],
+    },
+    { v:'آليات زراعية', ar:'آليات زراعية',
+      subsubs:[{v:'جرار زراعي',ar:'جرار زراعي'},{v:'حصادة',ar:'حصادة'},{v:'مضخة مياه',ar:'مضخة مياه'},{v:'تيلر',ar:'تيلر'},{v:'رشاش',ar:'رشاش'},{v:'أخرى',ar:'أخرى'}],
+      level4:['جون ديار','ماسي فيرجسون','كوبوتا','نيو هولاند','فيات آجري','صيني','أخرى'],
+    },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
   Electronics: [
-    {v:'MobilePhones', ar:'هواتف محمولة', subsubs:[{v:'iPhone',ar:'آيفون'},{v:'Samsung',ar:'سامسونج'},{v:'Xiaomi',ar:'شاومي'},{v:'Huawei',ar:'هواوي'},{v:'Oppo',ar:'أوبو'},{v:'Vivo',ar:'فيفو'},{v:'Realme',ar:'ريلمي'},{v:'Other',ar:'أخرى'}]},
-    {v:'Laptops', ar:'لابتوب', subsubs:[{v:'MacBook',ar:'ماك / آبل'},{v:'HP',ar:'HP'},{v:'Dell',ar:'ديل'},{v:'Lenovo',ar:'لينوفو'},{v:'Asus',ar:'أسوس'},{v:'Acer',ar:'أيسر'},{v:'GamingLaptop',ar:'جيمينج'},{v:'Other',ar:'أخرى'}]},
-    {v:'Tablets', ar:'تابلت', subsubs:[{v:'iPad',ar:'آيباد'},{v:'SamsungTab',ar:'سامسونج تاب'},{v:'Other',ar:'أخرى'}]},
-    {v:'TVs', ar:'تليفزيونات', subsubs:[{v:'OLED',ar:'OLED'},{v:'QLED',ar:'QLED / AMOLED'},{v:'LED',ar:'LED عادي'},{v:'Monitor',ar:'شاشة كمبيوتر'},{v:'Projector',ar:'بروجيكتور'},{v:'SmartTV',ar:'سمارت تي في'},{v:'Other',ar:'أخرى'}]},
-    {v:'Cameras', ar:'كاميرات', subsubs:[{v:'DSLR',ar:'DSLR'},{v:'Mirrorless',ar:'ميرورليس'},{v:'Security',ar:'كاميرا مراقبة'},{v:'ActionCam',ar:'أكشن كام / GoPro'},{v:'Drone',ar:'طائرة / درون'},{v:'VideoCam',ar:'فيديو احترافي'},{v:'Other',ar:'أخرى'}]},
-    {v:'Gaming', ar:'ألعاب', subsubs:[{v:'PlayStation',ar:'بلايستيشن'},{v:'Xbox',ar:'إكس بوكس'},{v:'Nintendo',ar:'نينتندو'},{v:'PCGaming',ar:'PC'},{v:'Other',ar:'أخرى'}]},
-    {v:'Audio', ar:'صوتيات', subsubs:[{v:'Headphones',ar:'سماعات رأس'},{v:'Earbuds',ar:'إيربودز'},{v:'Speakers',ar:'سبيكر'},{v:'Other',ar:'أخرى'}]},
-    {v:'Accessories', ar:'إكسسوارات', subsubs:[{v:'Chargers',ar:'شواحن'},{v:'Cases',ar:'كفرات'},{v:'PowerBanks',ar:'باور بانك'},{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'موبايلات', ar:'موبايلات',
+      subsubs:[{v:'آيفون',ar:'آيفون'},{v:'سامسونج',ar:'سامسونج'},{v:'شاومي',ar:'شاومي'},{v:'هواوي',ar:'هواوي'},{v:'أوبو',ar:'أوبو'},{v:'فيفو',ar:'فيفو'},{v:'ريلمي',ar:'ريلمي'},{v:'جوجل بيكسل',ar:'جوجل بيكسل'},{v:'أخرى',ar:'أخرى'}],
+      level4:['64GB','128GB','256GB','512GB','1TB','أخرى'],
+    },
+    { v:'لابتوب', ar:'لابتوب',
+      subsubs:[{v:'HP',ar:'HP'},{v:'ديل',ar:'ديل'},{v:'لينوفو',ar:'لينوفو'},{v:'أسوس',ar:'أسوس'},{v:'أيسر',ar:'أيسر'},{v:'ماك/آبل',ar:'ماك/آبل'},{v:'سامسونج',ar:'سامسونج'},{v:'MSI',ar:'MSI'},{v:'أخرى',ar:'أخرى'}],
+      level4:['Core i3/Ryzen 3','Core i5/Ryzen 5','Core i7/Ryzen 7','Core i9/Ryzen 9','Apple M-Series','أخرى'],
+    },
+    { v:'تلفزيونات وشاشات', ar:'تلفزيونات وشاشات',
+      subsubs:[{v:'OLED',ar:'OLED'},{v:'QLED/AMOLED',ar:'QLED/AMOLED'},{v:'LED ذكي',ar:'LED ذكي'},{v:'شاشة كمبيوتر',ar:'شاشة كمبيوتر'},{v:'بروجيكتور',ar:'بروجيكتور'},{v:'أخرى',ar:'أخرى'}],
+      level4:['32 بوصة','43 بوصة','55 بوصة','65 بوصة','75 بوصة+','أخرى'],
+    },
+    { v:'كاميرات', ar:'كاميرات',
+      subsubs:[{v:'DSLR/ميرورليس',ar:'DSLR/ميرورليس'},{v:'كاميرا مراقبة',ar:'كاميرا مراقبة'},{v:'أكشن كام GoPro',ar:'أكشن كام GoPro'},{v:'طائرة/درون',ar:'طائرة/درون'},{v:'كاميرا فيديو',ar:'كاميرا فيديو'},{v:'أخرى',ar:'أخرى'}],
+      level4:['كانون','نيكون','سوني','فوجي فيلم','باناسونيك','DJI','أخرى'],
+    },
+    { v:'أجهزة منزلية', ar:'أجهزة منزلية',
+      subsubs:[{v:'ثلاجة',ar:'ثلاجة'},{v:'غسالة',ar:'غسالة'},{v:'تكييف مسبليت',ar:'تكييف مسبليت'},{v:'بوتاجاز وأفران',ar:'بوتاجاز وأفران'},{v:'مكيف شباك',ar:'مكيف شباك'},{v:'مكنسة كهربائية',ar:'مكنسة كهربائية'},{v:'أخرى',ar:'أخرى'}],
+      level4:['LG','سامسونج','كاريير','شارب','توشيبا','أريستون','أخرى'],
+    },
+    { v:'ألعاب إلكترونية', ar:'ألعاب إلكترونية',
+      subsubs:[{v:'بلايستيشن',ar:'بلايستيشن'},{v:'إكس بوكس',ar:'إكس بوكس'},{v:'نينتندو',ar:'نينتندو'},{v:'ألعاب PC',ar:'ألعاب PC'},{v:'اكسسوارات جيمنج',ar:'اكسسوارات جيمنج'},{v:'أخرى',ar:'أخرى'}],
+      level4:['جديد','مستعمل','للإيجار','أخرى'],
+    },
+    { v:'اكسسوارات وصوتيات', ar:'اكسسوارات وصوتيات',
+      subsubs:[{v:'سماعات',ar:'سماعات'},{v:'مكبرات صوت',ar:'مكبرات صوت'},{v:'تابلت',ar:'تابلت'},{v:'ساعات ذكية',ar:'ساعات ذكية'},{v:'شواحن وباورة',ar:'شواحن وباورة'},{v:'أخرى',ar:'أخرى'}],
+      level4:['أصلي','ثيرد بارتي','مستعمل','أخرى'],
+    },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
   'Real Estate': [
-    {v:'Apartments', ar:'شقق', subsubs:[{v:'Studio',ar:'استوديو'},{v:'1BR',ar:'غرفة واحدة'},{v:'2BR',ar:'غرفتان'},{v:'3BR',ar:'3 غرف'},{v:'4BR',ar:'4 غرف+'},{v:'Duplex',ar:'دوبلكس'},{v:'Penthouse',ar:'بنتهاوس'},{v:'Other',ar:'أخرى'}]},
-    {v:'Villas', ar:'فيلات', subsubs:[{v:'Independent',ar:'مستقلة'},{v:'Compound',ar:'كمبوند'},{v:'TwinHouse',ar:'توين هاوس'},{v:'TownHouse',ar:'تاون هاوس'},{v:'Other',ar:'أخرى'}]},
-    {v:'Land', ar:'أراضي', subsubs:[{v:'Residential',ar:'سكنية'},{v:'Commercial',ar:'تجارية'},{v:'Agricultural',ar:'زراعية'},{v:'Other',ar:'أخرى'}]},
-    {v:'Commercial', ar:'تجاري', subsubs:[{v:'Shop',ar:'محل'},{v:'Warehouse',ar:'مخزن'},{v:'Restaurant',ar:'مطعم'},{v:'Other',ar:'أخرى'}]},
-    {v:'Offices', ar:'مكاتب', subsubs:[{v:'Private',ar:'خاص'},{v:'Shared',ar:'مشترك'},{v:'Other',ar:'أخرى'}]},
-    {v:'Rooms', ar:'غرف', subsubs:[{v:'Single',ar:'مفردة'},{v:'Double',ar:'مزدوجة'},{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'شقق', ar:'شقق',
+      subsubs:[{v:'استوديو',ar:'استوديو'},{v:'1 غرفة',ar:'1 غرفة'},{v:'2 غرفة',ar:'2 غرفة'},{v:'3 غرف',ar:'3 غرف'},{v:'4 غرف+',ar:'4 غرف+'},{v:'دوبلكس',ar:'دوبلكس'},{v:'بنتهاوس',ar:'بنتهاوس'},{v:'أخرى',ar:'أخرى'}],
+      level4:['مفروشة','نصف مفروشة','غير مفروشة','سوبر لوكس','قيد الإنشاء','أخرى'],
+    },
+    { v:'فيلات ومنازل', ar:'فيلات ومنازل',
+      subsubs:[{v:'فيلا مستقلة',ar:'فيلا مستقلة'},{v:'دوبلكس',ar:'دوبلكس'},{v:'تاون هاوس',ar:'تاون هاوس'},{v:'منزل شعبي',ar:'منزل شعبي'},{v:'شاليه',ar:'شاليه'},{v:'قصر',ar:'قصر'},{v:'أخرى',ar:'أخرى'}],
+      level4:['مفروش','غير مفروش','مع مسبح','مع جراج','مشترك','أخرى'],
+    },
+    { v:'محلات وعيادات', ar:'محلات وعيادات',
+      subsubs:[{v:'محل تجاري',ar:'محل تجاري'},{v:'عيادة طبية',ar:'عيادة طبية'},{v:'صيدلية',ar:'صيدلية'},{v:'كوفي شوب',ar:'كوفي شوب'},{v:'مطعم جاهز',ar:'مطعم جاهز'},{v:'معرض',ar:'معرض'},{v:'أخرى',ar:'أخرى'}],
+      level4:['جاهز للتشغيل','قيد الإنشاء','يحتاج تجهيز','أخرى'],
+    },
+    { v:'أراضي', ar:'أراضي',
+      subsubs:[{v:'سكنية',ar:'سكنية'},{v:'زراعية',ar:'زراعية'},{v:'تجارية',ar:'تجارية'},{v:'صناعية',ar:'صناعية'},{v:'سياحية',ar:'سياحية'},{v:'صحراوية',ar:'صحراوية'},{v:'أخرى',ar:'أخرى'}],
+      level4:['مسورة','مع خدمات كاملة','بدون خدمات','مع رخصة بناء','أخرى'],
+    },
+    { v:'مكاتب وإدارية', ar:'مكاتب وإدارية',
+      subsubs:[{v:'مكتب',ar:'مكتب'},{v:'طابق إداري كامل',ar:'طابق إداري كامل'},{v:'شركة مجهزة',ar:'شركة مجهزة'},{v:'Co-working مشترك',ar:'Co-working مشترك'},{v:'أخرى',ar:'أخرى'}],
+      level4:['مفروش','غير مفروش','مع إنترنت','بدون تجهيز','أخرى'],
+    },
+    { v:'مخازن ومستودعات', ar:'مخازن ومستودعات',
+      subsubs:[{v:'مستودع',ar:'مستودع'},{v:'هنجر',ar:'هنجر'},{v:'ثلاجة تبريد',ar:'ثلاجة تبريد'},{v:'منطقة لوجستية',ar:'منطقة لوجستية'},{v:'أخرى',ar:'أخرى'}],
+      level4:['صغير <500م','متوسط 500-2000م','كبير >2000م','أخرى'],
+    },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
   Jobs: [
-    {v:'FullTime', ar:'دوام كامل', subsubs:[{v:'IT',ar:'تكنولوجيا'},{v:'Engineering',ar:'هندسة'},{v:'Medical',ar:'طبي'},{v:'Marketing',ar:'تسويق'},{v:'Finance',ar:'مالية'},{v:'Education',ar:'تعليم'},{v:'Sales',ar:'مبيعات'},{v:'Other',ar:'أخرى'}]},
-    {v:'PartTime', ar:'دوام جزئي', subsubs:[{v:'Delivery',ar:'توصيل'},{v:'Tutoring',ar:'دروس'},{v:'CustomerService',ar:'خدمة عملاء'},{v:'Other',ar:'أخرى'}]},
-    {v:'Freelance', ar:'فريلانس', subsubs:[{v:'Design',ar:'تصميم'},{v:'Development',ar:'برمجة'},{v:'Writing',ar:'كتابة'},{v:'Translation',ar:'ترجمة'},{v:'Other',ar:'أخرى'}]},
-    {v:'Internship', ar:'تدريب', subsubs:[{v:'Technical',ar:'تقني'},{v:'Business',ar:'أعمال'},{v:'Other',ar:'أخرى'}]},
-    {v:'Remote', ar:'عن بُعد', subsubs:[{v:'Development',ar:'برمجة'},{v:'CustomerService',ar:'خدمة عملاء'},{v:'Content',ar:'محتوى'},{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'تقنية ومعلومات', ar:'تقنية ومعلومات',
+      subsubs:[{v:'مطور برامج',ar:'مطور برامج'},{v:'مصمم UI/UX',ar:'مصمم UI/UX'},{v:'شبكات وأمن',ar:'شبكات وأمن'},{v:'دعم تقني',ar:'دعم تقني'},{v:'بيانات وذكاء اصطناعي',ar:'بيانات وذكاء اصطناعي'},{v:'مدير مشاريع',ar:'مدير مشاريع'},{v:'أخرى',ar:'أخرى'}],
+      level4:['دوام كامل','دوام جزئي','عن بُعد','عقد محدد','تدريب','أخرى'],
+    },
+    { v:'طبي وصحة', ar:'طبي وصحة',
+      subsubs:[{v:'طبيب',ar:'طبيب'},{v:'صيدلاني',ar:'صيدلاني'},{v:'تمريض',ar:'تمريض'},{v:'معالج طبيعي',ar:'معالج طبيعي'},{v:'أسنان',ar:'أسنان'},{v:'مختبر',ar:'مختبر'},{v:'أخرى',ar:'أخرى'}],
+      level4:['دوام كامل','دوام جزئي','عيادة خاصة','مستشفى حكومي','أخرى'],
+    },
+    { v:'تعليم وتدريب', ar:'تعليم وتدريب',
+      subsubs:[{v:'مدرس',ar:'مدرس'},{v:'مدرب',ar:'مدرب'},{v:'أستاذ جامعي',ar:'أستاذ جامعي'},{v:'معلم لغات',ar:'معلم لغات'},{v:'مشرف تربوي',ar:'مشرف تربوي'},{v:'أخرى',ar:'أخرى'}],
+      level4:['حضوري','أونلاين','هجين','خاص','مجموعات','أخرى'],
+    },
+    { v:'هندسة', ar:'هندسة',
+      subsubs:[{v:'مدني وإنشائي',ar:'مدني وإنشائي'},{v:'كهرباء',ar:'كهرباء'},{v:'ميكانيكا',ar:'ميكانيكا'},{v:'معماري',ar:'معماري'},{v:'بترول',ar:'بترول'},{v:'كيميائي',ar:'كيميائي'},{v:'أخرى',ar:'أخرى'}],
+      level4:['دوام كامل','عقد','مشروع','عن بُعد','أخرى'],
+    },
+    { v:'مبيعات وتسويق', ar:'مبيعات وتسويق',
+      subsubs:[{v:'مندوب مبيعات',ar:'مندوب مبيعات'},{v:'مسوق رقمي',ar:'مسوق رقمي'},{v:'مدير مبيعات',ar:'مدير مبيعات'},{v:'خدمة عملاء',ar:'خدمة عملاء'},{v:'تيليسيلز',ar:'تيليسيلز'},{v:'أخرى',ar:'أخرى'}],
+      level4:['براتب ثابت','عمولة','راتب + عمولة','أخرى'],
+    },
+    { v:'مالي ومحاسبة', ar:'مالي ومحاسبة',
+      subsubs:[{v:'محاسب',ar:'محاسب'},{v:'مدقق حسابات',ar:'مدقق حسابات'},{v:'محلل مالي',ar:'محلل مالي'},{v:'مسؤول مشتريات',ar:'مسؤول مشتريات'},{v:'أخرى',ar:'أخرى'}],
+      level4:['دوام كامل','دوام جزئي','عقد','أخرى'],
+    },
+    { v:'خدمات عامة وعمالة', ar:'خدمات عامة وعمالة',
+      subsubs:[{v:'نظافة وتنظيف',ar:'نظافة وتنظيف'},{v:'حارس وأمن',ar:'حارس وأمن'},{v:'سائق',ar:'سائق'},{v:'طباخ',ar:'طباخ'},{v:'خادمة',ar:'خادمة'},{v:'عامل مصنع',ar:'عامل مصنع'},{v:'أخرى',ar:'أخرى'}],
+      level4:['إقامة + راتب','بدون إقامة','يومي','شهري','أخرى'],
+    },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
   Services: [
-    {v:'HomeServices', ar:'خدمات منزلية', subsubs:[{v:'Plumber',ar:'سباكة'},{v:'Electrician',ar:'كهرباء'},{v:'Carpenter',ar:'نجارة'},{v:'Painter',ar:'دهانات'},{v:'ACRepair',ar:'تكييف'},{v:'PestControl',ar:'حشرات'},{v:'Other',ar:'أخرى'}]},
-    {v:'Cleaning', ar:'تنظيف', subsubs:[{v:'HomeCleaning',ar:'منازل'},{v:'OfficeCleaning',ar:'مكاتب'},{v:'CarWash',ar:'غسيل سيارات'},{v:'SofaCleaning',ar:'أثاث'},{v:'Other',ar:'أخرى'}]},
-    {v:'Repairs', ar:'إصلاح', subsubs:[{v:'Electronics',ar:'إلكترونيات'},{v:'Appliances',ar:'أجهزة'},{v:'Furniture',ar:'أثاث'},{v:'Other',ar:'أخرى'}]},
-    {v:'Education', ar:'دروس', subsubs:[{v:'Math',ar:'رياضيات'},{v:'Science',ar:'علوم'},{v:'Languages',ar:'لغات'},{v:'Quran',ar:'قرآن'},{v:'Music',ar:'موسيقى'},{v:'Other',ar:'أخرى'}]},
-    {v:'Health', ar:'صحة وجمال', subsubs:[{v:'Fitness',ar:'لياقة'},{v:'Nutrition',ar:'تغذية'},{v:'Salon',ar:'صالون'},{v:'Spa',ar:'سبا'},{v:'Other',ar:'أخرى'}]},
-    {v:'Transport', ar:'نقل', subsubs:[{v:'FurnitureMoving',ar:'نقل أثاث'},{v:'Delivery',ar:'توصيل'},{v:'AirportTransfer',ar:'مطار'},{v:'Other',ar:'أخرى'}]},
-    {v:'Design', ar:'تصميم', subsubs:[{v:'LogoDesign',ar:'شعار'},{v:'Print',ar:'طباعة'},{v:'WebDesign',ar:'مواقع'},{v:'Video',ar:'فيديو'},{v:'Photography',ar:'تصوير'},{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'صيانة ومقاولات', ar:'صيانة ومقاولات',
+      subsubs:[{v:'كهرباء',ar:'كهرباء'},{v:'سباكة',ar:'سباكة'},{v:'نجارة',ar:'نجارة'},{v:'بياض ودهانات',ar:'بياض ودهانات'},{v:'تكييف',ar:'تكييف'},{v:'سيراميك وبلاط',ar:'سيراميك وبلاط'},{v:'حدادة',ar:'حدادة'},{v:'أخرى',ar:'أخرى'}],
+      level4:['منزلي','تجاري','صناعي','طارئ 24 ساعة','أخرى'],
+    },
+    { v:'نقل وشحن', ar:'نقل وشحن',
+      subsubs:[{v:'نقل أثاث',ar:'نقل أثاث'},{v:'شحن دولي',ar:'شحن دولي'},{v:'توصيل طرود',ar:'توصيل طرود'},{v:'نقل سيارات',ar:'نقل سيارات'},{v:'مطار',ar:'مطار'},{v:'أخرى',ar:'أخرى'}],
+      level4:['داخل المدينة','بين مدن','دولي','أخرى'],
+    },
+    { v:'تعليم وتدريس', ar:'تعليم وتدريس',
+      subsubs:[{v:'دروس خصوصية',ar:'دروس خصوصية'},{v:'تدريب مهني',ar:'تدريب مهني'},{v:'لغات أجنبية',ar:'لغات أجنبية'},{v:'تحفيظ قرآن',ar:'تحفيظ قرآن'},{v:'فنون وموسيقى',ar:'فنون وموسيقى'},{v:'أخرى',ar:'أخرى'}],
+      level4:['في المنزل','أونلاين','في مركز','أخرى'],
+    },
+    { v:'تصميم وإعلام', ar:'تصميم وإعلام',
+      subsubs:[{v:'تصميم جرافيك',ar:'تصميم جرافيك'},{v:'تصوير فوتوغرافي',ar:'تصوير فوتوغرافي'},{v:'إنتاج فيديو',ar:'إنتاج فيديو'},{v:'برمجة مواقع',ar:'برمجة مواقع'},{v:'أخرى',ar:'أخرى'}],
+      level4:['مشروع كامل','بالساعة','اشتراك شهري','أخرى'],
+    },
+    { v:'رعاية ومنزل', ar:'رعاية ومنزل',
+      subsubs:[{v:'تمريض منزلي',ar:'تمريض منزلي'},{v:'رعاية أطفال',ar:'رعاية أطفال'},{v:'تنظيف منازل',ar:'تنظيف منازل'},{v:'طهو وضيافة',ar:'طهو وضيافة'},{v:'أخرى',ar:'أخرى'}],
+      level4:['يومي','أسبوعي','شهري','دوام كامل','أخرى'],
+    },
+    { v:'حيوانات أليفة', ar:'حيوانات أليفة',
+      subsubs:[{v:'تدريب حيوانات',ar:'تدريب حيوانات'},{v:'تزيين وعناية',ar:'تزيين وعناية'},{v:'بيطري متنقل',ar:'بيطري متنقل'},{v:'رعاية مؤقتة',ar:'رعاية مؤقتة'},{v:'أخرى',ar:'أخرى'}],
+      level4:['كلاب','قطط','طيور','أخرى'],
+    },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
   Supermarket: [
-    {v:'Food', ar:'غذاء', subsubs:[{v:'Fresh',ar:'طازج'},{v:'Dairy',ar:'ألبان وبيض'},{v:'Bakery',ar:'مخبوزات'},{v:'Canned',ar:'معلبات'},{v:'Snacks',ar:'سناكس'},{v:'Other',ar:'أخرى'}]},
-    {v:'Beverages', ar:'مشروبات', subsubs:[{v:'Juice',ar:'عصائر'},{v:'Water',ar:'مياه'},{v:'SoftDrinks',ar:'غازي'},{v:'Energy',ar:'طاقة'},{v:'HotDrinks',ar:'ساخنة'},{v:'Other',ar:'أخرى'}]},
-    {v:'PersonalCare', ar:'عناية شخصية', subsubs:[{v:'Skincare',ar:'بشرة'},{v:'HairCare',ar:'شعر'},{v:'OralCare',ar:'أسنان'},{v:'Hygiene',ar:'نظافة'},{v:'Other',ar:'أخرى'}]},
-    {v:'Household', ar:'منزلية', subsubs:[{v:'Cleaning',ar:'منظفات'},{v:'Kitchen',ar:'مطبخ'},{v:'Other',ar:'أخرى'}]},
-    {v:'BabyProducts', ar:'منتجات أطفال', subsubs:[{v:'Diapers',ar:'حفاضات'},{v:'BabyFood',ar:'أغذية أطفال'},{v:'BabyToys',ar:'ألعاب'},{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'خضروات وفاكهة', ar:'خضروات وفاكهة', subsubs:[{v:'خضروات',ar:'خضروات'},{v:'فاكهة',ar:'فاكهة'},{v:'أعشاب',ar:'أعشاب'},{v:'بهارات',ar:'بهارات'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'لحوم ودواجن', ar:'لحوم ودواجن', subsubs:[{v:'لحم بقري',ar:'لحم بقري'},{v:'دجاج',ar:'دجاج'},{v:'لحم خروف',ar:'لحم خروف'},{v:'مفروم',ar:'مفروم'},{v:'مشكل',ar:'مشكل'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'أسماك ومأكولات بحرية', ar:'أسماك ومأكولات بحرية', subsubs:[{v:'بلطي',ar:'بلطي'},{v:'جمبري',ar:'جمبري'},{v:'تونا',ar:'تونا'},{v:'سمك مشكل',ar:'سمك مشكل'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'منتجات الألبان', ar:'منتجات الألبان', subsubs:[{v:'جبنة',ar:'جبنة'},{v:'زبادي',ar:'زبادي'},{v:'لبن',ar:'لبن'},{v:'زبدة',ar:'زبدة'},{v:'قشطة',ar:'قشطة'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'مواد جافة وتموين', ar:'مواد جافة وتموين', subsubs:[{v:'أرز وبقوليات',ar:'أرز وبقوليات'},{v:'معكرونة ومكرونة',ar:'معكرونة ومكرونة'},{v:'دقيق وسكر',ar:'دقيق وسكر'},{v:'كونسروة',ar:'كونسروة'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'مشروبات', ar:'مشروبات', subsubs:[{v:'عصائر',ar:'عصائر'},{v:'مياه',ar:'مياه'},{v:'مشروبات غازية',ar:'مشروبات غازية'},{v:'عصير طازج',ar:'عصير طازج'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'منظفات ومنزلية', ar:'منظفات ومنزلية', subsubs:[{v:'صابون ومنظفات',ar:'صابون ومنظفات'},{v:'مناشف ومفارش',ar:'مناشف ومفارش'},{v:'أدوات مطبخ',ar:'أدوات مطبخ'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
   Pharmacy: [
-    {v:'Medicines', ar:'أدوية', subsubs:[{v:'OTC',ar:'بدون وصفة'},{v:'Vitamins',ar:'فيتامينات'},{v:'Herbal',ar:'أعشاب'},{v:'Other',ar:'أخرى'}]},
-    {v:'MedicalDevices', ar:'أجهزة طبية', subsubs:[{v:'BloodPressure',ar:'جهاز ضغط'},{v:'BloodSugar',ar:'جهاز سكر'},{v:'Thermometer',ar:'ترمومتر'},{v:'Other',ar:'أخرى'}]},
-    {v:'Supplements', ar:'مكملات', subsubs:[{v:'Protein',ar:'بروتين'},{v:'WeightLoss',ar:'تخسيس'},{v:'MuscleBuilding',ar:'بناء عضلات'},{v:'Other',ar:'أخرى'}]},
-    {v:'BabyHealth', ar:'صحة أطفال', subsubs:[{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'أدوية وعلاج', ar:'أدوية وعلاج', subsubs:[{v:'مسكنات',ar:'مسكنات'},{v:'مضادات حيوية',ar:'مضادات حيوية'},{v:'ضغط وسكر',ar:'ضغط وسكر'},{v:'قلب وشرايين',ar:'قلب وشرايين'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'مستلزمات طبية', ar:'مستلزمات طبية', subsubs:[{v:'ضغط وسكر (أجهزة)',ar:'ضغط وسكر (أجهزة)'},{v:'تضميد وجروح',ar:'تضميد وجروح'},{v:'قسطرة وانابيب',ar:'قسطرة وانابيب'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'تجميل وعناية', ar:'تجميل وعناية', subsubs:[{v:'كريمات بشرة',ar:'كريمات بشرة'},{v:'شامبو وعناية شعر',ar:'شامبو وعناية شعر'},{v:'عطور',ar:'عطور'},{v:'مكياج',ar:'مكياج'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'أطفال ورضع', ar:'أطفال ورضع', subsubs:[{v:'حليب أطفال',ar:'حليب أطفال'},{v:'حفاضات',ar:'حفاضات'},{v:'كريمات أطفال',ar:'كريمات أطفال'},{v:'مستلزمات',ar:'مستلزمات'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'أعشاب وطبيعي', ar:'أعشاب وطبيعي', subsubs:[{v:'عسل وحبة بركة',ar:'عسل وحبة بركة'},{v:'زيوت طبيعية',ar:'زيوت طبيعية'},{v:'أعشاب طبية',ar:'أعشاب طبية'},{v:'مكملات',ar:'مكملات'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
   'Fast Food': [
-    {v:'Pizza', ar:'بيتزا', subsubs:[{v:'Margherita',ar:'مارغريتا'},{v:'Pepperoni',ar:'بيبروني'},{v:'Seafood',ar:'بحرية'},{v:'Other',ar:'أخرى'}]},
-    {v:'Burgers', ar:'برجر', subsubs:[{v:'BeefBurger',ar:'لحم'},{v:'ChickenBurger',ar:'دجاج'},{v:'DoubleBurger',ar:'دبل'},{v:'Other',ar:'أخرى'}]},
-    {v:'Sandwiches', ar:'ساندوتشات', subsubs:[{v:'Shawarma',ar:'شاورما'},{v:'Falafel',ar:'فلافل'},{v:'Kofta',ar:'كفتة'},{v:'Other',ar:'أخرى'}]},
-    {v:'Desserts', ar:'حلويات', subsubs:[{v:'IceCream',ar:'آيس كريم'},{v:'Cake',ar:'كيك'},{v:'Kunafa',ar:'كنافة'},{v:'Other',ar:'أخرى'}]},
-    {v:'Oriental', ar:'شرقي', subsubs:[{v:'Koshary',ar:'كشري'},{v:'Grills',ar:'مشويات'},{v:'Mahshi',ar:'محشي'},{v:'Other',ar:'أخرى'}]},
-    {v:'Seafood', ar:'مأكولات بحرية', subsubs:[{v:'Fish',ar:'سمك'},{v:'Shrimp',ar:'جمبري'},{v:'Mixed',ar:'مشكل'},{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'مطاعم وكافيهات', ar:'مطاعم وكافيهات', subsubs:[{v:'شاورما وكباب',ar:'شاورما وكباب'},{v:'مأكولات بحرية',ar:'مأكولات بحرية'},{v:'فطار وفول',ar:'فطار وفول'},{v:'حلويات ومشروبات',ar:'حلويات ومشروبات'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'وجبات منزلية', ar:'وجبات منزلية', subsubs:[{v:'أكل مصري',ar:'أكل مصري'},{v:'أكل شرقي',ar:'أكل شرقي'},{v:'أكل غربي',ar:'أكل غربي'},{v:'حلويات منزلية',ar:'حلويات منزلية'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'مخابز وحلويات', ar:'مخابز وحلويات', subsubs:[{v:'خبز وعيش',ar:'خبز وعيش'},{v:'كيك وتورتات',ar:'كيك وتورتات'},{v:'حلويات شرقية',ar:'حلويات شرقية'},{v:'بيتزا وفطائر',ar:'بيتزا وفطائر'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'مشروبات وعصائر', ar:'مشروبات وعصائر', subsubs:[{v:'عصائر طازجة',ar:'عصائر طازجة'},{v:'قهوة وشاي',ar:'قهوة وشاي'},{v:'كوكتيل',ar:'كوكتيل'},{v:'مشروبات ساخنة',ar:'مشروبات ساخنة'},{v:'أخرى',ar:'أخرى'}], level4:[] },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
   Fashion: [
-    {v:'MensClothing', ar:'رجالي', subsubs:[{v:'Formal',ar:'رسمي'},{v:'Casual',ar:'كاجوال'},{v:'Sports',ar:'رياضي'},{v:'Traditional',ar:'تقليدي'},{v:'Other',ar:'أخرى'}]},
-    {v:'WomensClothing', ar:'نسائي', subsubs:[{v:'Abayas',ar:'عبايات'},{v:'Dresses',ar:'فساتين'},{v:'Casual',ar:'كاجوال'},{v:'Sports',ar:'رياضي'},{v:'Other',ar:'أخرى'}]},
-    {v:'KidsClothing', ar:'أطفال', subsubs:[{v:'Boys',ar:'أولاد'},{v:'Girls',ar:'بنات'},{v:'Baby',ar:'مواليد'},{v:'SchoolUniform',ar:'يونيفورم'},{v:'Other',ar:'أخرى'}]},
-    {v:'Shoes', ar:'أحذية', subsubs:[{v:'Sneakers',ar:'سنيكرز'},{v:'Sandals',ar:'صنادل'},{v:'Sports',ar:'رياضي'},{v:'Formal',ar:'رسمي'},{v:'Other',ar:'أخرى'}]},
-    {v:'Bags', ar:'شنط', subsubs:[{v:'Handbag',ar:'حقيبة يد'},{v:'Backpack',ar:'ظهر'},{v:'TravelBag',ar:'سفر'},{v:'Wallet',ar:'محفظة'},{v:'Other',ar:'أخرى'}]},
-    {v:'Accessories', ar:'إكسسوارات', subsubs:[{v:'Jewelry',ar:'مجوهرات'},{v:'Watches',ar:'ساعات'},{v:'Sunglasses',ar:'نظارات'},{v:'Other',ar:'أخرى'}]},
-    {v:'Other', ar:'أخرى', subsubs:[]},
+    { v:'ملابس رجالي', ar:'ملابس رجالي',
+      subsubs:[{v:'قميص',ar:'قميص'},{v:'بنطلون',ar:'بنطلون'},{v:'جلابية/جلباب',ar:'جلابية/جلباب'},{v:'بدلة',ar:'بدلة'},{v:'تيشيرت',ar:'تيشيرت'},{v:'جاكيت معطف',ar:'جاكيت معطف'},{v:'كاجوال',ar:'كاجوال'},{v:'أخرى',ar:'أخرى'}],
+      level4:['S','M','L','XL','XXL','3XL+','Free Size','أخرى'],
+    },
+    { v:'ملابس نسائي', ar:'ملابس نسائي',
+      subsubs:[{v:'فستان',ar:'فستان'},{v:'بلوزة',ar:'بلوزة'},{v:'تنورة',ar:'تنورة'},{v:'بنطلون',ar:'بنطلون'},{v:'عباءة',ar:'عباءة'},{v:'بيجاما',ar:'بيجاما'},{v:'كاجوال',ar:'كاجوال'},{v:'أخرى',ar:'أخرى'}],
+      level4:['S','M','L','XL','XXL','3XL+','Free Size','أخرى'],
+    },
+    { v:'ملابس أطفال', ar:'ملابس أطفال',
+      subsubs:[{v:'بيبي 0-2سنة',ar:'بيبي 0-2سنة'},{v:'أطفال 2-6سنة',ar:'أطفال 2-6سنة'},{v:'أطفال 6-12سنة',ar:'أطفال 6-12سنة'},{v:'تيجز 12-16سنة',ar:'تيجز 12-16سنة'},{v:'أخرى',ar:'أخرى'}],
+      level4:['بنات','أولاد','للاثنين','أخرى'],
+    },
+    { v:'أحذية', ar:'أحذية',
+      subsubs:[{v:'رجالي',ar:'رجالي'},{v:'نسائي',ar:'نسائي'},{v:'أطفال',ar:'أطفال'},{v:'رياضي',ar:'رياضي'},{v:'رسمي',ar:'رسمي'},{v:'شبشب',ar:'شبشب'},{v:'أخرى',ar:'أخرى'}],
+      level4:['36','37','38','39','40','41','42','43','44','45','46+','أخرى'],
+    },
+    { v:'حقائب وشنط', ar:'حقائب وشنط',
+      subsubs:[{v:'شنطة يد',ar:'شنطة يد'},{v:'حقيبة ظهر',ar:'حقيبة ظهر'},{v:'حقيبة سفر',ar:'حقيبة سفر'},{v:'محفظة',ar:'محفظة'},{v:'أخرى',ar:'أخرى'}],
+      level4:['جلد طبيعي','جلد صناعي','قماش','أخرى'],
+    },
+    { v:'اكسسوارات', ar:'اكسسوارات',
+      subsubs:[{v:'ساعات',ar:'ساعات'},{v:'مجوهرات',ar:'مجوهرات'},{v:'نظارات',ar:'نظارات'},{v:'أحزمة',ar:'أحزمة'},{v:'عطور',ar:'عطور'},{v:'أخرى',ar:'أخرى'}],
+      level4:['رجالي','نسائي','للاثنين','أخرى'],
+    },
+    { v:'عباءات وحجاب', ar:'عباءات وحجاب',
+      subsubs:[{v:'عباءة خليجية',ar:'عباءة خليجية'},{v:'عباءة مصرية',ar:'عباءة مصرية'},{v:'حجاب وإيشارب',ar:'حجاب وإيشارب'},{v:'خمار ونقاب',ar:'خمار ونقاب'},{v:'أخرى',ar:'أخرى'}],
+      level4:['قطن','شيفون','كريب','جورجيت','أخرى'],
+    },
+    { v:'أخرى', ar:'أخرى', subsubs:[], level4:[] },
   ],
 };
 
@@ -183,21 +297,12 @@ export default function SellPage() {
   const subsubRef = useRef(null);
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [subsub, setSubsub] = useState('');
+  const [level4, setLevel4] = useState('');
+  const [selectedLevel4Options, setSelectedLevel4Options] = useState([]);
   const [dynamicSubsubOptions, setDynamicSubsubOptions] = useState([]);
   const [subsubLoading, setSubsubLoading] = useState(false);
-  // Inject subsubPulse animation
-  useEffect(() => {
-    const _id = 'xtox-subsub-pulse';
-    if (!document.getElementById(_id)) {
-      const _s = document.createElement('style');
-      _s.id = _id;
-      _s.textContent = '@keyframes subsubPulse{0%,100%{border-color:#e53e3e}50%{border-color:rgba(229,62,62,.35)}}';
-      document.head.appendChild(_s);
-    }
-    return () => { const _s = document.getElementById('xtox-subsub-pulse'); if(_s) _s.remove(); };
-  }, []);
 
-  // Inject subsubPulse keyframe animation via JS
+  // Inject subsubPulse animation
   useEffect(() => {
     const id = 'subsub-pulse-style';
     if (!document.getElementById(id)) {
@@ -211,7 +316,7 @@ export default function SellPage() {
 
   // Fetch dynamic subsub options from AI-learned DB when category+subcategory changes
   useEffect(() => {
-    if (!form.category || !form.subcategory || form.subcategory === 'Other') {
+    if (!form.category || !form.subcategory || form.subcategory === 'أخرى') {
       setDynamicSubsubOptions([]);
       return;
     }
@@ -231,23 +336,36 @@ export default function SellPage() {
       .catch(() => { if (!cancelled) { setSubsubLoading(false); setDynamicSubsubOptions([]); } });
     return () => { cancelled = true; };
   }, [form.category, form.subcategory]);
-  const [editAdId, setEditAdId] = useState(null);         // non-null = edit mode
+
+  // Update level4 options when subcategory changes
+  useEffect(() => {
+    if (!form.category || !form.subcategory) {
+      setSelectedLevel4Options([]);
+      setLevel4('');
+      return;
+    }
+    const subCatList = SUBCATS[form.category] || [];
+    const selectedSub = subCatList.find(function(s) { return s.v === form.subcategory; });
+    const l4 = (selectedSub && selectedSub.level4 && selectedSub.level4.length > 0) ? selectedSub.level4 : [];
+    setSelectedLevel4Options(l4);
+    setLevel4('');
+  }, [form.category, form.subcategory]);
+
+  const [editAdId, setEditAdId] = useState(null);
   const [verificationError, setVerificationError] = useState(false);
-  const [backendDupError, setBackendDupError] = useState(null); // { existingAdId }
+  const [backendDupError, setBackendDupError] = useState(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
   const [gpsError, setGpsError] = useState('');
-  // AI detection state
-  const [aiDetectedLabel, setAiDetectedLabel] = useState(''); // raw MobileNet label
-  const [aiResult, setAiResult] = useState(null); // last AI result for correction tracking
+  const [aiDetectedLabel, setAiDetectedLabel] = useState('');
+  const [aiResult, setAiResult] = useState(null);
 
   // ── Multi-media state ──────────────────────────────────────────────────────
-  const [mediaFiles, setMediaFiles] = useState([]); // up to 5 images OR 1 video
-  const [mediaType, setMediaType] = useState(null); // 'images' | 'video'
-  const [mediaPreviews, setMediaPreviews] = useState([]); // object URLs for display
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [mediaType, setMediaType] = useState(null);
+  const [mediaPreviews, setMediaPreviews] = useState([]);
 
-  // Revoke object URLs on component unmount to prevent memory leaks
   useEffect(() => {
     const urls = mediaPreviews;
     return () => { urls.forEach(url => { try { URL.revokeObjectURL(url); } catch {} }); };
@@ -262,7 +380,6 @@ export default function SellPage() {
     setToken(t);
     const detectedCountry = localStorage.getItem('country') || localStorage.getItem('xtox_country') || 'EG';
     setCountry(detectedCountry);
-    // Auto-detect currency based on user's country
     const currency = detectCurrency();
     setForm(f => ({ ...f, currency: currency.code }));
     let user = {};
@@ -285,13 +402,12 @@ export default function SellPage() {
       } catch {}
     }
 
-    // Edit mode: check ?edit=adId in URL
+    // Edit mode
     try {
       const _params = new URLSearchParams(window.location.search);
       const _editId = _params.get('edit');
       if (_editId) {
         setEditAdId(_editId);
-        // Load the existing ad data and pre-fill the form
         const _editT = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || '';
         fetch((process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app') + '/api/ads/' + _editId, {
           headers: _editT ? { Authorization: 'Bearer ' + _editT } : {}
@@ -310,21 +426,16 @@ export default function SellPage() {
             currency: _ad.currency || f.currency,
             condition: _ad.condition || f.condition,
           }));
-          if (_ad.subsub && _ad.subsub !== 'Other') setSubsub(_ad.subsub);
-          // Jump straight to the form step
+          if (_ad.subsub && _ad.subsub !== 'أخرى') setSubsub(_ad.subsub);
+          if (_ad.level4) setLevel4(_ad.level4);
           setStep('form');
-        }).catch(() => { /* silently skip if load fails */ });
+        }).catch(() => {});
       }
     } catch {}
   }, []);
 
-  // Auto-call detectLocation on mount — runs silently
-  useEffect(() => {
-    detectLocation();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { detectLocation(); }, []);
 
-  // Auto-fill phone from xtox_user in localStorage
   useEffect(() => {
     try {
       const user = JSON.parse(localStorage.getItem('xtox_user') || '{}');
@@ -332,84 +443,51 @@ export default function SellPage() {
     } catch {}
   }, []);
 
-  // ── Auto-learning: watch for user corrections to AI detection ───────────────
-  // When user changes category/subcategory AFTER AI made a suggestion, save the
-  // correction so next time the same label maps to the user's choice.
   const _prevCatRef = typeof window !== 'undefined' ? (window.__xtoxPrevCat = window.__xtoxPrevCat || {}) : {};
   useEffect(() => {
     if (!aiDetectedLabel || !form.category) return;
     const saved = _prevCatRef.cat;
     if (saved && (form.category !== saved.cat || form.subcategory !== saved.sub)) {
-      // User changed category/subcategory — save correction
       saveAICorrection(aiDetectedLabel, {
-        category:    form.category,
-        subcategory: form.subcategory || 'Other',
-        subsub:      subsub || 'Other',
+        category: form.category,
+        subcategory: form.subcategory || 'أخرى',
+        subsub: subsub || 'أخرى',
       });
     }
     _prevCatRef.cat = { cat: form.category, sub: form.subcategory };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.category, form.subcategory]);
 
-  // ── GPS auto-detect location ─────────────────────────────────────────────────
-  // Fix 3: Verified detectLocation — correct URL format, correct field names,
-  //         correct onClick binding, not disabled by default.
-  //         Added Nominatim fallback when ipapi.co fails.
   async function detectLocation() {
-    if (!navigator.geolocation) {
-      setGpsError('المتصفح لا يدعم تحديد الموقع');
-      return;
-    }
+    if (!navigator.geolocation) { setGpsError('المتصفح لا يدعم تحديد الموقع'); return; }
     setGpsLoading(true);
     setGpsError('');
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const posLat = pos.coords.latitude;
         const posLon = pos.coords.longitude;
-        // Fix 2: use lat/lng state variables (matches backend field names)
         setLat(posLat);
         setLng(posLon);
-        // Primary: ipapi.co reverse geocoding
-        // URL format: https://ipapi.co/${lat},${lon}/json/ (comma between lat and lon)
         let cityFound = false;
         try {
           const r = await fetch('https://ipapi.co/' + posLat + ',' + posLon + '/json/');
           const data = await r.json();
-          if (data && data.city) {
-            setForm(p => ({ ...p, city: data.city }));
-            cityFound = true;
-          }
-        } catch (_) {
-          // ipapi.co failed — fall through to Nominatim
-        }
-        // Fix 3: Nominatim fallback if ipapi.co fails or returns no city
+          if (data && data.city) { setForm(p => ({ ...p, city: data.city })); cityFound = true; }
+        } catch (_) {}
         if (!cityFound) {
           try {
-            const r2 = await fetch(
-              'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + posLat + '&lon=' + posLon
-            );
+            const r2 = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + posLat + '&lon=' + posLon);
             const data2 = await r2.json();
-            const city = (data2 && data2.address)
-              ? (data2.address.city || data2.address.town || data2.address.county)
-              : null;
-            if (city) {
-              setForm(p => ({ ...p, city }));
-            }
-          } catch (_2) {
-            // Both geocoders failed — user can type city manually
-          }
+            const city = (data2 && data2.address) ? (data2.address.city || data2.address.town || data2.address.county) : null;
+            if (city) setForm(p => ({ ...p, city }));
+          } catch (_2) {}
         }
         setGpsLoading(false);
       },
-      () => {
-        // GPS denied or failed — silently skip, user can fill city manually
-        setGpsLoading(false);
-      },
+      () => { setGpsLoading(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 
-    // ── handlePhotoSelect — max 5, smart auto-fill with new KB classifier ────────
   const handlePhotoSelect = async (e) => {
     const files = Array.from(e.target.files).slice(0, 5);
     if (!files.length) return;
@@ -419,13 +497,9 @@ export default function SellPage() {
     const previews = files.map(f => URL.createObjectURL(f));
     setMediaPreviews(previews);
     setAiStatus('🔍 جاري تحليل الصورة...');
-
-    // Smart AI analysis using MobileNet + offline KB
     try {
       const tf = await import('@tensorflow/tfjs');
       const mobilenet = await import('@tensorflow-models/mobilenet');
-
-      // Create hidden img element for TF inference
       const img = document.createElement('img');
       img.crossOrigin = 'anonymous';
       img.style.display = 'none';
@@ -433,44 +507,29 @@ export default function SellPage() {
       const objUrl = URL.createObjectURL(files[0]);
       img.src = objUrl;
       await new Promise(r => { img.onload = r; img.onerror = r; });
-
-      // MobileNet v2 max quality — top 10 predictions
       const model = await mobilenet.load({ version: 2, alpha: 1.0 });
       const predictions = await model.classify(img, 10);
-
       document.body.removeChild(img);
       URL.revokeObjectURL(objUrl);
-
-      // Classify using offline KB — pass current title for keyword fallback
       const result = classifyProduct(predictions, form.title);
-
       if (result) {
         setAiDetectedLabel(result.detectedAs);
         setAiResult(result);
-
-        // Auto-fill only empty fields — never override user input
         setForm(f => {
           const updated = { ...f };
-          // Category — only if user hasn't chosen one
           if (result.category && !f.category) updated.category = result.category;
-          // Subcategory — only if user hasn't chosen one
-          if (result.subcategory && (!f.subcategory || f.subcategory === 'Other')) updated.subcategory = result.subcategory;
-          // Title — only if empty
+          if (result.subcategory && (!f.subcategory || f.subcategory === 'أخرى')) updated.subcategory = result.subcategory;
           if (result.title && (!f.title || f.title.length < 3)) updated.title = result.title;
-          // Description — only if empty
           if (result.description && (!f.description || f.description.length < 10)) {
             updated.description = formatDescription(result.description, f.condition || 'used');
           }
           return updated;
         });
-
-        // Subsub — only if not already set
-        if (result.subsub && result.subsub !== 'Other') {
-          setSubsub(s => (s === 'Other' || s === '' ? result.subsub : s));
-        } else if (!result.subsub || result.subsub === 'Other') {
-          setSubsub(s => (s === '' ? 'other' : s));
+        if (result.subsub && result.subsub !== 'أخرى') {
+          setSubsub(s => (s === 'أخرى' || s === '' ? result.subsub : s));
+        } else if (!result.subsub || result.subsub === 'أخرى') {
+          setSubsub(s => (s === '' ? 'أخرى' : s));
         }
-
         if (result.category) {
           const pct = Math.round((result.probability ?? result.confidence ?? 0) * 100);
           setAiStatus('🤖 تم الكشف: ' + result.detectedAs + (pct > 0 ? ' (' + pct + '%)' : '') + (result.learned ? ' ✅ مُتعلَّم' : ''));
@@ -481,26 +540,18 @@ export default function SellPage() {
         setAiStatus('⚠️ تعذّر التعرف على المنتج — يرجى اختيار الفئة يدوياً');
       }
     } catch (err) {
-      console.warn('[AI] analysis failed:', err.message);
       setAiStatus('');
     }
   };
 
-  // ── handleVideoSelect — validate 30s max ──────────────────────────────────
   const handleVideoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.src = URL.createObjectURL(file);
     await new Promise(r => { video.onloadedmetadata = r; video.onerror = r; });
-
-    if (video.duration > 30) {
-      alert('⚠️ الفيديو يجب أن يكون 30 ثانية كحد أقصى');
-      return;
-    }
-
+    if (video.duration > 30) { alert('⚠️ الفيديو يجب أن يكون 30 ثانية كحد أقصى'); return; }
     setMediaType('video');
     setVideoFile(file);
     setMediaFiles([]);
@@ -515,12 +566,9 @@ export default function SellPage() {
     if (!form.category) e.category = 'الفئة مطلوبة';
     if (form.price && isNaN(Number(form.price))) e.price = 'السعر يجب أن يكون رقماً';
     if (form.phone && !/^[\d\s+\-()]{7,15}$/.test(form.phone)) e.phone = 'رقم الهاتف غير صحيح';
-    // Soft validation for second subcategory — scroll to it as a hint but never block
-    // subsub 'Other' is a valid value (backend accepts it); hard block removed
     if (form.category && SUBCATS[form.category]) {
       const _selSub2 = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
-      if (_selSub2 && _selSub2.subsubs && _selSub2.subsubs.length > 0 && (!subsub || subsub === 'Other')) {
-        // Scroll to subsub selector as a soft hint, but do NOT add to e{} (never blocks submit)
+      if (_selSub2 && _selSub2.subsubs && _selSub2.subsubs.length > 0 && (!subsub || subsub === 'أخرى')) {
         if (subsubRef.current) subsubRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
@@ -530,13 +578,9 @@ export default function SellPage() {
 
   async function submit(forceDuplicate = false) {
     if (!validate()) return;
-
-    // DUPLICATE DETECTION
     if (!forceDuplicate && form.title.trim().length >= 5) {
       try {
-        const myAdsRes = await fetchWithRetry(API + '/api/ads/my/all', {
-          headers: { Authorization: 'Bearer ' + token },
-        }, { retries: 1 });
+        const myAdsRes = await fetchWithRetry(API + '/api/ads/my/all', { headers: { Authorization: 'Bearer ' + token } }, { retries: 1 });
         const myAdsData = await myAdsRes.json();
         const myActiveAds = myAdsData?.active || [];
         if (myActiveAds.length > 0) {
@@ -552,16 +596,12 @@ export default function SellPage() {
         }
       } catch {}
     }
-
     setDuplicateWarning(null);
     setLoading(true);
-
     try {
-      // ── Build FormData ─────────────────────────────────────────────────────
       const formData = new FormData();
       formData.append('title', form.title);
       formData.append('description', form.description);
-      // Fix 2: Send price as Number to ensure backend receives a valid numeric value
       formData.append('price', Number(form.price || 0));
       formData.append('category', form.category);
       formData.append('city', form.city || '');
@@ -570,44 +610,28 @@ export default function SellPage() {
       formData.append('currency', form.currency || 'EGP');
       formData.append('condition', form.condition || '');
       formData.append('subcategory', form.subcategory || '');
-      formData.append('subsub', subsub || 'Other');
-      // Fix 2: Send lat/lng (backend primary field names) instead of latitude/longitude
+      formData.append('subsub', subsub || 'أخرى');
+      formData.append('level4', level4 || '');
       if (lat !== null) formData.append('lat', String(lat));
       if (lng !== null) formData.append('lng', String(lng));
-
-      // Attach media files
       if (mediaType === 'images' && mediaFiles.length > 0) {
         mediaFiles.forEach((file) => formData.append('images', file));
       } else if (mediaType === 'video' && videoFile) {
         formData.append('video', videoFile);
       }
-
       const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
-      // FIX E: Debug FormData before submit — visible in browser console
-      console.log('Submitting FormData entries:', [...formData.entries()].map(([k,v]) => [k, typeof v === 'string' ? v.slice(0,50) : v.name]));
-      // Edit mode: PUT to update existing ad; otherwise POST to create new
       const _isEdit = !!editAdId;
       const _url = _isEdit ? (API + '/api/ads/' + editAdId) : (API + '/api/ads');
       const _method = _isEdit ? 'PUT' : 'POST';
-
       const res = await fetch(_url, {
         method: _method,
-        headers: { Authorization: 'Bearer ' + t }, // NO Content-Type — FormData sets it
+        headers: { Authorization: 'Bearer ' + t },
         body: formData,
       });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        if (res.status === 403 && err.code === 'UNVERIFIED_USER') {
-          setVerificationError(true);
-          setLoading(false);
-          return;
-        }
-        if (res.status === 409 && err.code === 'DUPLICATE_AD') {
-          setBackendDupError({ existingAdId: err.existingAdId });
-          setLoading(false);
-          return;
-        }
+        if (res.status === 403 && err.code === 'UNVERIFIED_USER') { setVerificationError(true); setLoading(false); return; }
+        if (res.status === 409 && err.code === 'DUPLICATE_AD') { setBackendDupError({ existingAdId: err.existingAdId }); setLoading(false); return; }
         if (res.status === 429) {
           setErrors({ submit: 'لقد وصلت للحد اليومي: يمكنك نشر إعلانين فقط في اليوم الواحد' });
         } else {
@@ -616,12 +640,9 @@ export default function SellPage() {
         setLoading(false);
         return;
       }
-
       var resData = await res.json().catch(function() { return {}; });
       if (form.phone) localStorage.setItem('last_used_phone', form.phone);
-      // Normalize ad result — handle both {success, ad, _id} and direct ad response shapes
       var _adResult = (resData && resData.ad && resData.ad._id) ? resData.ad : resData;
-      // Redirect to the new ad if we got an ID, otherwise to homepage
       var newAdId = (resData && resData._id) || (_adResult && _adResult._id) || (resData && resData.id);
       if (_isEdit) {
         window.location.href = '/ads/' + editAdId + '?updated=1';
@@ -643,9 +664,8 @@ export default function SellPage() {
     outline: 'none', transition: 'border-color 0.2s',
   });
 
-  const labelStyle = {
-    display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 14, color: '#333',
-  };
+  const labelStyle = { display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 14, color: '#333' };
+  const selectStyle = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' };
 
   const stepCount = step === 'start' ? 1 : 2;
 
@@ -681,76 +701,38 @@ export default function SellPage() {
       </div>
 
       <div style={{ padding: '20px 16px' }}>
-        {/* Verification error banner — shown when backend returns UNVERIFIED_USER */}
         {verificationError && (
-          <div role="alert" style={{
-            background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8,
-            padding: 16, marginBottom: 16, textAlign: 'center', direction: 'rtl',
-            fontFamily: 'Cairo, sans-serif',
-          }}>
+          <div role="alert" style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: 16, marginBottom: 16, textAlign: 'center', direction: 'rtl', fontFamily: 'Cairo, sans-serif' }}>
             <p style={{ color: '#dc2626', fontWeight: 'bold', margin: 0, fontSize: 15 }}>يجب التحقق من حسابك أولاً</p>
             <p style={{ color: '#6b7280', fontSize: 14, margin: '8px 0 0' }}>قم بالتحقق من رقم واتساب أو البريد الإلكتروني للمتابعة</p>
             <a href="/login" style={{ color: '#1d4ed8', fontSize: 14, display: 'inline-block', marginTop: 8 }}>الذهاب للتحقق ←</a>
           </div>
         )}
 
-        {/* Backend duplicate error banner — shown when backend returns DUPLICATE_AD */}
         {backendDupError && (
-          <div role="alert" style={{
-            background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: 12,
-            padding: '14px 16px', marginBottom: 16, direction: 'rtl', fontFamily: 'Cairo, sans-serif',
-          }}>
-            <p style={{ margin: '0 0 10px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>
-              لديك إعلان مشابه بالفعل. لا يمكن نشر إعلانات متكررة.
-            </p>
+          <div role="alert" style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: 12, padding: '14px 16px', marginBottom: 16, direction: 'rtl', fontFamily: 'Cairo, sans-serif' }}>
+            <p style={{ margin: '0 0 10px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>لديك إعلان مشابه بالفعل. لا يمكن نشر إعلانات متكررة.</p>
             {backendDupError.existingAdId && (
-              <a href={'/ads/' + backendDupError.existingAdId}
-                style={{ color: '#1d4ed8', fontSize: 13, display: 'inline-block', marginBottom: 8 }}>
-                عرض الإعلان الموجود ←
-              </a>
+              <a href={'/ads/' + backendDupError.existingAdId} style={{ color: '#1d4ed8', fontSize: 13, display: 'inline-block', marginBottom: 8 }}>عرض الإعلان الموجود ←</a>
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setBackendDupError(null)}
-                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db',
-                  background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>
-                ✏️ تعديل الإعلان
-              </button>
+              <button onClick={() => setBackendDupError(null)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>✏️ تعديل الإعلان</button>
             </div>
           </div>
         )}
 
-        {/* Duplicate warning */}
         {duplicateWarning && (
-          <div role="alert" style={{
-            background: '#fffbeb', border: '1.5px solid #f59e0b',
-            borderRadius: 12, padding: '14px 16px', marginBottom: 16,
-            direction: 'rtl', fontFamily: 'Cairo, sans-serif',
-          }}>
-            <p style={{ margin: '0 0 10px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>
-              {duplicateWarning.message}
-            </p>
+          <div role="alert" style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: 12, padding: '14px 16px', marginBottom: 16, direction: 'rtl', fontFamily: 'Cairo, sans-serif' }}>
+            <p style={{ margin: '0 0 10px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>{duplicateWarning.message}</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDuplicateWarning(null)}
-                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db',
-                  background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>
-                ✏️ تعديل الإعلان
-              </button>
-              <button onClick={() => submit(true)}
-                style={{ padding: '7px 14px', borderRadius: 8, border: 'none',
-                  background: '#002f34', color: '#fff', fontSize: 13, fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>
-                نشر على أي حال
-              </button>
+              <button onClick={() => setDuplicateWarning(null)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>✏️ تعديل الإعلان</button>
+              <button onClick={() => submit(true)} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#002f34', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Cairo, sans-serif' }}>نشر على أي حال</button>
             </div>
           </div>
         )}
 
-        {/* Submit error */}
         {errors.submit && (
-          <div role="alert" style={{
-            background: '#fff0f0', border: '1px solid #fcc',
-            borderRadius: 10, padding: '12px 14px', marginBottom: 16, color: '#c00', fontSize: 14,
-          }}>
+          <div role="alert" style={{ background: '#fff0f0', border: '1px solid #fcc', borderRadius: 10, padding: '12px 14px', marginBottom: 16, color: '#c00', fontSize: 14 }}>
             ⚠️ {errors.submit}
           </div>
         )}
@@ -758,30 +740,13 @@ export default function SellPage() {
         {/* Step 1: Start */}
         {step === 'start' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <p style={{ textAlign: 'center', color: '#555', fontSize: 15, margin: '0 0 8px' }}>
-              كيف تريد إضافة إعلانك؟
-            </p>
-            <button onClick={() => setStep('form')}
-              style={{
-                display: 'block', background: '#002f34', color: 'white',
-                textAlign: 'center', padding: '28px 20px', borderRadius: 18,
-                cursor: 'pointer', fontSize: 17, fontWeight: 'bold',
-                boxShadow: '0 4px 12px rgba(0,47,52,0.2)', border: 'none',
-                fontFamily: 'inherit', width: '100%',
-              }}>
+            <p style={{ textAlign: 'center', color: '#555', fontSize: 15, margin: '0 0 8px' }}>كيف تريد إضافة إعلانك؟</p>
+            <button onClick={() => setStep('form')} style={{ display: 'block', background: '#002f34', color: 'white', textAlign: 'center', padding: '28px 20px', borderRadius: 18, cursor: 'pointer', fontSize: 17, fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0,47,52,0.2)', border: 'none', fontFamily: 'inherit', width: '100%' }}>
               <div style={{ fontSize: 44, marginBottom: 10 }}>📸</div>
               <div>أضف إعلانك</div>
-              <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6, fontWeight: 'normal' }}>
-                صور + فيديو + تحليل تلقائي بالذكاء الاصطناعي ✨
-              </div>
+              <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6, fontWeight: 'normal' }}>صور + فيديو + تحليل تلقائي بالذكاء الاصطناعي ✨</div>
             </button>
-            <button onClick={() => setStep('form')}
-              style={{
-                background: 'white', color: '#002f34', padding: '20px', borderRadius: 18,
-                cursor: 'pointer', fontSize: 16, fontWeight: 'bold',
-                border: '2px solid #002f34', fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              }}>
+            <button onClick={() => setStep('form')} style={{ background: 'white', color: '#002f34', padding: '20px', borderRadius: 18, cursor: 'pointer', fontSize: 16, fontWeight: 'bold', border: '2px solid #002f34', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
               <span style={{ fontSize: 24 }}>✍️</span>
               إضافة يدوياً
             </button>
@@ -792,92 +757,44 @@ export default function SellPage() {
         {step === 'form' && (
           <div style={{ background: 'white', borderRadius: 18, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
-            {/* ── Media picker — Photos OR Video ─────────────────────────── */}
-            {/* Photo picker */}
-            <input type="file" accept="image/*" multiple capture="environment"
-              onChange={handlePhotoSelect} style={{ display: 'none' }} id="photo-input" />
-            {/* Video picker */}
-            <input type="file" accept="video/*" capture="environment"
-              onChange={handleVideoSelect} style={{ display: 'none' }} id="video-input" />
-
+            {/* Media picker */}
+            <input type="file" accept="image/*" multiple capture="environment" onChange={handlePhotoSelect} style={{ display: 'none' }} id="photo-input" />
+            <input type="file" accept="video/*" capture="environment" onChange={handleVideoSelect} style={{ display: 'none' }} id="video-input" />
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <label htmlFor="photo-input" style={{
-                flex: 1, padding: '10px', background: '#6366f1', color: 'white',
-                borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 14,
-              }}>
-                📷 إضافة صور
-              </label>
-              <label htmlFor="video-input" style={{
-                flex: 1, padding: '10px', background: '#8b5cf6', color: 'white',
-                borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 14,
-              }}>
-                🎥 فيديو 30 ثانية
-              </label>
+              <label htmlFor="photo-input" style={{ flex: 1, padding: '10px', background: '#6366f1', color: 'white', borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 14 }}>📷 إضافة صور</label>
+              <label htmlFor="video-input" style={{ flex: 1, padding: '10px', background: '#8b5cf6', color: 'white', borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 14 }}>🎥 فيديو 30 ثانية</label>
             </div>
 
-            {/* Media previews */}
             {mediaPreviews.length > 0 && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
                 {mediaType === 'images' && mediaPreviews.map((src, i) => (
                   <div key={i} style={{ position: 'relative' }}>
-                    <img src={src} alt={'صورة ' + (i + 1)}
-                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }} loading="eager" />
+                    <img src={src} alt={'صورة ' + (i + 1)} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }} loading="eager" />
                     <button onClick={() => {
                       const newFiles = mediaFiles.filter((_, idx) => idx !== i);
                       const newPreviews = mediaPreviews.filter((_, idx) => idx !== i);
                       setMediaFiles(newFiles);
                       setMediaPreviews(newPreviews);
                       if (!newFiles.length) setMediaType(null);
-                    }} style={{
-                      position: 'absolute', top: -6, right: -6, background: 'red', color: 'white',
-                      border: 'none', borderRadius: '50%', width: 20, height: 20,
-                      cursor: 'pointer', fontSize: 12,
-                    }}>×</button>
+                    }} style={{ position: 'absolute', top: -6, right: -6, background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: 12 }}>×</button>
                   </div>
                 ))}
-                {mediaType === 'video' && (
-                  <video src={mediaPreviews[0]} controls
-                    style={{ width: '100%', borderRadius: 10, maxHeight: 200 }} />
-                )}
+                {mediaType === 'video' && <video src={mediaPreviews[0]} controls style={{ width: '100%', borderRadius: 10, maxHeight: 200 }} />}
               </div>
             )}
 
-            {/* AI detection badge */}
             {aiStatus && (
-              <div style={{
-                padding: '10px 16px', borderRadius: 8, marginBottom: 12,
-                background: aiStatus.startsWith('🤖') ? 'rgba(99,102,241,0.08)'
-                          : aiStatus.startsWith('⚠️') ? '#fff8e1'
-                          : '#fff8e1',
-                border: '1px solid ' + (aiStatus.startsWith('🤖') ? 'rgba(99,102,241,0.25)' : '#f59e0b'),
-                color: aiStatus.startsWith('🤖') ? '#4338ca'
-                     : aiStatus.startsWith('🔍') ? '#92400e'
-                     : '#92400e',
-                fontSize: 13, textAlign: 'right', direction: 'rtl',
-                fontFamily: "'Cairo', 'Tajawal', system-ui",
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
+              <div style={{ padding: '10px 16px', borderRadius: 8, marginBottom: 12, background: aiStatus.startsWith('🤖') ? 'rgba(99,102,241,0.08)' : '#fff8e1', border: '1px solid ' + (aiStatus.startsWith('🤖') ? 'rgba(99,102,241,0.25)' : '#f59e0b'), color: aiStatus.startsWith('🤖') ? '#4338ca' : '#92400e', fontSize: 13, textAlign: 'right', direction: 'rtl', fontFamily: "'Cairo', 'Tajawal', system-ui", display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ flex: 1 }}>{aiStatus}</span>
                 {aiDetectedLabel && aiStatus.startsWith('🤖') && (
-                  <button
-                    type="button"
-                    onClick={() => { setAiStatus(''); setAiDetectedLabel(''); setAiResult(null); }}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 16, color: '#6b7280', padding: '0 2px', lineHeight: 1,
-                    }}
-                    title="إلغاء التعبئة التلقائية"
-                    aria-label="إلغاء التعبئة التلقائية"
-                  >×</button>
+                  <button type="button" onClick={() => { setAiStatus(''); setAiDetectedLabel(''); setAiResult(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280', padding: '0 2px', lineHeight: 1 }} title="إلغاء التعبئة التلقائية" aria-label="إلغاء التعبئة التلقائية">×</button>
                 )}
               </div>
             )}
 
             {/* Title */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="sell-title">
-                عنوان الإعلان <span style={{ color: '#e53e3e' }}>*</span>
-              </label>
+              <label style={labelStyle} htmlFor="sell-title">عنوان الإعلان <span style={{ color: '#e53e3e' }}>*</span></label>
               <input id="sell-title" value={form.title}
                 onChange={e => {
                   const value = e.target.value;
@@ -909,46 +826,32 @@ export default function SellPage() {
                   setAiDebounce(timeout);
                 }}
                 placeholder="مثال: آيفون 14 برو ماكس بحالة ممتازة"
-                style={inputStyle('title')} maxLength={100}
-                aria-required="true" />
-              {errors.title && (
-                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
-                  ⚠️ {errors.title}
-                </p>
-              )}
+                style={inputStyle('title')} maxLength={100} aria-required="true" />
+              {errors.title && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.title}</p>}
             </div>
 
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle} htmlFor="sell-desc">الوصف</label>
               <textarea id="sell-desc" value={form.description}
-                onChange={e => {
-                  setForm(p => ({ ...p, description: e.target.value }));
-                  setCharCount(e.target.value.length);
-                }}
+                onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setCharCount(e.target.value.length); }}
                 placeholder="اكتب وصفاً تفصيلياً للمنتج..."
-                style={{ ...inputStyle('description'), resize: 'vertical', minHeight: 90 }}
-                maxLength={1000} />
-              <p style={{ textAlign: 'left', fontSize: 11, color: '#aaa', margin: '3px 0 0' }}>
-                {charCount}/1000
-              </p>
+                style={{ ...inputStyle('description'), resize: 'vertical', minHeight: 90 }} maxLength={1000} />
+              <p style={{ textAlign: 'left', fontSize: 11, color: '#aaa', margin: '3px 0 0' }}>{charCount}/1000</p>
             </div>
 
             {/* Category */}
-            {/* Fix 4: Added htmlFor="sell-category" to label + hidden select for proper label association */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="sell-category">
-                الفئة <span style={{ color: '#e53e3e' }}>*</span>
-              </label>
-              {/* Visually hidden native select for label association — the visual buttons below control the actual selection */}
-              <select
-                id="sell-category"
-                value={form.category}
-                onChange={e => { const _newCat = e.target.value; setForm(p => ({ ...p, category: _newCat, subcategory: 'Other', condition: (getStatusOptions(_newCat)[0] || {}).value || '' })); setSubsub(''); }}
-                aria-hidden="false"
-                tabIndex={-1}
-                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}
-              >
+              <label style={labelStyle} htmlFor="sell-category">الفئة <span style={{ color: '#e53e3e' }}>*</span></label>
+              <select id="sell-category" value={form.category}
+                onChange={e => {
+                  const _newCat = e.target.value;
+                  const firstStatus = (getStatusOptions(_newCat, '')[0] || {}).value || '';
+                  setForm(p => ({ ...p, category: _newCat, subcategory: '', condition: firstStatus }));
+                  setSubsub(''); setLevel4(''); setSelectedLevel4Options([]);
+                }}
+                aria-hidden="false" tabIndex={-1}
+                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}>
                 <option value="">اختر الفئة</option>
                 {CATS.map(cat => <option key={cat.en} value={cat.en}>{cat.ar}</option>)}
               </select>
@@ -956,66 +859,50 @@ export default function SellPage() {
                 {CATS.map(cat => (
                   <button key={cat.en} type="button"
                     onClick={() => {
-                      // If AI had detected something, track this as a correction
                       if (aiDetectedLabel && form.category && cat.en !== form.category) {
-                        saveAICorrection(aiDetectedLabel, { category: cat.en, subcategory: 'Other', subsub: 'Other' });
+                        saveAICorrection(aiDetectedLabel, { category: cat.en, subcategory: 'أخرى', subsub: 'أخرى' });
                       }
-                      setForm(p => ({ ...p, category: cat.en, subcategory: 'Other', condition: (getStatusOptions(cat.en)[0] || {}).value || '' }));
-                      setSubsub('');
+                      const firstStatus = (getStatusOptions(cat.en, '')[0] || {}).value || '';
+                      setForm(p => ({ ...p, category: cat.en, subcategory: '', condition: firstStatus }));
+                      setSubsub(''); setLevel4(''); setSelectedLevel4Options([]);
                       if (errors.category) setErrors(p => ({ ...p, category: '' }));
                     }}
                     aria-pressed={form.category === cat.en}
-                    style={{
-                      padding: '10px 6px', borderRadius: 10,
-                      border: '2px solid ' + (form.category === cat.en ? '#002f34' : '#e0e0e0'),
-                      background: form.category === cat.en ? '#002f34' : '#fafafa',
-                      color: form.category === cat.en ? 'white' : '#444',
-                      cursor: 'pointer', fontSize: 12, fontWeight: 'bold', fontFamily: 'inherit',
-                      textAlign: 'center', display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', gap: 3, transition: 'all 0.15s',
-                    }}>
+                    style={{ padding: '10px 6px', borderRadius: 10, border: '2px solid ' + (form.category === cat.en ? '#002f34' : '#e0e0e0'), background: form.category === cat.en ? '#002f34' : '#fafafa', color: form.category === cat.en ? 'white' : '#444', cursor: 'pointer', fontSize: 12, fontWeight: 'bold', fontFamily: 'inherit', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, transition: 'all 0.15s' }}>
                     <span style={{ fontSize: 20 }}>{cat.icon}</span>
                     <span>{cat.ar}</span>
                   </button>
                 ))}
               </div>
-              {errors.category && (
-                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '6px 0 0' }}>
-                  ⚠️ {errors.category}
-                </p>
-              )}
+              {errors.category && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '6px 0 0' }}>⚠️ {errors.category}</p>}
               <CategoryPriceHint category={form.category} />
+
+              {/* Subcategory dropdown */}
               {form.category && SUBCATS[form.category] && (
                 <div style={{ marginTop: 10 }}>
                   <label style={labelStyle} htmlFor="sell-subcategory">الفئة الفرعية</label>
-                  <select
-                    id="sell-subcategory"
-                    name="sell-subcategory"
-                    value={form.subcategory || 'Other'}
-                    onChange={e => { setForm(p => ({ ...p, subcategory: e.target.value })); setSubsub(''); if (errors.subsub) setErrors(p => ({ ...p, subsub: '' })); setTimeout(() => { if (subsubRef.current) subsubRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }}
-                    aria-label="الفئة الفرعية"
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
-                  >
-                    {SUBCATS[form.category].map(function(s) { return (
-                      <option key={s.v} value={s.v}>{s.ar}</option>
-                    ); })}
+                  <select id="sell-subcategory" name="sell-subcategory"
+                    value={form.subcategory || ''}
+                    onChange={e => {
+                      const newSub = e.target.value;
+                      const firstStatus = (getStatusOptions(form.category, newSub)[0] || {}).value || '';
+                      setForm(p => ({ ...p, subcategory: newSub, condition: firstStatus }));
+                      setSubsub(''); setLevel4(''); setSelectedLevel4Options([]);
+                      if (errors.subsub) setErrors(p => ({ ...p, subsub: '' }));
+                      setTimeout(() => { if (subsubRef.current) subsubRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
+                    }}
+                    aria-label="الفئة الفرعية" style={selectStyle}>
+                    <option value="">-- اختر الفئة الفرعية --</option>
+                    {SUBCATS[form.category].map(function(s) { return <option key={s.v} value={s.v}>{s.ar}</option>; })}
                   </select>
                 </div>
               )}
+
+              {/* Subsub dropdown */}
               {form.category && SUBCATS[form.category] && (function() {
                 var _selSub = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
                 return _selSub && _selSub.subsubs && _selSub.subsubs.length > 0 ? (
-                  <div ref={subsubRef} style={{
-                    marginTop: 12,
-                    padding: '12px 14px',
-                    borderRadius: 12,
-                    background: !subsub ? 'rgba(229,62,62,0.04)' : 'rgba(99,102,241,0.04)',
-                    border: !subsub
-                      ? '2px solid #e53e3e'
-                      : '2px solid rgba(99,102,241,0.25)',
-                    animation: !subsub ? 'subsubPulse 1.5s ease-in-out infinite' : 'none',
-                    transition: 'border-color 0.3s, background 0.3s',
-                  }}>
+                  <div ref={subsubRef} style={{ marginTop: 12, padding: '12px 14px', borderRadius: 12, background: !subsub ? 'rgba(229,62,62,0.04)' : 'rgba(99,102,241,0.04)', border: !subsub ? '2px solid #e53e3e' : '2px solid rgba(99,102,241,0.25)', animation: !subsub ? 'subsubPulse 1.5s ease-in-out infinite' : 'none', transition: 'border-color 0.3s, background 0.3s' }}>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 15, color: '#002f34' }} htmlFor="sell-subsub">
                       التصنيف الفرعي الثاني <span style={{ color: '#e53e3e', fontWeight: 900 }}>*</span>
                       {!subsub && <span style={{ marginRight: 6, fontSize: 12, background: '#e53e3e', color: '#fff', borderRadius: 6, padding: '1px 7px', fontWeight: 700 }}>مطلوب</span>}
@@ -1026,25 +913,18 @@ export default function SellPage() {
                         جاري تحميل خيارات إضافية...
                       </div>
                     )}
-                    <select
-                      id="sell-subsub"
-                      name="sell-subsub"
-                      value={subsub}
-                      onChange={e => { setSubsub(e.target.value); if (errors.subsub) setErrors(p => ({ ...p, subsub: '' })); }}
-                      aria-required="true"
-                      aria-label="التصنيف الفرعي الثاني"
-                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid ' + (errors.subsub ? '#e53e3e' : '#c7d2fe'), fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', fontWeight: 600 }}
-                    >
+                    <select id="sell-subsub" name="sell-subsub" value={subsub}
+                      onChange={e => { setSubsub(e.target.value); setLevel4(''); if (errors.subsub) setErrors(p => ({ ...p, subsub: '' })); }}
+                      aria-required="true" aria-label="التصنيف الفرعي الثاني"
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid ' + (errors.subsub ? '#e53e3e' : '#c7d2fe'), fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', fontWeight: 600 }}>
                       <option value="">-- اختر التصنيف الفرعي الثاني --</option>
                       {(function() {
-                        var staticOpts = _selSub.subsubs.filter(function(ss) { return ss.v !== 'Other'; });
-                        var dynamicOpts = dynamicSubsubOptions.filter(function(d) {
-                          return !staticOpts.some(function(s) { return s.ar === d.ar || s.v === d.en; });
-                        });
+                        var staticOpts = _selSub.subsubs.filter(function(ss) { return ss.v !== 'أخرى'; });
+                        var dynamicOpts = dynamicSubsubOptions.filter(function(d) { return !staticOpts.some(function(s) { return s.ar === d.ar || s.v === d.en; }); });
                         return [
                           ...staticOpts.map(function(ss) { return <option key={ss.v} value={ss.v}>{ss.ar}</option>; }),
                           ...dynamicOpts.map(function(d, i) { return <option key={'dyn_' + i} value={d.en || d.ar}>{d.ar}</option>; }),
-                          <option key="other" value="other">أخرى</option>,
+                          <option key="other" value="أخرى">أخرى</option>,
                         ];
                       })()}
                     </select>
@@ -1054,37 +934,40 @@ export default function SellPage() {
                   </div>
                 ) : null;
               })()}
+
+              {/* Level4 dropdown */}
+              {selectedLevel4Options && selectedLevel4Options.length > 0 && (
+                <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(99,102,241,0.04)', border: '2px solid rgba(99,102,241,0.25)', transition: 'border-color 0.3s, background 0.3s' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 6, fontSize: 15, color: '#002f34' }} htmlFor="sell-level4">
+                    {form.category === 'Vehicles' ? 'الماركة / المواصفة' : 'التفاصيل'}
+                  </label>
+                  <select id="sell-level4" name="sell-level4" value={level4}
+                    onChange={e => setLevel4(e.target.value)}
+                    aria-label={form.category === 'Vehicles' ? 'الماركة / المواصفة' : 'التفاصيل'}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #c7d2fe', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', fontWeight: 600 }}>
+                    <option value="">-- اختر --</option>
+                    {selectedLevel4Options.map(function(opt) { return <option key={opt} value={opt}>{opt}</option>; })}
+                  </select>
+                </div>
+              )}
             </div>
 
-            {/* Condition */}
-            {/* Fix 4: Added htmlFor="sell-condition" to label + hidden select for proper label association */}
+            {/* Condition / Status */}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle} htmlFor="sell-condition">حالة المنتج</label>
-              {/* Visually hidden native select for label association — the visual buttons below control the actual selection */}
-              <select
-                id="sell-condition"
-                value={form.condition}
+              <select id="sell-condition" value={form.condition}
                 onChange={e => setForm(p => ({ ...p, condition: e.target.value }))}
-                aria-hidden="false"
-                tabIndex={-1}
-                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}
-              >
+                aria-hidden="false" tabIndex={-1}
+                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}>
                 <option value="">اختر الحالة</option>
-                {getStatusOptions(form.category).map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                {getStatusOptions(form.category, form.subcategory).map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {getStatusOptions(form.category).map(c => (
+                {getStatusOptions(form.category, form.subcategory).map(c => (
                   <button key={c.value} type="button"
                     onClick={() => setForm(p => ({ ...p, condition: c.value }))}
                     aria-pressed={form.condition === c.value}
-                    style={{
-                      padding: '8px 14px', borderRadius: 20,
-                      border: '2px solid ' + (form.condition === c.value ? '#002f34' : '#e0e0e0'),
-                      background: form.condition === c.value ? '#002f34' : '#fafafa',
-                      color: form.condition === c.value ? 'white' : '#444',
-                      cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
-                      fontFamily: 'inherit', transition: 'all 0.15s',
-                    }}>
+                    style={{ padding: '8px 14px', borderRadius: 20, border: '2px solid ' + (form.condition === c.value ? '#002f34' : '#e0e0e0'), background: form.condition === c.value ? '#002f34' : '#fafafa', color: form.condition === c.value ? 'white' : '#444', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                     {c.icon} {c.label}
                   </button>
                 ))}
@@ -1092,7 +975,6 @@ export default function SellPage() {
             </div>
 
             {/* Price + Currency */}
-            {/* Fix 4: Added explicit <label htmlFor="sell-currency"> for currency select */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                 <div>
@@ -1100,10 +982,7 @@ export default function SellPage() {
                   <select id="sell-currency" name="sell-currency" value={form.currency}
                     onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}
                     aria-label="العملة"
-                    style={{
-                      padding: '11px 10px', borderRadius: 10, border: '1.5px solid #e0e0e0',
-                      fontSize: 14, fontFamily: 'inherit', background: '#fff', direction: 'ltr',
-                    }}>
+                    style={{ padding: '11px 10px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 14, fontFamily: 'inherit', background: '#fff', direction: 'ltr' }}>
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -1115,34 +994,18 @@ export default function SellPage() {
                     style={{ ...inputStyle('price'), direction: 'ltr' }} />
                 </div>
               </div>
-              {errors.price && (
-                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
-                  ⚠️ {errors.price}
-                </p>
-              )}
+              {errors.price && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.price}</p>}
             </div>
 
-            {/* City — required with GPS auto-detect */}
+            {/* City */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="sell-city">
-                المدينة <span style={{ color: '#e53e3e' }}>*</span>
-              </label>
-              <input id="sell-city" value={form.city}
-                  required
-                  onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-                  placeholder="مثال: القاهرة، الرياض، دبي..."
-                  style={inputStyle('city')} />
-              {gpsLoading && (
-                <p style={{ color: '#6366f1', fontSize: 12, margin: '4px 0 0', fontFamily: "'Cairo','Tajawal',system-ui" }}>
-                  📍 جارٍ تحديد موقعك...
-                </p>
-              )}
-              {errors.city && (
-                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
-                  ⚠️ {errors.city}
-                </p>
-              )}
-              {/* Fix 2: Hidden GPS coordinates — sent as lat/lng (backend primary field names) */}
+              <label style={labelStyle} htmlFor="sell-city">المدينة <span style={{ color: '#e53e3e' }}>*</span></label>
+              <input id="sell-city" value={form.city} required
+                onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
+                placeholder="مثال: القاهرة، الرياض، دبي..."
+                style={inputStyle('city')} />
+              {gpsLoading && <p style={{ color: '#6366f1', fontSize: 12, margin: '4px 0 0', fontFamily: "'Cairo','Tajawal',system-ui" }}>📍 جارٍ تحديد موقعك...</p>}
+              {errors.city && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.city}</p>}
               {lat && <input type="hidden" id="sell-lat" name="lat" value={lat} />}
               {lng && <input type="hidden" id="sell-lng" name="lng" value={lng} />}
             </div>
@@ -1151,31 +1014,16 @@ export default function SellPage() {
             <div style={{ marginBottom: 20 }}>
               <label style={labelStyle} htmlFor="sell-phone">رقم التواصل</label>
               <input id="sell-phone" value={form.phone}
-                onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); if (errors.phone) setErrors(p => ({ ...p, phone: '' })); }} inputMode="tel" autoComplete="tel"
-                type="tel" placeholder="مثال: +201012345678"
+                onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); if (errors.phone) setErrors(p => ({ ...p, phone: '' })); }}
+                inputMode="tel" autoComplete="tel" type="tel" placeholder="مثال: +201012345678"
                 style={{ ...inputStyle('phone'), direction: 'ltr' }} />
-              {errors.phone && (
-                <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>
-                  ⚠️ {errors.phone}
-                </p>
-              )}
+              {errors.phone && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.phone}</p>}
             </div>
 
             {/* Submit */}
             <button onClick={() => submit()} disabled={loading} aria-busy={loading}
-              style={{
-                width: '100%', padding: '14px',
-                background: loading ? '#aaa' : '#002f34', color: 'white',
-                border: 'none', borderRadius: 14, fontWeight: 'bold', fontSize: 17,
-                cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 10, transition: 'background 0.2s',
-              }}>
-              {loading ? (
-                <><span style={{ display: 'inline-block' }}>⏳</span> {editAdId ? 'جار التحديث...' : 'جار النشر...'}</>
-              ) : (
-                <>{editAdId ? '✏️ تحديث الإعلان' : '🚀 نشر الإعلان'}</>
-              )}
+              style={{ width: '100%', padding: '14px', background: loading ? '#aaa' : '#002f34', color: 'white', border: 'none', borderRadius: 14, fontWeight: 'bold', fontSize: 17, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, transition: 'background 0.2s' }}>
+              {loading ? <><span style={{ display: 'inline-block' }}>⏳</span> {editAdId ? 'جار التحديث...' : 'جار النشر...'}</> : <>{editAdId ? '✏️ تحديث الإعلان' : '🚀 نشر الإعلان'}</>}
             </button>
 
             <p style={{ textAlign: 'center', fontSize: 12, color: '#888', marginTop: 10 }}>

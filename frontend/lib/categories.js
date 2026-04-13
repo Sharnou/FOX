@@ -1,292 +1,134 @@
-// 3-level category hierarchy for FOX/XTOX
-// Level 1: Category | Level 2: Subcategory | Level 3: Sub-subcategory
-// All auto-detected by keyword matching on ad title + description
+// 4-level category hierarchy for FOX/XTOX
+// Level 1: Category | Level 2: Subcategory | Level 3: Sub-subcategory | Level 4: Brand/Spec
 
 export const CATEGORIES = {
   Vehicles: {
     ar: 'سيارات',
     subcategories: [
       {
-        value: 'Cars', ar: 'سيارات',
+        value: 'ملاكي', ar: 'ملاكي',
         subsubs: [
-          { value: 'Sedan', ar: 'سيدان', kw: ['سيدان','sedan'] },
-          { value: 'SUV', ar: 'SUV / دفع رباعي', kw: ['suv','دفع رباعي','jeep','جيب','رانج','patrol','پاترول'] },
-          { value: 'Pickup', ar: 'بيك آب', kw: ['بيك اب','pickup','pick up','هايلكس','hilux'] },
-          { value: 'Coupe', ar: 'كوبيه', kw: ['كوبيه','coupe'] },
-          { value: 'Hatchback', ar: 'هاتشباك', kw: ['هاتشباك','hatchback'] },
-          { value: 'Minivan', ar: 'ميني فان', kw: ['ميني فان','minivan','van','فان'] },
-          { value: 'Crossover', ar: 'كروس أوفر', kw: ['كروس اوفر','crossover'] },
-          { value: 'Electric', ar: 'كهربائية', kw: ['كهربائي','electric','ev','tesla','تيسلا'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
+          { value: 'سيدان', ar: 'سيدان', kw: ['سيدان','sedan'] },
+          { value: 'هاتشباك', ar: 'هاتشباك', kw: ['هاتشباك','hatchback'] },
+          { value: 'SUV', ar: 'SUV', kw: ['suv','دفع رباعي','jeep','جيب','رانج','patrol'] },
+          { value: 'كوبيه', ar: 'كوبيه', kw: ['كوبيه','coupe'] },
+          { value: 'مينيفان', ar: 'مينيفان', kw: ['ميني فان','minivan','van','فان'] },
+          { value: 'بيك أب', ar: 'بيك أب', kw: ['بيك اب','pickup','pick up','هايلكس','hilux'] },
+          { value: 'كروس أوفر', ar: 'كروس أوفر', kw: ['كروس اوفر','crossover'] },
+          { value: 'أخرى', ar: 'أخرى', kw: [] },
         ],
+        level4: ['تويوتا','هوندا','كيا','هيونداي','نيسان','مرسيدس','بي إم دبليو','أودي','شيري','MG','رينو','بيجو','فولكسفاغن','لكزس','إنفينيتي','سكودا','أوبل','فيات','سوزوكي','ميتسوبيشي','سيات','فورد','شيفروليه','جيب','لاند روفر','بورش','أخرى'],
       },
       {
-        value: 'Motorcycles', ar: 'دراجات نارية',
+        value: 'دراجات نارية', ar: 'دراجات نارية',
         subsubs: [
-          { value: 'Sport', ar: 'رياضية', kw: ['sport','رياضي','cbr','r1','gsxr'] },
-          { value: 'Cruiser', ar: 'كروزر', kw: ['cruiser','كروزر','harley','هارلي','classic','كلاسيك'] },
-          { value: 'Scooter', ar: 'سكوتر', kw: ['سكوتر','scooter','vespa','فيسبا'] },
-          { value: 'OffRoad', ar: 'أوف رود', kw: ['off road','offroad','dirt','كروس'] },
-          { value: 'Electric', ar: 'كهربائية', kw: ['كهربائي','electric','ev'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
+          { value: 'رياضية', ar: 'رياضية', kw: ['sport','رياضي','cbr','r1','gsxr'] },
+          { value: 'طرق وعرة', ar: 'طرق وعرة', kw: ['off road','offroad','dirt','كروس'] },
+          { value: 'سكوتر', ar: 'سكوتر', kw: ['سكوتر','scooter','vespa'] },
+          { value: 'كلاسيك', ar: 'كلاسيك', kw: ['classic','كلاسيك','cruiser','كروزر'] },
+          { value: 'ثلاثية العجلات', ar: 'ثلاثية العجلات', kw: ['ثلاثية','three wheel','trike'] },
+          { value: 'كهربائية', ar: 'كهربائية', kw: ['كهربائي','electric','ev'] },
+          { value: 'أخرى', ar: 'أخرى', kw: [] },
         ],
+        level4: ['هوندا','ياماها','سوزوكي','كاواساكي','KTM','بي إم دبليو','هارلي ديفيدسون','صيني','أخرى'],
       },
       {
-        value: 'Trucks', ar: 'شاحنات',
+        value: 'تجاري', ar: 'تجاري',
         subsubs: [
-          { value: 'LightTruck', ar: 'شاحنة خفيفة', kw: ['خفيفة','light','صغيرة'] },
-          { value: 'HeavyTruck', ar: 'شاحنة ثقيلة', kw: ['ثقيلة','heavy','كبيرة'] },
-          { value: 'Van', ar: 'فان / ميكروباص', kw: ['فان','van','ميكروباص','microbus'] },
-          { value: 'TukTuk', ar: 'توك توك', kw: ['توك توك','tuk tuk','tuk-tuk'] },
-          { value: 'Tractor', ar: 'جرار / تراكتور', kw: ['جرار','تراكتور','tractor'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
+          { value: 'شاحنة نقل', ar: 'شاحنة نقل', kw: ['شاحنة','truck','لوري'] },
+          { value: 'ميكروباص', ar: 'ميكروباص', kw: ['ميكروباص','microbus','فان'] },
+          { value: 'ونيت', ar: 'ونيت', kw: ['ونيت','وانيت'] },
+          { value: 'جرار أرضي', ar: 'جرار أرضي', kw: ['جرار','tractor'] },
+          { value: 'توك توك', ar: 'توك توك', kw: ['توك توك','tuk tuk'] },
+          { value: 'كرفانة', ar: 'كرفانة', kw: ['كرفانة','caravan'] },
+          { value: 'مقطورة', ar: 'مقطورة', kw: ['مقطورة','trailer'] },
+          { value: 'أخرى', ar: 'أخرى', kw: [] },
         ],
+        level4: ['إيسوزو','مرسيدس','مان','فولفو','كيا','فورد','هيونداي','هونغ يانغ','يونايتد','أخرى'],
       },
       {
-        value: 'Boats', ar: 'قوارب',
+        value: 'قطع غيار', ar: 'قطع غيار',
         subsubs: [
-          { value: 'FishingBoat', ar: 'قارب صيد', kw: ['صيد','fishing'] },
-          { value: 'Yacht', ar: 'يخت', kw: ['يخت','yacht'] },
-          { value: 'SpeedBoat', ar: 'زورق سريع', kw: ['سريع','speed','زورق'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
+          { value: 'محرك وقير', ar: 'محرك وقير', kw: ['محرك','engine','gear','جير','ترس'] },
+          { value: 'كهرباء وإلكترونيات', ar: 'كهرباء وإلكترونيات', kw: ['كهرباء','electrical','بطارية','battery','sensor'] },
+          { value: 'هيكل وبودي', ar: 'هيكل وبودي', kw: ['هيكل','باب','body','بمبر','bumper','رفرف'] },
+          { value: 'إطارات وجنوط', ar: 'إطارات وجنوط', kw: ['كفر','كفرات','tire','جنط','جنوط','rim','اطار'] },
+          { value: 'زيوت وفلاتر', ar: 'زيوت وفلاتر', kw: ['زيت','فلتر','oil','filter'] },
+          { value: 'اكسسوارات', ar: 'اكسسوارات', kw: ['اكسسوار','accessory'] },
+          { value: 'أخرى', ar: 'أخرى', kw: [] },
         ],
+        level4: ['أصلي OEM','جينيون','تشاينيز','مستعمل بحالة جيدة','أخرى'],
       },
       {
-        value: 'SpareParts', ar: 'قطع غيار',
+        value: 'مراكب وقوارب', ar: 'مراكب وقوارب',
         subsubs: [
-          { value: 'Engine', ar: 'محرك وجير', kw: ['محرك','engine','gear','جير','ترس'] },
-          { value: 'Tires', ar: 'إطارات وجنوط', kw: ['كفر','كفرات','tire','جنط','جنوط','rim','اطار'] },
-          { value: 'BodyParts', ar: 'هيكل وبودي', kw: ['هيكل','باب','أبواب','body','بمبر','bumper','رفرف'] },
-          { value: 'Electrical', ar: 'كهرباء وإلكترونيات', kw: ['كهرباء','electrical','بطارية','battery','sensor'] },
-          { value: 'Oils', ar: 'زيوت وفلاتر', kw: ['زيت','فلتر','oil','filter'] },
-          { value: 'Accessories', ar: 'اكسسوارات', kw: ['اكسسوار','accessory','accessories'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
+          { value: 'قارب بمحرك', ar: 'قارب بمحرك', kw: ['قارب بمحرك','motor boat'] },
+          { value: 'قارب صيد', ar: 'قارب صيد', kw: ['صيد','fishing','قارب صيد'] },
+          { value: 'يخت', ar: 'يخت', kw: ['يخت','yacht'] },
+          { value: 'زورق', ar: 'زورق', kw: ['زورق سريع','speed','زورق'] },
+          { value: 'كانو وكياك', ar: 'كانو وكياك', kw: ['كانو','كياك','canoe','kayak'] },
+          { value: 'جت سكي', ar: 'جت سكي', kw: ['جت سكي','jet ski'] },
+          { value: 'أخرى', ar: 'أخرى', kw: [] },
         ],
+        level4: ['هيومان','باهيا','مركبة مصرية','مستورد','أخرى'],
       },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
+      {
+        value: 'آليات زراعية', ar: 'آليات زراعية',
+        subsubs: [
+          { value: 'جرار زراعي', ar: 'جرار زراعي', kw: ['جرار','تراكتور','tractor'] },
+          { value: 'حصادة', ar: 'حصادة', kw: ['حصادة','harvester','combine'] },
+          { value: 'مضخة مياه', ar: 'مضخة مياه', kw: ['مضخة','pump'] },
+          { value: 'تيلر', ar: 'تيلر', kw: ['تيلر','tiller'] },
+          { value: 'رشاش', ar: 'رشاش', kw: ['رشاش','sprayer'] },
+          { value: 'أخرى', ar: 'أخرى', kw: [] },
+        ],
+        level4: ['جون ديار','ماسي فيرجسون','كوبوتا','نيو هولاند','فيات آجري','صيني','أخرى'],
+      },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
     ],
     keywords: ['سيارة','عربية','موتور','شاحنة','مركبة','car','vehicle','truck','motorcycle','bike','boat','قطع غيار'],
-  },
-
-  Electronics: {
-    ar: 'إلكترونيات',
-    subcategories: [
-      {
-        value: 'MobilePhones', ar: 'هواتف محمولة',
-        subsubs: [
-          { value: 'iPhone', ar: 'آيفون', kw: ['iphone','ايفون','آيفون','apple موبايل'] },
-          { value: 'Samsung', ar: 'سامسونج', kw: ['samsung','سامسونج','galaxy','جالاكسي'] },
-          { value: 'Xiaomi', ar: 'شاومي', kw: ['xiaomi','شاومي','redmi','ريدمي','poco'] },
-          { value: 'Huawei', ar: 'هواوي', kw: ['huawei','هواوي'] },
-          { value: 'Oppo', ar: 'أوبو', kw: ['oppo','أوبو'] },
-          { value: 'Vivo', ar: 'فيفو', kw: ['vivo','فيفو'] },
-          { value: 'Realme', ar: 'ريلمي', kw: ['realme','ريلمي'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Laptops', ar: 'لابتوب',
-        subsubs: [
-          { value: 'MacBook', ar: 'ماك / آبل', kw: ['macbook','ماك','apple laptop','mac'] },
-          { value: 'HP', ar: 'HP', kw: ['hp','هي بي','hewlett'] },
-          { value: 'Dell', ar: 'ديل', kw: ['dell','ديل','xps','inspiron'] },
-          { value: 'Lenovo', ar: 'لينوفو', kw: ['lenovo','لينوفو','thinkpad','ideapad'] },
-          { value: 'Asus', ar: 'أسوس', kw: ['asus','اسوس','asus rog','zenbook','vivobook'] },
-          { value: 'Acer', ar: 'أيسر', kw: ['acer','ايسر','aspire','nitro'] },
-          { value: 'GamingLaptop', ar: 'جيمينج', kw: ['gaming','جيمينج','msi','alienware','legion','omen'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Tablets', ar: 'تابلت',
-        subsubs: [
-          { value: 'iPad', ar: 'آيباد', kw: ['ipad','آيباد','apple tablet'] },
-          { value: 'SamsungTab', ar: 'سامسونج تاب', kw: ['samsung tab','galaxy tab','سامسونج تاب'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'TVs', ar: 'تليفزيونات',
-        subsubs: [
-          { value: 'OLED', ar: 'OLED', kw: ['oled'] },
-          { value: 'QLED', ar: 'QLED / AMOLED', kw: ['qled','amoled','qled'] },
-          { value: 'LED', ar: 'LED عادي', kw: ['led','شاشة led'] },
-          { value: 'Monitor', ar: 'شاشة كمبيوتر', kw: ['monitor','شاشة كمبيوتر','شاشة pc'] },
-          { value: 'Projector', ar: 'بروجيكتور', kw: ['projector','بروجيكتور','data show','داتا شو'] },
-          { value: 'SmartTV', ar: 'سمارت تي في', kw: ['smart','سمارت','android tv','webos'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Cameras', ar: 'كاميرات',
-        subsubs: [
-          { value: 'DSLR', ar: 'DSLR', kw: ['dslr','canon','nikon','احترافية'] },
-          { value: 'Mirrorless', ar: 'ميرورليس', kw: ['mirrorless','ميرورليس','sony alpha','fuji'] },
-          { value: 'Security', ar: 'كاميرا مراقبة', kw: ['مراقبة','security','cctv','ip camera'] },
-          { value: 'ActionCam', ar: 'أكشن كام / GoPro', kw: ['gopro','action','أكشن','action cam'] },
-          { value: 'Drone', ar: 'طائرة / درون', kw: ['drone','درون','طائرة مسيرة','dji'] },
-          { value: 'VideoCam', ar: 'فيديو احترافي', kw: ['video camera','كاميرا فيديو','camcorder'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Gaming', ar: 'ألعاب إلكترونية',
-        subsubs: [
-          { value: 'PlayStation', ar: 'بلايستيشن', kw: ['playstation','بلايستيشن','ps4','ps5','ps3'] },
-          { value: 'Xbox', ar: 'إكس بوكس', kw: ['xbox','اكس بوكس','xbox series'] },
-          { value: 'Nintendo', ar: 'نينتندو', kw: ['nintendo','نينتندو','switch'] },
-          { value: 'PCGaming', ar: 'ألعاب PC', kw: ['pc gaming','gaming pc','rtx','gtx','gpu','vga'] },
-          { value: 'GameAccessories', ar: 'اكسسوارات', kw: ['controller','يد تحكم','headset','gaming chair','كرسي'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Audio', ar: 'صوتيات',
-        subsubs: [
-          { value: 'Headphones', ar: 'سماعات رأس', kw: ['headphone','سماعة رأس','over ear','سوني wh'] },
-          { value: 'Earbuds', ar: 'إيربودز', kw: ['airpods','earbuds','ايربودز','tws','earphone'] },
-          { value: 'Speakers', ar: 'سبيكر', kw: ['speaker','سبيكر','jbl','marshall','بلوتوث'] },
-          { value: 'HomeTheater', ar: 'هوم ثيتر', kw: ['home theater','هوم ثيتر','surround','subwoofer'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Accessories', ar: 'إكسسوارات',
-        subsubs: [
-          { value: 'Chargers', ar: 'شواحن', kw: ['charger','شاحن','adapter','محول'] },
-          { value: 'Cases', ar: 'كفرات وحافظات', kw: ['case','كفر','cover','حافظة'] },
-          { value: 'PowerBanks', ar: 'باور بانك', kw: ['power bank','باور بانك','بطارية خارجية'] },
-          { value: 'Cables', ar: 'كابلات', kw: ['cable','كابل','usb','hdmi'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
-    ],
-    keywords: ['موبايل','تليفون','iphone','samsung','لابتوب','تابلت','تليفزيون','كاميرا','بلايستيشن','xbox','سماعات'],
   },
 
   'Real Estate': {
     ar: 'عقارات',
     subcategories: [
-      {
-        value: 'Apartments', ar: 'شقق',
-        subsubs: [
-          { value: 'Studio', ar: 'استوديو', kw: ['استوديو','studio','أوضة وريسبشن'] },
-          { value: '1BR', ar: 'غرفة نوم واحدة', kw: ['غرفة واحدة','1 bedroom','1br','اوضة واحدة'] },
-          { value: '2BR', ar: 'غرفتان', kw: ['غرفتين','2 bedroom','2br','اوضتين'] },
-          { value: '3BR', ar: '3 غرف', kw: ['3 غرف','3 bedroom','3br','3 اوض'] },
-          { value: '4BR', ar: '4 غرف فأكثر', kw: ['4 غرف','4 bedroom','4br','4 اوض','5 غرف','5br'] },
-          { value: 'Duplex', ar: 'دوبلكس', kw: ['دوبلكس','duplex'] },
-          { value: 'Penthouse', ar: 'بنتهاوس', kw: ['بنتهاوس','penthouse','روف'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Villas', ar: 'فيلات',
-        subsubs: [
-          { value: 'Independent', ar: 'مستقلة', kw: ['مستقلة','independent','standalone'] },
-          { value: 'Compound', ar: 'كمبوند', kw: ['كمبوند','compound'] },
-          { value: 'TwinHouse', ar: 'توين هاوس', kw: ['توين','twin house'] },
-          { value: 'TownHouse', ar: 'تاون هاوس', kw: ['تاون','town house'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Land', ar: 'أراضي',
-        subsubs: [
-          { value: 'Residential', ar: 'سكنية', kw: ['سكنية','residential'] },
-          { value: 'Commercial', ar: 'تجارية', kw: ['تجارية','commercial'] },
-          { value: 'Agricultural', ar: 'زراعية', kw: ['زراعية','agricultural','مزرعة','farm'] },
-          { value: 'Industrial', ar: 'صناعية', kw: ['صناعية','industrial'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Commercial', ar: 'تجاري',
-        subsubs: [
-          { value: 'Shop', ar: 'محل', kw: ['محل','shop','متجر','store'] },
-          { value: 'Warehouse', ar: 'مخزن', kw: ['مخزن','warehouse','مستودع'] },
-          { value: 'Restaurant', ar: 'مطعم', kw: ['مطعم','restaurant','كافيه','cafe'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Offices', ar: 'مكاتب',
-        subsubs: [
-          { value: 'Private', ar: 'مكتب خاص', kw: ['خاص','private'] },
-          { value: 'Shared', ar: 'مشترك', kw: ['مشترك','shared','coworking'] },
-          { value: 'Floor', ar: 'دور كامل', kw: ['دور','floor'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Rooms', ar: 'غرف',
-        subsubs: [
-          { value: 'Single', ar: 'غرفة مفردة', kw: ['مفردة','single'] },
-          { value: 'Double', ar: 'غرفة مزدوجة', kw: ['مزدوجة','double'] },
-          { value: 'Master', ar: 'ماستر', kw: ['ماستر','master'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
+      { value: 'شقق', ar: 'شقق', subsubs: [{ value: 'استوديو', ar: 'استوديو', kw: ['استوديو','studio'] },{ value: '1 غرفة', ar: '1 غرفة', kw: ['غرفة واحدة','1 bedroom','1br'] },{ value: '2 غرفة', ar: '2 غرفة', kw: ['غرفتين','2 bedroom','2br'] },{ value: '3 غرف', ar: '3 غرف', kw: ['3 غرف','3 bedroom','3br'] },{ value: '4 غرف+', ar: '4 غرف+', kw: ['4 غرف','4 bedroom','4br','5 غرف'] },{ value: 'دوبلكس', ar: 'دوبلكس', kw: ['دوبلكس','duplex'] },{ value: 'بنتهاوس', ar: 'بنتهاوس', kw: ['بنتهاوس','penthouse','روف'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['مفروشة','نصف مفروشة','غير مفروشة','سوبر لوكس','قيد الإنشاء','أخرى'] },
+      { value: 'فيلات ومنازل', ar: 'فيلات ومنازل', subsubs: [{ value: 'فيلا مستقلة', ar: 'فيلا مستقلة', kw: ['فيلا','villa','مستقلة'] },{ value: 'دوبلكس', ar: 'دوبلكس', kw: ['دوبلكس','duplex'] },{ value: 'تاون هاوس', ar: 'تاون هاوس', kw: ['تاون','town house'] },{ value: 'منزل شعبي', ar: 'منزل شعبي', kw: ['منزل شعبي','بيت شعبي'] },{ value: 'شاليه', ar: 'شاليه', kw: ['شاليه','chalet'] },{ value: 'قصر', ar: 'قصر', kw: ['قصر','palace'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['مفروش','غير مفروش','مع مسبح','مع جراج','مشترك','أخرى'] },
+      { value: 'محلات وعيادات', ar: 'محلات وعيادات', subsubs: [{ value: 'محل تجاري', ar: 'محل تجاري', kw: ['محل','shop','متجر','store'] },{ value: 'عيادة طبية', ar: 'عيادة طبية', kw: ['عيادة','clinic'] },{ value: 'صيدلية', ar: 'صيدلية', kw: ['صيدلية','pharmacy'] },{ value: 'كوفي شوب', ar: 'كوفي شوب', kw: ['كوفي','cafe','كافيه'] },{ value: 'مطعم جاهز', ar: 'مطعم جاهز', kw: ['مطعم','restaurant'] },{ value: 'معرض', ar: 'معرض', kw: ['معرض','showroom'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['جاهز للتشغيل','قيد الإنشاء','يحتاج تجهيز','أخرى'] },
+      { value: 'أراضي', ar: 'أراضي', subsubs: [{ value: 'سكنية', ar: 'سكنية', kw: ['سكنية','residential'] },{ value: 'زراعية', ar: 'زراعية', kw: ['زراعية','agricultural','مزرعة'] },{ value: 'تجارية', ar: 'تجارية', kw: ['تجارية','commercial'] },{ value: 'صناعية', ar: 'صناعية', kw: ['صناعية','industrial'] },{ value: 'سياحية', ar: 'سياحية', kw: ['سياحية','touristic'] },{ value: 'صحراوية', ar: 'صحراوية', kw: ['صحراوية','desert'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['مسورة','مع خدمات كاملة','بدون خدمات','مع رخصة بناء','أخرى'] },
+      { value: 'مكاتب وإدارية', ar: 'مكاتب وإدارية', subsubs: [{ value: 'مكتب', ar: 'مكتب', kw: ['مكتب','office'] },{ value: 'طابق إداري كامل', ar: 'طابق إداري كامل', kw: ['طابق','floor'] },{ value: 'شركة مجهزة', ar: 'شركة مجهزة', kw: ['شركة مجهزة','equipped'] },{ value: 'Co-working مشترك', ar: 'Co-working مشترك', kw: ['مشترك','coworking','shared'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['مفروش','غير مفروش','مع إنترنت','بدون تجهيز','أخرى'] },
+      { value: 'مخازن ومستودعات', ar: 'مخازن ومستودعات', subsubs: [{ value: 'مستودع', ar: 'مستودع', kw: ['مستودع','warehouse'] },{ value: 'هنجر', ar: 'هنجر', kw: ['هنجر','hangar'] },{ value: 'ثلاجة تبريد', ar: 'ثلاجة تبريد', kw: ['ثلاجة تبريد','cold storage'] },{ value: 'منطقة لوجستية', ar: 'منطقة لوجستية', kw: ['لوجستية','logistics'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['صغير <500م','متوسط 500-2000م','كبير >2000م','أخرى'] },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
     ],
-    keywords: ['شقة','فيلا','أرض','مكتب','محل','عقار','apartment','villa','land','office','room'],
+    keywords: ['شقة','فيلا','أرض','مكتب','محل','عقار','apartment','villa','land','office'],
+  },
+
+  Electronics: {
+    ar: 'إلكترونيات',
+    subcategories: [
+      { value: 'موبايلات', ar: 'موبايلات', subsubs: [{ value: 'آيفون', ar: 'آيفون', kw: ['iphone','ايفون','آيفون'] },{ value: 'سامسونج', ar: 'سامسونج', kw: ['samsung','سامسونج','galaxy'] },{ value: 'شاومي', ar: 'شاومي', kw: ['xiaomi','شاومي','redmi','poco'] },{ value: 'هواوي', ar: 'هواوي', kw: ['huawei','هواوي'] },{ value: 'أوبو', ar: 'أوبو', kw: ['oppo','أوبو'] },{ value: 'فيفو', ar: 'فيفو', kw: ['vivo','فيفو'] },{ value: 'ريلمي', ar: 'ريلمي', kw: ['realme','ريلمي'] },{ value: 'جوجل بيكسل', ar: 'جوجل بيكسل', kw: ['pixel','بيكسل','google phone'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['64GB','128GB','256GB','512GB','1TB','أخرى'] },
+      { value: 'لابتوب', ar: 'لابتوب', subsubs: [{ value: 'HP', ar: 'HP', kw: ['hp','هي بي','hewlett'] },{ value: 'ديل', ar: 'ديل', kw: ['dell','ديل','xps','inspiron'] },{ value: 'لينوفو', ar: 'لينوفو', kw: ['lenovo','لينوفو','thinkpad','ideapad'] },{ value: 'أسوس', ar: 'أسوس', kw: ['asus','اسوس','zenbook','vivobook'] },{ value: 'أيسر', ar: 'أيسر', kw: ['acer','ايسر','aspire','nitro'] },{ value: 'ماك/آبل', ar: 'ماك/آبل', kw: ['macbook','ماك','apple laptop','mac'] },{ value: 'سامسونج', ar: 'سامسونج', kw: ['samsung laptop','سامسونج لابتوب'] },{ value: 'MSI', ar: 'MSI', kw: ['msi','gaming laptop','omen','alienware','legion'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['Core i3/Ryzen 3','Core i5/Ryzen 5','Core i7/Ryzen 7','Core i9/Ryzen 9','Apple M-Series','أخرى'] },
+      { value: 'تلفزيونات وشاشات', ar: 'تلفزيونات وشاشات', subsubs: [{ value: 'OLED', ar: 'OLED', kw: ['oled'] },{ value: 'QLED/AMOLED', ar: 'QLED/AMOLED', kw: ['qled','amoled'] },{ value: 'LED ذكي', ar: 'LED ذكي', kw: ['smart','سمارت','led tv','android tv'] },{ value: 'شاشة كمبيوتر', ar: 'شاشة كمبيوتر', kw: ['monitor','شاشة كمبيوتر','شاشة pc'] },{ value: 'بروجيكتور', ar: 'بروجيكتور', kw: ['projector','بروجيكتور','data show'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['32 بوصة','43 بوصة','55 بوصة','65 بوصة','75 بوصة+','أخرى'] },
+      { value: 'كاميرات', ar: 'كاميرات', subsubs: [{ value: 'DSLR/ميرورليس', ar: 'DSLR/ميرورليس', kw: ['dslr','mirrorless','ميرورليس','canon','nikon','sony alpha'] },{ value: 'كاميرا مراقبة', ar: 'كاميرا مراقبة', kw: ['مراقبة','security','cctv','ip camera'] },{ value: 'أكشن كام GoPro', ar: 'أكشن كام GoPro', kw: ['gopro','action','أكشن'] },{ value: 'طائرة/درون', ar: 'طائرة/درون', kw: ['drone','درون','طائرة مسيرة','dji'] },{ value: 'كاميرا فيديو', ar: 'كاميرا فيديو', kw: ['video camera','كاميرا فيديو','camcorder'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['كانون','نيكون','سوني','فوجي فيلم','باناسونيك','DJI','أخرى'] },
+      { value: 'أجهزة منزلية', ar: 'أجهزة منزلية', subsubs: [{ value: 'ثلاجة', ar: 'ثلاجة', kw: ['ثلاجة','fridge','refrigerator'] },{ value: 'غسالة', ar: 'غسالة', kw: ['غسالة','washing machine','washer'] },{ value: 'تكييف مسبليت', ar: 'تكييف مسبليت', kw: ['تكييف','split','ac','air condition'] },{ value: 'بوتاجاز وأفران', ar: 'بوتاجاز وأفران', kw: ['بوتاجاز','أفران','oven','cooker'] },{ value: 'مكيف شباك', ar: 'مكيف شباك', kw: ['مكيف شباك','window ac'] },{ value: 'مكنسة كهربائية', ar: 'مكنسة كهربائية', kw: ['مكنسة','vacuum'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['LG','سامسونج','كاريير','شارب','توشيبا','أريستون','أخرى'] },
+      { value: 'ألعاب إلكترونية', ar: 'ألعاب إلكترونية', subsubs: [{ value: 'بلايستيشن', ar: 'بلايستيشن', kw: ['playstation','بلايستيشن','ps4','ps5','ps3'] },{ value: 'إكس بوكس', ar: 'إكس بوكس', kw: ['xbox','اكس بوكس'] },{ value: 'نينتندو', ar: 'نينتندو', kw: ['nintendo','نينتندو','switch'] },{ value: 'ألعاب PC', ar: 'ألعاب PC', kw: ['pc gaming','gaming pc','rtx','gtx'] },{ value: 'اكسسوارات جيمنج', ar: 'اكسسوارات جيمنج', kw: ['controller','يد تحكم','headset','gaming chair'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['جديد','مستعمل','للإيجار','أخرى'] },
+      { value: 'اكسسوارات وصوتيات', ar: 'اكسسوارات وصوتيات', subsubs: [{ value: 'سماعات', ar: 'سماعات', kw: ['headphone','سماعة','airpods','earbuds','tws'] },{ value: 'مكبرات صوت', ar: 'مكبرات صوت', kw: ['speaker','سبيكر','jbl','marshall'] },{ value: 'تابلت', ar: 'تابلت', kw: ['ipad','آيباد','tablet','تابلت'] },{ value: 'ساعات ذكية', ar: 'ساعات ذكية', kw: ['smartwatch','ساعة ذكية','apple watch'] },{ value: 'شواحن وباورة', ar: 'شواحن وباورة', kw: ['charger','شاحن','power bank','باور بانك'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['أصلي','ثيرد بارتي','مستعمل','أخرى'] },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
+    ],
+    keywords: ['موبايل','تليفون','iphone','samsung','لابتوب','تابلت','تليفزيون','كاميرا','بلايستيشن','xbox','سماعات'],
   },
 
   Jobs: {
     ar: 'وظائف',
     subcategories: [
-      {
-        value: 'FullTime', ar: 'دوام كامل',
-        subsubs: [
-          { value: 'IT', ar: 'تكنولوجيا', kw: ['developer','مطور','programmer','مبرمج','software','it','tech'] },
-          { value: 'Engineering', ar: 'هندسة', kw: ['engineer','مهندس','engineering','هندسة'] },
-          { value: 'Medical', ar: 'طبي', kw: ['doctor','طبيب','nurse','ممرض','medical','طبي','صيدلاني'] },
-          { value: 'Marketing', ar: 'تسويق', kw: ['marketing','تسويق','social media','سوشيال'] },
-          { value: 'Finance', ar: 'مالية ومحاسبة', kw: ['accountant','محاسب','finance','مالية','محاسبة'] },
-          { value: 'Education', ar: 'تعليم', kw: ['teacher','مدرس','lecturer','أستاذ','education'] },
-          { value: 'Sales', ar: 'مبيعات', kw: ['sales','مبيعات','مندوب'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'PartTime', ar: 'دوام جزئي',
-        subsubs: [
-          { value: 'Delivery', ar: 'توصيل', kw: ['delivery','توصيل','مندوب توصيل'] },
-          { value: 'Tutoring', ar: 'دروس خصوصية', kw: ['دروس','tutoring','مدرس خصوصي'] },
-          { value: 'CustomerService', ar: 'خدمة عملاء', kw: ['customer service','خدمة عملاء','call center','كول سنتر'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Freelance', ar: 'فريلانس',
-        subsubs: [
-          { value: 'Design', ar: 'تصميم', kw: ['design','تصميم','graphic','جرافيك','ui','ux'] },
-          { value: 'Development', ar: 'برمجة', kw: ['develop','برمجة','code','كود','web','mobile app'] },
-          { value: 'Writing', ar: 'كتابة محتوى', kw: ['writing','كتابة','content','محتوى','copywriting'] },
-          { value: 'Translation', ar: 'ترجمة', kw: ['translation','ترجمة','translate','مترجم'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Internship', ar: 'تدريب',
-        subsubs: [
-          { value: 'Technical', ar: 'تقني', kw: ['technical','تقني','engineering intern'] },
-          { value: 'Business', ar: 'أعمال', kw: ['business','أعمال','management'] },
-          { value: 'Creative', ar: 'إبداعي', kw: ['creative','إبداعي','design intern','media'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Remote', ar: 'عن بُعد',
-        subsubs: [
-          { value: 'Development', ar: 'برمجة', kw: ['develop','برمجة','code'] },
-          { value: 'CustomerService', ar: 'خدمة عملاء', kw: ['customer service','خدمة عملاء'] },
-          { value: 'Content', ar: 'محتوى', kw: ['content','محتوى','writing','social media'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
+      { value: 'تقنية ومعلومات', ar: 'تقنية ومعلومات', subsubs: [{ value: 'مطور برامج', ar: 'مطور برامج', kw: ['developer','مطور','programmer','مبرمج','software'] },{ value: 'مصمم UI/UX', ar: 'مصمم UI/UX', kw: ['ui','ux','مصمم','design'] },{ value: 'شبكات وأمن', ar: 'شبكات وأمن', kw: ['network','شبكات','security','أمن'] },{ value: 'دعم تقني', ar: 'دعم تقني', kw: ['support','دعم تقني','help desk'] },{ value: 'بيانات وذكاء اصطناعي', ar: 'بيانات وذكاء اصطناعي', kw: ['data','بيانات','ai','ذكاء اصطناعي'] },{ value: 'مدير مشاريع', ar: 'مدير مشاريع', kw: ['project manager','مدير مشاريع','pm'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['دوام كامل','دوام جزئي','عن بُعد','عقد محدد','تدريب','أخرى'] },
+      { value: 'طبي وصحة', ar: 'طبي وصحة', subsubs: [{ value: 'طبيب', ar: 'طبيب', kw: ['doctor','طبيب','physician'] },{ value: 'صيدلاني', ar: 'صيدلاني', kw: ['pharmacist','صيدلاني'] },{ value: 'تمريض', ar: 'تمريض', kw: ['nurse','ممرض','تمريض'] },{ value: 'معالج طبيعي', ar: 'معالج طبيعي', kw: ['physiotherapy','معالج'] },{ value: 'أسنان', ar: 'أسنان', kw: ['dentist','أسنان','dental'] },{ value: 'مختبر', ar: 'مختبر', kw: ['lab','مختبر','laboratory'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['دوام كامل','دوام جزئي','عيادة خاصة','مستشفى حكومي','أخرى'] },
+      { value: 'تعليم وتدريب', ar: 'تعليم وتدريب', subsubs: [{ value: 'مدرس', ar: 'مدرس', kw: ['teacher','مدرس'] },{ value: 'مدرب', ar: 'مدرب', kw: ['trainer','مدرب'] },{ value: 'أستاذ جامعي', ar: 'أستاذ جامعي', kw: ['professor','أستاذ','lecturer'] },{ value: 'معلم لغات', ar: 'معلم لغات', kw: ['language','لغات','english teacher'] },{ value: 'مشرف تربوي', ar: 'مشرف تربوي', kw: ['supervisor','مشرف تربوي'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['حضوري','أونلاين','هجين','خاص','مجموعات','أخرى'] },
+      { value: 'هندسة', ar: 'هندسة', subsubs: [{ value: 'مدني وإنشائي', ar: 'مدني وإنشائي', kw: ['civil','مدني','إنشائي'] },{ value: 'كهرباء', ar: 'كهرباء', kw: ['electrical engineer','مهندس كهرباء'] },{ value: 'ميكانيكا', ar: 'ميكانيكا', kw: ['mechanical','ميكانيكا'] },{ value: 'معماري', ar: 'معماري', kw: ['architect','معماري'] },{ value: 'بترول', ar: 'بترول', kw: ['petroleum','بترول','oil'] },{ value: 'كيميائي', ar: 'كيميائي', kw: ['chemical','كيميائي'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['دوام كامل','عقد','مشروع','عن بُعد','أخرى'] },
+      { value: 'مبيعات وتسويق', ar: 'مبيعات وتسويق', subsubs: [{ value: 'مندوب مبيعات', ar: 'مندوب مبيعات', kw: ['sales','مبيعات','مندوب'] },{ value: 'مسوق رقمي', ar: 'مسوق رقمي', kw: ['digital marketing','تسويق رقمي'] },{ value: 'مدير مبيعات', ar: 'مدير مبيعات', kw: ['sales manager','مدير مبيعات'] },{ value: 'خدمة عملاء', ar: 'خدمة عملاء', kw: ['customer service','خدمة عملاء','call center'] },{ value: 'تيليسيلز', ar: 'تيليسيلز', kw: ['telesales','تيليسيلز'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['براتب ثابت','عمولة','راتب + عمولة','أخرى'] },
+      { value: 'مالي ومحاسبة', ar: 'مالي ومحاسبة', subsubs: [{ value: 'محاسب', ar: 'محاسب', kw: ['accountant','محاسب'] },{ value: 'مدقق حسابات', ar: 'مدقق حسابات', kw: ['auditor','مدقق'] },{ value: 'محلل مالي', ar: 'محلل مالي', kw: ['financial analyst','محلل مالي'] },{ value: 'مسؤول مشتريات', ar: 'مسؤول مشتريات', kw: ['procurement','مشتريات'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['دوام كامل','دوام جزئي','عقد','أخرى'] },
+      { value: 'خدمات عامة وعمالة', ar: 'خدمات عامة وعمالة', subsubs: [{ value: 'نظافة وتنظيف', ar: 'نظافة وتنظيف', kw: ['تنظيف','cleaning','نظافة'] },{ value: 'حارس وأمن', ar: 'حارس وأمن', kw: ['security','حارس','أمن'] },{ value: 'سائق', ar: 'سائق', kw: ['driver','سائق'] },{ value: 'طباخ', ar: 'طباخ', kw: ['cook','طباخ','chef'] },{ value: 'خادمة', ar: 'خادمة', kw: ['maid','خادمة'] },{ value: 'عامل مصنع', ar: 'عامل مصنع', kw: ['worker','عامل','factory'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['إقامة + راتب','بدون إقامة','يومي','شهري','أخرى'] },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
     ],
     keywords: ['وظيفة','مطلوب','فرصة عمل','دوام','freelance','job','work','hiring'],
   },
@@ -294,136 +136,43 @@ export const CATEGORIES = {
   Services: {
     ar: 'خدمات',
     subcategories: [
-      {
-        value: 'HomeServices', ar: 'خدمات منزلية',
-        subsubs: [
-          { value: 'Plumber', ar: 'سباكة', kw: ['سباك','plumber','سباكة','مواسير','تسريب'] },
-          { value: 'Electrician', ar: 'كهرباء', kw: ['كهربائي','electrician','كهرباء'] },
-          { value: 'Carpenter', ar: 'نجارة', kw: ['نجار','carpenter','نجارة','خشب'] },
-          { value: 'Painter', ar: 'دهانات', kw: ['دهان','painter','صبغ','paint'] },
-          { value: 'ACRepair', ar: 'تكييف', kw: ['تكييف','ac','air condition','مكيف'] },
-          { value: 'PestControl', ar: 'مكافحة حشرات', kw: ['حشرات','pest','نمل','صراصير','فئران'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Cleaning', ar: 'تنظيف',
-        subsubs: [
-          { value: 'HomeCleaning', ar: 'تنظيف منازل', kw: ['تنظيف منزل','تنظيف شقة','home cleaning'] },
-          { value: 'OfficeCleaning', ar: 'تنظيف مكاتب', kw: ['تنظيف مكتب','office cleaning'] },
-          { value: 'CarWash', ar: 'غسيل سيارات', kw: ['غسيل سيارة','car wash','غسيل عربية'] },
-          { value: 'SofaCleaning', ar: 'تنظيف أثاث', kw: ['سجاد','كنبة','sofa','carpet','موكيت'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Repairs', ar: 'إصلاح وصيانة',
-        subsubs: [
-          { value: 'Electronics', ar: 'إصلاح إلكترونيات', kw: ['تصليح موبايل','تصليح لابتوب','شاشة مكسورة','repair phone'] },
-          { value: 'Appliances', ar: 'إصلاح أجهزة', kw: ['تصليح غسالة','تصليح ثلاجة','تصليح تكييف','appliance repair'] },
-          { value: 'Furniture', ar: 'إصلاح أثاث', kw: ['تصليح أثاث','كنبة','furniture repair'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Education', ar: 'تعليم ودروس',
-        subsubs: [
-          { value: 'Math', ar: 'رياضيات', kw: ['رياضيات','math','حساب','جبر'] },
-          { value: 'Science', ar: 'علوم', kw: ['علوم','science','فيزياء','كيمياء','أحياء'] },
-          { value: 'Languages', ar: 'لغات', kw: ['لغة إنجليزية','english','french','فرنسي','arabic','عربي'] },
-          { value: 'Quran', ar: 'قرآن وتجويد', kw: ['قرآن','quran','تجويد','حفظ'] },
-          { value: 'Music', ar: 'موسيقى', kw: ['موسيقى','music','guitar','piano','عزف'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Health', ar: 'صحة وجمال',
-        subsubs: [
-          { value: 'Fitness', ar: 'لياقة بدنية', kw: ['جيم','gym','fitness','تدريب شخصي','personal trainer'] },
-          { value: 'Nutrition', ar: 'تغذية', kw: ['تغذية','nutrition','diet','رجيم'] },
-          { value: 'Salon', ar: 'صالون', kw: ['صالون','salon','حلاق','coiffure','تسريحة'] },
-          { value: 'Spa', ar: 'سبا ومساج', kw: ['سبا','spa','مساج','massage'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Transport', ar: 'نقل وشحن',
-        subsubs: [
-          { value: 'FurnitureMoving', ar: 'نقل أثاث', kw: ['نقل أثاث','نقل عفش','furniture moving'] },
-          { value: 'Delivery', ar: 'توصيل طلبات', kw: ['توصيل','delivery','شحن','shipping'] },
-          { value: 'AirportTransfer', ar: 'توصيل مطار', kw: ['مطار','airport','transfer'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Design', ar: 'تصميم وطباعة',
-        subsubs: [
-          { value: 'LogoDesign', ar: 'تصميم شعار', kw: ['لوجو','logo','شعار','brand'] },
-          { value: 'Print', ar: 'طباعة', kw: ['طباعة','print','بروشور','بنر','banner'] },
-          { value: 'WebDesign', ar: 'تصميم مواقع', kw: ['موقع','website','web design','landing page'] },
-          { value: 'Video', ar: 'فيديو وموشن', kw: ['فيديو','video','motion','animation','مونتاج'] },
-          { value: 'Photography', ar: 'تصوير', kw: ['تصوير','photography','photographer'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
+      { value: 'صيانة ومقاولات', ar: 'صيانة ومقاولات', subsubs: [{ value: 'كهرباء', ar: 'كهرباء', kw: ['كهربائي','electrician','كهرباء'] },{ value: 'سباكة', ar: 'سباكة', kw: ['سباك','plumber','سباكة','مواسير'] },{ value: 'نجارة', ar: 'نجارة', kw: ['نجار','carpenter','نجارة','خشب'] },{ value: 'بياض ودهانات', ar: 'بياض ودهانات', kw: ['دهان','painter','صبغ','بياض'] },{ value: 'تكييف', ar: 'تكييف', kw: ['تكييف','ac','air condition','مكيف'] },{ value: 'سيراميك وبلاط', ar: 'سيراميك وبلاط', kw: ['سيراميك','بلاط','tiles'] },{ value: 'حدادة', ar: 'حدادة', kw: ['حداد','حدادة','welding','لحام'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['منزلي','تجاري','صناعي','طارئ 24 ساعة','أخرى'] },
+      { value: 'نقل وشحن', ar: 'نقل وشحن', subsubs: [{ value: 'نقل أثاث', ar: 'نقل أثاث', kw: ['نقل أثاث','نقل عفش','furniture moving'] },{ value: 'شحن دولي', ar: 'شحن دولي', kw: ['شحن دولي','international shipping'] },{ value: 'توصيل طرود', ar: 'توصيل طرود', kw: ['توصيل','delivery','طرود'] },{ value: 'نقل سيارات', ar: 'نقل سيارات', kw: ['نقل سيارات','car transport'] },{ value: 'مطار', ar: 'مطار', kw: ['مطار','airport','transfer'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['داخل المدينة','بين مدن','دولي','أخرى'] },
+      { value: 'تعليم وتدريس', ar: 'تعليم وتدريس', subsubs: [{ value: 'دروس خصوصية', ar: 'دروس خصوصية', kw: ['دروس','tutoring','مدرس خصوصي'] },{ value: 'تدريب مهني', ar: 'تدريب مهني', kw: ['تدريب مهني','vocational'] },{ value: 'لغات أجنبية', ar: 'لغات أجنبية', kw: ['لغة إنجليزية','english','french','لغات'] },{ value: 'تحفيظ قرآن', ar: 'تحفيظ قرآن', kw: ['قرآن','quran','تجويد','حفظ'] },{ value: 'فنون وموسيقى', ar: 'فنون وموسيقى', kw: ['موسيقى','music','فنون','guitar','piano'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['في المنزل','أونلاين','في مركز','أخرى'] },
+      { value: 'تصميم وإعلام', ar: 'تصميم وإعلام', subsubs: [{ value: 'تصميم جرافيك', ar: 'تصميم جرافيك', kw: ['تصميم','design','graphic','جرافيك'] },{ value: 'تصوير فوتوغرافي', ar: 'تصوير فوتوغرافي', kw: ['تصوير','photography','photographer'] },{ value: 'إنتاج فيديو', ar: 'إنتاج فيديو', kw: ['فيديو','video','production','مونتاج'] },{ value: 'برمجة مواقع', ar: 'برمجة مواقع', kw: ['موقع','website','web','برمجة'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['مشروع كامل','بالساعة','اشتراك شهري','أخرى'] },
+      { value: 'رعاية ومنزل', ar: 'رعاية ومنزل', subsubs: [{ value: 'تمريض منزلي', ar: 'تمريض منزلي', kw: ['تمريض منزلي','home nursing'] },{ value: 'رعاية أطفال', ar: 'رعاية أطفال', kw: ['رعاية أطفال','babysitter','حضانة'] },{ value: 'تنظيف منازل', ar: 'تنظيف منازل', kw: ['تنظيف منزل','home cleaning'] },{ value: 'طهو وضيافة', ar: 'طهو وضيافة', kw: ['طبخ','طباخ','catering','ضيافة'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['يومي','أسبوعي','شهري','دوام كامل','أخرى'] },
+      { value: 'حيوانات أليفة', ar: 'حيوانات أليفة', subsubs: [{ value: 'تدريب حيوانات', ar: 'تدريب حيوانات', kw: ['تدريب حيوانات','pet training'] },{ value: 'تزيين وعناية', ar: 'تزيين وعناية', kw: ['grooming','تزيين','عناية حيوانات'] },{ value: 'بيطري متنقل', ar: 'بيطري متنقل', kw: ['بيطري','vet','veterinary'] },{ value: 'رعاية مؤقتة', ar: 'رعاية مؤقتة', kw: ['pet sitting','رعاية مؤقتة'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['كلاب','قطط','طيور','أخرى'] },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
     ],
     keywords: ['سباك','كهربائي','نجار','نقل','تنظيف','دروس','مدرس','تصليح','خدمة','صيانة'],
+  },
+
+  Fashion: {
+    ar: 'موضة',
+    subcategories: [
+      { value: 'ملابس رجالي', ar: 'ملابس رجالي', subsubs: [{ value: 'قميص', ar: 'قميص', kw: ['قميص','shirt'] },{ value: 'بنطلون', ar: 'بنطلون', kw: ['بنطلون','pants','trouser'] },{ value: 'جلابية/جلباب', ar: 'جلابية/جلباب', kw: ['جلابية','جلباب','galabeya'] },{ value: 'بدلة', ar: 'بدلة', kw: ['بدلة','suit','طقم'] },{ value: 'تيشيرت', ar: 'تيشيرت', kw: ['تيشيرت','t-shirt','tshirt'] },{ value: 'جاكيت معطف', ar: 'جاكيت معطف', kw: ['جاكيت','معطف','jacket','coat'] },{ value: 'كاجوال', ar: 'كاجوال', kw: ['كاجوال','casual'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['S','M','L','XL','XXL','3XL+','Free Size','أخرى'] },
+      { value: 'ملابس نسائي', ar: 'ملابس نسائي', subsubs: [{ value: 'فستان', ar: 'فستان', kw: ['فستان','dress'] },{ value: 'بلوزة', ar: 'بلوزة', kw: ['بلوزة','blouse','top'] },{ value: 'تنورة', ar: 'تنورة', kw: ['تنورة','skirt'] },{ value: 'بنطلون', ar: 'بنطلون', kw: ['بنطلون نسائي','women pants'] },{ value: 'عباءة', ar: 'عباءة', kw: ['عباءة','abaya'] },{ value: 'بيجاما', ar: 'بيجاما', kw: ['بيجاما','pajama'] },{ value: 'كاجوال', ar: 'كاجوال', kw: ['كاجوال نسائي','women casual'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['S','M','L','XL','XXL','3XL+','Free Size','أخرى'] },
+      { value: 'ملابس أطفال', ar: 'ملابس أطفال', subsubs: [{ value: 'بيبي 0-2سنة', ar: 'بيبي 0-2سنة', kw: ['مواليد','baby','رضيع','0-2'] },{ value: 'أطفال 2-6سنة', ar: 'أطفال 2-6سنة', kw: ['أطفال صغار','2-6','kids'] },{ value: 'أطفال 6-12سنة', ar: 'أطفال 6-12سنة', kw: ['أطفال','6-12'] },{ value: 'تيجز 12-16سنة', ar: 'تيجز 12-16سنة', kw: ['تيجز','teen','12-16'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['بنات','أولاد','للاثنين','أخرى'] },
+      { value: 'أحذية', ar: 'أحذية', subsubs: [{ value: 'رجالي', ar: 'رجالي', kw: ['حذاء رجالي','men shoes'] },{ value: 'نسائي', ar: 'نسائي', kw: ['حذاء نسائي','women shoes','كعب'] },{ value: 'أطفال', ar: 'أطفال', kw: ['حذاء أطفال','kids shoes'] },{ value: 'رياضي', ar: 'رياضي', kw: ['سنيكرز','sneakers','كوتشي','nike shoes'] },{ value: 'رسمي', ar: 'رسمي', kw: ['جزمة رسمية','formal shoes','oxford'] },{ value: 'شبشب', ar: 'شبشب', kw: ['صندل','sandal','شبشب','slippers'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['36','37','38','39','40','41','42','43','44','45','46+','أخرى'] },
+      { value: 'حقائب وشنط', ar: 'حقائب وشنط', subsubs: [{ value: 'شنطة يد', ar: 'شنطة يد', kw: ['حقيبة يد','handbag','شنطة يد'] },{ value: 'حقيبة ظهر', ar: 'حقيبة ظهر', kw: ['شنطة ظهر','backpack','حقيبة ظهر'] },{ value: 'حقيبة سفر', ar: 'حقيبة سفر', kw: ['شنطة سفر','travel bag','trolley'] },{ value: 'محفظة', ar: 'محفظة', kw: ['محفظة','wallet','بورتفيه'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['جلد طبيعي','جلد صناعي','قماش','أخرى'] },
+      { value: 'اكسسوارات', ar: 'اكسسوارات', subsubs: [{ value: 'ساعات', ar: 'ساعات', kw: ['ساعة','watch','rolex','casio'] },{ value: 'مجوهرات', ar: 'مجوهرات', kw: ['مجوهرات','jewelry','خاتم','عقد','ذهب','فضة'] },{ value: 'نظارات', ar: 'نظارات', kw: ['نظارة','sunglasses','ray ban'] },{ value: 'أحزمة', ar: 'أحزمة', kw: ['حزام','belt'] },{ value: 'عطور', ar: 'عطور', kw: ['عطر','perfume'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['رجالي','نسائي','للاثنين','أخرى'] },
+      { value: 'عباءات وحجاب', ar: 'عباءات وحجاب', subsubs: [{ value: 'عباءة خليجية', ar: 'عباءة خليجية', kw: ['عباءة خليجية','gulf abaya'] },{ value: 'عباءة مصرية', ar: 'عباءة مصرية', kw: ['عباءة مصرية','egyptian abaya'] },{ value: 'حجاب وإيشارب', ar: 'حجاب وإيشارب', kw: ['حجاب','إيشارب','scarf'] },{ value: 'خمار ونقاب', ar: 'خمار ونقاب', kw: ['خمار','نقاب','niqab'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: ['قطن','شيفون','كريب','جورجيت','أخرى'] },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
+    ],
+    keywords: ['ملابس','فستان','قميص','بنطلون','حذاء','شنطة','إكسسوار','fashion','clothes'],
   },
 
   Supermarket: {
     ar: 'سوبرماركت',
     subcategories: [
-      {
-        value: 'Food', ar: 'مواد غذائية',
-        subsubs: [
-          { value: 'Fresh', ar: 'طازج (خضار ولحوم)', kw: ['خضار','لحم','فراخ','سمك','فواكه','طازج','fresh'] },
-          { value: 'Dairy', ar: 'ألبان وبيض', kw: ['لبن','جبن','زبادي','بيض','dairy'] },
-          { value: 'Bakery', ar: 'مخبوزات', kw: ['عيش','خبز','بسكويت','كيك','bread','bakery'] },
-          { value: 'Canned', ar: 'معلبات', kw: ['معلبات','canned','فول','طماطم معلبة'] },
-          { value: 'Snacks', ar: 'سناكس', kw: ['سناكس','snacks','شيبسي','شوكولاتة'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Beverages', ar: 'مشروبات',
-        subsubs: [
-          { value: 'Juice', ar: 'عصائر', kw: ['عصير','juice'] },
-          { value: 'Water', ar: 'مياه', kw: ['مياه','water'] },
-          { value: 'SoftDrinks', ar: 'مشروبات غازية', kw: ['غازي','كولا','pepsi','cola','soft drink'] },
-          { value: 'Energy', ar: 'طاقة', kw: ['طاقة','energy','redbull','monster'] },
-          { value: 'HotDrinks', ar: 'مشروبات ساخنة', kw: ['قهوة','شاي','coffee','tea','نسكافيه'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'PersonalCare', ar: 'عناية شخصية',
-        subsubs: [
-          { value: 'Skincare', ar: 'عناية بالبشرة', kw: ['كريم','بشرة','skincare','cream','moisturizer'] },
-          { value: 'HairCare', ar: 'عناية بالشعر', kw: ['شامبو','شعر','shampoo','hair'] },
-          { value: 'OralCare', ar: 'عناية بالأسنان', kw: ['معجون أسنان','فرشة أسنان','toothpaste','oral'] },
-          { value: 'Hygiene', ar: 'نظافة شخصية', kw: ['صابون','soap','deodorant','مزيل عرق'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Household', ar: 'منزلية',
-        subsubs: [
-          { value: 'Cleaning', ar: 'منظفات', kw: ['منظف','detergent','cleaning product','مسحوق غسيل'] },
-          { value: 'Kitchen', ar: 'أدوات مطبخ', kw: ['مطبخ','طاسة','حلة','kitchen','cookware'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'BabyProducts', ar: 'منتجات أطفال',
-        subsubs: [
-          { value: 'Diapers', ar: 'حفاضات', kw: ['حفاض','diaper','pampers'] },
-          { value: 'BabyFood', ar: 'أغذية أطفال', kw: ['أكل أطفال','baby food','بامبرز أكل'] },
-          { value: 'BabyToys', ar: 'ألعاب أطفال', kw: ['لعبة أطفال','baby toy'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
+      { value: 'خضروات وفاكهة', ar: 'خضروات وفاكهة', subsubs: [{ value: 'خضروات', ar: 'خضروات', kw: ['خضار','خضروات','vegetables'] },{ value: 'فاكهة', ar: 'فاكهة', kw: ['فواكه','فاكهة','fruit'] },{ value: 'أعشاب', ar: 'أعشاب', kw: ['أعشاب','herbs'] },{ value: 'بهارات', ar: 'بهارات', kw: ['بهارات','spices'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'لحوم ودواجن', ar: 'لحوم ودواجن', subsubs: [{ value: 'لحم بقري', ar: 'لحم بقري', kw: ['لحم بقري','beef'] },{ value: 'دجاج', ar: 'دجاج', kw: ['دجاج','فراخ','chicken'] },{ value: 'لحم خروف', ar: 'لحم خروف', kw: ['لحم خروف','خاروف','lamb'] },{ value: 'مفروم', ar: 'مفروم', kw: ['مفروم','minced'] },{ value: 'مشكل', ar: 'مشكل', kw: ['مشكل','mixed meat'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'أسماك ومأكولات بحرية', ar: 'أسماك ومأكولات بحرية', subsubs: [{ value: 'بلطي', ar: 'بلطي', kw: ['بلطي','tilapia'] },{ value: 'جمبري', ar: 'جمبري', kw: ['جمبري','shrimp'] },{ value: 'تونا', ar: 'تونا', kw: ['تونا','tuna'] },{ value: 'سمك مشكل', ar: 'سمك مشكل', kw: ['سمك مشكل','mixed fish'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'منتجات الألبان', ar: 'منتجات الألبان', subsubs: [{ value: 'جبنة', ar: 'جبنة', kw: ['جبنة','cheese'] },{ value: 'زبادي', ar: 'زبادي', kw: ['زبادي','yogurt'] },{ value: 'لبن', ar: 'لبن', kw: ['لبن','milk'] },{ value: 'زبدة', ar: 'زبدة', kw: ['زبدة','butter'] },{ value: 'قشطة', ar: 'قشطة', kw: ['قشطة','cream'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'مواد جافة وتموين', ar: 'مواد جافة وتموين', subsubs: [{ value: 'أرز وبقوليات', ar: 'أرز وبقوليات', kw: ['أرز','rice','بقوليات','عدس'] },{ value: 'معكرونة ومكرونة', ar: 'معكرونة ومكرونة', kw: ['مكرونة','معكرونة','pasta'] },{ value: 'دقيق وسكر', ar: 'دقيق وسكر', kw: ['دقيق','سكر','flour','sugar'] },{ value: 'كونسروة', ar: 'كونسروة', kw: ['معلبات','كونسروة','canned'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'مشروبات', ar: 'مشروبات', subsubs: [{ value: 'عصائر', ar: 'عصائر', kw: ['عصير','juice'] },{ value: 'مياه', ar: 'مياه', kw: ['مياه','water'] },{ value: 'مشروبات غازية', ar: 'مشروبات غازية', kw: ['غازي','كولا','pepsi','cola'] },{ value: 'عصير طازج', ar: 'عصير طازج', kw: ['عصير طازج','fresh juice'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'منظفات ومنزلية', ar: 'منظفات ومنزلية', subsubs: [{ value: 'صابون ومنظفات', ar: 'صابون ومنظفات', kw: ['صابون','منظف','detergent'] },{ value: 'مناشف ومفارش', ar: 'مناشف ومفارش', kw: ['مناشف','مفارش','towel'] },{ value: 'أدوات مطبخ', ar: 'أدوات مطبخ', kw: ['مطبخ','kitchen','طاسة'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
     ],
     keywords: ['غذاء','أكل','مشروب','عناية','منظف','سوبرماركت','food','grocery'],
   },
@@ -431,35 +180,12 @@ export const CATEGORIES = {
   Pharmacy: {
     ar: 'صيدلية',
     subcategories: [
-      {
-        value: 'Medicines', ar: 'أدوية',
-        subsubs: [
-          { value: 'OTC', ar: 'أدوية بدون وصفة', kw: ['بدون وصفة','otc','مسكن','panadol','مضاد حيوي'] },
-          { value: 'Vitamins', ar: 'فيتامينات', kw: ['فيتامين','vitamin','c','d','b12','zinc'] },
-          { value: 'Herbal', ar: 'أعشاب', kw: ['أعشاب','herbal','natural','طبيعي'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'MedicalDevices', ar: 'أجهزة طبية',
-        subsubs: [
-          { value: 'BloodPressure', ar: 'جهاز ضغط', kw: ['ضغط','blood pressure','omron'] },
-          { value: 'BloodSugar', ar: 'جهاز سكر', kw: ['سكر','glucose','blood sugar','glucometer'] },
-          { value: 'Thermometer', ar: 'ترمومتر', kw: ['ترمومتر','thermometer','حرارة'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Supplements', ar: 'مكملات غذائية',
-        subsubs: [
-          { value: 'Protein', ar: 'بروتين', kw: ['بروتين','protein','whey','casein'] },
-          { value: 'WeightLoss', ar: 'تخسيس', kw: ['تخسيس','weight loss','حرق دهون','fat burner'] },
-          { value: 'MuscleBuilding', ar: 'بناء عضلات', kw: ['عضلات','muscle','creatine','pre workout'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      { value: 'BabyHealth', ar: 'صحة الأطفال', subsubs: [{ value: 'Other', ar: 'أخرى', kw: [] }] },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
+      { value: 'أدوية وعلاج', ar: 'أدوية وعلاج', subsubs: [{ value: 'مسكنات', ar: 'مسكنات', kw: ['مسكن','panadol','paracetamol'] },{ value: 'مضادات حيوية', ar: 'مضادات حيوية', kw: ['مضاد حيوي','antibiotic'] },{ value: 'ضغط وسكر', ar: 'ضغط وسكر', kw: ['ضغط','سكر','blood pressure','glucose'] },{ value: 'قلب وشرايين', ar: 'قلب وشرايين', kw: ['قلب','شرايين','heart'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'مستلزمات طبية', ar: 'مستلزمات طبية', subsubs: [{ value: 'ضغط وسكر (أجهزة)', ar: 'ضغط وسكر (أجهزة)', kw: ['جهاز ضغط','جهاز سكر','omron','glucometer'] },{ value: 'تضميد وجروح', ar: 'تضميد وجروح', kw: ['تضميد','جروح','bandage'] },{ value: 'قسطرة وانابيب', ar: 'قسطرة وانابيب', kw: ['قسطرة','انابيب'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'تجميل وعناية', ar: 'تجميل وعناية', subsubs: [{ value: 'كريمات بشرة', ar: 'كريمات بشرة', kw: ['كريم','بشرة','skincare','cream'] },{ value: 'شامبو وعناية شعر', ar: 'شامبو وعناية شعر', kw: ['شامبو','شعر','shampoo','hair'] },{ value: 'عطور', ar: 'عطور', kw: ['عطر','perfume'] },{ value: 'مكياج', ar: 'مكياج', kw: ['مكياج','makeup','lipstick'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'أطفال ورضع', ar: 'أطفال ورضع', subsubs: [{ value: 'حليب أطفال', ar: 'حليب أطفال', kw: ['حليب أطفال','baby formula'] },{ value: 'حفاضات', ar: 'حفاضات', kw: ['حفاض','diaper','pampers'] },{ value: 'كريمات أطفال', ar: 'كريمات أطفال', kw: ['كريم أطفال','baby cream'] },{ value: 'مستلزمات', ar: 'مستلزمات', kw: ['مستلزمات أطفال','baby products'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'أعشاب وطبيعي', ar: 'أعشاب وطبيعي', subsubs: [{ value: 'عسل وحبة بركة', ar: 'عسل وحبة بركة', kw: ['عسل','حبة بركة','honey'] },{ value: 'زيوت طبيعية', ar: 'زيوت طبيعية', kw: ['زيت طبيعي','natural oil'] },{ value: 'أعشاب طبية', ar: 'أعشاب طبية', kw: ['أعشاب','herbal','herbs'] },{ value: 'مكملات', ar: 'مكملات', kw: ['مكمل','supplement','فيتامين','vitamin'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
     ],
     keywords: ['دواء','صيدلية','مكمل','فيتامين','أجهزة طبية','medicine'],
   },
@@ -467,132 +193,13 @@ export const CATEGORIES = {
   'Fast Food': {
     ar: 'طعام',
     subcategories: [
-      {
-        value: 'Pizza', ar: 'بيتزا',
-        subsubs: [
-          { value: 'Margherita', ar: 'مارغريتا', kw: ['مارغريتا','margherita','جبن فقط'] },
-          { value: 'Pepperoni', ar: 'بيبروني', kw: ['بيبروني','pepperoni'] },
-          { value: 'Seafood', ar: 'مأكولات بحرية', kw: ['جمبري','بيتزا بحر','seafood pizza'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Burgers', ar: 'برجر',
-        subsubs: [
-          { value: 'BeefBurger', ar: 'برجر لحم', kw: ['لحم','beef','بقري'] },
-          { value: 'ChickenBurger', ar: 'برجر دجاج', kw: ['دجاج','chicken','فراخ'] },
-          { value: 'DoubleBurger', ar: 'دبل برجر', kw: ['دبل','double'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Sandwiches', ar: 'ساندوتشات',
-        subsubs: [
-          { value: 'Shawarma', ar: 'شاورما', kw: ['شاورما','shawarma'] },
-          { value: 'Falafel', ar: 'فلافل', kw: ['فلافل','falafel','طعمية'] },
-          { value: 'Kofta', ar: 'كفتة', kw: ['كفتة','kofta'] },
-          { value: 'Club', ar: 'كلوب', kw: ['كلوب','club sandwich'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Desserts', ar: 'حلويات',
-        subsubs: [
-          { value: 'IceCream', ar: 'آيس كريم', kw: ['آيس كريم','ice cream','جيلاتو'] },
-          { value: 'Cake', ar: 'كيك', kw: ['كيك','cake','تورتة'] },
-          { value: 'Kunafa', ar: 'كنافة وقطايف', kw: ['كنافة','قطايف','بسبوسة','قطر'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Oriental', ar: 'مأكولات شرقية',
-        subsubs: [
-          { value: 'Koshary', ar: 'كشري', kw: ['كشري','koshary'] },
-          { value: 'Grills', ar: 'مشويات', kw: ['مشويات','grills','كباب','مشوي'] },
-          { value: 'Mahshi', ar: 'محشي', kw: ['محشي','mahshi','ورق عنب'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Seafood', ar: 'مأكولات بحرية',
-        subsubs: [
-          { value: 'Fish', ar: 'سمك', kw: ['سمك','fish','فيليه'] },
-          { value: 'Shrimp', ar: 'جمبري', kw: ['جمبري','shrimp','prawns'] },
-          { value: 'Mixed', ar: 'مشكل بحري', kw: ['مشكل','mixed seafood','بحري'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
+      { value: 'مطاعم وكافيهات', ar: 'مطاعم وكافيهات', subsubs: [{ value: 'شاورما وكباب', ar: 'شاورما وكباب', kw: ['شاورما','كباب','shawarma'] },{ value: 'مأكولات بحرية', ar: 'مأكولات بحرية', kw: ['مأكولات بحرية','seafood'] },{ value: 'فطار وفول', ar: 'فطار وفول', kw: ['فطار','فول','فلافل','breakfast'] },{ value: 'حلويات ومشروبات', ar: 'حلويات ومشروبات', kw: ['حلويات','مشروبات','sweets','drinks'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'وجبات منزلية', ar: 'وجبات منزلية', subsubs: [{ value: 'أكل مصري', ar: 'أكل مصري', kw: ['أكل مصري','egyptian food'] },{ value: 'أكل شرقي', ar: 'أكل شرقي', kw: ['أكل شرقي','eastern food'] },{ value: 'أكل غربي', ar: 'أكل غربي', kw: ['أكل غربي','western food'] },{ value: 'حلويات منزلية', ar: 'حلويات منزلية', kw: ['حلويات منزلية','homemade sweets'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'مخابز وحلويات', ar: 'مخابز وحلويات', subsubs: [{ value: 'خبز وعيش', ar: 'خبز وعيش', kw: ['خبز','عيش','bread'] },{ value: 'كيك وتورتات', ar: 'كيك وتورتات', kw: ['كيك','تورتة','cake'] },{ value: 'حلويات شرقية', ar: 'حلويات شرقية', kw: ['كنافة','قطايف','بسبوسة'] },{ value: 'بيتزا وفطائر', ar: 'بيتزا وفطائر', kw: ['بيتزا','فطائر','pizza'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'مشروبات وعصائر', ar: 'مشروبات وعصائر', subsubs: [{ value: 'عصائر طازجة', ar: 'عصائر طازجة', kw: ['عصير طازج','fresh juice'] },{ value: 'قهوة وشاي', ar: 'قهوة وشاي', kw: ['قهوة','شاي','coffee','tea'] },{ value: 'كوكتيل', ar: 'كوكتيل', kw: ['كوكتيل','cocktail'] },{ value: 'مشروبات ساخنة', ar: 'مشروبات ساخنة', kw: ['مشروبات ساخنة','hot drinks'] },{ value: 'أخرى', ar: 'أخرى', kw: [] }], level4: [] },
+      { value: 'أخرى', ar: 'أخرى', subsubs: [], level4: [] },
     ],
     keywords: ['بيتزا','برجر','ساندوتش','حلويات','مطعم','كشري','شاورما','pizza','burger'],
-  },
-
-  Fashion: {
-    ar: 'موضة',
-    subcategories: [
-      {
-        value: 'MensClothing', ar: 'ملابس رجالية',
-        subsubs: [
-          { value: 'Formal', ar: 'رسمي', kw: ['بدلة','قميص رسمي','suit','formal','طقم'] },
-          { value: 'Casual', ar: 'كاجوال', kw: ['تيشيرت','كاجوال','casual','تي شيرت','t-shirt'] },
-          { value: 'Sports', ar: 'رياضي', kw: ['رياضي','sports','نايكي','اديداس','nike','adidas'] },
-          { value: 'Traditional', ar: 'ملابس تقليدية', kw: ['جلباب','قفطان','ثوب','دشداشة'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'WomensClothing', ar: 'ملابس نسائية',
-        subsubs: [
-          { value: 'Abayas', ar: 'عبايات', kw: ['عباية','abaya','خمار'] },
-          { value: 'Dresses', ar: 'فساتين', kw: ['فستان','dress','فساتين'] },
-          { value: 'Casual', ar: 'كاجوال', kw: ['بلوزة','كاجوال نسائي','casual women'] },
-          { value: 'Sports', ar: 'رياضي', kw: ['رياضي نسائي','women sports','تيشيرت نسائي'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'KidsClothing', ar: 'ملابس أطفال',
-        subsubs: [
-          { value: 'Boys', ar: 'أولاد', kw: ['ولاد','boys','أولاد'] },
-          { value: 'Girls', ar: 'بنات', kw: ['بنات','girls'] },
-          { value: 'Baby', ar: 'مواليد', kw: ['مواليد','baby clothes','رضيع'] },
-          { value: 'SchoolUniform', ar: 'يونيفورم مدرسي', kw: ['يونيفورم','uniform','مدرسة','school'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Shoes', ar: 'أحذية',
-        subsubs: [
-          { value: 'Formal', ar: 'جزمة رسمية', kw: ['جزمة رسمية','formal shoes','oxford'] },
-          { value: 'Sneakers', ar: 'سنيكرز', kw: ['سنيكرز','sneakers','كوتشي','nike shoes','adidas shoes'] },
-          { value: 'Sandals', ar: 'صنادل', kw: ['صندل','sandal','شبشب','slippers'] },
-          { value: 'Sports', ar: 'رياضي', kw: ['حذاء رياضي','sports shoes','running'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Bags', ar: 'شنط',
-        subsubs: [
-          { value: 'Handbag', ar: 'حقيبة يد', kw: ['حقيبة يد','handbag','شنطة يد'] },
-          { value: 'Backpack', ar: 'شنطة ظهر', kw: ['شنطة ظهر','backpack','حقيبة ظهر'] },
-          { value: 'TravelBag', ar: 'شنطة سفر', kw: ['شنطة سفر','travel bag','trolley','تروللي'] },
-          { value: 'Wallet', ar: 'محفظة', kw: ['محفظة','wallet','بورتفيه'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      {
-        value: 'Accessories', ar: 'إكسسوارات',
-        subsubs: [
-          { value: 'Jewelry', ar: 'مجوهرات', kw: ['مجوهرات','jewelry','خاتم','عقد','سوار','ذهب','فضة'] },
-          { value: 'Watches', ar: 'ساعات', kw: ['ساعة','watch','rolex','casio'] },
-          { value: 'Sunglasses', ar: 'نظارات', kw: ['نظارة شمس','sunglasses','ray ban'] },
-          { value: 'Scarves', ar: 'إيشاربات', kw: ['إيشارب','scarf','حجاب'] },
-          { value: 'Other', ar: 'أخرى', kw: [] },
-        ],
-      },
-      { value: 'Other', ar: 'أخرى', subsubs: [] },
-    ],
-    keywords: ['ملابس','فستان','قميص','بنطلون','حذاء','شنطة','إكسسوار','fashion','clothes'],
   },
 };
 
@@ -603,8 +210,8 @@ export function autoDetectSubcategory(category, text) {
   var cat = CATEGORIES[category];
   for (var i = 0; i < cat.subcategories.length; i++) {
     var sub = cat.subcategories[i];
-    if (!sub.keywords) continue;
-    if (sub.keywords.some(function(k) { return lower.includes(k.toLowerCase()); })) return sub.value;
+    if (!sub.kw) continue;
+    if (sub.kw.some(function(k) { return lower.includes(k.toLowerCase()); })) return sub.value;
   }
   return 'Other';
 }
@@ -625,6 +232,16 @@ export function autoDetectSubsub(category, subcategory, text) {
     if (ss.kw.some(function(k) { return lower.includes(k.toLowerCase()); })) return ss.value;
   }
   return 'Other';
+}
+
+// Get level4 options for a subcategory
+export function getLevel4Options(category, subcategory) {
+  if (!CATEGORIES[category]) return [];
+  var subs = CATEGORIES[category].subcategories;
+  for (var i = 0; i < subs.length; i++) {
+    if (subs[i].value === subcategory) return subs[i].level4 || [];
+  }
+  return [];
 }
 
 // Get Arabic label for any level

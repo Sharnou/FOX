@@ -4,7 +4,7 @@ const AdSchema = new mongoose.Schema({
   seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // alias for userId
   title: String, title_original: String, language: String,
   translations: { en: String, ar: String, de: String, fr: String },
-  description: String, category: String, subcategory: { type: String, default: 'Other' }, subsub: { type: String, default: 'Other' }, subcategory2: String, subcategory3: String,
+  description: String, category: String, subcategory: { type: String, default: 'Other' }, subsub: { type: String, default: 'Other' }, level4: { type: String, default: null }, subcategory2: String, subcategory3: String,
   price: Number, currency: String, city: String, country: { type: String, required: true },
   media: [String], images: [String], video: String, videoUrl: { type: String, default: null }, mediaType: { type: String, enum: ['image', 'video', 'mixed'] },
   imageVector: [Number],
@@ -37,9 +37,10 @@ const AdSchema = new mongoose.Schema({
     },
     placeName: String
   },
-  // ── Run 84: Item condition & negotiable price (expanded to accept all category-specific statuses) ──
+  // ── Run 84: Item condition & negotiable price ──────────────────────────────
   condition: {
     type: String,
+    enum: ['new', 'used', 'excellent', 'rent'],
     default: null
   },
   negotiable: { type: Boolean, default: false },
