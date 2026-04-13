@@ -3,6 +3,21 @@ import FormData from 'form-data';
 import fs from 'fs';
 import { callWithFailover } from './keyPool.js';
 
+// ─── Offline language detection (no API call needed) ─────────────────────────
+/**
+ * Detects language from text using Unicode character ranges.
+ * Returns 'arabic', 'english', or 'other'.
+ * NEVER throws. No network request.
+ */
+export function detectLanguage(text) {
+  if (!text) return 'other';
+  const arabicChars = (text.match(/[\u0600-\u06FF]/g) || []).length;
+  const latinChars = (text.match(/[a-zA-Z]/g) || []).length;
+  const total = arabicChars + latinChars;
+  if (total === 0) return 'other';
+  return arabicChars / total > 0.4 ? 'arabic' : 'english';
+}
+
 // Lazy import helpers — break circular dependencies at startup
 async function _getBuildLanguagePrompt() {
   try {
@@ -34,7 +49,7 @@ function _buildForm(filePath) {
 }
 
 /**
- * transcribeAudio — CHANGE 4 & 5
+ * transcribeAudio
  *
  * • Accepts optional `country` to build location-aware prompt for better accuracy.
  * • First attempt: uses a location-specific prompt (nudges Whisper toward local language).
@@ -49,17 +64,14 @@ export async function transcribeAudio(filePath, country) {
       if (!key || key === 'your_openai_key') throw new Error('No key');
 
       const form = _buildForm(filePath);
-      // No hardcoded language override — Whisper auto-detects
       form.append('prompt', 'Marketplace listing. Transcribe accurately in the original spoken language.');
 
-      // Add location-specific vocabulary prompt for higher accuracy (CHANGE 5)
       if (country) {
         try {
           const buildPromptFn = await _getBuildLanguagePrompt();
           if (buildPromptFn) {
             const locPrompt = await buildPromptFn(country);
             if (locPrompt) {
-              // Prepend local vocabulary words — nudges Whisper toward local dialect
               form.set('prompt', locPrompt + '. Marketplace listing. Transcribe accurately.');
             }
           }
@@ -78,24 +90,26 @@ export async function transcribeAudio(filePath, country) {
 
     const text = typeof result === 'string' ? result : (result && result.text) || '';
 
-    // Feed detected context to language learner (CHANGE 4 — language never blocks)
+    // Use offline language detection on the transcribed text
+    const lang = detectLanguage(text);
+
+    // Feed detected context to language learner (language never blocks)
     if (country && text) {
       setImmediate(async () => {
         try {
           const recordFn = await _getRecordDetectedLanguage();
-          if (recordFn) await recordFn(null, { country, sampleText: text.slice(0, 100) });
+          if (recordFn) await recordFn(lang === 'arabic' ? 'ar' : lang === 'english' ? 'en' : null, { country, sampleText: text.slice(0, 100) });
         } catch { /* non-fatal */ }
       });
     }
 
-    return { text, language: 'auto', error: false };
+    return { text, language: lang, error: false };
   } catch (_e1) {
     // --- Attempt 2: retry without any prompt (most permissive) ---
     try {
       const retry = await callWithFailover(async (key) => {
         if (!key || key === 'your_openai_key') throw new Error('No key');
         const form = _buildForm(filePath);
-        // Simplest possible request — no model hints
         const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
           method: 'POST',
           headers: { Authorization: `Bearer ${key}`, ...form.getHeaders() },
@@ -106,9 +120,8 @@ export async function transcribeAudio(filePath, country) {
         return d.text || '';
       });
       const text = typeof retry === 'string' ? retry : (retry && retry.text) || '';
-      return { text, language: 'auto', error: false };
+      return { text, language: detectLanguage(text), error: false };
     } catch (_e2) {
-      // Both attempts failed — NEVER throw. Return empty text so ad still publishes.
       return { text: '', language: 'unknown', error: true, errorMsg: _e2.message };
     }
   }

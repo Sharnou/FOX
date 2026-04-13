@@ -69,6 +69,10 @@ const UserSchema = new mongoose.Schema(
     whatsappOtp: { type: String },
     whatsappOtpExpiry: { type: Date },
     whatsappOtpAttempts: { type: Number, default: 0 },
+
+    // -- Verification status -------------------------------------------------
+    emailVerified: { type: Boolean, default: false },
+    whatsappVerified: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
   },
   { toJSON: { virtuals: true }, toObject: { virtuals: true } }

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -207,10 +208,25 @@ export default function ProfilePage() {
           <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'white', margin: '0 auto 12px' }}>
             {initials}
           </div>
-          <h2 style={{ margin: '0 0 4px', fontSize: 22 }}>{user.username || user.name || user.email}</h2>
+          <h2 style={{ margin: '0 0 4px', fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {user.username || user.name || user.email}
+            <VerifiedBadge emailVerified={user.emailVerified} whatsappVerified={user.whatsappVerified} />
+          </h2>
           <p style={{ margin: 0, color: '#888', fontSize: 14 }}>
             {user.role === 'admin' ? '👑 مدير' : user.role === 'sub_admin' ? '🔧 مشرف' : '👤 مستخدم'}
           </p>
+
+          {/* Verification status */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
+            {user.whatsappVerified
+              ? <span style={{ background: '#dcfce7', color: '#16a34a', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>✓ واتساب موثق</span>
+              : <span style={{ background: '#fef9c3', color: '#ca8a04', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>واتساب غير موثق</span>
+            }
+            {user.emailVerified
+              ? <span style={{ background: '#dbeafe', color: '#1d4ed8', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>✓ بريد إلكتروني موثق</span>
+              : <span style={{ background: '#f1f5f9', color: '#64748b', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>بريد غير موثق</span>
+            }
+          </div>
         </div>
 
         {/* Chat Toggle */}

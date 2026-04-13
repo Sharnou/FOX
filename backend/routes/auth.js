@@ -154,7 +154,6 @@ router.post('/whatsapp/send-otp', async (req, res) => {
         var debugPayload = (USE_FAKE_API || process.env.NODE_ENV !== 'production') ? { debug_otp: otp } : {};
         return res.json({ success: true, message: 'OTP sent (FAKE API - testing mode)', ...debugPayload, phone });
       } catch (fakeErr) {
-        console.error('[WhatsApp OTP] Fake API error:', fakeErr.message);
         return res.status(500).json({ success: false, message: 'Fake API unreachable', error: fakeErr.message });
       }
     }
@@ -175,11 +174,10 @@ router.post('/whatsapp/send-otp', async (req, res) => {
         if (ultraData.sent === 'true' || ultraData.sent === true || ultraRes.ok) {
           return res.json({ success: true, message: 'OTP sent to WhatsApp', phone });
         } else {
-          console.error('[WhatsApp OTP] UltraMsg error:', JSON.stringify(ultraData));
+);
           return res.status(500).json({ success: false, message: 'Failed to send WhatsApp message', error: ultraData.error || 'UltraMsg error' });
         }
       } catch (ultraErr) {
-        console.error('[WhatsApp OTP] UltraMsg exception:', ultraErr.message);
         return res.status(500).json({ success: false, message: 'UltraMsg unreachable', error: ultraErr.message });
       }
     }
@@ -205,11 +203,9 @@ router.post('/whatsapp/send-otp', async (req, res) => {
         });
         var metaData = await metaRes.json();
         if (!metaRes.ok) {
-          console.error('[WhatsApp OTP] Meta API error:', metaData);
           return res.status(500).json({ success: false, message: 'Failed to send OTP via WhatsApp', error: metaData });
         }
       } catch (metaErr) {
-        console.error('[WhatsApp OTP] Meta fetch error:', metaErr.message);
         return res.status(500).json({ success: false, message: 'Server error sending OTP' });
       }
 
@@ -217,10 +213,8 @@ router.post('/whatsapp/send-otp', async (req, res) => {
     }
 
     // 4. NO PROVIDER CONFIGURED
-    console.error('[WhatsApp OTP] No WhatsApp provider configured');
     return res.status(500).json({ success: false, error: 'WhatsApp API not configured' });
   } catch (e) {
-    console.error('[send-otp]', e);
     res.status(500).json({ error: 'Failed to send OTP' });
   }
 });
@@ -269,6 +263,7 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
       whatsappOtpExpiry: null,
       whatsappOtpAttempts: 0,
       authProvider: 'whatsapp',
+      whatsappVerified: true,
       lastSeen: new Date()
     };
 
@@ -292,11 +287,12 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
         xtoxEmail: updatedUser.xtoxEmail,
         name: updatedUser.name,
         phone: updatedUser.whatsappPhone,
-        authProvider: 'whatsapp'
+        authProvider: 'whatsapp',
+        whatsappVerified: true,
+        emailVerified: updatedUser.emailVerified || false
       }
     });
   } catch (e) {
-    console.error('[verify-otp]', e);
     res.status(500).json({ error: 'Verification failed' });
   }
 });
@@ -425,6 +421,7 @@ router.get('/google/callback', async (req, res) => {
         name: name,
         avatar: avatar,
         authProvider: 'google',
+        emailVerified: true,
         xtoxId: xtoxId,
         xtoxEmail: xtoxEmail,
         country: 'unknown',
@@ -432,7 +429,7 @@ router.get('/google/callback', async (req, res) => {
       });
     } else {
       // Existing user — only update metadata, never reassign _id or xtoxId
-      var cbUpd = { lastSeen: new Date() };
+      var cbUpd = { lastSeen: new Date(), emailVerified: true };
       if (!user.googleId) cbUpd.googleId = googleId;
       if (!user.xtoxId) {
         cbUpd.xtoxId = await generateXtoxId();
@@ -471,7 +468,9 @@ router.get('/google/callback', async (req, res) => {
       name: user.name,
       email: user.email,
       avatar: user.avatar,
-      authProvider: 'google'
+      authProvider: 'google',
+      emailVerified: true,
+      whatsappVerified: user.whatsappVerified || false
     }
   };
   var sessionEncoded = Buffer.from(JSON.stringify(sessionData)).toString('base64url');
@@ -551,7 +550,6 @@ router.post('/google', async (req, res) => {
   try {
     User = await getUserModel();
   } catch (modelErr) {
-    console.error('[Google auth] getUserModel failed:', modelErr.message);
     return res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
   }
 
@@ -584,13 +582,14 @@ router.post('/google', async (req, res) => {
         name,
         avatar,
         authProvider: 'google',
+        emailVerified: true,
         xtoxId,
         xtoxEmail,
         country: 'unknown',
         lastSeen: new Date()
       });
     } else {
-      var upd = { lastSeen: new Date() };
+      var upd = { lastSeen: new Date(), emailVerified: true };
       if (!user.googleId) upd.googleId = googleId;
       if (!user.xtoxId) {
         upd.xtoxId = await generateXtoxId();
@@ -601,7 +600,6 @@ router.post('/google', async (req, res) => {
       user = await User.findByIdAndUpdate(user._id, upd, { new: true });
     }
   } catch (dbErr) {
-    console.error('[Google auth] DB operation failed:', dbErr.message, dbErr.code || '');
     // Duplicate key: another request just created the same user — retry findOne
     if (dbErr.code === 11000) {
       try {
@@ -633,7 +631,9 @@ router.post('/google', async (req, res) => {
       name: user.name,
       email: user.email,
       avatar: user.avatar,
-      authProvider: 'google'
+      authProvider: 'google',
+      emailVerified: true,
+      whatsappVerified: user.whatsappVerified || false
     }
   });
 });
@@ -735,7 +735,6 @@ router.post('/apple', async (req, res) => {
       }
     });
   } catch (e) {
-    console.error('[apple auth]', e);
     res.status(500).json({ error: 'Apple authentication failed' });
   }
 });
@@ -774,7 +773,6 @@ router.post('/block/:userId', async (req, res) => {
       }
     });
   } catch (e) {
-    console.error('[block]', e);
     res.status(500).json({ error: 'Block failed' });
   }
 });
