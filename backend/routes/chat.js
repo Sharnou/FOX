@@ -37,6 +37,7 @@ router.get('/', auth, async (req, res) => {
       .sort({ updatedAt: -1 })
       .populate('buyer', 'name avatar xtoxId whatsappPhone emailVerified whatsappVerified')
       .populate('seller', 'name avatar xtoxId whatsappPhone emailVerified whatsappVerified')
+      .populate('ad', 'title images status price')
       .lean();
     res.json({ success: true, chats });
   } catch (e) {

@@ -338,18 +338,18 @@ export default function VoiceCall({ socket, targetId, userId }) {
       setErrorMsg(lang === 'ar' ? 'أنهى الطرف الآخر المكالمة' : 'The other party ended the call');
     };
 
-    socket.on('incoming-call', onIncomingCall);
-    socket.on('call-accepted', onCallAccepted);
-    socket.on('call-rejected', onCallRejected);
-    socket.on('ice-candidate', onIceCandidate);
-    socket.on('call-ended', onCallEnded);
+    socket.on('incoming_call', onIncomingCall);
+    socket.on('call_answered', onCallAccepted);
+    socket.on('call_ended', onCallRejected);
+    socket.on('ice_candidate', onIceCandidate);
+    socket.on('call_ended', onCallEnded);
 
     return () => {
-      socket.off('incoming-call', onIncomingCall);
-      socket.off('call-accepted', onCallAccepted);
-      socket.off('call-rejected', onCallRejected);
-      socket.off('ice-candidate', onIceCandidate);
-      socket.off('call-ended', onCallEnded);
+      socket.off('incoming_call', onIncomingCall);
+      socket.off('call_answered', onCallAccepted);
+      socket.off('call_ended', onCallRejected);
+      socket.off('ice_candidate', onIceCandidate);
+      socket.off('call_ended', onCallEnded);
     };
   }, [socket, cleanup, lang]);
 
@@ -373,7 +373,7 @@ export default function VoiceCall({ socket, targetId, userId }) {
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socket.emit('start-call', { to: targetId, from: userId, offer });
+      socket.emit('call_offer', { to: targetId, from: userId, offer });
     } catch {
       setCallStatus('ended');
       setErrorMsg(lang === 'ar' ? 'تعذّر الوصول إلى الميكروفون. تحقق من الصلاحيات.' : 'Microphone access denied. Check permissions.');
@@ -393,7 +393,7 @@ export default function VoiceCall({ socket, targetId, userId }) {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socket.emit('accept-call', { to: from, answer });
+      socket.emit('call_answer', { to: from, answer });
       setIncomingCall(null);
     } catch {
       setCallStatus('ended');
@@ -403,13 +403,13 @@ export default function VoiceCall({ socket, targetId, userId }) {
 
   function rejectCall() {
     if (!incomingCall || !socket) return;
-    socket.emit('reject-call', { to: incomingCall.from });
+    socket.emit('call_end', { to: incomingCall.from });
     setIncomingCall(null);
     setCallStatus('idle');
   }
 
   function endCall() {
-    if (socket && targetId) socket.emit('end-call', { to: targetId });
+    if (socket && targetId) socket.emit('call_end', { to: targetId });
     cleanup();
     setCallStatus('ended');
   }
