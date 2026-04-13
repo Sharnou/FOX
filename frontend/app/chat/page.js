@@ -165,6 +165,8 @@ export default function ChatPage() {
   var [chatError, setChatError]         = useState('');
   var [isMobile, setIsMobile]           = useState(false);
   var [socketInstance, setSocketInstance] = useState(null);
+  var [chatStatus, setChatStatus]       = useState('active'); // 'active' | 'archived' | 'blocked'
+  var [adStatus, setAdStatus]           = useState('');       // 'sold' | '' | etc.
 
   var pcRef          = useRef(null);
   var remoteAudioRef = useRef(null);
@@ -329,6 +331,19 @@ export default function ChatPage() {
                   return { from: m.sender === myId ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now() };
                 }));
               }
+            // Read chat status (archived = ad sold or admin closed)
+            if (chat.status) setChatStatus(chat.status);
+            // If chat is linked to an ad, fetch the ad status to show sold banner
+            if (chat.ad) {
+              try {
+                var adRes = await fetch(API_URL + '/api/ads/' + chat.ad);
+                if (adRes.ok) {
+                  var adData = await adRes.json();
+                  var fetchedAd = adData.ad || adData;
+                  if (fetchedAd && fetchedAd.status) setAdStatus(fetchedAd.status);
+                }
+              } catch(e) {}
+            }
             } catch(e) {}
           }
         }
@@ -494,6 +509,8 @@ export default function ChatPage() {
   // Send text message
   function sendMessage() {
     if (!msg.trim() || !socketRef.current || !targetId) return;
+    // Guard: prevent sending messages to archived/sold chats
+    if (chatStatus === 'archived' || adStatus === 'sold') return;
     var now  = Date.now();
     var text = msg;
     setMsg('');
@@ -778,29 +795,49 @@ export default function ChatPage() {
           </main>
 
           {targetId && (
-            <footer style={{ background: '#ffffff', padding: '10px 14px', paddingBottom: 'max(10px, env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', boxShadow: '0 -2px 8px rgba(0,0,0,0.07)', flexShrink: 0, direction: 'rtl' }}>
-              <button onClick={shareLocation} aria-label="مشاركة الموقع"
-                style={{ background: '#f0f7ff', border: '1.5px solid #4285F4', borderRadius: '50%', width: 46, height: 46, cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                &#128205;
-              </button>
-              <input
-                id="chat-message-input"
-                name="chat-message"
-                value={msg}
-                onChange={handleTyping}
-                onKeyDown={function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder="اكتب رسالة..."
-                dir="rtl"
-                aria-label="حقل كتابة الرسالة"
-                style={{ flex: 1, padding: '11px 16px', borderRadius: 24, border: '1.5px solid #e2e8f0', fontSize: 16, fontFamily: 'inherit', outline: 'none', background: '#f8fafc', color: '#1e293b' }}
-                onFocus={function(e) { e.target.style.borderColor = '#f97316'; }}
-                onBlur={function(e) { e.target.style.borderColor = '#e2e8f0'; }}
-              />
-              <button onClick={sendMessage} disabled={!msg.trim()} aria-label="إرسال الرسالة"
-                style={{ background: msg.trim() ? '#f97316' : '#e2e8f0', color: msg.trim() ? '#ffffff' : '#94a3b8', border: 'none', borderRadius: '50%', width: 46, height: 46, cursor: msg.trim() ? 'pointer' : 'not-allowed', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                &#8593;
-              </button>
-            </footer>
+            <>
+              {/* ── Sold / Archived banner ──────────────────────────────────── */}
+              {(chatStatus === 'archived' || adStatus === 'sold') && (
+                <div role="status" aria-live="polite" dir="rtl"
+                  style={{ background: '#1e3a5f', color: '#93c5fd', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, flexShrink: 0, borderTop: '1px solid rgba(147,197,253,0.2)' }}>
+                  <span style={{ fontSize: 18 }}>🏷️</span>
+                  <span>تم بيع هذا الإعلان — المحادثة مغلقة ولا يمكن إرسال رسائل جديدة</span>
+                </div>
+              )}
+
+              <footer style={{ background: '#ffffff', padding: '10px 14px', paddingBottom: 'max(10px, env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', boxShadow: '0 -2px 8px rgba(0,0,0,0.07)', flexShrink: 0, direction: 'rtl' }}>
+                {/* Disable all inputs when chat is archived (ad sold/closed) */}
+                {chatStatus === 'archived' || adStatus === 'sold' ? (
+                  <div style={{ flex: 1, padding: '11px 16px', borderRadius: 24, border: '1.5px solid #e2e8f0', fontSize: 14, background: '#f1f5f9', color: '#94a3b8', textAlign: 'center', userSelect: 'none' }}>
+                    المحادثة مغلقة
+                  </div>
+                ) : (
+                  <>
+                    <button onClick={shareLocation} aria-label="مشاركة الموقع"
+                      style={{ background: '#f0f7ff', border: '1.5px solid #4285F4', borderRadius: '50%', width: 46, height: 46, cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      &#128205;
+                    </button>
+                    <input
+                      id="chat-message-input"
+                      name="chat-message"
+                      value={msg}
+                      onChange={handleTyping}
+                      onKeyDown={function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                      placeholder="اكتب رسالة..."
+                      dir="rtl"
+                      aria-label="حقل كتابة الرسالة"
+                      style={{ flex: 1, padding: '11px 16px', borderRadius: 24, border: '1.5px solid #e2e8f0', fontSize: 16, fontFamily: 'inherit', outline: 'none', background: '#f8fafc', color: '#1e293b' }}
+                      onFocus={function(e) { e.target.style.borderColor = '#f97316'; }}
+                      onBlur={function(e) { e.target.style.borderColor = '#e2e8f0'; }}
+                    />
+                    <button onClick={sendMessage} disabled={!msg.trim()} aria-label="إرسال الرسالة"
+                      style={{ background: msg.trim() ? '#f97316' : '#e2e8f0', color: msg.trim() ? '#ffffff' : '#94a3b8', border: 'none', borderRadius: '50%', width: 46, height: 46, cursor: msg.trim() ? 'pointer' : 'not-allowed', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      &#8593;
+                    </button>
+                  </>
+                )}
+              </footer>
+            </>
           )}
         </div>
       </div>

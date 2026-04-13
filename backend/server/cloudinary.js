@@ -50,9 +50,9 @@ export async function uploadVideo(filePath) {
   return cloudinary.uploader.upload(filePath, { folder: 'xtox_ads', resource_type: 'video' });
 }
 
-export async function deleteMedia(publicId) {
+export async function deleteMedia(publicId, resourceType = 'image') {
   if (!CLOUDINARY_ENABLED) return null;
-  return cloudinary.uploader.destroy(publicId);
+  return cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
 }
 
 export default cloudinary;
