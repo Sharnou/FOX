@@ -420,6 +420,39 @@ connectDatabases().then(async (db) => {
     // ── Run seeds + cleanup ─────────────────────────────────────────────
     await runSeedsOnce();
 
+    // ── ONE-TIME: Set password for xtox@xtox.com (idempotent) ──────────────
+    // Safe to leave in — runs on every startup but only updates the password field.
+    // Role is NOT set here — must be granted via Admin Dashboard per owner's rule.
+    (async () => {
+      try {
+        const { default: bcrypt } = await import('bcryptjs');
+        const User = (await import('../models/User.js')).default;
+        const hash = await bcrypt.hash('Aa123123', 12);
+        const result = await User.findOneAndUpdate(
+          { email: 'xtox@xtox.com' },
+          {
+            $set: {
+              password: hash,
+              emailVerified: true,
+              authProvider: 'email',
+            },
+            $setOnInsert: {
+              name: 'XTOX Admin',
+              email: 'xtox@xtox.com',
+              xtoxId: 'XTOX-ADMIN001',
+              country: 'EG',
+              createdAt: new Date(),
+              role: 'user', // role must be granted via Admin Dashboard only
+            }
+          },
+          { upsert: true, new: true }
+        );
+        console.log('[Setup] xtox@xtox.com ready. _id:', result._id, '| role:', result.role);
+      } catch(e) {
+        console.error('[Setup] xtox@xtox.com password set failed:', e.message);
+      }
+    })();
+
     // ── Delete anonymous chats on startup (one-time cleanup) ────────────────
     try {
       const { deleteAnonymousChats } = await import('../jobs/chatCleanup.js');

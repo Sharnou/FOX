@@ -987,15 +987,22 @@ router.post('/', auth, multerUpload, async (req, res) => {
 
     console.log('[ADS POST] 8: responding 201, ad._id=', _normalizedAd._id?.toString());
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
-  } catch (e) {
-    console.error('[ADS POST] outer catch:', e?.message, e?.stack);
+  } catch (fatalErr) {
+    console.error('[POST /api/ads] FATAL:', fatalErr?.constructor?.name, fatalErr?.message);
+    console.error('[POST /api/ads] Stack:', fatalErr?.stack);
+    if (fatalErr?.errors) {
+      Object.entries(fatalErr.errors).forEach(([field, err]) => {
+        console.error('[POST /api/ads] ValidationError field=' + field + ':', err.message, '| value:', err.value);
+      });
+    }
     if (!res.headersSent) {
-      // Return 500 for unexpected server errors (not validation failures)
-      // Include received field list for easier debugging
       return res.status(500).json({
         success: false,
-        error: 'حدث خطأ في الخادم. يرجى المحاولة مرة أخرى.',
-        message: 'Server error. Please try again.',
+        error: 'حدث خطأ أثناء نشر الإعلان. يرجى المحاولة مرة أخرى.',
+        message: 'Failed to create ad. Please try again.',
+        _debug: fatalErr?.message,
+        _type: fatalErr?.constructor?.name,
+        _fields: fatalErr?.errors ? Object.keys(fatalErr.errors).join(',') : undefined,
       });
     }
   }
@@ -1375,20 +1382,49 @@ router.post('/debug-create', async (req, res) => {
       isExpired: false,
       isDeleted: false,
     };
-    const Ad = getAdModel();
-    const ad = new Ad(testAd);
-    const validationError = ad.validateSync();
-    if (validationError) {
-      return res.json({
-        valid: false,
-        errors: Object.fromEntries(
-          Object.entries(validationError.errors).map(([k, v]) => [k, { message: v.message, value: v.value }])
-        )
-      });
+    const AdModel = getAdModel();
+    const activeDB = getActiveDB();
+
+    // When MongoDB is connected, use Mongoose validation (validateSync)
+    // When using in-memory store, use Ad.create() directly to test validation path
+    if (activeDB === 'mongodb' && typeof AdModel.schema?.validateSync === 'function') {
+      // MongoDB mode: use Mongoose document validation
+      const doc = new AdModel(testAd);
+      const validationError = doc.validateSync();
+      if (validationError) {
+        return res.json({
+          valid: false,
+          activeDB,
+          errors: Object.fromEntries(
+            Object.entries(validationError.errors).map(([k, v]) => [k, { message: v.message, value: v.value }])
+          )
+        });
+      }
+      return res.json({ valid: true, activeDB, fields: Object.keys(testAd), testAd });
+    } else {
+      // Memory/Couchbase mode: try to create and immediately delete
+      try {
+        const created = await AdModel.create(testAd);
+        const id = created._id;
+        // Cleanup — non-fatal if delete fails
+        if (typeof AdModel.findByIdAndDelete === 'function') {
+          AdModel.findByIdAndDelete(id).catch(() => {});
+        }
+        return res.json({ valid: true, activeDB, fields: Object.keys(testAd), testAd, note: 'created+deleted in memory store' });
+      } catch (createErr) {
+        return res.json({
+          valid: false,
+          activeDB,
+          error: createErr.message,
+          name: createErr.constructor.name,
+          errors: createErr.errors ? Object.fromEntries(
+            Object.entries(createErr.errors).map(([k, v]) => [k, { message: v.message, value: v.value }])
+          ) : undefined
+        });
+      }
     }
-    return res.json({ valid: true, fields: Object.keys(testAd), testAd });
   } catch (e) {
-    return res.json({ error: e.message, stack: e.stack?.split('\n').slice(0, 5) });
+    return res.json({ error: e.message, name: e.constructor.name, stack: e.stack?.split('\n').slice(0, 5) });
   }
 });
 
