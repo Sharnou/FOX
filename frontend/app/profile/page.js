@@ -145,6 +145,19 @@ export default function ProfilePage() {
     } catch {}
   };
 
+  const markAdAsSold = async (adId) => {
+    if (!confirm('هل تريد تحديد هذا الإعلان كـ «تم البيع»؟ سيتم إغلاق جميع المحادثات المرتبطة به.')) return;
+    try {
+      const res = await fetch(API + '/api/ads/' + adId + '/sold', {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      if (res.ok) {
+        setMyAds(prev => prev.map(a => a._id === adId ? { ...a, status: 'sold', isExpired: true } : a));
+      }
+    } catch {}
+  };
+
   const save = async () => {
     setSaving(true); setMsg('');
     try {
@@ -395,20 +408,32 @@ export default function ProfilePage() {
                     {ad.isDeleted && (
                       <div style={{ position: 'absolute', top: 4, right: 4, background: '#ef4444', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 6 }}>محذوف</div>
                     )}
-                    {ad.isExpired && !ad.isDeleted && (
+                    {ad.status === 'sold' && !ad.isDeleted && (
+                      <div style={{ position: 'absolute', top: 4, right: 4, background: '#1d4ed8', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 6 }}>تم البيع ✓</div>
+                    )}
+                    {ad.isExpired && !ad.isDeleted && ad.status !== 'sold' && (
                       <div style={{ position: 'absolute', top: 4, right: 4, background: '#f59e0b', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 6 }}>منتهي</div>
                     )}
                   </div>
                   <div style={{ padding: '8px 10px' }}>
                     <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.title}</p>
                     <p style={{ margin: '0 0 8px', fontSize: 12, color: '#6366f1', fontWeight: 'bold' }}>{ad.price} {ad.currency || 'EGP'}</p>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <a
                         href={'/ads/' + ad._id}
                         style={{ flex: 1, textAlign: 'center', padding: '4px', background: '#f3f4f6', borderRadius: 8, fontSize: 11, textDecoration: 'none', color: '#333' }}
                       >
                         عرض
                       </a>
+                      {ad.status !== 'sold' && !ad.isDeleted && (
+                        <button
+                          onClick={() => markAdAsSold(ad._id)}
+                          title="تحديد الإعلان كـ تم البيع — سيتم إغلاق كل المحادثات"
+                          style={{ flex: 1, padding: '4px', background: '#dbeafe', border: 'none', borderRadius: 8, fontSize: 11, cursor: 'pointer', color: '#1d4ed8', fontFamily: 'inherit' }}
+                        >
+                          تم البيع
+                        </button>
+                      )}
                       <button
                         onClick={() => deleteMyAd(ad._id)}
                         style={{ flex: 1, padding: '4px', background: '#fee2e2', border: 'none', borderRadius: 8, fontSize: 11, cursor: 'pointer', color: '#dc2626' }}

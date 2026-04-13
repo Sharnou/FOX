@@ -28,6 +28,11 @@ export const metadata = {
   },
 };
 
+// FIX: Wrapping children in a fragment element instead of returning it directly.
+// Returning `children` bare from a Server Component causes the RSC flight serializer
+// to encode the component reference as "$Sreact.fragment" which is invalid in the
+// RSC payload and triggers a hydration error. Wrapping in <>{children}</> gives the
+// RSC runtime a proper host/fragment element to serialize correctly.
 export default function ChatLayout({ children }) {
-  return children;
+  return <>{children}</>;
 }

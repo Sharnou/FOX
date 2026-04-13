@@ -1007,13 +1007,104 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // ── DELETE ad ──
+// ── PATCH /:id/sold — mark ad as sold and archive all linked chats ──
+// Like dubizzle: when seller marks an item sold, all chats for that ad get closed.
+router.patch('/:id/sold', auth, async (req, res) => {
+  try {
+    const ad = await getAdModel().findOne({ _id: req.params.id, userId: req.user.id });
+    if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود أو لا يخصك' });
+
+    // Mark ad as sold
+    ad.status = 'sold';
+    ad.isExpired = true;
+    ad.expiredAt = new Date();
+    await ad.save();
+
+    // Archive all chats linked to this ad — no new messages can be sent
+    let archivedCount = 0;
+    try {
+      const Chat = (await import('../models/Chat.js')).default;
+      const result = await Chat.updateMany(
+        { ad: req.params.id, status: { $ne: 'archived' } },
+        {
+          $set: { status: 'archived', updatedAt: new Date() },
+          $push: {
+            messages: {
+              $each: [{
+                sender: req.user.id,
+                text: 'تم بيع هذا الإعلان. تم إغلاق المحادثة تلقائياً.',
+                type: 'system',
+                createdAt: new Date(),
+              }],
+              $slice: -500,
+            }
+          }
+        }
+      );
+      archivedCount = result.modifiedCount || 0;
+    } catch (chatErr) {
+      console.warn('[PATCH /:id/sold] Chat archive failed (non-fatal):', chatErr.message);
+    }
+
+    res.json({ ok: true, status: 'sold', archivedChats: archivedCount });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── DELETE ad ──
+// Also deletes all linked chat conversations and their Cloudinary media.
 router.delete('/:id', auth, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' || req.user.role === 'sub_admin' || req.user.role === 'superadmin';
     const query = isAdmin ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
     const ad = await getAdModel().findOne(query);
     if (!ad) return res.status(404).json({ error: 'Not found' });
+
+    // Soft-delete the ad
     ad.isDeleted = true; ad.deletedAt = new Date(); await ad.save();
+
+    // ── Cascade: delete all linked chats + their Cloudinary media ──
+    // Run asynchronously so the response is not delayed.
+    (async () => {
+      try {
+        const Chat = (await import('../models/Chat.js')).default;
+        const { deleteMedia, CLOUDINARY_ENABLED } = await import('../server/cloudinary.js');
+
+        // Find all chats for this ad
+        const chats = await Chat.find({ ad: req.params.id }).lean();
+
+        if (chats.length > 0) {
+          // Delete Cloudinary media from chat messages (voice notes, images)
+          if (CLOUDINARY_ENABLED) {
+            for (const chat of chats) {
+              for (const msg of (chat.messages || [])) {
+                // Voice messages stored at xtox_voice/<id>
+                if (msg.type === 'image' || msg.type === 'voice') {
+                  const url = msg.text || '';
+                  // Extract Cloudinary public_id from the URL
+                  // e.g. https://res.cloudinary.com/<cloud>/video/upload/xtox_voice/abc123.webm
+                  const match = url.match(/\/(?:image|video|raw)\/upload\/(?:v\d+\/)?(.+?)(?:\.\w+)?$/);
+                  if (match && match[1]) {
+                    const publicId = match[1];
+                    const resourceType = msg.type === 'voice' ? 'video' : 'image';
+                    deleteMedia(publicId, resourceType).catch(() => {});
+                  }
+                }
+              }
+            }
+          }
+
+          // Hard-delete all chats for this ad
+          await Chat.deleteMany({ ad: req.params.id });
+          console.log('[DELETE /api/ads/:id] Deleted', chats.length, 'chats for ad', req.params.id);
+        }
+      } catch (cascadeErr) {
+        // Non-fatal — log but don't fail the ad deletion
+        console.warn('[DELETE /api/ads/:id] Chat cascade delete failed (non-fatal):', cascadeErr.message);
+      }
+    })();
+
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
