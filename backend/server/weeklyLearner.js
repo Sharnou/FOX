@@ -1,16 +1,24 @@
 'use strict';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { OpenAI } from 'openai';
 import SubcategoryExample from '../models/SubcategoryExample.js';
 import { invalidateCache } from './categoryDetector.js';
 import mongoose from 'mongoose';
+
+// Initialize OpenAI client (graceful fallback if key not set)
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 async function getAdModel() {
   return mongoose.model('Ad');
 }
 
 async function runWeeklyLearning() {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  if (!openai) {
+    console.warn('[weeklyLearner] OpenAI not configured — learner disabled');
+    return null;
+  }
+
   const Ad = await getAdModel();
 
   // Find ads in General or with subcategory='Other'
@@ -34,8 +42,12 @@ Category hint: ${ad.category || 'unknown'}
 
 Respond ONLY as JSON: {"subcategory":"...","keywords":["...","..."]}`;
 
-      const result = await model.generateContent(prompt);
-      const raw = result.response.text().replace(/```json|```/g, '').trim();
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+      });
+      const raw = (completion.choices[0]?.message?.content || '').replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(raw);
 
       if (parsed.subcategory && parsed.keywords && parsed.keywords.length) {
@@ -70,8 +82,11 @@ Respond ONLY as JSON: {"subcategory":"...","keywords":["...","..."]}`;
 }
 
 async function learnNewSubsubOptions() {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  if (!openai) {
+    console.warn('[weeklyLearner] OpenAI not configured — learnNewSubsubOptions disabled');
+    return null;
+  }
+
   const Ad = await getAdModel();
 
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -110,8 +125,12 @@ ${subsubList.join('\n')}
 Return a JSON array of the best 10 sub-subcategory labels in Arabic and English for this category.
 Format: [{"ar": "...", "en": "..."}]`;
 
-      const result = await model.generateContent(prompt);
-      const raw = result.response.text().replace(/```json|```/g, '').trim();
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+      });
+      const raw = (completion.choices[0]?.message?.content || '').replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(raw);
 
       if (Array.isArray(parsed) && parsed.length) {

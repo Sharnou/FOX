@@ -30,6 +30,8 @@ export async function connectCouchbase() {
       username: COUCHBASE_USER,
       password: COUCHBASE_PASS,
       configProfile: 'wanDevelopment',  // Required for Capella cloud connections
+      connectTimeout: 3000,             // Fail fast (was SDK default ~30s)
+      kvTimeout: 2000,                  // KV op timeout (was SDK default ~10s)
     });
 
     const bucket = _cluster.bucket(BUCKET_NAME);
@@ -44,6 +46,10 @@ export async function connectCouchbase() {
     _cluster = null;
     _collection = null;
     _connected = false;
+    // Retry after 5 minutes to avoid log spam (was 30s)
+    setTimeout(() => {
+      connectCouchbase().catch(() => {});
+    }, 5 * 60 * 1000);
     return false;
   }
 }

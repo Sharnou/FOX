@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 const AdSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // alias for userId
-  title: String, title_original: String, language: String,
+  title: String, title_original: String, language: { type: String, default: 'arabic', enum: ['arabic', 'english', 'none', 'ar', 'en'] },
   translations: { en: String, ar: String, de: String, fr: String },
   description: String, category: String, subcategory: { type: String, default: 'Other' }, subsub: { type: String, default: 'Other' }, level4: { type: String, default: null }, subcategory2: String, subcategory3: String,
   price: Number, currency: String, city: String, country: { type: String, required: true },

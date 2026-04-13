@@ -417,25 +417,21 @@ connectDatabases().then(async (db) => {
       }
     } catch(e) {}
 
-    // ── FIX C: Drop old text index (language_override bug) — one-time migration ─────
-    // Old index had NO language_override, so MongoDB used 'language' field as override.
-    // Inserting language:null caused: MongoServerError: found language override field
-    // in document with non-string type.
-    // New index has language_override:'_textLang' — must drop old index to recreate it.
+    // ── Nuclear fix: Drop ALL text indexes on ads so Mongoose recreates with language_override ──
+    // Fixes: MongoServerError: found language override field in document with non-string type
+    // Mongoose won't recreate an existing index — we must drop it first every startup.
     try {
-      const Ad = (await import('../models/Ad.js')).default;
-      const indexes = await Ad.collection.indexes();
-      const hasOldIndex = indexes.some(idx =>
-        idx.key && idx.key.title === 'text' && !idx.languageOverride
-      );
-      if (hasOldIndex) {
-        await Ad.collection.dropIndex('title_text_description_text_title_original_text').catch(() =>
-          Ad.collection.dropIndex('title_text_description_text').catch(() => {})
-        );
-        console.log('[Migration] Dropped old text index — will be recreated with language_override='_textLang'');
+      const adCollection = mongoose.connection.collection('ads');
+      const indexes = await adCollection.indexes();
+      for (const idx of indexes) {
+        const isText = Object.values(idx.key || {}).includes('text');
+        if (isText) {
+          await adCollection.dropIndex(idx.name);
+          console.log('[Migration] Dropped text index:', idx.name);
+        }
       }
-    } catch(migErr) {
-      console.warn('[Migration] Text index drop skipped (non-fatal):', migErr.message);
+    } catch(e) {
+      console.log('[Migration] Text index drop (non-fatal):', e.message);
     }
     // ────────────────────────────────────────────────────────────────────────────────
 

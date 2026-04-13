@@ -893,10 +893,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
         phone: phone || undefined,
         whatsapp: whatsapp || undefined,
         tags: tags || [],
-        // FIX: language must be a string or absent — null causes MongoServerError with text index.
-        // Now that text index uses language_override:'_textLang', the 'language' field is just
-        // a regular app field (not the text-index override), but we still set it properly.
-        language: /[؀-ۿ]/.test(title || '') ? 'arabic' : 'english',
+        // language field intentionally omitted from insert — schema default handles it
         // FIX D: Only save location when coordinates are fully valid numbers and non-zero
         location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
         visibilityScore: 10,

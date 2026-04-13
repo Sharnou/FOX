@@ -20,7 +20,6 @@ const LocationVocabSchema = new mongoose.Schema({
 });
 
 // Indexes
-LocationVocabSchema.index({ country: 1 }, { unique: true });
 LocationVocabSchema.index({ country: 1, 'terms.word': 1 });
 
 export default mongoose.model('LocationVocab', LocationVocabSchema);
