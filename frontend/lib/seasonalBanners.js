@@ -45,6 +45,7 @@ export const SEASONAL_BANNERS = [
 ];
 
 export function getActiveBanner() {
+  if (typeof window === 'undefined') return null;
   const now = new Date();
   const month = now.getMonth() + 1; // 1-12
   const day = now.getDate();
