@@ -65,7 +65,7 @@ AdSchema.index({ country: 1, category: 1, createdAt: -1 });     // category filt
 AdSchema.index({ location: '2dsphere' }, { sparse: true });
 AdSchema.index({ userId: 1, createdAt: -1 });                    // my-ads page
 AdSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });     // TTL auto-expire
-AdSchema.index({ title: 'text', description: 'text', title_original: 'text' }, { default_language: 'none', weights: { title: 10, description: 5 } }); // text search
+AdSchema.index({ title: 'text', description: 'text', title_original: 'text' }, { default_language: 'none', language_override: '_textLang', weights: { title: 10, description: 5 } }); // text search — language_override='_textLang' prevents 'language' field from being used as text-index language override (fixes MongoServerError: found language override field in document with non-string type)
 AdSchema.index({ country: 1, condition: 1, createdAt: -1 });     // condition filter [run 84]
 AdSchema.index({ country: 1, subcategory: 1, createdAt: -1 }); // subcategory filter
 AdSchema.index({ country: 1, subsub: 1, createdAt: -1 });      // subsub filter

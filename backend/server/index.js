@@ -417,6 +417,28 @@ connectDatabases().then(async (db) => {
       }
     } catch(e) {}
 
+    // ── FIX C: Drop old text index (language_override bug) — one-time migration ─────
+    // Old index had NO language_override, so MongoDB used 'language' field as override.
+    // Inserting language:null caused: MongoServerError: found language override field
+    // in document with non-string type.
+    // New index has language_override:'_textLang' — must drop old index to recreate it.
+    try {
+      const Ad = (await import('../models/Ad.js')).default;
+      const indexes = await Ad.collection.indexes();
+      const hasOldIndex = indexes.some(idx =>
+        idx.key && idx.key.title === 'text' && !idx.languageOverride
+      );
+      if (hasOldIndex) {
+        await Ad.collection.dropIndex('title_text_description_text_title_original_text').catch(() =>
+          Ad.collection.dropIndex('title_text_description_text').catch(() => {})
+        );
+        console.log('[Migration] Dropped old text index — will be recreated with language_override='_textLang'');
+      }
+    } catch(migErr) {
+      console.warn('[Migration] Text index drop skipped (non-fatal):', migErr.message);
+    }
+    // ────────────────────────────────────────────────────────────────────────────────
+
     // ── Run seeds + cleanup ─────────────────────────────────────────────
     await runSeedsOnce();
 

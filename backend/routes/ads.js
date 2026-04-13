@@ -893,8 +893,10 @@ router.post('/', auth, multerUpload, async (req, res) => {
         phone: phone || undefined,
         whatsapp: whatsapp || undefined,
         tags: tags || [],
-        // FIXED: 'ar'/'en' cause MongoDB text index language override error — use null (fail-open)
-        language: null,
+        // FIX: language must be a string or absent — null causes MongoServerError with text index.
+        // Now that text index uses language_override:'_textLang', the 'language' field is just
+        // a regular app field (not the text-index override), but we still set it properly.
+        language: /[؀-ۿ]/.test(title || '') ? 'arabic' : 'english',
         // FIX D: Only save location when coordinates are fully valid numbers and non-zero
         location: validLocation ? { type: 'Point', coordinates: [lng, lat] } : undefined,
         visibilityScore: 10,
@@ -1143,7 +1145,7 @@ router.put('/:id', auth, async (req, res) => {
     }
     ad.updatedAt = new Date();
     ad.editedAt = new Date();
-    ad.language = /[\u0600-\u06FF]/.test(title) ? 'ar' : 'en';
+    ad.language = /[\u0600-\u06FF]/.test(title || '') ? 'arabic' : 'english'; // FIX: use full language names (not 'ar'/'en')
 
     await ad.save();
     await rankAd(ad).catch(() => {});
