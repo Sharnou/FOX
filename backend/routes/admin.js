@@ -631,4 +631,15 @@ router.post('/location-vocab/run', adminAuth, async (req, res) => {
   }
 });
 
+
+router.post('/subsub-options/run', adminAuth, async (req, res) => {
+  try {
+    const { learnNewSubsubOptions } = await import('../server/weeklyLearner.js');
+    learnNewSubsubOptions().catch(() => {});
+    res.json({ success: true, message: 'تم بدء مهمة تعلم خيارات التصنيف الفرعي الثاني' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 export default router;
