@@ -429,7 +429,7 @@ router.delete('/:chatId/messages/:messageId', auth, async (req, res) => {
 router.post('/:chatId/messages', auth, async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { text, type = 'text' } = req.body;
+    const { text, type = 'text', duration = 0 } = req.body;
     if (!mongoose.Types.ObjectId.isValid(chatId)) {
       return res.status(400).json({ success: false, error: 'Invalid chatId', message: 'معرّف المحادثة غير صالح | Invalid chat ID' });
     }
@@ -449,6 +449,7 @@ router.post('/:chatId/messages', auth, async (req, res) => {
       sender: req.user.id,
       text,
       type,
+      duration: type === 'voice' ? (Number(duration) || 0) : 0,
       read: false,
       createdAt: new Date(),
     };
@@ -466,6 +467,28 @@ router.post('/:chatId/messages', auth, async (req, res) => {
     res.json({ success: true, message: savedMessage });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message, message: 'حدث خطأ أثناء إرسال الرسالة | Error sending message' });
+  }
+});
+
+
+// POST /api/chat/:id/voice — upload voice message to Cloudinary
+router.post('/:id/voice', auth, async (req, res) => {
+  try {
+    const { default: cloudinaryClient } = await import('../server/cloudinary.js');
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', async () => {
+      const buf = Buffer.concat(chunks);
+      cloudinaryClient.uploader.upload_stream(
+        { resource_type: 'video', folder: 'xtox_voice', format: 'webm' },
+        (err, result) => {
+          if (err) return res.status(500).json({ success: false, error: 'Upload failed' });
+          return res.json({ success: true, url: result.secure_url, duration: 0 });
+        }
+      ).end(buf);
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: 'Server error' });
   }
 });
 

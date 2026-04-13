@@ -89,6 +89,50 @@ export function initSocket(io) {
       });
     });
 
+
+    // ── WebRTC Call Signaling (Room-per-Socket pattern) ─────────────
+    // Personal room for direct calls
+    socket.on('join_user_room', ({ userId }) => {
+      if (userId) socket.join('user_' + userId);
+    });
+
+    // Initiate call — notify the target user
+    socket.on('call:initiate', ({ targetUserId, callerId, callerName }) => {
+      io.to('user_' + targetUserId).emit('call:incoming', {
+        callerId, callerName, callerSocketId: socket.id
+      });
+    });
+
+    // Caller sends SDP offer to responder
+    socket.on('call:offer', ({ targetSocketId, offer }) => {
+      io.to(targetSocketId).emit('call:offer', { offer, callerSocketId: socket.id });
+    });
+
+    // Responder sends SDP answer to caller
+    socket.on('call:answer', ({ callerSocketId, answer }) => {
+      io.to(callerSocketId).emit('call:answered', { answer, responderSocketId: socket.id });
+    });
+
+    // Reject incoming call
+    socket.on('call:reject', ({ callerSocketId }) => {
+      io.to(callerSocketId).emit('call:rejected');
+    });
+
+    // ICE candidate relay
+    socket.on('call:ice', ({ targetSocketId, candidate }) => {
+      io.to(targetSocketId).emit('call:ice', { candidate, fromSocketId: socket.id });
+    });
+
+    // End call
+    socket.on('call:end', ({ otherSocketId }) => {
+      io.to(otherSocketId).emit('call:ended');
+    });
+
+    // Responder signals readiness to receive offer
+    socket.on('call:answered_ready', ({ callerSocketId }) => {
+      io.to(callerSocketId).emit('call:answered_ready', { responderSocketId: socket.id });
+    });
+
     // ── Disconnect ───────────────────────────────────────────────
     socket.on('disconnect', async () => {
       const userId = socket.data.userId;

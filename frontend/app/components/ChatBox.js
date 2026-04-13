@@ -124,6 +124,34 @@ function TheirCharacter({ isWaiting }) {
   );
 }
 
+
+// ── VoiceMessage player ───────────────────────────────────────────────────────
+function VoiceMessage({ url, duration }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  function toggle() {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); } else { a.play(); }
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 180 }}>
+      <button onClick={toggle} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: '50%', width: 34, height: 34, fontSize: 14, cursor: 'pointer' }}>{playing ? '⏸' : '▶'}</button>
+      <div style={{ flex: 1, height: 4, background: 'rgba(0,0,0,0.15)', borderRadius: 2 }}>
+        <div style={{ width: progress + '%', height: '100%', background: '#25d366', borderRadius: 2, transition: 'width 0.1s' }} />
+      </div>
+      <span style={{ fontSize: 11, opacity: 0.7 }}>{duration ? duration + 's' : '🎤'}</span>
+      <audio ref={audioRef} src={url}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setProgress(0); }}
+        onTimeUpdate={e => { const a = e.target; setProgress(a.duration ? (a.currentTime/a.duration)*100 : 0); }}
+      />
+    </div>
+  );
+}
+
 export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -151,6 +179,13 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
 
   // Dubizzle-style header: ad title
   const [adTitle, setAdTitle] = useState('');
+
+  // Voice recording state
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingTimerRef = useRef(null);
 
   // Detect lang and user
   useEffect(() => {
@@ -257,7 +292,71 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
     setShowMenu(false);
   }
 
-  const sendMessage = useCallback(async (msgText) => {
+  async function startVoiceRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await uploadAndSendVoice(blob, recordingSeconds);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000);
+    } catch (e) {
+      setIsRecording(false);
+    }
+  }
+
+  function stopVoiceRecording() {
+    clearInterval(recordingTimerRef.current);
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  }
+
+  function cancelVoiceRecording() {
+    clearInterval(recordingTimerRef.current);
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
+    }
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setRecordingSeconds(0);
+  }
+
+  async function uploadAndSendVoice(blob, dur) {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+      const msgRes = await fetch(API + '/api/chat/' + chatId + '/voice', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'audio/webm' },
+        body: blob
+      });
+      const data = await msgRes.json();
+      if (data.url) {
+        const token2 = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+        const saveRes = await fetch(API + '/api/chat/' + chatId + '/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token2 },
+          body: JSON.stringify({ text: data.url, type: 'voice', duration: dur || 0 }),
+        });
+        const saved = await saveRes.json();
+        if (saved.message) {
+          setMessages(prev => [...prev, { ...saved.message, _new: true }]);
+        }
+      }
+    } catch {}
+  }
+
+    const sendMessage = useCallback(async (msgText) => {
     const textToSend = msgText || text;
     if (!textToSend.trim() || !chatId || sending) return;
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -559,7 +658,11 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
                         cursor: 'default',
                       }}
                     >
-                      {msg.text}
+                      {(msg.type === 'voice') ? (
+                        <VoiceMessage url={msg.text} duration={msg.duration} />
+                      ) : (
+                        msg.text
+                      )}
                     </div>
                   </div>
                 );
@@ -614,34 +717,46 @@ export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
             display: 'flex', gap: 8, flexShrink: 0,
             background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(8px)',
           }}>
-            <input
-              value={text}
-              onChange={e => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t.placeholder}
-              disabled={loading || !chatId}
-              style={{
-                flex: 1, padding: '9px 14px', borderRadius: 12,
-                border: '1.5px solid rgba(99,102,241,0.2)', fontSize: 14, outline: 'none',
-                fontFamily: 'inherit', direction: isRTL ? 'rtl' : 'ltr',
-                background: 'rgba(255,255,255,0.9)',
-              }}
-            />
-            <button
-              onClick={() => sendMessage()}
-              disabled={!text.trim() || sending || loading || !chatId}
-              style={{
-                padding: '9px 18px', borderRadius: 12, border: 'none',
-                background: (!text.trim() || sending || loading || !chatId) ? '#e5e7eb'
-                  : 'linear-gradient(135deg, #667eea, #764ba2)',
-                color: (!text.trim() || sending || loading || !chatId) ? '#9ca3af' : '#fff',
-                fontWeight: 700, fontSize: 14, cursor: (!text.trim() || sending) ? 'not-allowed' : 'pointer',
-                fontFamily: 'inherit', flexShrink: 0,
-                boxShadow: (!text.trim() || sending || loading || !chatId) ? 'none' : '0 4px 12px rgba(102,126,234,0.4)',
-              }}
-            >
-              {sending ? t.sending : t.send}
-            </button>
+            {isRecording ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: '#fee', borderRadius: 24, padding: '6px 14px' }}>
+                <span style={{ color: '#e74c3c', fontSize: 13 }}>● {String(Math.floor(recordingSeconds/60)).padStart(2,'0')}:{String(recordingSeconds%60).padStart(2,'0')}</span>
+                <span style={{ flex: 1, color: '#e74c3c', fontSize: 12 }}>جارٍ التسجيل...</span>
+                <button onClick={cancelVoiceRecording} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}>🗑</button>
+                <button onClick={stopVoiceRecording} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: '50%', width: 36, height: 36, fontSize: 16, cursor: 'pointer' }}>✓</button>
+              </div>
+            ) : (
+              <>
+                <input
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={t.placeholder}
+                  disabled={loading || !chatId}
+                  style={{
+                    flex: 1, padding: '9px 14px', borderRadius: 12,
+                    border: '1.5px solid rgba(99,102,241,0.2)', fontSize: 14, outline: 'none',
+                    fontFamily: 'inherit', direction: isRTL ? 'rtl' : 'ltr',
+                    background: 'rgba(255,255,255,0.9)',
+                  }}
+                />
+                <button onClick={startVoiceRecording} title="رسالة صوتية" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#555' }}>🎤</button>
+                <button
+                  onClick={() => sendMessage()}
+                  disabled={!text.trim() || sending || loading || !chatId}
+                  style={{
+                    padding: '9px 18px', borderRadius: 12, border: 'none',
+                    background: (!text.trim() || sending || loading || !chatId) ? '#e5e7eb'
+                      : 'linear-gradient(135deg, #667eea, #764ba2)',
+                    color: (!text.trim() || sending || loading || !chatId) ? '#9ca3af' : '#fff',
+                    fontWeight: 700, fontSize: 14, cursor: (!text.trim() || sending) ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit', flexShrink: 0,
+                    boxShadow: (!text.trim() || sending || loading || !chatId) ? 'none' : '0 4px 12px rgba(102,126,234,0.4)',
+                  }}
+                >
+                  {sending ? t.sending : t.send}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

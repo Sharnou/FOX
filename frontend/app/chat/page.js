@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import CallManager from '../components/CallManager';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -142,6 +143,7 @@ function LocationCard({ msg }) {
 export default function ChatPage() {
   var router = useRouter();
   var [myId, setMyId]                   = useState('');
+  var [currentUser, setCurrentUser]     = useState(null);
   var [targetId, setTargetId]           = useState('');
   var [sellerName, setSellerName]       = useState('');
   var [sellerAvatar, setSellerAvatar]   = useState('');
@@ -160,7 +162,9 @@ export default function ChatPage() {
   var [apiChats, setApiChats]           = useState([]);
   var [historyLoaded, setHistoryLoaded] = useState(false);
   var [loginRequired, setLoginRequired] = useState(false);
-  var [chatError, setChatError]           = useState('');
+  var [chatError, setChatError]         = useState('');
+  var [isMobile, setIsMobile]           = useState(false);
+  var [socketInstance, setSocketInstance] = useState(null);
 
   var pcRef          = useRef(null);
   var remoteAudioRef = useRef(null);
@@ -170,6 +174,15 @@ export default function ChatPage() {
   var socketRef      = useRef(null);
   var chatIdRef      = useRef('');
   var callTimerRef   = useRef(null);
+  var callManagerRef = useRef(null);
+
+  // Detect mobile
+  useEffect(function() {
+    var check = function() { setIsMobile(window.innerWidth <= 768); };
+    check();
+    window.addEventListener('resize', check);
+    return function() { window.removeEventListener('resize', check); };
+  }, []);
 
   // Immediate auth check — redirect to login if no token
   useEffect(function() {
@@ -185,6 +198,7 @@ export default function ChatPage() {
       var uid    = user.id || user._id || '';
       var cid    = params.get('chatId') || '';
       setMyId(uid);
+      setCurrentUser(user);
       setTargetId(params.get('target') || '');
       setChatId(cid);
       chatIdRef.current = cid;
@@ -285,7 +299,6 @@ export default function ChatPage() {
         var chatList = data.chats || (Array.isArray(data) ? data : []);
         setApiChats(chatList);
         var apiConvs = chatList.map(function(c) {
-          // Chat schema uses buyer/seller, NOT users[] array
           var otherId = '';
           if (c.buyer && String(c.buyer) !== String(myId)) otherId = String(c.buyer);
           else if (c.seller && String(c.seller) !== String(myId)) otherId = String(c.seller);
@@ -301,7 +314,6 @@ export default function ChatPage() {
         if (urlChatId) {
           var chat = chatList.find(function(c) { return String(c._id) === urlChatId; });
           if (chat) {
-            // Chat schema uses buyer/seller, NOT users[] array
             var otherId = '';
             if (chat.buyer && String(chat.buyer) !== String(myId)) otherId = String(chat.buyer);
             else if (chat.seller && String(chat.seller) !== String(myId)) otherId = String(chat.seller);
@@ -314,7 +326,7 @@ export default function ChatPage() {
                 var msgData = await msgRes.json();
                 var msgs = (msgData.messages || []).slice().reverse();
                 setMessages(msgs.map(function(m) {
-                  return { from: m.sender === myId ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now() };
+                  return { from: m.sender === myId ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now() };
                 }));
               }
             } catch(e) {}
@@ -333,6 +345,7 @@ export default function ChatPage() {
     var token = typeof window !== 'undefined' ? (localStorage.getItem('token') || 'guest') : 'guest';
     var s = io(SOCKET_URL, { auth: { token: token }, transports: ['websocket', 'polling'], withCredentials: true });
     socketRef.current = s;
+    setSocketInstance(s);
     s.emit('join', myId);
     setJoined(true);
     s.on('reconnect', function() {
@@ -346,7 +359,7 @@ export default function ChatPage() {
     s.on('receive_message', function(data) {
       var senderId = data.from || targetId;
       var msgTime  = Date.now();
-      setMessages(function(prev) { return prev.concat([{ from: senderId, text: data.text, time: msgTime }]); });
+      setMessages(function(prev) { return prev.concat([{ from: senderId, text: data.text, type: data.type || 'text', duration: data.duration || 0, time: msgTime }]); });
       if (senderId && senderId !== targetId) {
         setUnreadCounts(function(prev) {
           var upd = Object.assign({}, prev);
@@ -484,7 +497,7 @@ export default function ChatPage() {
     var now  = Date.now();
     var text = msg;
     setMsg('');
-    setMessages(function(prev) { return prev.concat([{ from: 'me', text: text, time: now }]); });
+    setMessages(function(prev) { return prev.concat([{ from: 'me', text: text, type: 'text', duration: 0, time: now }]); });
     socketRef.current.emit('send_message', { from: myId, to: targetId, text: text, time: now });
     setConversations(function(prev) {
       var exists = prev.find(function(c) { return c.id === targetId; });
@@ -533,8 +546,14 @@ export default function ChatPage() {
 
   var totalUnread = Object.values(unreadCounts).reduce(function(s, n) { return s + n; }, 0);
 
+  // Mobile panel visibility logic
+  // On mobile: show conv panel when showConvPanel=true OR no targetId
+  // On mobile: show messages when !showConvPanel AND targetId set
+  var convPanelVisible = !isMobile || showConvPanel || !targetId;
+  var messageAreaVisible = !isMobile || (!showConvPanel && !!targetId);
+
   return (
-    <div dir="rtl" lang="ar" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: "'Cairo', 'Noto Sans Arabic', system-ui, sans-serif", background: '#f1f5f9', overflow: 'hidden' }}>
+    <div dir="rtl" lang="ar" style={{ height: 'calc(100dvh - 60px)', display: 'flex', flexDirection: 'column', fontFamily: "'Cairo', 'Noto Sans Arabic', system-ui, sans-serif", background: '#f1f5f9', overflow: 'hidden' }}>
 
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
@@ -552,21 +571,90 @@ export default function ChatPage() {
         />
       )}
 
-      {showConvPanel && (
-        <div dir="rtl" role="dialog" aria-label="قائمة المحادثات"
-          style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 300, maxWidth: '85vw', background: '#002f34', zIndex: 500, overflowY: 'auto', boxShadow: '-4px 0 24px rgba(0,0,0,0.4)', animation: 'xtox-slide-in 0.22s ease-out', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '16px', borderBottom: '1px solid rgba(35,229,219,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#001f23', flexShrink: 0 }}>
-            <h2 style={{ margin: 0, color: '#23e5db', fontSize: 16, fontWeight: 'bold' }}>المحادثات</h2>
-            <button onClick={function() { setShowConvPanel(false); }} aria-label="إغلاق"
-              style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: 6, width: 32, height: 32, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              &#x2715;
+      <CallManager ref={callManagerRef} socket={socketInstance} currentUser={currentUser} />
+
+      <header role="banner" style={{ background: '#1e293b', color: 'white', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+        <button onClick={function() {
+          if (isMobile && targetId && !showConvPanel) {
+            setShowConvPanel(true);
+          } else {
+            history.back();
+          }
+        }} aria-label="العودة للخلف"
+          style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', fontSize: 18, cursor: 'pointer', borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          &#8594;
+        </button>
+        <button onClick={function() { setShowConvPanel(function(p) { return !p; }); }} aria-label="قائمة المحادثات"
+          style={{ position: 'relative', background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', fontSize: 18, cursor: 'pointer', borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          &#128172;
+          {totalUnread > 0 && (
+            <span aria-label={totalUnread + ' رسائل غير مقروءة'}
+              style={{ position: 'absolute', top: -4, left: -4, minWidth: 18, height: 18, background: '#23e5db', color: '#002f34', borderRadius: 9, fontSize: 11, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+              {totalUnread > 99 ? '99+' : totalUnread}
+            </span>
+          )}
+        </button>
+        <div aria-hidden="true" style={{ width: 40, height: 40, borderRadius: '50%', background: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+          &#128100;
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontWeight: 'bold', fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {targetId ? 'محادثة مع ' + (sellerName || targetId) : 'اختر محادثة للبدء'}
+          </p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
+            {joined ? 'متصل' : 'جار الاتصال...'}
+          </p>
+        </div>
+        {targetId && (
+          <>
+            <button
+              onClick={function() { callManagerRef.current?.initiateCall(targetId, sellerName || targetId); }}
+              title="مكالمة صوتية"
+              aria-label="مكالمة صوتية عبر WebRTC"
+              style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', marginRight: 8, flexShrink: 0 }}>
+              📞
             </button>
+            <button
+              onClick={cc.action || undefined}
+              disabled={cc.disabled}
+              aria-label={callState === 'active' ? 'إنهاء المكالمة الصوتية' : 'بدء مكالمة صوتية'}
+              style={{ background: cc.bg, color: 'white', border: 'none', padding: '8px 14px', borderRadius: 20, cursor: cc.disabled ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', opacity: cc.disabled ? 0.65 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {cc.label}
+            </button>
+          </>
+        )}
+      </header>
+
+      {/* Body: conversation panel + message area side by side */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+        {/* Conversations panel */}
+        <div
+          aria-label="قائمة المحادثات"
+          style={{
+            width: isMobile ? '100%' : 320,
+            height: '100%',
+            overflowY: 'auto',
+            flexShrink: 0,
+            background: '#002f34',
+            display: convPanelVisible ? 'flex' : 'none',
+            flexDirection: 'column',
+            borderLeft: isMobile ? 'none' : '1px solid rgba(35,229,219,0.15)',
+          }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(35,229,219,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#001f23', flexShrink: 0 }}>
+            <h2 style={{ margin: 0, color: '#23e5db', fontSize: 16, fontWeight: 'bold' }}>المحادثات</h2>
+            {isMobile && targetId && (
+              <button onClick={function() { setShowConvPanel(false); }} aria-label="إغلاق"
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: 6, width: 32, height: 32, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                &#x2715;
+              </button>
+            )}
           </div>
           {loginRequired ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 36 }}>&#128274;</div>
-              <p style={{ margin: 0 }}>{'سجّل الدخول للمحادثات'}</p>
-              <a href="/login" style={{ color: '#23e5db', fontSize: 13, marginTop: 4 }}>{'تسجيل الدخول'}</a>
+              <p style={{ margin: 0 }}>سجّل الدخول للمحادثات</p>
+              <a href="/login" style={{ color: '#23e5db', fontSize: 13, marginTop: 4 }}>تسجيل الدخول</a>
             </div>
           ) : chatError && historyLoaded ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 14, gap: 10, padding: 24, textAlign: 'center' }}>
@@ -591,10 +679,10 @@ export default function ChatPage() {
           ) : historyLoaded && apiChats.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 40 }}>&#128172;</div>
-              <p style={{ margin: 0, lineHeight: 1.6 }}>{'لا توجد محادثات بعد. ابدأ محادثة من صفحة أي إعلان!'}</p>
+              <p style={{ margin: 0, lineHeight: 1.6 }}>لا توجد محادثات بعد. ابدأ محادثة من صفحة أي إعلان!</p>
             </div>
           ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, flex: 1 }}>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, flex: 1, overflowY: 'auto' }}>
               {conversations.map(function(conv) {
                 var unread   = unreadCounts[conv.id] || 0;
                 var isActive = conv.id === targetId;
@@ -641,114 +729,81 @@ export default function ChatPage() {
             </ul>
           )}
         </div>
-      )}
 
-      {showConvPanel && (
-        <div onClick={function() { setShowConvPanel(false); }} aria-hidden="true"
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 499 }} />
-      )}
+        {/* Message area */}
+        <div style={{
+          flex: 1,
+          height: '100%',
+          display: messageAreaVisible ? 'flex' : 'none',
+          flexDirection: 'column',
+          minWidth: 0,
+        }}>
+          <main role="log" aria-label="سجل المحادثة" aria-live="polite"
+            style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {!targetId && (
+              <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', paddingTop: 80, textAlign: 'center', gap: 12 }}>
+                <div style={{ fontSize: 72 }}>&#128172;</div>
+                <p style={{ margin: 0, fontSize: 20, fontWeight: 'bold', color: '#64748b' }}>اختر محادثة للبدء</p>
+                <p style={{ margin: 0, fontSize: 14, color: '#94a3b8', maxWidth: 260, lineHeight: 1.6 }}>ابحث عن إعلان وتواصل مع البائع مباشرة</p>
+              </div>
+            )}
+            {targetId && messages.length === 0 && (
+              <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', paddingTop: 60, textAlign: 'center', gap: 10 }}>
+                <div style={{ fontSize: 56 }}>&#128172;</div>
+                <p style={{ margin: 0, fontSize: 16, color: '#64748b', fontWeight: 600 }}>ابدأ المحادثة</p>
+                <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>أرسل رسالة للتواصل مع {sellerName || targetId}</p>
+              </div>
+            )}
+            {messages.map(function(m, i) {
+              var isSent = m.from === 'me';
+              return (
+                <div key={i} dir="ltr" style={{ display: 'flex', justifyContent: isSent ? 'flex-end' : 'flex-start' }}>
+                  {m.type === 'location' ? (
+                    <div>
+                      <LocationCard msg={m} />
+                      <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right', color: '#64748b' }}>{arabicRelTime(m.time)}</div>
+                    </div>
+                  ) : (
+                    <div dir="rtl" role="article" aria-label={isSent ? 'رسالتك' : 'رسالة من ' + m.from}
+                      style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: isSent ? '18px 18px 4px 18px' : '18px 18px 18px 4px', background: isSent ? '#f97316' : '#ffffff', color: isSent ? '#ffffff' : '#1e293b', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', fontSize: 15, lineHeight: 1.55, wordBreak: 'break-word' }}>
+                      <div>{m.text}</div>
+                      <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right' }}>{arabicRelTime(m.time)}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {isTyping && <TypingDots />}
+            <div ref={messagesEndRef} aria-hidden="true" />
+          </main>
 
-      <header role="banner" style={{ background: '#1e293b', color: 'white', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-        <button onClick={function() { history.back(); }} aria-label="العودة للخلف"
-          style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', fontSize: 18, cursor: 'pointer', borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          &#8594;
-        </button>
-        <button onClick={function() { setShowConvPanel(function(p) { return !p; }); }} aria-label="قائمة المحادثات"
-          style={{ position: 'relative', background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', fontSize: 18, cursor: 'pointer', borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          &#128172;
-          {totalUnread > 0 && (
-            <span aria-label={totalUnread + ' رسائل غير مقروءة'}
-              style={{ position: 'absolute', top: -4, left: -4, minWidth: 18, height: 18, background: '#23e5db', color: '#002f34', borderRadius: 9, fontSize: 11, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
-              {totalUnread > 99 ? '99+' : totalUnread}
-            </span>
+          {targetId && (
+            <footer style={{ background: '#ffffff', padding: '10px 14px', paddingBottom: 'max(10px, env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', boxShadow: '0 -2px 8px rgba(0,0,0,0.07)', flexShrink: 0, direction: 'rtl' }}>
+              <button onClick={shareLocation} aria-label="مشاركة الموقع"
+                style={{ background: '#f0f7ff', border: '1.5px solid #4285F4', borderRadius: '50%', width: 46, height: 46, cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                &#128205;
+              </button>
+              <input
+                id="chat-message-input"
+                name="chat-message"
+                value={msg}
+                onChange={handleTyping}
+                onKeyDown={function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                placeholder="اكتب رسالة..."
+                dir="rtl"
+                aria-label="حقل كتابة الرسالة"
+                style={{ flex: 1, padding: '11px 16px', borderRadius: 24, border: '1.5px solid #e2e8f0', fontSize: 16, fontFamily: 'inherit', outline: 'none', background: '#f8fafc', color: '#1e293b' }}
+                onFocus={function(e) { e.target.style.borderColor = '#f97316'; }}
+                onBlur={function(e) { e.target.style.borderColor = '#e2e8f0'; }}
+              />
+              <button onClick={sendMessage} disabled={!msg.trim()} aria-label="إرسال الرسالة"
+                style={{ background: msg.trim() ? '#f97316' : '#e2e8f0', color: msg.trim() ? '#ffffff' : '#94a3b8', border: 'none', borderRadius: '50%', width: 46, height: 46, cursor: msg.trim() ? 'pointer' : 'not-allowed', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                &#8593;
+              </button>
+            </footer>
           )}
-        </button>
-        <div aria-hidden="true" style={{ width: 40, height: 40, borderRadius: '50%', background: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-          &#128100;
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontWeight: 'bold', fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {targetId ? 'محادثة مع ' + (sellerName || targetId) : 'اختر محادثة للبدء'}
-          </p>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
-            {joined ? 'متصل' : 'جار الاتصال...'}
-          </p>
-        </div>
-        {targetId && (
-          <button
-            onClick={cc.action || undefined}
-            disabled={cc.disabled}
-            aria-label={callState === 'active' ? 'إنهاء المكالمة الصوتية' : 'بدء مكالمة صوتية'}
-            style={{ background: cc.bg, color: 'white', border: 'none', padding: '8px 14px', borderRadius: 20, cursor: cc.disabled ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', opacity: cc.disabled ? 0.65 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
-            {cc.label}
-          </button>
-        )}
-      </header>
-
-      <main role="log" aria-label="سجل المحادثة" aria-live="polite"
-        style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {!targetId && (
-          <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', paddingTop: 80, textAlign: 'center', gap: 12 }}>
-            <div style={{ fontSize: 72 }}>&#128172;</div>
-            <p style={{ margin: 0, fontSize: 20, fontWeight: 'bold', color: '#64748b' }}>اختر محادثة للبدء</p>
-            <p style={{ margin: 0, fontSize: 14, color: '#94a3b8', maxWidth: 260, lineHeight: 1.6 }}>ابحث عن إعلان وتواصل مع البائع مباشرة</p>
-          </div>
-        )}
-        {targetId && messages.length === 0 && (
-          <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', paddingTop: 60, textAlign: 'center', gap: 10 }}>
-            <div style={{ fontSize: 56 }}>&#128172;</div>
-            <p style={{ margin: 0, fontSize: 16, color: '#64748b', fontWeight: 600 }}>ابدأ المحادثة</p>
-            <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>أرسل رسالة للتواصل مع {sellerName || targetId}</p>
-          </div>
-        )}
-        {messages.map(function(m, i) {
-          var isSent = m.from === 'me';
-          return (
-            <div key={i} dir="ltr" style={{ display: 'flex', justifyContent: isSent ? 'flex-end' : 'flex-start' }}>
-              {m.type === 'location' ? (
-                <div>
-                  <LocationCard msg={m} />
-                  <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right', color: '#64748b' }}>{arabicRelTime(m.time)}</div>
-                </div>
-              ) : (
-                <div dir="rtl" role="article" aria-label={isSent ? 'رسالتك' : 'رسالة من ' + m.from}
-                  style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: isSent ? '18px 18px 4px 18px' : '18px 18px 18px 4px', background: isSent ? '#f97316' : '#ffffff', color: isSent ? '#ffffff' : '#1e293b', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', fontSize: 15, lineHeight: 1.55, wordBreak: 'break-word' }}>
-                  <div>{m.text}</div>
-                  <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right' }}>{arabicRelTime(m.time)}</div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {isTyping && <TypingDots />}
-        <div ref={messagesEndRef} aria-hidden="true" />
-      </main>
-
-      {targetId && (
-        <footer style={{ position: 'sticky', bottom: 0, zIndex: 100, background: '#ffffff', padding: '10px 14px', paddingBottom: 'max(10px, env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', boxShadow: '0 -2px 8px rgba(0,0,0,0.07)', flexShrink: 0, direction: 'rtl' }}>
-          <button onClick={shareLocation} aria-label="مشاركة الموقع"
-            style={{ background: '#f0f7ff', border: '1.5px solid #4285F4', borderRadius: '50%', width: 46, height: 46, cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            &#128205;
-          </button>
-          <input
-            id="chat-message-input"
-            name="chat-message"
-            value={msg}
-            onChange={handleTyping}
-            onKeyDown={function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-            placeholder="اكتب رسالة..."
-            dir="rtl"
-            aria-label="حقل كتابة الرسالة"
-            style={{ flex: 1, padding: '11px 16px', borderRadius: 24, border: '1.5px solid #e2e8f0', fontSize: 16, fontFamily: 'inherit', outline: 'none', background: '#f8fafc', color: '#1e293b' }}
-            onFocus={function(e) { e.target.style.borderColor = '#f97316'; }}
-            onBlur={function(e) { e.target.style.borderColor = '#e2e8f0'; }}
-          />
-          <button onClick={sendMessage} disabled={!msg.trim()} aria-label="إرسال الرسالة"
-            style={{ background: msg.trim() ? '#f97316' : '#e2e8f0', color: msg.trim() ? '#ffffff' : '#94a3b8', border: 'none', borderRadius: '50%', width: 46, height: 46, cursor: msg.trim() ? 'pointer' : 'not-allowed', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            &#8593;
-          </button>
-        </footer>
-      )}
+      </div>
 
       <style>{[
         '@keyframes xtox-bounce {',
@@ -766,10 +821,6 @@ export default function ChatPage() {
         '@keyframes xtox-badge-pulse {',
         '  0%, 100% { transform: scale(1); }',
         '  50% { transform: scale(1.12); }',
-        '}',
-        '@keyframes xtox-slide-in {',
-        '  from { transform: translateX(100%); opacity: 0; }',
-        '  to { transform: translateX(0); opacity: 1; }',
         '}',
       ].join('\n')}</style>
     </div>

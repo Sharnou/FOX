@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 const MessageSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   text:   { type: String, required: true, maxlength: 5000 },
-  type:   { type: String, enum: ['text','image','offer','system'], default: 'text' },
+  type:   { type: String, enum: ['text','image','offer','system','voice'], default: 'text' },
+  duration: { type: Number, default: 0 },
   read:   { type: Boolean, default: false },
   readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   createdAt: { type: Date, default: Date.now },
