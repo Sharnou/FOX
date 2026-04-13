@@ -37,10 +37,9 @@ const AdSchema = new mongoose.Schema({
     },
     placeName: String
   },
-  // ── Run 84: Item condition & negotiable price ──────────────────────────────
+  // ── Run 84: Item condition & negotiable price (expanded to accept all category-specific statuses) ──
   condition: {
     type: String,
-    enum: ['new', 'used', 'excellent', 'rent'],
     default: null
   },
   negotiable: { type: Boolean, default: false },
