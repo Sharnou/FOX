@@ -248,6 +248,14 @@ router.get('/', async (req, res) => {
 
     // Return featured first, then ranked regular
     let allAds = [...normalizedFeatured, ...normalizedRegular];
+    // Dedup by _id — prevents same ad appearing in both featured and regular
+    const _seenIds = new Set();
+    allAds = allAds.filter(ad => {
+      const id = ad._id?.toString();
+      if (!id || _seenIds.has(id)) return false;
+      _seenIds.add(id);
+      return true;
+    });
 
     // Batch load seller info (emailVerified, whatsappVerified, name, avatar)
     try {

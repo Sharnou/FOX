@@ -93,7 +93,7 @@ app.use((req, res, next) => { _metricsRequestCount++; next(); });
 const allowedOrigins = [
   'https://fox-kohl-eight.vercel.app',
   'https://xtox-production.up.railway.app',
-  'https://xtox-production.up.railway.app',
+  'https://xtox.app',
   'http://localhost:3000',
   'http://localhost:3001',
   /\.vercel\.app$/,
@@ -110,7 +110,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','Accept','x-country','x-refresh-token'],
+  allowedHeaders: ['Content-Type','Authorization','Accept','x-country','x-refresh-token','x-auth-token'],
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
@@ -298,6 +298,7 @@ async function seedXtoxAdmin() {
     const bcryptModule = await import('bcryptjs');
     const bcrypt = bcryptModule.default || bcryptModule;
     const hash = await bcrypt.hash('xtoxxtox', 10);
+    // Always upsert xtox@xtox.com with admin role
     await UserModel.findOneAndUpdate(
       { email: 'xtox@xtox.com' },
       {
@@ -305,16 +306,29 @@ async function seedXtoxAdmin() {
           username: 'xtox',
           email: 'xtox@xtox.com',
           password: hash,
-          role: 'admin',
           chatEnabled: true,
           name: 'XTOX Admin',
           country: 'EG',
           city: 'Cairo',
-        }
+        },
+        $set: { role: 'admin' }
       },
       { upsert: true, new: true }
     );
-    console.log('[Seed] Admin user xtox@xtox.com ensured (upsert — no crash on re-deploy)');
+    console.log('[Seed] Admin user xtox@xtox.com ensured');
+
+    // Always ensure owner emails have admin role — runs on every startup
+    const ownerEmails = ['ahmed_sharnou@yahoo.com', 'ahmed_sharnou@outlook.com'];
+    for (const email of ownerEmails) {
+      const updated = await UserModel.findOneAndUpdate(
+        { email },
+        { $set: { role: 'admin' } },
+        { new: true }
+      );
+      if (updated) {
+        console.log('[Seed] Owner admin role confirmed for', email);
+      }
+    }
   } catch (e) {
     console.error('[Seed] Admin seed failed:', e.message);
   }

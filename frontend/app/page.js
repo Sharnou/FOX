@@ -116,7 +116,16 @@ export default function Home() {
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      setAds(Array.isArray(data) ? data : (data.ads || data.data || data.results || []));
+      const rawList = Array.isArray(data) ? data : (data.ads || data.data || data.results || []);
+      // Dedup by _id — prevents duplicate ad cards if API returns overlapping featured+regular
+      const seen = new Set();
+      const uniqueList = rawList.filter(ad => {
+        const id = String(ad._id);
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+      setAds(uniqueList);
       setError(null);
     } catch (e) {
       clearTimeout(timeoutId);

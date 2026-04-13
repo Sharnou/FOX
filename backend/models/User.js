@@ -12,7 +12,7 @@ const UserSchema = new mongoose.Schema(
     city: String,
     registrationIp: String,
     fcmToken: String,
-    role: { type: String, enum: ['user', 'sub_admin', 'admin'], default: 'user' },
+    role: { type: String, enum: ['user', 'sub_admin', 'admin', 'superadmin'], default: 'user' },
     reputation: { type: Number, default: 50 },
     reports: { type: Number, default: 0 },
     goodActions: { type: Number, default: 0 },

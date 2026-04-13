@@ -45,6 +45,8 @@ export default function ChatFloat() {
   useEffect(() => {
     if (!userToken) return;
     const fetchUnread = () => {
+      // Skip if offline — avoid failed request spam
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       fetch(`${API}/api/chat/unread-count`, { headers: { Authorization: `Bearer ${userToken}` } })
         .then(r => r.json())
         .then(d => setUnreadTotal(d.count || d.unreadCount || 0))
