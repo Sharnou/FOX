@@ -70,6 +70,9 @@ const UserSchema = new mongoose.Schema(
     whatsappOtpExpiry: { type: Date },
     whatsappOtpAttempts: { type: Number, default: 0 },
 
+    // -- Free plan tracking ------------------------------------------------
+    lastFreePlanUsed: { type: Date, default: null },
+
     // -- Verification status -------------------------------------------------
     emailVerified: { type: Boolean, default: false },
     whatsappVerified: { type: Boolean, default: false },

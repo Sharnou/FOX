@@ -7,71 +7,6 @@ import { detectLang } from '../../lib/lang';
 
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-const PLANS = [
-  {
-    id: 'free',
-    labelAr: '🆓 مجاني',
-    labelEn: 'Free',
-    price: '$0',
-    priceAr: 'مجاناً',
-    days: 3,
-    color: '#6B7280',
-    popular: false,
-    features: [
-      { ar: '3 أيام ظهور عادي', en: '3 days normal listing' },
-      { ar: 'بدون شارة مميزة', en: 'No featured badge' },
-      { ar: 'ترتيب عادي في النتائج', en: 'Standard placement' },
-    ],
-  },
-  {
-    id: 'basic',
-    labelAr: '⚡ أساسي',
-    labelEn: 'Basic',
-    price: '$2',
-    priceAr: '٢ دولار',
-    days: 7,
-    color: '#6C63FF',
-    popular: false,
-    features: [
-      { ar: '7 أيام تمييز', en: '7 days highlighted' },
-      { ar: 'شارة "مميز"', en: '"Featured" badge' },
-      { ar: 'أولوية متوسطة في البحث', en: 'Medium search priority' },
-    ],
-  },
-  {
-    id: 'featured',
-    labelAr: '🚀 مميز',
-    labelEn: 'Featured',
-    price: '$5',
-    priceAr: '٥ دولار',
-    days: 14,
-    color: '#F59E0B',
-    popular: true,
-    features: [
-      { ar: '14 يوم تمييز كامل', en: '14 days full featured' },
-      { ar: 'شارة ذهبية "مميز ⭐"', en: 'Gold "Featured ⭐" badge' },
-      { ar: 'أعلى نتائج البحث', en: 'Top search placement' },
-      { ar: 'ظهور في قسم المميزة', en: 'Featured ads section' },
-    ],
-  },
-  {
-    id: 'premium',
-    labelAr: '👑 بريميوم',
-    labelEn: 'Premium',
-    price: '$15',
-    priceAr: '١٥ دولار',
-    days: 30,
-    color: '#EF4444',
-    popular: false,
-    features: [
-      { ar: '30 يوم تمييز كامل', en: '30 days full featured' },
-      { ar: 'شارة "بريميوم 👑"', en: '"Premium 👑" badge' },
-      { ar: 'الصدارة في جميع النتائج', en: 'Top of all results' },
-      { ar: 'ظهور في الصفحة الرئيسية', en: 'Homepage appearance' },
-      { ar: 'إشعارات للمهتمين', en: 'Interested buyer alerts' },
-    ],
-  },
-];
 
 const PAYMENT_METHODS = [
   { id: 'cash', labelAr: '💵 الدفع عند التسليم', labelEn: 'Cash on Delivery', icon: '💵' },
@@ -93,23 +28,137 @@ function PromotePageInner() {
   const [error, setError] = useState('');
   const [showComparison, setShowComparison] = useState(false);
 
-  const selectedPlan = PLANS.find(p => p.id === selected);
-  const isRTL = lang === 'ar';
+  // Free plan status
+  const [freePlanStatus, setFreePlanStatus] = useState({ canUseFree: true, daysLeft: 0, nextFreeAt: null });
+  const [freePlanLoading, setFreePlanLoading] = useState(true);
 
+  const isRTL = lang === 'ar';
   const t = (ar, en) => isRTL ? ar : en;
+
+  // Build PLANS dynamically based on free plan status
+  const freePlanPrice = freePlanStatus.canUseFree ? '$0' : '$1';
+  const freePlanLabel = freePlanStatus.canUseFree ? '🆓 مجاني' : '⚠ مجاني (مستخدم)';
+  const freePlanLabelEn = freePlanStatus.canUseFree ? 'Free' : 'Free (Used)';
+
+  const PLANS = [
+    {
+      id: 'free',
+      labelAr: freePlanLabel,
+      labelEn: freePlanLabelEn,
+      price: freePlanPrice,
+      priceAr: freePlanStatus.canUseFree ? 'مجاناً' : 'دولار واحد',
+      days: 3,
+      color: freePlanStatus.canUseFree ? '#6B7280' : '#D97706',
+      popular: false,
+      limitReached: !freePlanStatus.canUseFree,
+      features: freePlanStatus.canUseFree
+        ? [
+            { ar: '3 أيام ظهور عادي', en: '3 days normal listing' },
+            { ar: 'بدون شارة مميزة', en: 'No featured badge' },
+            { ar: 'ترتيب عادي في النتائج', en: 'Standard placement' },
+          ]
+        : [
+            { ar: 'الباقة المجانية مستخدمة مؤخراً', en: 'Free plan recently used' },
+            { ar: `متاح مجاناً بعد ${freePlanStatus.daysLeft} يوم`, en: `Free again in ${freePlanStatus.daysLeft} days` },
+            { ar: '3 أيام ظهور · $1 فقط الآن', en: '3 days listing · Only $1 now' },
+          ],
+    },
+    {
+      id: 'basic',
+      labelAr: '⚡ أساسي',
+      labelEn: 'Basic',
+      price: '$2',
+      priceAr: '٢ دولار',
+      days: 7,
+      color: '#6C63FF',
+      popular: false,
+      features: [
+        { ar: '7 أيام تمييز', en: '7 days highlighted' },
+        { ar: 'شارة "مميز"', en: '"Featured" badge' },
+        { ar: 'أولوية متوسطة في البحث', en: 'Medium search priority' },
+      ],
+    },
+    {
+      id: 'featured',
+      labelAr: '🚀 مميز',
+      labelEn: 'Featured',
+      price: '$5',
+      priceAr: '٥ دولار',
+      days: 14,
+      color: '#F59E0B',
+      popular: true,
+      features: [
+        { ar: '14 يوم تمييز كامل', en: '14 days full featured' },
+        { ar: 'شارة ذهبية "مميز ⭐"', en: 'Gold "Featured ⭐" badge' },
+        { ar: 'أعلى نتائج البحث', en: 'Top search placement' },
+        { ar: 'ظهور في قسم المميزة', en: 'Featured ads section' },
+      ],
+    },
+    {
+      id: 'premium',
+      labelAr: '👑 بريميوم',
+      labelEn: 'Premium',
+      price: '$15',
+      priceAr: '١٥ دولار',
+      days: 30,
+      color: '#EF4444',
+      popular: false,
+      features: [
+        { ar: '30 يوم تمييز كامل', en: '30 days full featured' },
+        { ar: 'شارة "بريميوم 👑"', en: '"Premium 👑" badge' },
+        { ar: 'الصدارة في جميع النتائج', en: 'Top of all results' },
+        { ar: 'ظهور في الصفحة الرئيسية', en: 'Homepage appearance' },
+        { ar: 'إشعارات للمهتمين', en: 'Interested buyer alerts' },
+      ],
+    },
+  ];
+
+  const selectedPlan = PLANS.find(p => p.id === selected);
+
+  // Fetch free plan status on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token') || localStorage.getItem('fox_token') || '';
+    if (!token) { setFreePlanLoading(false); return; }
+    fetch(API + '/api/promote/free-plan-status', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setFreePlanStatus(data); })
+      .catch(() => {})
+      .finally(() => setFreePlanLoading(false));
+  }, []);
 
   async function handleSubmit() {
     setLoading(true);
     setError('');
     try {
+      // If free plan but limit reached — send chargeOverride flag ($1 payment)
+      const isChargeOverride = selected === 'free' && !freePlanStatus.canUseFree;
       const res = await fetch(API + '/api/promote', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + (localStorage.getItem('token') || localStorage.getItem('fox_token') || '')
         },
-        body: JSON.stringify({ adId, plan: selected, payment: paymentMethod, days: selectedPlan?.days }),
+        body: JSON.stringify({
+          adId,
+          plan: selected,
+          payment: paymentMethod,
+          days: selectedPlan?.days,
+          chargeOverride: isChargeOverride || undefined,
+        }),
       });
+
+      if (res.status === 402) {
+        // Free plan limit reached — should have been caught by status check
+        // but handle it gracefully anyway
+        const data = await res.json().catch(() => ({}));
+        setFreePlanStatus({ canUseFree: false, daysLeft: data.daysLeft || 60, nextFreeAt: data.nextFreeAt });
+        setError(data.message || t('الباقة المجانية مستخدمة. الرجاء إعادة تحميل الصفحة.', 'Free plan limit reached. Please reload.'));
+        setLoading(false);
+        return;
+      }
+
       if (res.ok) {
         setSuccess(true);
         setStep(3);
@@ -292,62 +341,94 @@ function PromotePageInner() {
             )}
 
             {/* Plan Cards */}
-            {PLANS.map(plan => (
-              <div
-                key={plan.id}
-                onClick={() => setSelected(plan.id)}
-                style={cardStyle(selected === plan.id, plan.color)}
-              >
-                {plan.popular && (
-                  <span style={{
-                    position: 'absolute',
-                    top: -10,
-                    [isRTL ? 'right' : 'left']: 20,
-                    background: 'linear-gradient(90deg, #F59E0B, #EF4444)',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    padding: '3px 12px',
-                    borderRadius: 10,
-                  }}>
-                    ⭐ {t('الأكثر شيوعاً', 'Most Popular')}
-                  </span>
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: 17 }}>
-                    {isRTL ? plan.labelAr : plan.labelEn}
-                  </div>
-                  <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
-                    {plan.days} {t('يوم تمييز', 'days featured')}
-                  </div>
-                  {selected === plan.id && (
-                    <ul style={{ margin: '8px 0 0', padding: isRTL ? '0 16px 0 0' : '0 0 0 16px', fontSize: 12, opacity: 0.9 }}>
-                      {plan.features.map((f, i) => (
-                        <li key={i} style={{ marginBottom: 3 }}>
-                          {isRTL ? f.ar : f.en}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div style={{ fontWeight: 900, fontSize: 24, minWidth: 60, textAlign: 'center' }}>
-                  <div>{plan.price}</div>
-                  {plan.id !== 'free' && (
-                    <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.8 }}>
-                      {isRTL ? plan.priceAr : ''}
-                    </div>
-                  )}
-                </div>
+            {freePlanLoading ? (
+              <div style={{ color: '#aaa', textAlign: 'center', padding: 20, fontSize: 14 }}>
+                {t('جارٍ التحميل...', 'Loading...')}
               </div>
-            ))}
+            ) : (
+              PLANS.map(plan => (
+                <div
+                  key={plan.id}
+                  onClick={() => setSelected(plan.id)}
+                  style={cardStyle(selected === plan.id, plan.color)}
+                >
+                  {plan.popular && (
+                    <span style={{
+                      position: 'absolute',
+                      top: -10,
+                      [isRTL ? 'right' : 'left']: 20,
+                      background: 'linear-gradient(90deg, #F59E0B, #EF4444)',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 800,
+                      padding: '3px 12px',
+                      borderRadius: 10,
+                    }}>
+                      ⭐ {t('الأكثر شيوعاً', 'Most Popular')}
+                    </span>
+                  )}
+                  {plan.limitReached && (
+                    <span style={{
+                      position: 'absolute',
+                      top: -10,
+                      [isRTL ? 'right' : 'left']: 20,
+                      background: 'linear-gradient(90deg, #D97706, #B45309)',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 800,
+                      padding: '3px 12px',
+                      borderRadius: 10,
+                    }}>
+                      ⚠ {t('الباقة المجانية مستخدمة', 'Free plan already used')}
+                    </span>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: 17 }}>
+                      {isRTL ? plan.labelAr : plan.labelEn}
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
+                      {plan.days} {t('يوم', 'days')}
+                      {plan.limitReached && (
+                        <span style={{ marginRight: 8, marginLeft: 8, color: '#FCD34D' }}>
+                          · {t(`متاح مجاناً في ${freePlanStatus.daysLeft} يوم`, `Free in ${freePlanStatus.daysLeft} days`)}
+                        </span>
+                      )}
+                    </div>
+                    {selected === plan.id && (
+                      <ul style={{ margin: '8px 0 0', padding: isRTL ? '0 16px 0 0' : '0 0 0 16px', fontSize: 12, opacity: 0.9 }}>
+                        {plan.features.map((f, i) => (
+                          <li key={i} style={{ marginBottom: 3 }}>
+                            {isRTL ? f.ar : f.en}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div style={{ fontWeight: 900, fontSize: 24, minWidth: 60, textAlign: 'center' }}>
+                    <div>{plan.price}</div>
+                    {plan.id !== 'free' && (
+                      <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.8 }}>
+                        {isRTL ? plan.priceAr : ''}
+                      </div>
+                    )}
+                    {plan.id === 'free' && plan.limitReached && (
+                      <div style={{ fontSize: 10, fontWeight: 500, opacity: 0.8, color: '#FCD34D' }}>
+                        {t('بدلاً من $0', 'instead of $0')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
 
             <button
               onClick={() => {
                 if (selectedPlan?.id === 'free') { handleSubmit(); } else { setStep(2); }
               }}
+              disabled={freePlanLoading}
               style={{
                 width: '100%',
-                background: 'linear-gradient(90deg, #F59E0B, #EF4444)',
+                background: freePlanLoading ? '#555' : 'linear-gradient(90deg, #F59E0B, #EF4444)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 18,
@@ -355,14 +436,30 @@ function PromotePageInner() {
                 fontSize: 17,
                 fontWeight: 800,
                 marginTop: 8,
-                cursor: 'pointer',
+                cursor: freePlanLoading ? 'not-allowed' : 'pointer',
                 boxShadow: '0 4px 20px rgba(245,158,11,0.4)',
                 letterSpacing: 0.5,
               }}>
               {selectedPlan?.id === 'free'
-                ? t('تفعيل مجاناً ✅', 'Activate Free ✅')
+                ? (freePlanStatus.canUseFree
+                    ? t('تفعيل مجاناً ✅', 'Activate Free ✅')
+                    : t('ادفع $1 وفعّل الآن ✅', 'Pay $1 & Activate ✅'))
                 : t('التالي — ' + selectedPlan?.price + ' →', 'Next — ' + selectedPlan?.price + ' →')}
             </button>
+
+            {error && (
+              <div style={{
+                background: 'rgba(239,68,68,0.15)',
+                border: '1px solid rgba(239,68,68,0.4)',
+                borderRadius: 12,
+                padding: '12px 16px',
+                color: '#fca5a5',
+                fontSize: 14,
+                marginTop: 12,
+              }}>
+                ⚠️ {error}
+              </div>
+            )}
           </>
         )}
 
