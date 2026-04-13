@@ -1,28 +1,30 @@
 /**
- * /api/whatsapp — WhatsApp Chatbot (UltraMsg webhook)
+ * /api/whatsapp — WhatsApp Chatbot (UltraMsg webhook + OpenAI)
  *
- * Root cause of "not responding":
- *   Issue E — no webhook endpoint existed. The app used UltraMsg to SEND
- *   OTPs but never registered a webhook to RECEIVE and REPLY to messages.
+ * Fixes applied:
+ *   Bug F  — Import is ESM (correct for this repo's "type":"module")
+ *   Bug G  — OpenAI client guarded; hardcoded fallback always available
+ *   Bug H  — Webhook responds 200 IMMEDIATELY, then processes async
+ *             (prevents UltraMsg timeouts & duplicate retries)
+ *   Bug I  — sendReply uses JSON body (more reliable than form-urlencoded)
+ *             and graceful no-op when ULTRAMSG env vars not set
  *
- * Fix:
- *   1. This file creates POST /api/whatsapp/webhook (no auth middleware —
- *      UltraMsg webhooks do not send JWT tokens).
- *   2. Registered in backend/server/index.js as app.use('/api/whatsapp', ...).
- *   3. Set ULTRAMSG_INSTANCE + ULTRAMSG_TOKEN in Railway env vars, then
- *      configure the UltraMsg webhook URL in the UltraMsg dashboard to:
- *        https://xtox-production.up.railway.app/api/whatsapp/webhook
+ * Env vars required (Railway):
+ *   OPENAI_API_KEY        — enables intelligent Arabic chatbot replies
+ *   ULTRAMSG_INSTANCE     — UltraMsg instance ID (for sending replies)
+ *   ULTRAMSG_TOKEN        — UltraMsg API token (for sending replies)
+ *   WHATSAPP_WEBHOOK_TOKEN— optional secret to validate incoming webhooks
  */
 import express from 'express';
 import OpenAI from 'openai';
 
 const router = express.Router();
 
-const ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE || ''; // Still used for SENDING replies
-const ULTRAMSG_TOKEN    = process.env.ULTRAMSG_TOKEN    || ''; // Still used for SENDING replies
-const WEBHOOK_TOKEN     = process.env.WHATSAPP_WEBHOOK_TOKEN || ''; // optional secret to validate UltraMsg calls
+const ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE || '';
+const ULTRAMSG_TOKEN    = process.env.ULTRAMSG_TOKEN    || '';
+const WEBHOOK_TOKEN     = process.env.WHATSAPP_WEBHOOK_TOKEN || '';
 
-// OpenAI client — used for intelligent chatbot replies
+// OpenAI client — only created when API key is available
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
@@ -30,7 +32,7 @@ const openai = process.env.OPENAI_API_KEY
 // In-memory conversation history per phone number (last 10 messages)
 const conversations = new Map();
 
-// ── AI-powered reply generator (OpenAI) ──────────────────────────────────────
+// ── System prompt for the AI ─────────────────────────────────────────────────
 const SYSTEM_PROMPT = `أنت مساعد ذكي لموقع XTOX، السوق المحلي العربي للبيع والشراء (مثل OLX وDubizzle).
 الموقع: https://xtox.app
 مهمتك: مساعدة المستخدمين عبر واتساب بشكل ودي واحترافي باللغة العربية.
@@ -39,7 +41,7 @@ const SYSTEM_PROMPT = `أنت مساعد ذكي لموقع XTOX، السوق ا�
 للترقية: https://xtox.app/promote
 كن مختصراً وودياً (لا تتجاوز 200 كلمة). إذا طُلب شيء خارج XTOX أرشد المستخدم للموقع بلطف.`;
 
-// Fallback hardcoded replies when OpenAI is unavailable
+// ── Fallback: hardcoded Arabic replies (Bug G: always available) ─────────────
 function hardcodedReply(text) {
   const lower = (text || '').toLowerCase().trim();
   if (/مرحبا|هلا|اهلا|سلام|hi\b|hello|أهلاً/i.test(lower))
@@ -55,8 +57,9 @@ function hardcodedReply(text) {
   return 'شكراً لتواصلك مع XTOX! 🙏\nاكتب: 1(نشر) 2(بحث) 3(دعم) أو زر https://xtox.app';
 }
 
+// ── AI-powered reply generator ───────────────────────────────────────────────
 async function generateReply(from, userMessage) {
-  // If OpenAI is configured, use it with conversation memory
+  // Bug G: If OpenAI is configured, use it with conversation memory
   if (openai) {
     try {
       if (!conversations.has(from)) conversations.set(from, []);
@@ -76,91 +79,102 @@ async function generateReply(from, userMessage) {
       conversations.set(from, history);
       return reply;
     } catch (aiErr) {
-      console.error('[WHATSAPP BOT] OpenAI error, using fallback:', aiErr.message);
+      // Bug G: fallback on any OpenAI error — never crash the webhook
+      console.error('[WHATSAPP BOT] OpenAI error, using hardcoded fallback:', aiErr.message);
     }
   }
-  // Fallback: hardcoded replies
+  // Fallback: hardcoded replies (works with no OPENAI_API_KEY too)
   return hardcodedReply(userMessage);
 }
 
-// ── Send reply via UltraMsg ───────────────────────────────────────────────────
+// ── Send reply via UltraMsg (Bug I: JSON body, graceful no-op) ───────────────
 async function sendReply(to, text) {
   if (!ULTRAMSG_INSTANCE || !ULTRAMSG_TOKEN) {
-    console.warn('[WHATSAPP BOT] ULTRAMSG_INSTANCE or ULTRAMSG_TOKEN not set — cannot send reply');
+    console.warn('[WHATSAPP BOT] ULTRAMSG_INSTANCE or ULTRAMSG_TOKEN not set — reply suppressed:', text);
     return;
   }
-  // UltraMsg expects the "to" in E.164 format (+20123...)
-  // It may arrive as "201234567890@c.us" — strip the @c.us
+  // UltraMsg expects E.164 format (+201234...).  Strip the @c.us suffix if present.
   const phone = to.includes('@') ? '+' + to.split('@')[0] : to;
   try {
-    const body = new URLSearchParams();
-    body.append('token', ULTRAMSG_TOKEN);
-    body.append('to', phone);
-    body.append('body', text);
     const res = await fetch(
       `https://api.ultramsg.com/${ULTRAMSG_INSTANCE}/messages/chat`,
-      { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() }
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: ULTRAMSG_TOKEN, to: phone, body: text }),
+      }
     );
     const data = await res.json();
     if (data.sent !== 'true' && data.sent !== true) {
-      console.error('[WHATSAPP BOT] Send failed:', data);
+      console.error('[WHATSAPP BOT] UltraMsg send failed:', JSON.stringify(data));
     } else {
       console.log('[WHATSAPP BOT] Replied to', phone);
     }
   } catch (err) {
-    console.error('[WHATSAPP BOT] sendReply error:', err.message);
+    console.error('[WHATSAPP BOT] sendReply fetch error:', err.message);
   }
 }
 
 // ── POST /api/whatsapp/webhook ────────────────────────────────────────────────
-// UltraMsg sends this when a message arrives. No auth middleware — UltraMsg
-// webhooks do not carry JWT tokens.
-router.post('/webhook', express.json(), async (req, res) => {
+// UltraMsg sends this when a WhatsApp message arrives.
+// No auth middleware — UltraMsg webhooks do not carry JWT tokens.
+//
+// Bug H FIX: respond 200 immediately BEFORE async work.
+// This prevents UltraMsg from timing out (it expects <10s) and retrying,
+// which would cause duplicate replies.
+router.post('/webhook', express.json(), (req, res) => {
+  // ── Respond 200 immediately (Bug H) ──────────────────────────────────────
+  res.sendStatus(200);
+
   try {
-    // Optional: validate UltraMsg token header
+    // Optional: validate UltraMsg webhook token
     if (WEBHOOK_TOKEN) {
       const incoming = req.headers['x-ultramsg-token'] || req.body?.token || '';
       if (incoming !== WEBHOOK_TOKEN) {
-        return res.status(403).json({ error: 'invalid_token' });
+        console.warn('[WHATSAPP BOT] Invalid webhook token — ignoring');
+        return;
       }
     }
 
     const { event_type, data } = req.body || {};
 
-    // Only handle incoming text messages (ignore status updates, receipts, etc.)
-    if (event_type !== 'message_received' || !data) {
-      return res.json({ ok: true, skipped: true });
-    }
+    // Only handle incoming text messages (skip status updates, receipts, etc.)
+    if (event_type !== 'message_received' || !data) return;
 
     const from = data.from;
     const body = data.body || '';
     const type = data.type || 'chat';
 
-    // Skip non-text messages and messages from the bot itself
-    if (!from || type !== 'chat' || data.fromMe) {
-      return res.json({ ok: true, skipped: true });
-    }
+    // Skip non-text messages and messages sent by the bot itself
+    if (!from || type !== 'chat' || data.fromMe) return;
+    if (!body.trim()) return;
 
     console.log(`[WHATSAPP BOT] Message from ${from}: "${body}"`);
 
-    const reply = await generateReply(from, body);
-    await sendReply(from, reply);
+    // Process fully async — the 200 response has already been sent above
+    generateReply(from, body)
+      .then(reply => sendReply(from, reply))
+      .catch(err => console.error('[WHATSAPP BOT] Async processing error:', err.message));
 
-    res.json({ ok: true });
   } catch (err) {
-    console.error('[WHATSAPP BOT] Webhook error:', err);
-    res.status(500).json({ error: err.message });
+    // Even synchronous errors are swallowed here — 200 was already sent
+    console.error('[WHATSAPP BOT] Webhook sync error:', err.message);
   }
 });
 
-// ── GET /api/whatsapp/webhook — health check ──────────────────────────────────
+// ── GET /api/whatsapp/webhook — health / config check ────────────────────────
 router.get('/webhook', (req, res) => {
   res.json({
     ok: true,
     service: 'XTOX WhatsApp Chatbot (OpenAI-powered)',
-    ultramsg_configured: !!(ULTRAMSG_INSTANCE && ULTRAMSG_TOKEN),
     openai_configured: !!process.env.OPENAI_API_KEY,
-    note: 'Set OPENAI_API_KEY for intelligent replies. ULTRAMSG_INSTANCE + ULTRAMSG_TOKEN for sending. Point UltraMsg webhook to /api/whatsapp/webhook',
+    ultramsg_configured: !!(ULTRAMSG_INSTANCE && ULTRAMSG_TOKEN),
+    webhook_token_set: !!WEBHOOK_TOKEN,
+    note: [
+      'Set OPENAI_API_KEY for intelligent AI replies.',
+      'Set ULTRAMSG_INSTANCE + ULTRAMSG_TOKEN to enable sending replies.',
+      'Point UltraMsg webhook URL to: POST /api/whatsapp/webhook',
+    ].join(' | '),
   });
 });
 

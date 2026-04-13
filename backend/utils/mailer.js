@@ -1,10 +1,13 @@
 /**
- * backend/utils/mailer.js — Email OTP delivery via nodemailer (Gmail)
+ * backend/utils/mailer.js — Email OTP delivery via nodemailer (Gmail SMTP)
  *
  * Required env vars (set in Railway):
  *   EMAIL_USER  — Gmail address e.g. xtox.noreply@gmail.com
- *   EMAIL_PASS  — Gmail App Password (16-char, NOT your regular password)
+ *   EMAIL_PASS  — Gmail App Password (16-char, no spaces needed)
  *                 Generate at: myaccount.google.com → Security → App Passwords
+ *
+ * Uses explicit smtp.gmail.com:587 (TLS/STARTTLS) instead of `service:'gmail'`
+ * for maximum compatibility across different server environments.
  */
 import nodemailer from 'nodemailer';
 
@@ -18,8 +21,11 @@ function getTransporter() {
     console.warn('[MAILER] EMAIL_USER or EMAIL_PASS not set — emails will fail');
   }
   transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // STARTTLS (not SSL/465)
     auth: { user, pass },
+    tls: { rejectUnauthorized: false }, // avoids cert errors on some hosts
   });
   return transporter;
 }
