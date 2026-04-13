@@ -8,6 +8,7 @@ import { fetchWithRetry } from '../../lib/fetchWithRetry';
 import SaveSearch from '../components/SaveSearch';
 import PriceAlert from '../components/PriceAlert';
 import { detectLang } from '../../lib/lang';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CATEGORIES = ['الكل', 'سيارات', 'إلكترونيات', 'عقارات', 'وظائف', 'خدمات', 'سوبرماركت', 'صيدلية', 'طعام', 'موضة'];
@@ -337,7 +338,13 @@ export default function SearchPage() {
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ fontWeight: 'bold', fontSize: 13, margin: 0 }}>{ad.title?.slice(0, 30)}</p>
                   <p style={{ color: '#002f34', fontWeight: 'bold', fontSize: 14, margin: '4px 0' }}>{ad.price} {ad.currency}</p>
-                  <p style={{ color: '#999', fontSize: 11, margin: 0 }}>👁 {ad.views} · {ad.city}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <VerifiedBadge
+                      emailVerified={ad.userId?.emailVerified || ad.seller?.emailVerified}
+                      whatsappVerified={ad.userId?.whatsappVerified || ad.seller?.whatsappVerified}
+                    />
+                    <p style={{ color: '#999', fontSize: 11, margin: 0 }}>👁 {ad.views} · {ad.city}</p>
+                  </div>
                 </div>
               </a>
             ))}

@@ -2,7 +2,29 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { checkAdSimilarity } from '../../lib/geminiAI';
+// Offline duplicate detection replaces frontend Gemini call
+
+// ─── Offline duplicate detection — no AI needed ────────────────────────────
+function _offlineSimilarity(title1, title2) {
+  if (!title1 || !title2) return 0;
+  const norm = t => t.toLowerCase().replace(/[^؀-ۿ\w\s]/g, ' ').split(/\s+/).filter(w => w.length > 1);
+  const words1 = new Set(norm(title1));
+  const words2 = new Set(norm(title2));
+  if (!words1.size || !words2.size) return 0;
+  const intersection = [...words1].filter(w => words2.has(w)).length;
+  const union = new Set([...words1, ...words2]).size;
+  return Math.round((intersection / union) * 100);
+}
+
+function checkAdSimilarity(newTitle, existingAds) {
+  if (!existingAds || existingAds.length === 0) return [];
+  return existingAds
+    .slice(0, 10)
+    .map((ad, i) => ({ index: i + 1, similarity: _offlineSimilarity(newTitle, ad.title || ''), reason: 'عنوان مشابه' }))
+    .filter(s => s.similarity >= 70);
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 import { classifyProduct, saveAICorrection, formatDescription } from '../../lib/imageClassifier';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
 import { detectLang, detectCurrency } from '../../lib/lang';
@@ -490,7 +512,7 @@ export default function SellPage() {
         const myAdsData = await myAdsRes.json();
         const myActiveAds = myAdsData?.active || [];
         if (myActiveAds.length > 0) {
-          const similar = await checkAdSimilarity(form.title, myActiveAds);
+          const similar = checkAdSimilarity(form.title, myActiveAds);
           const highSimilarity = similar.filter(s => s.similarity >= 80);
           if (highSimilarity.length > 0) {
             setDuplicateWarning({

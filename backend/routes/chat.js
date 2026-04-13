@@ -35,8 +35,8 @@ router.get('/', auth, async (req, res) => {
       deletedBy: { $ne: req.user.id }
     })
       .sort({ updatedAt: -1 })
-      .populate('buyer', 'name avatar xtoxId whatsappPhone')
-      .populate('seller', 'name avatar xtoxId whatsappPhone')
+      .populate('buyer', 'name avatar xtoxId whatsappPhone emailVerified whatsappVerified')
+      .populate('seller', 'name avatar xtoxId whatsappPhone emailVerified whatsappVerified')
       .lean();
     res.json({ success: true, chats });
   } catch (e) {

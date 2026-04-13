@@ -247,11 +247,29 @@ router.get('/', async (req, res) => {
     }
 
     // Return featured first, then ranked regular
-    const allAds = [...normalizedFeatured, ...normalizedRegular];
+    let allAds = [...normalizedFeatured, ...normalizedRegular];
+
+    // Batch load seller info (emailVerified, whatsappVerified, name, avatar)
+    try {
+      const sellerIds = [...new Set(allAds.map(a => a.userId?.toString()).filter(Boolean))];
+      if (sellerIds.length > 0) {
+        const sellers = await User.find({ _id: { $in: sellerIds } })
+          .select('name avatar emailVerified whatsappVerified')
+          .lean();
+        const sellerMap = Object.fromEntries(sellers.map(s => [s._id.toString(), s]));
+        allAds = allAds.map(a => {
+          const sid = a.userId?.toString();
+          if (sid && sellerMap[sid]) {
+            return { ...a, userId: sellerMap[sid], seller: sellerMap[sid] };
+          }
+          return a;
+        });
+      }
+    } catch { /* non-fatal — seller info is optional */ }
+
     res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json({ success: true, ads: allAds, total: allAds.length, page: Number(page) });
   } catch (e) {
-    console.error('[GET /api/ads] Fatal error:', e.message);
     // Return empty results instead of 500 so frontend renders correctly
     res.status(200).json({ success: true, ads: [], total: 0, page: Number(page || 0), pages: 0 });
   }
@@ -272,7 +290,6 @@ router.get('/my/all', auth, async (req, res) => {
     });
     res.json({ active, expired: expiredWithDeadline });
   } catch (e) {
-    console.error('[GET /api/ads/my/all]', e.message);
     if (res.headersSent) return;
     res.status(500).json({ success: false, active: [], expired: [], error: e.message });
   }
@@ -308,7 +325,6 @@ router.get('/price-suggest', async (req, res) => {
 
     res.json({ min, avg, max, count: prices.length, currency });
   } catch (err) {
-    console.error('[price-suggest]', err.message);
     res.status(500).json(null);
   }
 });
@@ -339,7 +355,6 @@ router.get('/:id', async (req, res) => {
 
     res.json({ ...normalized, qrCode: qr });
   } catch (err) {
-    console.error('[GET /api/ads/:id]', err.message);
     if (err.name === 'CastError') return res.status(404).json({ message: 'معرّف الإعلان غير صحيح' });
     res.status(500).json({ message: err.message });
   }
@@ -754,7 +769,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
         isDeleted: false,
       });
     } catch (createErr) {
-      console.error('[ADS POST] create() failed:', createErr?.message, createErr?.stack);
+ failed:', createErr?.message, createErr?.stack);
       if (!res.headersSent) {
         return res.status(500).json({
           success: false,
@@ -814,7 +829,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     console.log('[ADS POST] 8: responding 201, ad._id=', _normalizedAd._id?.toString());
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
   } catch (e) {
-    console.error('[ADS POST] ERROR (outer catch):', e?.message, e?.stack);
+:', e?.message, e?.stack);
     if (!res.headersSent) {
       // Return 500 for unexpected server errors (not validation failures)
       // Include received field list for easier debugging
@@ -900,7 +915,6 @@ router.post('/ai-generate', auth, async (req, res) => {
       source: result.source || 'ai',
     });
   } catch (err) {
-    console.error('[AI-GENERATE] Fatal error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1049,6 +1063,48 @@ router.post('/ai-learn', auth, async (req, res) => {
     res.json({ success: true, message: 'AI learning started' });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+
+// ── POST /api/ads/detect-category — offline category + subcategory detection ──
+router.post('/detect-category', async (req, res) => {
+  try {
+    const { title = '', description = '', category = '' } = req.body;
+    if (!title && !description) {
+      return res.status(400).json({ error: 'title or description required' });
+    }
+    const text = (title + ' ' + (description || '')).trim();
+
+    // 1. Offline category detection
+    let detectedCategory = category || '';
+    try {
+      const offline = detectCategoryOffline(text);
+      if (!detectedCategory && offline && offline.main) detectedCategory = offline.main;
+    } catch { /* non-fatal */ }
+
+    // 2. Offline subcategory detection (keyword match against SubcategoryExample DB)
+    let subcategory = 'Other';
+    let subsub = 'Other';
+    let confidence = 'low';
+    if (detectedCategory) {
+      try {
+        const result = await detectSubcategory(detectedCategory, text);
+        subcategory = result.subcategory || 'Other';
+        subsub = result.subsub || 'Other';
+        confidence = result.confidence || 'low';
+      } catch { /* non-fatal */ }
+    }
+
+    return res.json({
+      success: true,
+      category: detectedCategory,
+      subcategory,
+      subsub,
+      confidence
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'Detection failed', message: e.message });
   }
 });
 

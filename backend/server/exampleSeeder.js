@@ -40,8 +40,16 @@ const SEEDS = [
   { category: 'Fashion', subcategory: 'KidsClothing', subsub: '', examples: ['ملابس أطفال','مدرسة','يونيفورم','طفل','بيبي','kids clothes','children','baby','school uniform','toy clothes'] },
   { category: 'Fashion', subcategory: 'Accessories', subsub: '', examples: ['اكسسوارات','ساعة','خاتم','سوار','عقد','نظارة','accessories','watch','ring','bracelet','necklace','sunglasses','belt'] },
 
-  // SUPERMARKET
-  { category: 'Supermarket', subcategory: 'Groceries', subsub: '', examples: ['بقالة','مواد غذائية','أرز','سكر','زيت','دقيق','groceries','food','rice','sugar','oil','flour','supermarket','منتجات'] },
+  // SUPERMARKET — rich Arabic food terms added
+  { category: 'Supermarket', subcategory: 'Groceries', subsub: '', examples: [
+    'بقالة','مواد غذائية','أرز','سكر','زيت','دقيق','groceries','food','rice','sugar','oil','flour','supermarket','منتجات',
+    'بطاطس','خضروات','فاكهة','لحم','دجاج','سمك','سوبرماركت',
+    'طماطم','خيار','بصل','ثوم','جزر','فلفل','بقوليات','عدس','فول','حمص',
+    'تفاح','موز','برتقال','عنب','بطيخ','خوخ','تمر','زبيب',
+    'لحم بقري','لحم خروف','كبدة','قلب','سجق','كفتة',
+    'سمك بلطي','سمك قاروص','جمبري','كابوريا','تونة',
+    'حليب','لبن','جبنة','زبدة','كريمة','زبادي','بيض'
+  ] },
   { category: 'Supermarket', subcategory: 'Household', subsub: '', examples: ['منتجات منزلية','تنظيف','غسيل','صابون','مسحوق','household','cleaning','detergent','washing','bleach','مواد تنظيف'] },
 
   // FAST FOOD

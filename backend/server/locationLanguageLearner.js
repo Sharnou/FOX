@@ -3,8 +3,8 @@
  * locationLanguageLearner.js
  * ---------------------------
  * Runs daily at 4am. Groups recent ads by country, extracts vocabulary,
- * detects language/dialect, upserts LocationVocab, and enriches
- * SubcategoryExample with newly learned country-specific terms.
+ * detects language/dialect offline (no AI), upserts LocationVocab, and
+ * enriches SubcategoryExample with newly learned country-specific terms.
  */
 
 import mongoose from 'mongoose';
@@ -35,7 +35,11 @@ const FRENCH_STOP = new Set([
   'pas','plus','très','bien','avec','pour','par','sur','dans','à','est','sont'
 ]);
 
-// ─── Language detection ───────────────────────────────────────────────────────
+// ─── Offline language detection ───────────────────────────────────────────────
+/**
+ * Fast offline language detection. Returns 'ar', 'fr', 'en', or 'unknown'.
+ * Uses Unicode character analysis — no network request.
+ */
 function detectLanguage(texts) {
   let arabicChars = 0, latinChars = 0, frenchAccents = 0, total = 0;
   const frenchAccentRe = /[éàèùâêîôûäëïöüç]/gi;
@@ -63,6 +67,46 @@ function detectLanguage(texts) {
   return 'unknown';
 }
 
+// ─── Offline dialect detection ────────────────────────────────────────────────
+// Maps country codes to dialect labels (no AI needed)
+const COUNTRY_DIALECT_MAP = {
+  EG: { language: 'ar', dialect: 'Egyptian Arabic' },
+  SA: { language: 'ar', dialect: 'Gulf Arabic' },
+  AE: { language: 'ar', dialect: 'Gulf Arabic' },
+  KW: { language: 'ar', dialect: 'Gulf Arabic' },
+  QA: { language: 'ar', dialect: 'Gulf Arabic' },
+  BH: { language: 'ar', dialect: 'Gulf Arabic' },
+  OM: { language: 'ar', dialect: 'Gulf Arabic' },
+  IQ: { language: 'ar', dialect: 'Iraqi Arabic' },
+  SY: { language: 'ar', dialect: 'Levantine Arabic' },
+  LB: { language: 'ar', dialect: 'Levantine Arabic' },
+  JO: { language: 'ar', dialect: 'Levantine Arabic' },
+  PS: { language: 'ar', dialect: 'Levantine Arabic' },
+  LY: { language: 'ar', dialect: 'Libyan Arabic' },
+  TN: { language: 'ar', dialect: 'Tunisian Arabic' },
+  DZ: { language: 'ar', dialect: 'Algerian Arabic' },
+  MA: { language: 'ar', dialect: 'Moroccan Arabic' },
+  SD: { language: 'ar', dialect: 'Sudanese Arabic' },
+  YE: { language: 'ar', dialect: 'Yemeni Arabic' },
+  FR: { language: 'fr', dialect: 'French' },
+  BE: { language: 'fr', dialect: 'Belgian French' },
+  CH: { language: 'fr', dialect: 'Swiss French' },
+  US: { language: 'en', dialect: 'American English' },
+  GB: { language: 'en', dialect: 'British English' },
+  AU: { language: 'en', dialect: 'Australian English' },
+  CA: { language: 'en', dialect: 'Canadian English' },
+};
+
+function detectDialectOffline(country, detectedLang) {
+  const key = String(country || '').toUpperCase().trim();
+  const mapped = COUNTRY_DIALECT_MAP[key];
+  if (mapped) return mapped;
+  if (detectedLang === 'ar') return { language: 'ar', dialect: 'Arabic' };
+  if (detectedLang === 'fr') return { language: 'fr', dialect: 'French' };
+  if (detectedLang === 'en') return { language: 'en', dialect: 'English' };
+  return { language: detectedLang || 'unknown', dialect: '' };
+}
+
 // ─── Tokenize a string into meaningful tokens ────────────────────────────────
 function tokenize(text) {
   if (!text || typeof text !== 'string') return [];
@@ -77,29 +121,6 @@ function tokenize(text) {
       if (FRENCH_STOP.has(w)) return false;
       return true;
     });
-}
-
-// ─── Call Gemini for dialect detection ───────────────────────────────────────
-async function detectDialectWithGemini(sampleTitles) {
-  try {
-    if (!process.env.GEMINI_API_KEY && !process.env.NEXT_PUBLIC_GEMINI_KEY) return null;
-    const { GoogleGenerativeAI } = await import('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(
-      process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_KEY
-    );
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const samples = sampleTitles.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n');
-    const prompt = `What dialect/language are these marketplace listings written in?\n${samples}\n\nReply with ONLY: language_code|dialect_name\nExamples: ar|Egyptian Arabic  /  ar|Gulf Arabic  /  fr|French  /  en|American English`;
-    const result = await model.generateContent(prompt);
-    const raw = result.response.text().trim();
-    const [langCode, dialectName] = raw.split('|');
-    if (langCode && dialectName) {
-      return { language: langCode.trim().toLowerCase(), dialect: dialectName.trim() };
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 // ─── Main learning function ───────────────────────────────────────────────────
@@ -128,7 +149,7 @@ async function learnLocationLanguages() {
     }
 
     for (const [country, countryAds] of Object.entries(byCountry)) {
-      if (countryAds.length < 5) continue; // need at least 5 ads to learn
+      if (countryAds.length < 5) continue;
 
       // ── Extract vocabulary ────────────────────────────────────────────────
       const termMap = {}; // word → { frequency, categories: Set, subsubs: Set }
@@ -149,20 +170,16 @@ async function learnLocationLanguages() {
         }
       }
 
-      // ── Detect language ───────────────────────────────────────────────────
+      // ── Detect language offline ───────────────────────────────────────────
       const detectedLang = detectLanguage(allTexts);
 
-      // ── Detect dialect via Gemini (best-effort) ───────────────────────────
-      const sampleTitles = countryAds
-        .slice(0, 10)
-        .map(a => a.title || '')
-        .filter(Boolean);
-      const geminiResult = await detectDialectWithGemini(sampleTitles);
+      // ── Detect dialect offline (no AI call) ───────────────────────────────
+      const dialectResult = detectDialectOffline(country, detectedLang);
 
       // ── Build sorted terms list ───────────────────────────────────────────
       const terms = Object.entries(termMap)
         .sort(([, a], [, b]) => b.frequency - a.frequency)
-        .slice(0, 500) // keep top 500 terms
+        .slice(0, 500)
         .map(([word, data]) => ({
           word,
           frequency:  data.frequency,
@@ -172,10 +189,10 @@ async function learnLocationLanguages() {
         }));
 
       const topWords = terms.slice(0, 50).map(t => t.word);
-      const sampleAds = sampleTitles.slice(0, 5);
+      const sampleAds = allTexts.slice(0, 5);
 
-      const finalLang    = geminiResult?.language || detectedLang;
-      const finalDialect = geminiResult?.dialect   || '';
+      const finalLang    = dialectResult.language || detectedLang;
+      const finalDialect = dialectResult.dialect   || '';
 
       // ── Upsert LocationVocab ──────────────────────────────────────────────
       await LocationVocab.findOneAndUpdate(
@@ -194,16 +211,14 @@ async function learnLocationLanguages() {
       );
 
       // ── Update SubcategoryExample with high-frequency local terms ─────────
-      // For each term that has a single dominant subsub, add it as an example
       for (const term of terms) {
-        if (term.frequency < 3) break; // sorted by freq, so we can break early
-        if (term.subsubs.length !== 1) continue; // only if unambiguous
+        if (term.frequency < 3) break;
+        if (term.subsubs.length !== 1) continue;
         if (term.categories.length !== 1) continue;
 
         const category   = term.categories[0];
         const subsub     = term.subsubs[0];
 
-        // Derive subcategory from subsub (best-effort) — use subsub as subcategory key too
         await SubcategoryExample.findOneAndUpdate(
           { category, subsub },
           {
@@ -215,9 +230,7 @@ async function learnLocationLanguages() {
       }
     }
 
-    // Invalidate categoryDetector cache so new examples are picked up
     invalidateCache();
-    // Also invalidate location vocab cache
     _locVocabCache = {};
   } catch {
     // Silent — non-fatal background job
@@ -227,7 +240,7 @@ async function learnLocationLanguages() {
 // ─── In-memory location vocab cache (shared with categoryDetector) ────────────
 let _locVocabCache = {};
 let _locVocabCacheTime = {};
-const LOC_CACHE_TTL = 6 * 3600 * 1000; // 6 hours
+const LOC_CACHE_TTL = 6 * 3600 * 1000;
 
 async function getLocationVocab(country) {
   if (!country) return null;
@@ -253,7 +266,6 @@ function invalidateLocVocabCache() {
 
 // ─── Scheduler: daily at 4am ──────────────────────────────────────────────────
 function scheduleLocationLanguageLearner() {
-  // Use cron if available, else setInterval polling
   (async () => {
     try {
       const cron = (await import('node-cron')).default;
@@ -261,7 +273,6 @@ function scheduleLocationLanguageLearner() {
         learnLocationLanguages().catch(() => {});
       });
     } catch {
-      // Fallback: check every minute if it's 4:00am
       setInterval(() => {
         const now = new Date();
         if (now.getHours() === 4 && now.getMinutes() === 0) {
@@ -272,11 +283,10 @@ function scheduleLocationLanguageLearner() {
   })();
 }
 
-// ─── CHANGE 4 & 5: recordDetectedLanguage ────────────────────────────────────
+// ─── recordDetectedLanguage ────────────────────────────────────────────────────
 /**
- * Called every time a new language is detected in any content (audio, text, etc.).
- * Records it in LocationVocab for the given country so future Whisper calls can
- * use the right vocabulary prompt.
+ * Called every time a new language is detected in any content.
+ * Records it in LocationVocab for the given country.
  * NEVER throws.
  */
 async function recordDetectedLanguage(langCode, context) {
@@ -284,7 +294,6 @@ async function recordDetectedLanguage(langCode, context) {
     if (!context) return;
     const country = (context.country || 'XX').toUpperCase();
 
-    // Determine language from langCode or from sample text
     let lang = langCode || '';
     if (!lang && context.sampleText) {
       lang = detectLanguage([context.sampleText]);
@@ -300,7 +309,6 @@ async function recordDetectedLanguage(langCode, context) {
       { upsert: true, new: true }
     );
 
-    // Also record in the GLOBAL catch-all entry
     await LocationVocab.findOneAndUpdate(
       { country: 'GLOBAL' },
       {
@@ -310,7 +318,6 @@ async function recordDetectedLanguage(langCode, context) {
       { upsert: true, new: true }
     );
 
-    // If we have a sample text, extract top tokens and push to sampleAds / topWords
     if (context.sampleText && context.sampleText.length > 5) {
       const tokens = tokenize(context.sampleText).slice(0, 10);
       if (tokens.length > 0) {
@@ -328,23 +335,19 @@ async function recordDetectedLanguage(langCode, context) {
   } catch { /* NEVER throw from learning functions */ }
 }
 
-// ─── CHANGE 5: buildLanguagePrompt ───────────────────────────────────────────
+// ─── buildLanguagePrompt ───────────────────────────────────────────────────────
 /**
  * Builds a Whisper initial_prompt string from learned vocabulary for a country.
  * Returns a comma-separated string of top local words, or null if no vocab exists.
- * Used by whisper.js to nudge transcription toward the correct local language.
  * NEVER throws.
  */
 async function buildLanguagePrompt(country) {
   try {
     if (!country) return null;
     const key = String(country).toUpperCase().trim();
-
-    // Try local cache first
     const cached = await getLocationVocab(key);
     if (!cached || !cached.topWords || cached.topWords.length === 0) return null;
 
-    // Return top 10 words as a natural-language prompt hint
     const words = cached.topWords
       .filter(w => typeof w === 'string' && w.length > 1 && w.length < 30)
       .slice(0, 10);
@@ -352,7 +355,7 @@ async function buildLanguagePrompt(country) {
 
     return words.join('، ');
   } catch {
-    return null; // NEVER throw
+    return null;
   }
 }
 
@@ -362,5 +365,6 @@ export {
   getLocationVocab,
   invalidateLocVocabCache,
   recordDetectedLanguage,
-  buildLanguagePrompt
+  buildLanguagePrompt,
+  detectLanguage
 };

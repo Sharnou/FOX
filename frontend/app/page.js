@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
 import AdCardSkeleton from './components/AdCardSkeleton';
+import VerifiedBadge from './components/VerifiedBadge';
 import CartoonMoodPopup from './components/CartoonMoodPopup';
 import BannerAds from './components/BannerAds';
 import { detectLang } from '../lib/lang';
@@ -921,6 +922,17 @@ export default function Home() {
                   <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 6px', lineHeight: 1.4, color: '#1e293b' }}>
                     {ad.title?.slice(0, 34)}
                   </p>
+                  {(ad.userId?.emailVerified || ad.userId?.whatsappVerified || ad.seller?.emailVerified || ad.seller?.whatsappVerified) && (
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+                      <VerifiedBadge
+                        emailVerified={ad.userId?.emailVerified || ad.seller?.emailVerified}
+                        whatsappVerified={ad.userId?.whatsappVerified || ad.seller?.whatsappVerified}
+                      />
+                      <span style={{ fontSize: 11, color: '#64748b' }}>
+                        {ad.userId?.name || ad.seller?.name || ''}
+                      </span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
                     <span className="price-badge">
                       {ad.price ? ad.price.toLocaleString() + ' ' + (ad.currency || locale.currency) : (lang === 'ar' ? 'تواصل' : 'Contact')}
