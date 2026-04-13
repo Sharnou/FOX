@@ -1,4 +1,5 @@
 import express from 'express';
+import { sendOTPEmail } from '../utils/mailer.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import fetch from 'node-fetch';
@@ -245,27 +246,15 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     const message = `رمز التحقق XTOX: ${otp}\nXTOX verification code: ${otp}\nValid for 10 minutes.`;
 
-    // Method 1: UltraMsg (free WhatsApp API - no credit card)
-    if (process.env.ULTRAMSG_INSTANCE && process.env.ULTRAMSG_TOKEN) {
+    // Method 1: Email OTP (replaces UltraMsg)
+    const emailTarget = req.body.email || null;
+    if (emailTarget) {
       try {
-        const cleanPhone = phone.replace(/[^0-9+]/g, '');
-        const res2 = await fetch(`https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE}/messages/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            token: process.env.ULTRAMSG_TOKEN,
-            to: cleanPhone,
-            body: message,
-            priority: '1'
-          })
-        });
-        const data = await res2.json();
-        if (data.sent === 'true' || data.id) {
-          console.log(`[OTP] Sent via UltraMsg to ${phone}`);
-          return res.json({ success: true, method: 'whatsapp', provider: 'ultramsg' });
-        }
+        await sendOTPEmail(emailTarget, otp);
+        console.log('[OTP] Sent via Email to', emailTarget);
+        return res.json({ success: true, method: 'email' });
       } catch (e) {
-        console.warn('[OTP] UltraMsg failed:', e.message);
+        console.warn('[OTP] Email send failed:', e.message);
       }
     }
 
@@ -306,11 +295,11 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
     }
 
     // Fallback: dev mode — log OTP to console
-    console.log(`[OTP] DEV MODE - Code for ${phone}: ${otp}`);
-    res.json({ 
-      success: true, 
+    console.log('[OTP] DEV MODE - Code for ' + phone + ': ' + otp);
+    res.json({
+      success: true,
       method: 'console',
-      message: 'No WhatsApp provider configured. Add ULTRAMSG_INSTANCE + ULTRAMSG_TOKEN to Railway.',
+      message: 'No email provider configured. Add EMAIL_USER + EMAIL_PASS to Railway.',
       debug_otp: process.env.NODE_ENV === 'development' ? otp : undefined
     });
   } catch (e) { 

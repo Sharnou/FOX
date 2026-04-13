@@ -15,14 +15,15 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
 const META_TOKEN = process.env.WHATSAPP_API_TOKEN || '';
 const META_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
-var ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE || '';
-var ULTRAMSG_TOKEN = process.env.ULTRAMSG_TOKEN || '';
+var ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE || ''; // DEPRECATED: use EMAIL_USER+EMAIL_PASS instead
+var ULTRAMSG_TOKEN = process.env.ULTRAMSG_TOKEN || ''; // DEPRECATED
 const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://fox-kohl-eight.vercel.app';
 const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'https://xtox-production.up.railway.app/api/auth/google/callback';
 const USE_FAKE_API = process.env.USE_FAKE_API === 'true';
+import { sendOTPEmail } from '../utils/mailer.js';
 const FAKE_API_URL = process.env.FAKE_API_URL || '';
 
 // [SECURITY] Warn loudly when fake API mode is active so it is never
@@ -111,36 +112,39 @@ async function checkBlocked(User, opts) {
 // Body: { phone: '+201234567890' }
 router.post('/whatsapp/send-otp', async (req, res) => {
   try {
+    // Accept both phone and email. If email is provided, send OTP there.
+    var email = (req.body.email || '').trim().toLowerCase();
     var phone = (req.body.phone || '').trim().replace(/\s/g, '');
-    if (!phone || !phone.startsWith('+')) {
+    if (!phone && !email) {
+      return res.status(400).json({ error: 'Phone or email required' });
+    }
+    if (phone && !phone.startsWith('+')) {
       return res.status(400).json({ error: 'Phone must start with country code e.g. +201234567890' });
     }
-    phone = '+' + phone.replace(/\D/g, '');
+    if (phone) phone = '+' + phone.replace(/\D/g, '');
 
     var User = await getUserModel();
 
-    // Check if this phone is permanently blocked
-    var blocked = await User.findOne({ blocked: true, blockedPhone: phone });
+    // Check if this identifier is permanently blocked
+    var blocked = null;
+    if (phone) blocked = await User.findOne({ blocked: true, blockedPhone: phone });
+    if (!blocked && email) blocked = await User.findOne({ blocked: true, email });
     if (blocked) {
-      return res.status(403).json({ error: 'This phone number has been permanently suspended.' });
+      return res.status(403).json({ error: 'This account has been permanently suspended.' });
     }
 
     // Generate 6-digit OTP
     var otp = String(Math.floor(100000 + Math.random() * 900000));
     var expiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Save OTP to user (or create temp record by phone)
-    await User.findOneAndUpdate(
-      { whatsappPhone: phone },
-      {
-        whatsappOtp: otp,
-        whatsappOtpExpiry: expiry,
-        whatsappOtpAttempts: 0,
-        whatsappPhone: phone,
-        country: 'unknown'
-      },
-      { upsert: true, setDefaultsOnInsert: true }
-    );
+    // Find or create user record by phone or email
+    var userQuery = phone ? { whatsappPhone: phone } : { email };
+    var userUpdate = { whatsappOtp: otp, whatsappOtpExpiry: expiry, whatsappOtpAttempts: 0, country: 'unknown' };
+    if (phone) userUpdate.whatsappPhone = phone;
+    if (email) userUpdate.email = email;
+    var existingUser = await User.findOneAndUpdate(userQuery, userUpdate, { upsert: true, setDefaultsOnInsert: true, new: true });
+    // Use the email from the user record if not provided in request
+    if (!email && existingUser && existingUser.email) email = existingUser.email;
 
     // 1. FAKE API MODE
     if (USE_FAKE_API && FAKE_API_URL) {
@@ -158,27 +162,14 @@ router.post('/whatsapp/send-otp', async (req, res) => {
       }
     }
 
-    // 2. ULTRAMSG
-    if (ULTRAMSG_INSTANCE && ULTRAMSG_TOKEN) {
+    // 2. EMAIL OTP (replaces UltraMsg WhatsApp OTP)
+    if (email) {
       try {
-        var ultraBody = new URLSearchParams();
-        ultraBody.append('token', ULTRAMSG_TOKEN);
-        ultraBody.append('to', phone);
-        ultraBody.append('body', 'رمز التحقق الخاص بك في XTOX هو: ' + otp + '\nThis code expires in 10 minutes. Do not share it with anyone.');
-        var ultraRes = await fetch('https://api.ultramsg.com/' + ULTRAMSG_INSTANCE + '/messages/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: ultraBody.toString()
-        });
-        var ultraData = await ultraRes.json();
-        if (ultraData.sent === 'true' || ultraData.sent === true || ultraRes.ok) {
-          return res.json({ success: true, message: 'OTP sent to WhatsApp', phone });
-        } else {
-);
-          return res.status(500).json({ success: false, message: 'Failed to send WhatsApp message', error: ultraData.error || 'UltraMsg error' });
-        }
-      } catch (ultraErr) {
-        return res.status(500).json({ success: false, message: 'UltraMsg unreachable', error: ultraErr.message });
+        await sendOTPEmail(email, otp);
+        return res.json({ success: true, message: 'OTP sent to email', email, phone: phone || undefined });
+      } catch (emailErr) {
+        console.error('[AUTH OTP] Email send failed:', emailErr.message);
+        // Fall through to META or log fallback
       }
     }
 
@@ -225,15 +216,17 @@ router.post('/whatsapp/send-otp', async (req, res) => {
 router.post('/whatsapp/verify-otp', async (req, res) => {
   try {
     var phone = (req.body.phone || '').trim();
-    phone = '+' + phone.replace(/\D/g, '');
+    if (phone) phone = '+' + phone.replace(/\D/g, '');
     var otp = (req.body.otp || '').trim();
 
-    if (!phone || !otp) {
-      return res.status(400).json({ error: 'Phone and OTP required' });
+    if ((!phone && !req.body.email) || !otp) {
+      return res.status(400).json({ error: 'Phone or email, and OTP required' });
     }
 
     var User = await getUserModel();
-    var user = await User.findOne({ whatsappPhone: phone });
+    // Look up by email or phone
+    var userQuery2 = phone ? { whatsappPhone: phone } : { email: (req.body.email || '').trim().toLowerCase() };
+    var user = await User.findOne(userQuery2);
 
     if (!user) return res.status(400).json({ error: 'OTP not sent or expired. Request a new one.' });
     if (user.blocked) return res.status(403).json({ error: 'This account has been permanently suspended.' });
@@ -264,6 +257,7 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
       whatsappOtpAttempts: 0,
       authProvider: 'whatsapp',
       whatsappVerified: true,
+      emailVerified: true,   // email delivery is verified
       lastSeen: new Date()
     };
 

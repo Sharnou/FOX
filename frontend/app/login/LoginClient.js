@@ -26,13 +26,16 @@ function storeSession(data) {
 }
 
 export default function LoginClient() {
-  var tabState = useState('whatsapp');
+  var tabState = useState('email');
   var tab = tabState[0];
   var setTab = tabState[1];
 
   var phoneState = useState('');
   var phone = phoneState[0];
   var setPhone = phoneState[1];
+  var emailState = useState('');
+  var loginEmail = emailState[0];
+  var setLoginEmail = emailState[1];
 
   var otpState = useState('');
   var otp = otpState[0];
@@ -136,12 +139,19 @@ export default function LoginClient() {
      The GIS popup/FedCM flow is blocked on iOS Safari and older Android Chrome.
      The button below is a plain <a> link to the backend redirect endpoint. */
 
-  /* -- WhatsApp OTP -- */
+  /* -- Email OTP (replaces WhatsApp OTP) -- */
   async function sendOtp() {
     setError('');
-    var cleaned = '+' + phone.replace(/\D/g, '');
-    if (cleaned.length < 10) {
-      setError('Enter your full phone number with country code e.g. +201234567890');
+    // Use email if tab is 'email', otherwise phone
+    var isEmailTab = tab === 'email' || tab === 'whatsapp'; // both now use email
+    var emailValue = loginEmail.trim().toLowerCase();
+    var phoneValue = phone.trim() ? ('+' + phone.replace(/\D/g, '')) : '';
+    if (!emailValue && !phoneValue) {
+      setError('يرجى إدخال البريد الإلكتروني');
+      return;
+    }
+    if (emailValue && !/^[^@]+@[^@]+\.[^@]+$/.test(emailValue)) {
+      setError('البريد الإلكتروني غير صحيح');
       return;
     }
     setLoading(true);
@@ -149,13 +159,13 @@ export default function LoginClient() {
       var res = await fetch(API + '/api/auth/whatsapp/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleaned })
+        body: JSON.stringify({ email: emailValue || undefined, phone: phoneValue || undefined })
       });
       var data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to send OTP'); return; }
       setOtpSent(true);
       setCountdown(60);
-      setSuccess('OTP sent to your WhatsApp!');
+      setSuccess('تم إرسال رمز التحقق إلى بريدك الإلكتروني');
     } catch (e) {
       setError('Network error. Check your connection.');
     } finally {
@@ -168,11 +178,12 @@ export default function LoginClient() {
     if (!otp || otp.length !== 6) { setError('Enter the 6-digit OTP'); return; }
     setLoading(true);
     try {
-      var cleaned = '+' + phone.replace(/\D/g, '');
+      var cleanedEmail = loginEmail.trim().toLowerCase();
+      var cleanedPhone = phone.trim() ? ('+' + phone.replace(/\D/g, '')) : '';
       var res = await fetch(API + '/api/auth/whatsapp/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleaned, otp: otp })
+        body: JSON.stringify({ email: cleanedEmail || undefined, phone: cleanedPhone || undefined, otp: otp })
       });
       var data = await res.json();
       if (!res.ok) { setError(data.error || 'Verification failed'); return; }
@@ -246,7 +257,7 @@ export default function LoginClient() {
         React.createElement('div', {
           style: { display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 12, padding: 4, marginBottom: 24 }
         },
-          React.createElement('button', { style: tabStyle(tab === 'whatsapp'), onClick: function() { setTab('whatsapp'); setError(''); } }, '📱 واتساب'),
+          React.createElement('button', { style: tabStyle(tab === 'whatsapp'), onClick: function() { setTab('email'); setError(''); } }, '✉️ بريد إلكتروني'),
           React.createElement('button', { style: tabStyle(tab === 'google'), onClick: function() { setTab('google'); setError(''); } }, '🔵 Google'),
         ),
 
@@ -268,9 +279,9 @@ export default function LoginClient() {
           !otpSent
             ? React.createElement('form', { onSubmit: function(e) { e.preventDefault(); sendOtp(); }, style: { display: 'flex', flexDirection: 'column', gap: 10 } },
                 React.createElement('input', {
-                  id: 'login-phone', name: 'login-phone',
-                  type: 'tel', placeholder: '+201234567890', value: phone,
-                  onChange: function(e) { setPhone(e.target.value); },
+                  id: 'login-email', name: 'login-email',
+                  type: 'email', placeholder: 'example@gmail.com', value: loginEmail,
+                  onChange: function(e) { setLoginEmail(e.target.value); },
                   style: inputStyle
                 }),
                 React.createElement('button', { type: 'submit', disabled: loading, style: btnStyle },
@@ -279,9 +290,9 @@ export default function LoginClient() {
               )
             : React.createElement('form', { onSubmit: function(e) { e.preventDefault(); verifyOtp(); }, style: { display: 'flex', flexDirection: 'column', gap: 10 } },
                 React.createElement('input', {
-                  id: 'login-phone', name: 'login-phone',
-                  type: 'tel', placeholder: '+201234567890', value: phone,
-                  onChange: function(e) { setPhone(e.target.value); },
+                  id: 'login-email', name: 'login-email',
+                  type: 'email', placeholder: 'example@gmail.com', value: loginEmail,
+                  onChange: function(e) { setLoginEmail(e.target.value); },
                   style: inputStyle, disabled: true
                 }),
                 React.createElement('input', {

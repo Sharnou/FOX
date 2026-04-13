@@ -21,6 +21,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const localStream      = useRef(null);
   const remoteAudio      = useRef(null);
   const pendingICE       = useRef([]);   // buffer ICE candidates until responder socket ID is known
+  const receivedICE      = useRef([]);   // buffer incoming ICE candidates until remote description is set
   const noAnswerTimer    = useRef(null); // 30-second auto-hangup timer
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -29,6 +30,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     clearTimeout(noAnswerTimer.current);
     noAnswerTimer.current = null;
     pendingICE.current = [];
+    receivedICE.current = [];
     pc.current?.close();
     pc.current = null;
     localStream.current?.getTracks().forEach(t => t.stop());
@@ -52,7 +54,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       }
     };
     p.ontrack = e => {
-      if (remoteAudio.current) remoteAudio.current.srcObject = e.streams[0];
+      if (remoteAudio.current) {
+        remoteAudio.current.srcObject = e.streams[0];
+        remoteAudio.current.play().catch(err => console.warn('[CallManager] remoteAudio.play():', err.message));
+      }
     };
     p.oniceconnectionstatechange = () => {
       const s = p.iceConnectionState;
@@ -84,7 +89,12 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     async initiateCall(targetUserId, targetName) {
       if (active || incoming) return;
       try {
-        const stream = await getAudio();
+        const stream = await getAudio().catch(err => {
+          if (err.name === 'NotAllowedError') {
+            alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
+          }
+          throw err;
+        });
         // Create PC with null remote socket ID — ICE will be buffered
         const p = createPC(null);
         stream.getTracks().forEach(t => p.addTrack(t, stream));
@@ -125,9 +135,14 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
             clearTimeout(noAnswerTimer.current);
             if (pc.current) {
               await pc.current.setRemoteDescription(new RTCSessionDescription(answer));
+              // Flush any ICE candidates received before answer's remote description
+              for (const c of receivedICE.current) {
+                await pc.current.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+              }
+              receivedICE.current = [];
             }
             setActive({ peerName: targetName, remoteSocketId: responderSocketId, startTime: Date.now() });
-          } catch { cleanup(); }
+          } catch (e) { console.error('[CallManager] call:answered error:', e.message); cleanup(); }
         });
       } catch {
         cleanup();
@@ -151,19 +166,35 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
     const onOffer = async ({ offer, callerSocketId }) => {
       try {
-        const stream = await getAudio().catch(() => null);
+        const stream = await getAudio().catch(err => {
+          if (err.name === 'NotAllowedError') {
+            alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
+          }
+          return null;
+        });
         if (!stream) return;
         const p = createPC(callerSocketId);
         stream.getTracks().forEach(t => p.addTrack(t, stream));
         await p.setRemoteDescription(new RTCSessionDescription(offer));
+        // Flush any ICE candidates that arrived before the remote description was set
+        for (const c of receivedICE.current) {
+          await p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+        }
+        receivedICE.current = [];
         const answer = await p.createAnswer();
         await p.setLocalDescription(answer);
         socket.emit('call:answer', { callerSocketId, answer });
-      } catch { cleanup(); }
+      } catch (e) { console.error('[CallManager] onOffer error:', e.message); cleanup(); }
     };
 
     const onICE = ({ candidate }) => {
-      pc.current?.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+      if (!candidate) return;
+      // Buffer if PC not created yet or remote description not set
+      if (!pc.current || !pc.current.remoteDescription) {
+        receivedICE.current.push(candidate);
+        return;
+      }
+      pc.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
     };
 
     const onRejected = () => { cleanup(); };

@@ -14,43 +14,73 @@
  *        https://xtox-production.up.railway.app/api/whatsapp/webhook
  */
 import express from 'express';
+import OpenAI from 'openai';
 
 const router = express.Router();
 
-const ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE || '';
-const ULTRAMSG_TOKEN    = process.env.ULTRAMSG_TOKEN    || '';
+const ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE || ''; // Still used for SENDING replies
+const ULTRAMSG_TOKEN    = process.env.ULTRAMSG_TOKEN    || ''; // Still used for SENDING replies
 const WEBHOOK_TOKEN     = process.env.WHATSAPP_WEBHOOK_TOKEN || ''; // optional secret to validate UltraMsg calls
 
-// ── Reply generator ───────────────────────────────────────────────────────────
-async function generateReply(text) {
+// OpenAI client — used for intelligent chatbot replies
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+
+// In-memory conversation history per phone number (last 10 messages)
+const conversations = new Map();
+
+// ── AI-powered reply generator (OpenAI) ──────────────────────────────────────
+const SYSTEM_PROMPT = `أنت مساعد ذكي لموقع XTOX، السوق المحلي العربي للبيع والشراء (مثل OLX وDubizzle).
+الموقع: https://xtox.app
+مهمتك: مساعدة المستخدمين عبر واتساب بشكل ودي واحترافي باللغة العربية.
+يمكنك المساعدة في: نشر الإعلانات، البحث، التواصل، الدفع، الباقات المميزة، وحل المشاكل.
+خطط الترويج: 🆓 مجاني (3 أيام، مرة كل شهرين) | ⚡ أساسي $2/7أيام | 🌟 مميز $5/14يوم | 👑 بريميوم $15/30يوم
+للترقية: https://xtox.app/promote
+كن مختصراً وودياً (لا تتجاوز 200 كلمة). إذا طُلب شيء خارج XTOX أرشد المستخدم للموقع بلطف.`;
+
+// Fallback hardcoded replies when OpenAI is unavailable
+function hardcodedReply(text) {
   const lower = (text || '').toLowerCase().trim();
+  if (/مرحبا|هلا|اهلا|سلام|hi\b|hello|أهلاً/i.test(lower))
+    return 'أهلاً وسهلاً! 👋 مرحباً في XTOX - السوق المحلي الذكي.\nكيف يمكنني مساعدتك؟\n1️⃣ نشر إعلان  2️⃣ بحث  3️⃣ دعم  4️⃣ عن XTOX';
+  if (/^1$|نشر|إعلان|بيع/.test(lower))
+    return '📢 انشر إعلانك على https://xtox.app ← "نشر إعلان"';
+  if (/^2$|بحث|شراء|محتاج/.test(lower))
+    return '🔍 ابحث على https://xtox.app عبر شريط البحث';
+  if (/^3$|دعم|مشكلة|شكوى/.test(lower))
+    return '🆘 راسلنا: support@xtox.app\nساعات العمل: 9ص-10م (GMT+3)';
+  if (/سعر|ترويج|مميز|boost/.test(lower))
+    return '🚀 خطط الترويج:\n🆓 مجاني 3أيام | ⚡ $2/7أيام | 🌟 $5/14يوم | 👑 $15/30يوم\nhttps://xtox.app/promote';
+  return 'شكراً لتواصلك مع XTOX! 🙏\nاكتب: 1(نشر) 2(بحث) 3(دعم) أو زر https://xtox.app';
+}
 
-  if (/مرحبا|هلا|اهلا|سلام|hi\b|hello|أهلاً|اهلاً/i.test(lower)) {
-    return 'أهلاً وسهلاً! 👋\nمرحباً بك في XTOX - السوق المحلي الذكي.\nكيف يمكنني مساعدتك؟\n\n1️⃣ نشر إعلان\n2️⃣ البحث عن إعلانات\n3️⃣ التواصل مع الدعم\n4️⃣ معرفة المزيد عن XTOX';
+async function generateReply(from, userMessage) {
+  // If OpenAI is configured, use it with conversation memory
+  if (openai) {
+    try {
+      if (!conversations.has(from)) conversations.set(from, []);
+      const history = conversations.get(from);
+      history.push({ role: 'user', content: userMessage });
+      if (history.length > 10) history.splice(0, history.length - 10);
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history],
+        max_tokens: 300,
+        temperature: 0.7,
+      });
+
+      const reply = completion.choices[0].message.content;
+      history.push({ role: 'assistant', content: reply });
+      conversations.set(from, history);
+      return reply;
+    } catch (aiErr) {
+      console.error('[WHATSAPP BOT] OpenAI error, using fallback:', aiErr.message);
+    }
   }
-
-  if (/^1$|نشر|إعلان|اعلان|بيع|أبيع/.test(lower)) {
-    return '📢 لنشر إعلانك:\nزر الموقع: https://xtox.app\nاضغط "نشر إعلان" وسجّل دخولك.\n\nهل تحتاج مساعدة أخرى؟\n1 - نشر\n2 - بحث\n3 - دعم\n4 - عن XTOX';
-  }
-
-  if (/^2$|بحث|ابحث|عايز|محتاج|شراء|أشتري/.test(lower)) {
-    return '🔍 للبحث عن إعلانات:\nزر: https://xtox.app\nاستخدم خاصية البحث في الأعلى.\n\nهل تحتاج مساعدة أخرى؟\n1 - نشر\n2 - بحث\n3 - دعم\n4 - عن XTOX';
-  }
-
-  if (/^3$|دعم|support|مشكلة|مشكله|خطأ|خطا|شكوى/.test(lower)) {
-    return '🆘 للتواصل مع الدعم الفني:\nأرسل لنا تفاصيل مشكلتك هنا وسنرد قريباً.\nأو راسلنا على: support@xtox.app\n\nساعات العمل: 9 ص - 10 م (GMT+3)';
-  }
-
-  if (/^4$|عن|about|xtox|اكستوكس|اكس توكس/.test(lower)) {
-    return 'ℹ️ XTOX هو السوق المحلي الذكي للبيع والشراء في منطقتك.\n🌐 https://xtox.app\n📱 متاح على الويب والجوال\n\nانشر إعلانك مجاناً الآن! 🚀';
-  }
-
-  if (/سعر|ترويج|ترقية|مميز|featured|boost/.test(lower)) {
-    return '🚀 خطط الترويج في XTOX:\n🆓 مجاني — 3 أيام (مرة كل شهرين)\n⚡ أساسي — 7 أيام · $2\n🌟 مميز — 14 يوم · $5\n👑 بريميوم — 30 يوم · $15\n\nللترقية: https://xtox.app/promote';
-  }
-
-  // Default
-  return 'شكراً لتواصلك مع XTOX! 🙏\nلم أفهم رسالتك جيداً.\n\nاكتب:\n1️⃣ للنشر\n2️⃣ للبحث\n3️⃣ للدعم\n4️⃣ عن XTOX\n\nأو زر موقعنا: https://xtox.app';
+  // Fallback: hardcoded replies
+  return hardcodedReply(userMessage);
 }
 
 // ── Send reply via UltraMsg ───────────────────────────────────────────────────
@@ -113,7 +143,7 @@ router.post('/webhook', express.json(), async (req, res) => {
 
     console.log(`[WHATSAPP BOT] Message from ${from}: "${body}"`);
 
-    const reply = await generateReply(body);
+    const reply = await generateReply(from, body);
     await sendReply(from, reply);
 
     res.json({ ok: true });
@@ -127,9 +157,10 @@ router.post('/webhook', express.json(), async (req, res) => {
 router.get('/webhook', (req, res) => {
   res.json({
     ok: true,
-    service: 'XTOX WhatsApp Chatbot',
-    configured: !!(ULTRAMSG_INSTANCE && ULTRAMSG_TOKEN),
-    note: 'Set ULTRAMSG_INSTANCE and ULTRAMSG_TOKEN in Railway env vars, then point UltraMsg webhook to /api/whatsapp/webhook',
+    service: 'XTOX WhatsApp Chatbot (OpenAI-powered)',
+    ultramsg_configured: !!(ULTRAMSG_INSTANCE && ULTRAMSG_TOKEN),
+    openai_configured: !!process.env.OPENAI_API_KEY,
+    note: 'Set OPENAI_API_KEY for intelligent replies. ULTRAMSG_INSTANCE + ULTRAMSG_TOKEN for sending. Point UltraMsg webhook to /api/whatsapp/webhook',
   });
 });
 

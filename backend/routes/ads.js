@@ -412,7 +412,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
       let _gateDbFailed = false;
       try {
         if (mongoose.Types.ObjectId.isValid(req.user.id)) {
-          _gateUser = await User.findById(req.user.id).select('googleId whatsappPhone authProvider xtoxId').lean();
+          _gateUser = await User.findById(req.user.id).select('googleId whatsappPhone authProvider xtoxId emailVerified email').lean();
         }
       } catch (_gateErr) {
         // DB lookup failed — fail open, do not block the user
@@ -424,6 +424,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
       const _isVerified = _gateDbFailed || (
         !!(_gateUser && _gateUser.whatsappPhone) ||   // verified WhatsApp number on file
         !!(_gateUser && _gateUser.googleId) ||         // logged in via Google = email verified
+        !!(_gateUser && _gateUser.emailVerified) ||    // verified email OTP user
         (_gateUser && _gateUser.authProvider && _gateUser.authProvider !== 'email') // apple/whatsapp
       );
 
