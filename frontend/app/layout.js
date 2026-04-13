@@ -8,6 +8,7 @@ import FloatingSearchBar from './components/FloatingSearchBar';
 import ErrorCapture from './components/ErrorCapture';
 import MarkPoint from './components/MarkPoint';
 import ChatFloat from './components/ChatFloat';
+import WhatsAppFloat from './components/WhatsAppFloat';
 
 // JSON-LD structured data for rich Google search results
 const jsonLd = {
@@ -113,6 +114,7 @@ export default function RootLayout({ children }) {
         <UnifiedNotificationPrompt />
         <BottomNav />
         <ChatFloat />
+        <WhatsAppFloat />
       </body>
     </html>
   );

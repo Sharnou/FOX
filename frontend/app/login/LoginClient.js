@@ -265,26 +265,35 @@ export default function LoginClient() {
           React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151' } },
             'أدخل رقم هاتفك وسيصلك رمز تحقق على واتساب'
           ),
-          React.createElement('input', {
-            id: 'login-phone', name: 'login-phone',
-            type: 'tel', placeholder: '+201234567890', value: phone,
-            onChange: function(e) { setPhone(e.target.value); },
-            style: inputStyle, disabled: otpSent
-          }),
           !otpSent
-            ? React.createElement('button', { onClick: sendOtp, disabled: loading, style: btnStyle },
-                loading ? '...' : 'إرسال رمز واتساب'
+            ? React.createElement('form', { onSubmit: function(e) { e.preventDefault(); sendOtp(); }, style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+                React.createElement('input', {
+                  id: 'login-phone', name: 'login-phone',
+                  type: 'tel', placeholder: '+201234567890', value: phone,
+                  onChange: function(e) { setPhone(e.target.value); },
+                  style: inputStyle
+                }),
+                React.createElement('button', { type: 'submit', disabled: loading, style: btnStyle },
+                  loading ? '...' : 'إرسال رمز واتساب'
+                )
               )
-            : React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+            : React.createElement('form', { onSubmit: function(e) { e.preventDefault(); verifyOtp(); }, style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+                React.createElement('input', {
+                  id: 'login-phone', name: 'login-phone',
+                  type: 'tel', placeholder: '+201234567890', value: phone,
+                  onChange: function(e) { setPhone(e.target.value); },
+                  style: inputStyle, disabled: true
+                }),
                 React.createElement('input', {
                   type: 'number', placeholder: 'رمز التحقق (6 أرقام)',
                   value: otp, onChange: function(e) { setOtp(e.target.value.slice(0, 6)); },
                   style: inputStyle, maxLength: 6
                 }),
-                React.createElement('button', { onClick: verifyOtp, disabled: loading, style: btnStyle },
+                React.createElement('button', { type: 'submit', disabled: loading, style: btnStyle },
                   loading ? '...' : 'تحقق وتسجيل الدخول'
                 ),
                 React.createElement('button', {
+                  type: 'button',
                   onClick: function() { if (countdown === 0) { setOtpSent(false); setOtp(''); sendOtp(); } },
                   disabled: countdown > 0,
                   style: { background: 'none', border: 'none', color: countdown > 0 ? '#9ca3af' : '#FF6B35', cursor: countdown > 0 ? 'default' : 'pointer', fontSize: 13, fontFamily: 'inherit' }

@@ -324,11 +324,11 @@ export default function AdminPage() {
           <h1 style={{ color: '#00ff41', fontSize: 22, fontWeight: 'bold', margin: '8px 0 4px' }}>XTOX ADMIN</h1>
           <p style={{ color: '#8b949e', fontSize: 12 }}>لوحة التحكم الإدارية</p>
         </div>
+        <form onSubmit={(e) => { e.preventDefault(); login(); }}>
         <div style={{ marginBottom: 14 }}>
           <label style={{ color: '#00ff41', fontSize: 11, display: 'block', marginBottom: 5 }}>البريد الإلكتروني</label>
           <input
             type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && login()}
             autoComplete="username"
             placeholder="admin@email.com"
             style={{ width: '100%', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '10px 12px', color: '#fff', fontSize: 14, boxSizing: 'border-box', fontFamily: 'monospace' }}
@@ -338,17 +338,17 @@ export default function AdminPage() {
           <label style={{ color: '#00ff41', fontSize: 11, display: 'block', marginBottom: 5 }}>كلمة المرور</label>
           <input
             type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && login()}
             autoComplete="current-password"
             placeholder="••••••••"
             style={{ width: '100%', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '10px 12px', color: '#fff', fontSize: 14, boxSizing: 'border-box', fontFamily: 'monospace' }}
           />
         </div>
         {loginErr && <div style={{ color: '#ff4444', fontSize: 12, marginBottom: 14, background: '#1a0000', padding: '8px 12px', borderRadius: 6, border: '1px solid #ff4444', direction: 'rtl' }}>⚠ {loginErr}</div>}
-        <button onClick={login} disabled={loginLoading}
+        <button type="submit" disabled={loginLoading}
           style={{ width: '100%', background: loginLoading ? '#333' : '#00ff41', color: '#0d1117', border: 'none', borderRadius: 6, padding: '12px', fontWeight: 'bold', fontSize: 14, cursor: loginLoading ? 'not-allowed' : 'pointer', fontFamily: 'monospace' }}>
           {loginLoading ? 'جارٍ التحقق...' : 'دخول ←'}
         </button>
+        </form>
         <p style={{ color: '#30363d', fontSize: 10, textAlign: 'center', marginTop: 16 }}>XTOX Control v3.0</p>
       </div>
     </div>

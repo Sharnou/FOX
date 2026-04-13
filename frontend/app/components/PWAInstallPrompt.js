@@ -1,9 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function PWAInstallPrompt() {
+  const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [visible, setVisible] = useState(false);
+
+  if (pathname?.startsWith('/admin')) return null;
 
   useEffect(() => {
     // Don't show if already dismissed

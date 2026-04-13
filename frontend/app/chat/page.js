@@ -171,6 +171,12 @@ export default function ChatPage() {
   var chatIdRef      = useRef('');
   var callTimerRef   = useRef(null);
 
+  // Immediate auth check — redirect to login if no token
+  useEffect(function() {
+    var token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+    if (!token) { router.push('/login'); return; }
+  }, []);
+
   // Init: read user + URL params
   useEffect(function() {
     if (typeof window !== 'undefined') {

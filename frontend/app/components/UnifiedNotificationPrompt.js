@@ -110,7 +110,7 @@ export default function UnifiedNotificationPrompt() {
     const timer = setTimeout(() => {
       setPhase('prompt');
       localStorage.setItem('notif_prompt_last_shown', String(Date.now()));
-    }, 2500);
+    }, 6000);
     return () => clearTimeout(timer);
   }, []);
 
