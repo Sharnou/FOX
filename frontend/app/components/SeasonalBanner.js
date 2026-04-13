@@ -1,71 +1,34 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getActiveBanner } from '../../lib/seasonalBanners';
+
+function getActiveBannerSafe() {
+  try {
+    const BANNERS = [
+      { id: 'sham', title: 'عيد شم النسيم 🌸', subtitle: 'كل عام وأنتم بخير', emoji: '🌸', gradient: 'linear-gradient(135deg, #a8edea, #fed6e3)', textColor: '#2d5a3d', startMonth: 4, startDay: 10, endMonth: 4, endDay: 21 },
+      { id: 'eid_fitr', title: 'عيد الفطر المبارك 🌙', subtitle: 'كل عام وأنتم بخير', emoji: '🌙', gradient: 'linear-gradient(135deg, #f093fb, #f5a623)', textColor: '#4a0080', startMonth: 3, startDay: 25, endMonth: 4, endDay: 5 },
+      { id: 'eid_adha', title: 'عيد الأضحى المبارك 🐑', subtitle: 'تقبل الله منا ومنكم', emoji: '🐑', gradient: 'linear-gradient(135deg, #43e97b, #38f9d7)', textColor: '#1a4a2e', startMonth: 6, startDay: 1, endMonth: 6, endDay: 10 },
+      { id: 'ramadan', title: 'رمضان كريم 🌙', subtitle: 'كل عام وأنتم بخير', emoji: '🌙', gradient: 'linear-gradient(135deg, #1a1a2e, #16213e)', textColor: '#f5c518', startMonth: 2, startDay: 28, endMonth: 3, endDay: 30 },
+    ];
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    return BANNERS.find(b => {
+      if (b.startMonth === b.endMonth) return month === b.startMonth && day >= b.startDay && day <= b.endDay;
+      if (month === b.startMonth) return day >= b.startDay;
+      if (month === b.endMonth) return day <= b.endDay;
+      return month > b.startMonth && month < b.endMonth;
+    }) || null;
+  } catch { return null; }
+}
 
 export default function SeasonalBanner() {
   const [banner, setBanner] = useState(null);
-  useEffect(() => { setBanner(getActiveBanner()); }, []);
+  useEffect(() => { setBanner(getActiveBannerSafe()); }, []);
   if (!banner) return null;
   return (
-    <div
-      role="banner"
-      aria-label={banner.title}
-      style={{
-        width: '100%',
-        background: banner.gradient,
-        backgroundSize: '300% 300%',
-        padding: '18px 20px',
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 4px 24px rgba(168,237,234,0.4), 0 2px 8px rgba(0,0,0,0.08)',
-        borderBottom: '3px solid rgba(255,255,255,0.6)',
-      }}
-    >
-      {/* Decorative circles */}
-      <div aria-hidden="true" style={{ position: 'absolute', top: -30, left: -30, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', pointerEvents: 'none' }} />
-      <div aria-hidden="true" style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
-
-      {/* Emoji row */}
-      <div style={{ marginBottom: 8, fontSize: 28 }} aria-hidden="true">
-        {banner.emoji} {banner.emoji} {banner.emoji}
-      </div>
-
-      {/* Main card */}
-      <div style={{
-        display: 'inline-block',
-        background: 'rgba(255,255,255,0.72)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        borderRadius: 20,
-        padding: '14px 28px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-        border: '2px solid rgba(255,255,255,0.8)',
-        maxWidth: 600,
-        width: '100%',
-      }}>
-        <p style={{
-          margin: '0 0 4px',
-          fontSize: 20,
-          fontWeight: 900,
-          color: banner.textColor,
-          direction: 'rtl',
-          lineHeight: 1.5,
-          fontFamily: "'Cairo', 'Noto Sans Arabic', 'Tajawal', system-ui, sans-serif",
-        }}>
-          {banner.title}
-        </p>
-        <p style={{
-          margin: 0,
-          fontSize: 14,
-          fontWeight: 700,
-          color: banner.textColor,
-          opacity: 0.8,
-          lineHeight: 1.5,
-        }}>
-          {banner.subtitle}
-        </p>
-      </div>
+    <div style={{ background: banner.gradient, color: banner.textColor, padding: '10px 16px', textAlign: 'center', borderRadius: 12, margin: '8px 12px 0', fontSize: 14, fontWeight: 600, direction: 'rtl' }}>
+      <span style={{ fontSize: 20, marginLeft: 8 }}>{banner.emoji}</span>
+      {banner.title} — {banner.subtitle}
     </div>
   );
 }
