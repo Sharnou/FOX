@@ -5,6 +5,17 @@
   "outputDirectory": "frontend/.next",
   "installCommand": "cd frontend && npm install",
   "devCommand": "cd frontend && npm run dev",
+  "github": {
+    "enabled": true,
+    "silent": false
+  },
+  "regions": ["iad1"],
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./backend && git diff --quiet HEAD^ HEAD -- ./mobile",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
   "build": {
     "env": {
       "NODE_VERSION": "22"

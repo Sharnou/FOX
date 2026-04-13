@@ -204,6 +204,9 @@ export default function ChatPage() {
       setTargetId(params.get('target') || '');
       setChatId(cid);
       chatIdRef.current = cid;
+      // Pre-populate sellerName from URL if available (passed by chat list)
+      var urlSellerName = params.get('sellerName') || '';
+      if (urlSellerName) setSellerName(urlSellerName);
     }
   }, []);
 
@@ -301,11 +304,22 @@ export default function ChatPage() {
         var chatList = data.chats || (Array.isArray(data) ? data : []);
         setApiChats(chatList);
         var apiConvs = chatList.map(function(c) {
-          var otherId = '';
-          if (c.buyer && String(c.buyer) !== String(myId)) otherId = String(c.buyer);
-          else if (c.seller && String(c.seller) !== String(myId)) otherId = String(c.seller);
+          // buyer/seller are populated objects: { _id, name, avatar, ... }
+          var buyerId  = (c.buyer?._id  || (typeof c.buyer  === 'string' ? c.buyer  : '')).toString();
+          var sellerId = (c.seller?._id || (typeof c.seller === 'string' ? c.seller : '')).toString();
+          var otherId = '', otherName = '', otherAvatar = '';
+          if (buyerId && buyerId !== String(myId)) {
+            otherId = buyerId;
+            otherName = c.buyer?.name || '';
+            otherAvatar = c.buyer?.avatar || '';
+          } else if (sellerId && sellerId !== String(myId)) {
+            otherId = sellerId;
+            otherName = c.seller?.name || '';
+            otherAvatar = c.seller?.avatar || '';
+          }
           var lastMsg = c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1] : null;
-          return { id: otherId, chatId: c._id, lastMessage: lastMsg ? (lastMsg.text || '') : '', lastTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
+          var adTitle = c.adTitle || c.ad?.title || '';
+          return { id: otherId, name: otherName, avatar: otherAvatar, adTitle: adTitle, chatId: c._id, lastMessage: lastMsg ? (lastMsg.text || '') : '', lastTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
         }).filter(function(c) { return c.id; });
         setConversations(function(prev) {
           var merged = apiConvs.slice();
@@ -316,10 +330,13 @@ export default function ChatPage() {
         if (urlChatId) {
           var chat = chatList.find(function(c) { return String(c._id) === urlChatId; });
           if (chat) {
-            var otherId = '';
-            if (chat.buyer && String(chat.buyer) !== String(myId)) otherId = String(chat.buyer);
-            else if (chat.seller && String(chat.seller) !== String(myId)) otherId = String(chat.seller);
+            var buyerId2  = (chat.buyer?._id  || (typeof chat.buyer  === 'string' ? chat.buyer  : '')).toString();
+            var sellerId2 = (chat.seller?._id || (typeof chat.seller === 'string' ? chat.seller : '')).toString();
+            var otherId = '', otherName2 = '';
+            if (buyerId2 && buyerId2 !== String(myId)) { otherId = buyerId2; otherName2 = chat.buyer?.name || ''; }
+            else if (sellerId2 && sellerId2 !== String(myId)) { otherId = sellerId2; otherName2 = chat.seller?.name || ''; }
             if (otherId) setTargetId(function(prev) { return prev || otherId; });
+            if (otherName2) setSellerName(function(prev) { return prev || otherName2; });
             setChatId(urlChatId);
             chatIdRef.current = urlChatId;
             try {
@@ -328,7 +345,7 @@ export default function ChatPage() {
                 var msgData = await msgRes.json();
                 var msgs = (msgData.messages || []).slice().reverse();
                 setMessages(msgs.map(function(m) {
-                  return { from: m.sender === myId ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now() };
+                  return { from: (m.sender === myId || String(m.sender) === String(myId)) ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(), readBy: m.readBy || [] };
                 }));
               }
             // Read chat status (archived = ad sold or admin closed)
@@ -374,7 +391,7 @@ export default function ChatPage() {
     s.on('receive_message', function(data) {
       var senderId = data.from || targetId;
       var msgTime  = Date.now();
-      setMessages(function(prev) { return prev.concat([{ from: senderId, text: data.text, type: data.type || 'text', duration: data.duration || 0, time: msgTime }]); });
+      setMessages(function(prev) { return prev.concat([{ from: senderId, text: data.text, type: data.type || 'text', duration: data.duration || 0, time: msgTime, readBy: [] }]); });
       if (senderId && senderId !== targetId) {
         setUnreadCounts(function(prev) {
           var upd = Object.assign({}, prev);
@@ -397,28 +414,8 @@ export default function ChatPage() {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       typingTimerRef.current = setTimeout(function() { setIsTyping(false); }, 3000);
     });
-    s.on('incoming_call', function(payload) {
-      setCallState('ringing');
-      setIncomingCall({ from: payload.from, offer: payload.offer });
-    });
-    s.on('call_answered', async function(payload) {
-      if (pcRef.current) {
-        try {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-          setCallState('active');
-        } catch(e) {}
-      }
-    });
-    s.on('ice_candidate', async function(candidate) {
-      if (pcRef.current && candidate) {
-        try { await pcRef.current.addIceCandidate(candidate); } catch(e) {}
-      }
-    });
-    s.on('call_ended', function() {
-      endCall();
-      setCallState('ended');
-      setTimeout(function() { setCallState('idle'); }, 2000);
-    });
+    // Note: call signaling is handled by CallManager component (call:* events via Socket.IO)
+    // Old call_offer/incoming_call listeners removed to avoid conflict with CallManager
   }
 
   // Create RTCPeerConnection
@@ -514,7 +511,7 @@ export default function ChatPage() {
     var now  = Date.now();
     var text = msg;
     setMsg('');
-    setMessages(function(prev) { return prev.concat([{ from: 'me', text: text, type: 'text', duration: 0, time: now }]); });
+    setMessages(function(prev) { return prev.concat([{ from: 'me', text: text, type: 'text', duration: 0, time: now, readBy: [] }]); });
     socketRef.current.emit('send_message', { from: myId, to: targetId, text: text, time: now });
     setConversations(function(prev) {
       var exists = prev.find(function(c) { return c.id === targetId; });
@@ -574,20 +571,7 @@ export default function ChatPage() {
 
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
-      {incomingCall && (
-        <IncomingCallModal from={incomingCall.from} onAccept={acceptCall} onReject={rejectIncomingCall} />
-      )}
-
-      {callState === 'active' && (
-        <ActiveCallOverlay
-          callDuration={callDuration}
-          isMuted={isMuted}
-          onToggleMute={toggleMute}
-          onEndCall={endCall}
-          otherId={targetId}
-        />
-      )}
-
+      {/* CallManager handles all call UI (incoming/active overlays) */}
       <CallManager ref={callManagerRef} socket={socketInstance} currentUser={currentUser} />
 
       <header role="banner" style={{ background: '#1e293b', color: 'white', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
@@ -632,11 +616,10 @@ export default function ChatPage() {
               📞
             </button>
             <button
-              onClick={cc.action || undefined}
-              disabled={cc.disabled}
-              aria-label={callState === 'active' ? 'إنهاء المكالمة الصوتية' : 'بدء مكالمة صوتية'}
-              style={{ background: cc.bg, color: 'white', border: 'none', padding: '8px 14px', borderRadius: 20, cursor: cc.disabled ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', opacity: cc.disabled ? 0.65 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
-              {cc.label}
+              onClick={function() { callManagerRef.current?.initiateCall(targetId, sellerName || targetId); }}
+              aria-label="بدء مكالمة صوتية"
+              style={{ background: '#16a34a', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              مكالمة
             </button>
           </>
         )}
@@ -715,18 +698,23 @@ export default function ChatPage() {
                         });
                         setShowConvPanel(false);
                         var dest = conv.chatId
-                          ? '/chat?chatId=' + encodeURIComponent(conv.chatId) + '&target=' + encodeURIComponent(conv.id)
-                          : '/chat?target=' + encodeURIComponent(conv.id);
+                          ? '/chat?chatId=' + encodeURIComponent(conv.chatId) + '&target=' + encodeURIComponent(conv.id) + (conv.name ? '&sellerName=' + encodeURIComponent(conv.name) : '')
+                          : '/chat?target=' + encodeURIComponent(conv.id) + (conv.name ? '&sellerName=' + encodeURIComponent(conv.name) : '');
                         router.push(dest);
                       }}
                       style={{ width: '100%', background: isActive ? 'rgba(35,229,219,0.15)' : 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'right' }}>
                       <div style={{ width: 42, height: 42, borderRadius: '50%', background: isActive ? '#23e5db' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, color: isActive ? '#002f34' : 'white', fontWeight: 'bold' }}>
-                        {conv.id ? conv.id.charAt(0).toUpperCase() : '?'}
+                        {conv.name ? conv.name.charAt(0).toUpperCase() : '?'}
                       </div>
                       <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                        <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: unread > 0 ? 'bold' : 'normal', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>
-                          {conv.id}
+                        <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: unread > 0 ? 'bold' : 'normal', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
+                          {conv.name || 'محادثة'}
                         </div>
+                        {conv.adTitle && (
+                          <div style={{ color: isActive ? 'rgba(35,229,219,0.7)' : 'rgba(255,255,255,0.35)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
+                            📦 {conv.adTitle}
+                          </div>
+                        )}
                         {conv.lastMessage && (
                           <div style={{ color: unread > 0 ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: unread > 0 ? '600' : 'normal' }}>
                             {conv.lastMessage}
@@ -783,8 +771,30 @@ export default function ChatPage() {
                   ) : (
                     <div dir="rtl" role="article" aria-label={isSent ? 'رسالتك' : 'رسالة من ' + m.from}
                       style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: isSent ? '18px 18px 4px 18px' : '18px 18px 18px 4px', background: isSent ? '#f97316' : '#ffffff', color: isSent ? '#ffffff' : '#1e293b', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', fontSize: 15, lineHeight: 1.55, wordBreak: 'break-word' }}>
-                      <div>{m.text}</div>
-                      <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right' }}>{arabicRelTime(m.time)}</div>
+                      {m.type === 'image' && m.text ? (
+                        <img src={m.text} alt="صورة مرسلة" loading="lazy"
+                          style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 8, display: 'block', cursor: 'pointer' }}
+                          onError={function(e) { e.target.style.display='none'; }}
+                          onClick={function() { window.open(m.text, '_blank'); }}
+                        />
+                      ) : m.type === 'voice' && m.text ? (
+                        <div style={{ minWidth: 180 }}>
+                          <audio controls src={m.text} style={{ width: '100%', height: 36, outline: 'none' }} preload="none">
+                            متصفحك لا يدعم تشغيل الصوت
+                          </audio>
+                          {m.duration > 0 && <div style={{ fontSize: 11, color: isSent ? 'rgba(255,255,255,0.7)' : '#6b7280', marginTop: 4 }}>🎙 {Math.floor(m.duration / 60) > 0 ? Math.floor(m.duration / 60) + ':' : ''}{String(m.duration % 60).padStart(2,'0')} ثانية</div>}
+                        </div>
+                      ) : (
+                        <div style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
+                      )}
+                      <div style={{ fontSize: 11, marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: isSent ? 'flex-start' : 'flex-end', gap: 3, opacity: 0.75 }}>
+                        <span>{arabicRelTime(m.time)}</span>
+                        {isSent && (
+                          <span style={{ color: (m.readBy && m.readBy.length > 0) ? '#34d399' : 'inherit', fontSize: 12, fontWeight: 700 }} title={(m.readBy && m.readBy.length > 0) ? 'تمت القراءة' : 'تم الإرسال'}>
+                            {(m.readBy && m.readBy.length > 0) ? '✓✓' : '✓'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
