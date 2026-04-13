@@ -828,7 +828,9 @@ router.post('/', auth, multerUpload, async (req, res) => {
           if (_descTrimmed.length > 20) {
             _orClauses.push({ description: { $regex: new RegExp(_descTrimmed.slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } });
           }
-          const _dup = await Ad.findOne({
+          // FIX: Use getAdModel() (not Ad directly) so this uses in-memory store
+          // when MongoDB is unavailable — prevents hanging/timeout
+          const _dup = await getAdModel().findOne({
             userId: req.user.id,
             $or: _orClauses,
             isDeleted: { $ne: true },
@@ -893,12 +895,25 @@ router.post('/', auth, multerUpload, async (req, res) => {
         isDeleted: false,
       });
     } catch (createErr) {
-      console.error('[ADS POST] Ad.create failed:', createErr?.message, createErr?.stack);
+      // Log full details so the real error is visible in Railway logs
+      console.error('[ADS POST] Ad.create FAILED:', createErr?.name, '-', createErr?.message);
+      if (createErr?.errors) {
+        // Mongoose ValidationError — log each field's error
+        Object.entries(createErr.errors).forEach(([field, err]) => {
+          console.error('[ADS POST] ValidationError field=' + field + ':', err.message, '| value:', err.value);
+        });
+      }
+      console.error('[ADS POST] Stack:', createErr?.stack?.split('\n').slice(0,5).join(' | '));
       if (!res.headersSent) {
         return res.status(500).json({
           success: false,
           error: 'حدث خطأ أثناء نشر الإعلان. يرجى المحاولة مرة أخرى.',
           message: 'Failed to create ad. Please try again.',
+          // In development, include the real error for easier debugging
+          ...(process.env.NODE_ENV !== 'production' && {
+            debug: createErr?.message,
+            field: createErr?.errors ? Object.keys(createErr.errors).join(',') : undefined,
+          })
         });
       }
       return;

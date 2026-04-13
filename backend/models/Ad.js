@@ -38,9 +38,12 @@ const AdSchema = new mongoose.Schema({
     placeName: String
   },
   // ── Run 84: Item condition & negotiable price ──────────────────────────────
+  // FIX: Removed enum restriction — frontend sends values like 'for_sale', 'for_rent',
+  // 'refurbished', 'available', 'open', 'cracked', 'installment', etc.
+  // The old enum ['new','used','excellent','rent'] caused ValidationError → 500 for ALL
+  // real frontend condition values. Now accepts any string up to 50 chars.
   condition: {
     type: String,
-    enum: ['new', 'used', 'excellent', 'rent'],
     default: null
   },
   negotiable: { type: Boolean, default: false },
