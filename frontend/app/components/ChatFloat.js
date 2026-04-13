@@ -38,11 +38,14 @@ export default function ChatFloat() {
     }
   }, []);
 
+  // FIX Bug 2: extract stable token string — avoids re-running effect on every render
+  const userToken = user?.token || null;
+
   // Fetch unread count for badge (every 30s)
   useEffect(() => {
-    if (!user?.token) return;
+    if (!userToken) return;
     const fetchUnread = () => {
-      fetch(`${API}/api/chat/unread-count`, { headers: { Authorization: `Bearer ${user.token}` } })
+      fetch(`${API}/api/chat/unread-count`, { headers: { Authorization: `Bearer ${userToken}` } })
         .then(r => r.json())
         .then(d => setUnreadTotal(d.count || d.unreadCount || 0))
         .catch(() => {});
@@ -50,7 +53,7 @@ export default function ChatFloat() {
     fetchUnread();
     const t = setInterval(fetchUnread, 30000);
     return () => clearInterval(t);
-  }, [user]);
+  }, [userToken]);
 
   // Fetch conversations when panel opens
   const fetchConversations = () => {
@@ -67,9 +70,9 @@ export default function ChatFloat() {
   };
 
   useEffect(() => {
-    if (!open || !user?.token) return;
+    if (!open || !userToken) return;
     fetchConversations();
-  }, [open, user]);
+  }, [open, userToken]);
 
   // Socket connection for active mini-chat
   useEffect(() => {
@@ -103,13 +106,13 @@ export default function ChatFloat() {
         socketRef.current = null;
       }
     };
-  }, [activeChat, user]);
+  }, [activeChat?.chatId, userToken]);
 
   // Load message history when activeChat changes
   useEffect(() => {
-    if (!activeChat?.chatId || !user?.token) return;
+    if (!activeChat?.chatId || !userToken) return;
     fetch(`${API}/api/chat/${activeChat.chatId}/messages?limit=30`, {
-      headers: { Authorization: `Bearer ${user.token}` }
+      headers: { Authorization: `Bearer ${userToken}` }
     })
       .then(r => r.json())
       .then(data => {
@@ -119,9 +122,9 @@ export default function ChatFloat() {
       }).catch(() => {});
     // Mark as read
     fetch(`${API}/api/chat/${activeChat.chatId}/read`, {
-      method: 'PATCH', headers: { Authorization: `Bearer ${user.token}` }
+      method: 'PATCH', headers: { Authorization: `Bearer ${userToken}` }
     }).catch(() => {});
-  }, [activeChat, user]);
+  }, [activeChat?.chatId, userToken]);
 
   function openConversation(conv) {
     const myId = (user?.id || user?._id || '').toString();

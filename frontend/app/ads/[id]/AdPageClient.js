@@ -167,7 +167,7 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
   const isRTL = ['ar', 'he', 'ur'].includes(lang);
 
   React.useEffect(() => {
-    if (!sellerId || sellerId === 'undefined' || sellerId === 'null') return;
+    if (!sellerId || typeof sellerId !== 'string' || sellerId === 'undefined' || sellerId === 'null' || sellerId.length < 5) return;
     fetch(API + '/api/profile/' + sellerId)
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSeller(data); setLoading(false); })
@@ -593,7 +593,7 @@ export default function AdPageClient({ params }) {
       )}
       {showReportSeller && (
         <ReportSeller
-          sellerId={(ad.userId && ad.userId._id) || ad.userId || ''}
+          sellerId={String((ad.userId && (ad.userId._id || ad.userId.id)) || '').replace('[object Object]', '') || String(typeof ad.userId === 'string' ? ad.userId : '')}
           sellerName={(ad.userId && ad.userId.name) || ad.sellerName || ''}
           onClose={() => setShowReportSeller(false)}
           lang={lang || 'ar'}
@@ -646,7 +646,7 @@ export default function AdPageClient({ params }) {
           )}
         </div>
       )}
-      <SellerMiniCard sellerId={(ad.userId && ad.userId._id) || ad.userId || (ad.seller && ad.seller._id) || ad.sellerId} sellerName={(ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || ''} lang={lang} />
+      <SellerMiniCard sellerId={String((ad.userId && (ad.userId._id || ad.userId.id)) || (ad.seller && (ad.seller._id || ad.seller.id)) || ad.sellerId || '').replace('[object Object]', '').trim()} sellerName={(ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || ''} lang={lang} />
       <button
         onClick={() => setShowReportSeller(true)}
         style={{ marginTop: 8, fontSize: 12, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 4 }}

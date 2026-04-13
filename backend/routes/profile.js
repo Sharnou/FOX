@@ -10,15 +10,18 @@ const router = express.Router();
 
 // GET full seller profile
 router.get('/:id', async (req, res) => {
-  if (!req.params.id || req.params.id === 'undefined' || req.params.id === 'null') {
-    return res.status(400).json({ error: 'Invalid user ID' });
+  const { id } = req.params;
+  // Guard: reject [object Object], non-string, too-short, or non-MongoDB-ObjectId values
+  if (!id || id === 'undefined' || id === 'null' || id === '[object Object]' ||
+      id.length < 5 || !/^[a-f0-9]{24}$/i.test(id)) {
+    return res.status(400).json({ success: false, error: 'Invalid user ID' });
   }
   try {
-    const user = await User.findById(req.params.id).select('-password -registrationIp -fcmToken');
+    const user = await User.findById(id).select('-password -registrationIp -fcmToken');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const ads = await Ad.find({ userId: req.params.id, isDeleted: { $ne: true }, isExpired: { $ne: true } }).sort({ createdAt: -1 }).limit(20).lean();
-    const reviews = await Review.find({ sellerId: req.params.id }).populate('buyerId', 'name avatar').sort({ createdAt: -1 }).limit(20);
+    const ads = await Ad.find({ userId: id, isDeleted: { $ne: true }, isExpired: { $ne: true } }).sort({ createdAt: -1 }).limit(20).lean();
+    const reviews = await Review.find({ sellerId: id }).populate('buyerId', 'name avatar').sort({ createdAt: -1 }).limit(20);
 
     const avgRating = reviews.length > 0
       ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)

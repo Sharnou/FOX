@@ -109,22 +109,25 @@ export default function ProfilePage() {
   }, []);
 
   // ── Fetch My Ads when user is loaded ─────────────────────────────────
+  // FIX Bug 2: use stable primitive userId string as dep, not the whole user object
+  const userId = (user?._id || user?.id) ?? null;
   useEffect(() => {
-    if (!user) return;
-    const uid = user._id || user.id;
-    if (!uid) return;
+    if (!userId || typeof userId !== 'string' || userId.length < 5) return;
+    let cancelled = false;
     setAdsLoading(true);
-    fetch(API + '/api/ads?userId=' + uid, {
+    fetch(API + '/api/ads?userId=' + userId, {
       headers: { Authorization: 'Bearer ' + getToken() }
     })
       .then(r => r.json())
       .then(data => {
+        if (cancelled) return;
         const ads = Array.isArray(data) ? data : (data.ads || data.regularAds || []);
         setMyAds(ads);
       })
       .catch(() => {})
-      .finally(() => setAdsLoading(false));
-  }, [user]);
+      .finally(() => { if (!cancelled) setAdsLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId]);
 
   // ── Initialize soundMuted from localStorage ───────────────────────────
   useEffect(() => {
