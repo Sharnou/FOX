@@ -538,6 +538,8 @@ router.post('/', auth, multerUpload, async (req, res) => {
         !!(_gateUser && _gateUser.whatsappPhone) ||   // verified WhatsApp number on file
         !!(_gateUser && _gateUser.googleId) ||         // logged in via Google = email verified
         !!(_gateUser && _gateUser.emailVerified) ||    // verified email OTP user
+        !!(_gateUser && _gateUser.xtoxId) ||           // has xtoxId = completed registration
+        !!req.user.xtoxId ||                           // xtoxId in JWT (new email users)
         (_gateUser && _gateUser.authProvider && _gateUser.authProvider !== 'email') // apple/whatsapp
       );
 
@@ -548,13 +550,18 @@ router.post('/', auth, multerUpload, async (req, res) => {
         });
       }
 
-      // GATE 2: Must have xtoxId (use JWT field or DB field)
+      // GATE 2: Must have xtoxId — auto-generate if missing (lazy assignment for old accounts)
       const _hasXtoxId = req.user.xtoxId || (_gateUser && _gateUser.xtoxId);
-      if (!_hasXtoxId) {
-        return res.status(403).json({
-          error: 'حساب غير مكتمل. يرجى إكمال ملفك الشخصي أولاً.',
-          code: 'NO_XTOX_ID'
-        });
+      if (!_hasXtoxId && _gateUser && !_gateDbFailed) {
+        // Auto-assign xtoxId to this user so they can post ads (non-blocking)
+        const _newXtoxId = 'XTOX-' + Date.now().toString(36).toUpperCase().slice(-5) + Math.random().toString(36).toUpperCase().slice(-2);
+        try {
+          await User.findByIdAndUpdate(req.user.id, { xtoxId: _newXtoxId });
+          req.user.xtoxId = _newXtoxId; // inject into request so it's available downstream
+          console.log('[ADS POST] Auto-assigned xtoxId:', _newXtoxId, 'for user:', req.user.id);
+        } catch (_xtoxErr) {
+          console.warn('[ADS POST] xtoxId auto-assign failed (non-fatal):', _xtoxErr.message);
+        }
       }
     }
     // ── DB CONNECTION CHECK — return 503 if no DB is ready yet ──────────────
@@ -816,7 +823,9 @@ router.post('/', auth, multerUpload, async (req, res) => {
     }
 
     // CHANGE 2: Prevent same user posting duplicate title or description
-    {
+    // Skip if client sends forceDuplicate=true (user confirmed they want to post anyway)
+    const _forceDuplicate = body.forceDuplicate === 'true' || body.forceDuplicate === true;
+    if (!_forceDuplicate) {
       const _titleTrimmed = (title || '').trim();
       const _descTrimmed = (description || '').trim();
 
@@ -828,8 +837,6 @@ router.post('/', auth, multerUpload, async (req, res) => {
           if (_descTrimmed.length > 20) {
             _orClauses.push({ description: { $regex: new RegExp(_descTrimmed.slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } });
           }
-          // FIX: Use getAdModel() (not Ad directly) so this uses in-memory store
-          // when MongoDB is unavailable — prevents hanging/timeout
           const _dup = await getAdModel().findOne({
             userId: req.user.id,
             $or: _orClauses,
@@ -865,6 +872,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     try {
       ad = await getAdModel().create({
         userId: req.user.id,
+        seller: req.user.id,  // alias for userId — ensures both fields are set
         title,
         title_original: title,
         description,
@@ -1339,6 +1347,48 @@ router.post('/detect-category', async (req, res) => {
     });
   } catch (e) {
     return res.status(500).json({ error: 'Detection failed', message: e.message });
+  }
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEMP DEBUG ENDPOINT: POST /api/ads/debug-create
+// Tests ad creation without auth — helps identify validation issues in production
+// To use: POST https://xtox-production.up.railway.app/api/ads/debug-create
+// with body: { title, category, price, condition, country }
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/debug-create', async (req, res) => {
+  try {
+    const testAd = {
+      userId: new mongoose.Types.ObjectId(),
+      title: req.body.title || 'test',
+      category: req.body.category || 'Supermarket',
+      subcategory: req.body.subcategory || 'Other',
+      price: Number(req.body.price) || 0,
+      country: req.body.country || 'EG',
+      currency: req.body.currency || 'EGP',
+      condition: req.body.condition || null,
+      city: req.body.city || '',
+      media: [],
+      images: [],
+      tags: [],
+      isExpired: false,
+      isDeleted: false,
+    };
+    const Ad = getAdModel();
+    const ad = new Ad(testAd);
+    const validationError = ad.validateSync();
+    if (validationError) {
+      return res.json({
+        valid: false,
+        errors: Object.fromEntries(
+          Object.entries(validationError.errors).map(([k, v]) => [k, { message: v.message, value: v.value }])
+        )
+      });
+    }
+    return res.json({ valid: true, fields: Object.keys(testAd), testAd });
+  } catch (e) {
+    return res.json({ error: e.message, stack: e.stack?.split('\n').slice(0, 5) });
   }
 });
 

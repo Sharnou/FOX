@@ -291,51 +291,6 @@ async function runSeedsOnce() {
   }
 }
 
-// ── FIX 2: Seed xtox admin user on startup — safe upsert (Bug 2 fix) ───────
-// Uses findOneAndUpdate+upsert to avoid E11000 duplicate key crash on re-deploy.
-// Previously used findOne+save which crashed when email existed with diff username.
-async function seedXtoxAdmin() {
-  try {
-    const UserModel = mongoose.models.User || (await import('../models/User.js')).default;
-    const bcryptModule = await import('bcryptjs');
-    const bcrypt = bcryptModule.default || bcryptModule;
-    const hash = await bcrypt.hash('xtoxxtox', 10);
-    // Always upsert xtox@xtox.com with admin role
-    await UserModel.findOneAndUpdate(
-      { email: 'xtox@xtox.com' },
-      {
-        $setOnInsert: {
-          username: 'xtox',
-          email: 'xtox@xtox.com',
-          password: hash,
-          chatEnabled: true,
-          name: 'XTOX Admin',
-          country: 'EG',
-          city: 'Cairo',
-        },
-        $set: { role: 'admin' }
-      },
-      { upsert: true, new: true }
-    );
-    console.log('[Seed] Admin user xtox@xtox.com ensured');
-
-    // Always ensure owner emails have admin role — runs on every startup
-    const ownerEmails = ['ahmed_sharnou@yahoo.com', 'ahmed_sharnou@outlook.com'];
-    for (const email of ownerEmails) {
-      const updated = await UserModel.findOneAndUpdate(
-        { email },
-        { $set: { role: 'admin' } },
-        { new: true }
-      );
-      if (updated) {
-        console.log('[Seed] Owner admin role confirmed for', email);
-      }
-    }
-  } catch (e) {
-    console.error('[Seed] Admin seed failed:', e.message);
-  }
-}
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 const server = http.createServer(app);
@@ -464,7 +419,6 @@ connectDatabases().then(async (db) => {
 
     // ── Run seeds + cleanup ─────────────────────────────────────────────
     await runSeedsOnce();
-    await seedXtoxAdmin();
 
     // ── Delete anonymous chats on startup (one-time cleanup) ────────────────
     try {

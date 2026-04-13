@@ -102,28 +102,6 @@ function makeAdDoc(raw) {
   return d;
 }
 
-// ─── Seed default super-admin ─────────────────────────────────────────────────
-async function seedAdmin() {
-  const existing = [...store.users.values()].find(u => u.email === 'ahmed_sharnou@yahoo.com');
-  if (existing) return;
-  const hash = await bcrypt.hash('Aa123123', 10);
-  const id = newId();
-  store.users.set(id, {
-    _id: id, id,
-    name: 'Super Admin',
-    email: 'ahmed_sharnou@yahoo.com',
-    password: hash,
-    role: 'admin',
-    country: 'EG',
-    isVerified: true,
-    isMuted: false,
-    isHidden: false,
-    createdAt: now(),
-    updatedAt: now(),
-  });
-  console.log('[MemStore] Seeded default admin: ahmed_sharnou@yahoo.com / Aa123123');
-}
-
 // ─── User model ───────────────────────────────────────────────────────────────
 export const MemUser = {
   findOne(filter, projection) {
@@ -467,7 +445,6 @@ export const MemChat = {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 export async function initMemoryStore() {
-  await seedAdmin();
   console.log('[MemStore] ✅ In-memory store ready (no MongoDB needed)');
   console.log('[MemStore] ⚠️  Data is NOT persisted across restarts. Use MongoDB for production.');
 }

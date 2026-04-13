@@ -576,16 +576,51 @@ router.post('/resolve-report', adminAuth, async (req, res) => {
   }
 });
 
-router.post('/users/:id/role', adminAuth, async (req, res) => {
+// PATCH /api/admin/users/:id/role — only existing admins can grant/change roles
+// POST also accepted for backwards compatibility
+router.patch('/users/:id/role', adminAuth, async (req, res) => {
   try {
     const { role } = req.body;
     const ALLOWED_ROLES = ['user', 'admin', 'sub_admin'];
     if (!ALLOWED_ROLES.includes(role)) return res.status(400).json({ error: 'دور غير صالح' });
     if (!mongoose.Types.ObjectId.isValid(req.params.id))
       return res.status(400).json({ error: 'معرّف غير صالح' });
-    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true });
+
+    // Prevent self-demotion
+    if (String(req.params.id) === String(req.user._id || req.user.id) && role !== 'admin') {
+      return res.status(400).json({ error: 'لا يمكنك تغيير دورك بنفسك' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true }
+    ).select('name email role');
+
     if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
-    res.json({ ok: true, user });
+
+    console.log(`[Admin] ${req.user.email || req.user.id} set role="${role}" for ${user.email}`);
+    res.json({ success: true, ok: true, user });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+router.post('/users/:id/role', adminAuth, async (req, res) => {
+  // Forward to PATCH handler logic
+  req.method = 'PATCH';
+  const { role } = req.body;
+  const ALLOWED_ROLES = ['user', 'admin', 'sub_admin'];
+  try {
+    if (!ALLOWED_ROLES.includes(role)) return res.status(400).json({ error: 'دور غير صالح' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'معرّف غير صالح' });
+    if (String(req.params.id) === String(req.user._id || req.user.id) && role !== 'admin') {
+      return res.status(400).json({ error: 'لا يمكنك تغيير دورك بنفسك' });
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select('name email role');
+    if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    console.log(`[Admin] ${req.user.email || req.user.id} set role="${role}" for ${user.email}`);
+    res.json({ success: true, ok: true, user });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

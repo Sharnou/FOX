@@ -191,7 +191,7 @@ router.post('/auth/google', async (req, res) => {
     const profile = await verifyGoogleToken(idToken);
     const user = await findOrCreateOAuthUser('google', profile, ip, country);
     // JWT_SECRET fallback ensures sign() never throws on missing env var
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId || null }, JWT_SECRET, { expiresIn: '90d' });
     if (res.headersSent) return;
     res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar } });
   } catch (e) {
@@ -209,7 +209,7 @@ router.post('/auth/microsoft', async (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const profile = await verifyMicrosoftToken(accessToken);
     const user = await findOrCreateOAuthUser('microsoft', profile, ip, country);
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId || null }, JWT_SECRET, { expiresIn: '90d' });
     if (res.headersSent) return;
     res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar || null } });
   } catch (e) {
@@ -227,7 +227,7 @@ router.post('/auth/apple', async (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const profile = await verifyAppleToken(idToken);
     const user = await findOrCreateOAuthUser('apple', profile, ip, country);
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId || null }, JWT_SECRET, { expiresIn: '90d' });
     if (res.headersSent) return;
     res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar || null } });
   } catch (e) {
@@ -318,7 +318,7 @@ router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
     await getOrCreateCountry(countryCode, countryCode);
     let user = await getUserModel().findOne({ phone });
     if (!user) user = await getUserModel().create({ phone, name: name || phone, country: countryCode, city, registrationIp: ip, isVerified: true });
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId || null }, JWT_SECRET, { expiresIn: '90d' });
     res.json({ token, user: { id: user._id, name: user.name, country: user.country, role: user.role } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -370,11 +370,15 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (!finalCountry || finalCountry === 'unknown') {
       try { const g = await (await fetch(`http://ip-api.com/json/${ip}?fields=countryCode`)).json(); finalCountry = g.countryCode || 'EG'; } catch { finalCountry = 'EG'; }
     }
+    // Generate a unique xtoxId for this email-registered user so they can post ads
+    const _regSeq = Date.now().toString(36).toUpperCase().slice(-5);
+    const xtoxId = 'XTOX-' + _regSeq + Math.random().toString(36).toUpperCase().slice(-2);
     const user = await getUserModel().create({ email, password: hash, name, country: finalCountry, city,
+      xtoxId,
       phone: rawPhone ? String(rawPhone).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined,
       registrationIp: ip });
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
-    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role || 'user', avatar: user.avatar || null, phone: user.phone || null } });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId || xtoxId }, JWT_SECRET, { expiresIn: '90d' });
+    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role || 'user', avatar: user.avatar || null, phone: user.phone || null, xtoxId: user.xtoxId || xtoxId } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -396,9 +400,14 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(403).json({ error: 'Banned', until: user.banExpiresAt });
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid credentials' });
+    // Auto-assign xtoxId if this is an old account that didn't have one
+    if (!user.xtoxId) {
+      const _loginSeq = Date.now().toString(36).toUpperCase().slice(-5);
+      user.xtoxId = 'XTOX-' + _loginSeq + Math.random().toString(36).toUpperCase().slice(-2);
+    }
     user.lastActive = new Date(); await user.save();
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country }, JWT_SECRET, { expiresIn: '90d' });
-    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar || null } });
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId }, JWT_SECRET, { expiresIn: '90d' });
+    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role, avatar: user.avatar || null, xtoxId: user.xtoxId } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

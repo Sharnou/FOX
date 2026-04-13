@@ -612,6 +612,7 @@ export default function SellPage() {
       formData.append('subcategory', form.subcategory || '');
       formData.append('subsub', subsub || 'أخرى');
       formData.append('level4', level4 || '');
+      if (forceDuplicate) formData.append('forceDuplicate', 'true');
       if (lat !== null) formData.append('lat', String(lat));
       if (lng !== null) formData.append('lng', String(lng));
       if (mediaType === 'images' && mediaFiles.length > 0) {
