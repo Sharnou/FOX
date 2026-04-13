@@ -26,6 +26,7 @@ function checkAdSimilarity(newTitle, existingAds) {
 // ──────────────────────────────────────────────────────────────────────────
 
 import { classifyProduct, saveAICorrection, formatDescription } from '../../lib/imageClassifier';
+import { getStatusOptions } from '../../lib/categoryStatus';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
 import { detectLang, detectCurrency } from '../../lib/lang';
 
@@ -69,19 +70,19 @@ const CATEGORY_PRICE_HINTS = {
 
 const SUBCATS = {
   Vehicles: [
-    {v:'Cars', ar:'سيارات', subsubs:[{v:'Sedan',ar:'سيدان'},{v:'SUV',ar:'SUV / دفع رباعي'},{v:'Pickup',ar:'بيك آب'},{v:'Coupe',ar:'كوبيه'},{v:'Electric',ar:'كهربائية'},{v:'Other',ar:'أخرى'}]},
+    {v:'Cars', ar:'سيارات', subsubs:[{v:'Sedan',ar:'سيدان'},{v:'SUV',ar:'SUV / دفع رباعي'},{v:'Pickup',ar:'بيك آب'},{v:'Coupe',ar:'كوبيه'},{v:'Hatchback',ar:'هاتشباك'},{v:'Minivan',ar:'ميني فان'},{v:'Crossover',ar:'كروس أوفر'},{v:'Electric',ar:'كهربائية'},{v:'Other',ar:'أخرى'}]},
     {v:'Motorcycles', ar:'دراجات نارية', subsubs:[{v:'Sport',ar:'رياضية'},{v:'Scooter',ar:'سكوتر'},{v:'OffRoad',ar:'أوف رود'},{v:'Other',ar:'أخرى'}]},
-    {v:'SpareParts', ar:'قطع غيار', subsubs:[{v:'Engine',ar:'محرك'},{v:'Tires',ar:'كفرات'},{v:'BodyParts',ar:'هيكل'},{v:'Other',ar:'أخرى'}]},
-    {v:'Trucks', ar:'شاحنات', subsubs:[{v:'LightTruck',ar:'خفيفة'},{v:'HeavyTruck',ar:'ثقيلة'},{v:'Other',ar:'أخرى'}]},
+    {v:'SpareParts', ar:'قطع غيار', subsubs:[{v:'Engine',ar:'محرك وجير'},{v:'Tires',ar:'إطارات وجنوط'},{v:'BodyParts',ar:'هيكل وبودي'},{v:'Electrical',ar:'كهرباء وإلكترونيات'},{v:'Oils',ar:'زيوت وفلاتر'},{v:'Accessories',ar:'اكسسوارات'},{v:'Other',ar:'أخرى'}]},
+    {v:'Trucks', ar:'شاحنات', subsubs:[{v:'LightTruck',ar:'خفيفة'},{v:'HeavyTruck',ar:'ثقيلة'},{v:'Van',ar:'فان / ميكروباص'},{v:'TukTuk',ar:'توك توك'},{v:'Tractor',ar:'جرار / تراكتور'},{v:'Other',ar:'أخرى'}]},
     {v:'Boats', ar:'قوارب', subsubs:[{v:'FishingBoat',ar:'قارب صيد'},{v:'Yacht',ar:'يخت'},{v:'Other',ar:'أخرى'}]},
     {v:'Other', ar:'أخرى', subsubs:[]},
   ],
   Electronics: [
-    {v:'MobilePhones', ar:'هواتف محمولة', subsubs:[{v:'iPhone',ar:'آيفون'},{v:'Samsung',ar:'سامسونج'},{v:'Huawei',ar:'هواوي'},{v:'Xiaomi',ar:'شاومي'},{v:'Oppo',ar:'أوبو'},{v:'Other',ar:'أخرى'}]},
-    {v:'Laptops', ar:'لابتوب', subsubs:[{v:'MacBook',ar:'ماك بوك'},{v:'GamingLaptop',ar:'جيمينج'},{v:'Business',ar:'للأعمال'},{v:'Other',ar:'أخرى'}]},
+    {v:'MobilePhones', ar:'هواتف محمولة', subsubs:[{v:'iPhone',ar:'آيفون'},{v:'Samsung',ar:'سامسونج'},{v:'Xiaomi',ar:'شاومي'},{v:'Huawei',ar:'هواوي'},{v:'Oppo',ar:'أوبو'},{v:'Vivo',ar:'فيفو'},{v:'Realme',ar:'ريلمي'},{v:'Other',ar:'أخرى'}]},
+    {v:'Laptops', ar:'لابتوب', subsubs:[{v:'MacBook',ar:'ماك / آبل'},{v:'HP',ar:'HP'},{v:'Dell',ar:'ديل'},{v:'Lenovo',ar:'لينوفو'},{v:'Asus',ar:'أسوس'},{v:'Acer',ar:'أيسر'},{v:'GamingLaptop',ar:'جيمينج'},{v:'Other',ar:'أخرى'}]},
     {v:'Tablets', ar:'تابلت', subsubs:[{v:'iPad',ar:'آيباد'},{v:'SamsungTab',ar:'سامسونج تاب'},{v:'Other',ar:'أخرى'}]},
-    {v:'TVs', ar:'تليفزيونات', subsubs:[{v:'SmartTV',ar:'سمارت'},{v:'OLED',ar:'OLED'},{v:'LED',ar:'LED'},{v:'Other',ar:'أخرى'}]},
-    {v:'Cameras', ar:'كاميرات', subsubs:[{v:'DSLR',ar:'DSLR'},{v:'Mirrorless',ar:'ميرورليس'},{v:'Security',ar:'مراقبة'},{v:'Other',ar:'أخرى'}]},
+    {v:'TVs', ar:'تليفزيونات', subsubs:[{v:'OLED',ar:'OLED'},{v:'QLED',ar:'QLED / AMOLED'},{v:'LED',ar:'LED عادي'},{v:'Monitor',ar:'شاشة كمبيوتر'},{v:'Projector',ar:'بروجيكتور'},{v:'SmartTV',ar:'سمارت تي في'},{v:'Other',ar:'أخرى'}]},
+    {v:'Cameras', ar:'كاميرات', subsubs:[{v:'DSLR',ar:'DSLR'},{v:'Mirrorless',ar:'ميرورليس'},{v:'Security',ar:'كاميرا مراقبة'},{v:'ActionCam',ar:'أكشن كام / GoPro'},{v:'Drone',ar:'طائرة / درون'},{v:'VideoCam',ar:'فيديو احترافي'},{v:'Other',ar:'أخرى'}]},
     {v:'Gaming', ar:'ألعاب', subsubs:[{v:'PlayStation',ar:'بلايستيشن'},{v:'Xbox',ar:'إكس بوكس'},{v:'Nintendo',ar:'نينتندو'},{v:'PCGaming',ar:'PC'},{v:'Other',ar:'أخرى'}]},
     {v:'Audio', ar:'صوتيات', subsubs:[{v:'Headphones',ar:'سماعات رأس'},{v:'Earbuds',ar:'إيربودز'},{v:'Speakers',ar:'سبيكر'},{v:'Other',ar:'أخرى'}]},
     {v:'Accessories', ar:'إكسسوارات', subsubs:[{v:'Chargers',ar:'شواحن'},{v:'Cases',ar:'كفرات'},{v:'PowerBanks',ar:'باور بانك'},{v:'Other',ar:'أخرى'}]},
@@ -182,6 +183,8 @@ export default function SellPage() {
   const subsubRef = useRef(null);
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [subsub, setSubsub] = useState('');
+  const [dynamicSubsubOptions, setDynamicSubsubOptions] = useState([]);
+  const [subsubLoading, setSubsubLoading] = useState(false);
   // Inject subsubPulse animation
   useEffect(() => {
     const _id = 'xtox-subsub-pulse';
@@ -200,11 +203,34 @@ export default function SellPage() {
     if (!document.getElementById(id)) {
       const el = document.createElement('style');
       el.id = id;
-      el.textContent = '@keyframes subsubPulse{0%,100%{border-color:#e53e3e}50%{border-color:rgba(229,62,62,.35)}}';
+      el.textContent = '@keyframes subsubPulse{0%,100%{border-color:#e53e3e}50%{border-color:rgba(229,62,62,.35)}}@keyframes spin{to{transform:rotate(360deg)}}';
       document.head.appendChild(el);
     }
     return () => { const el = document.getElementById('subsub-pulse-style'); if (el) el.remove(); };
   }, []);
+
+  // Fetch dynamic subsub options from AI-learned DB when category+subcategory changes
+  useEffect(() => {
+    if (!form.category || !form.subcategory || form.subcategory === 'Other') {
+      setDynamicSubsubOptions([]);
+      return;
+    }
+    let cancelled = false;
+    setSubsubLoading(true);
+    fetch(`${API}/api/ads/subsub-options?category=${encodeURIComponent(form.category)}&subcategory=${encodeURIComponent(form.subcategory)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        setSubsubLoading(false);
+        if (data && data.success && Array.isArray(data.options) && data.options.length) {
+          setDynamicSubsubOptions(data.options);
+        } else {
+          setDynamicSubsubOptions([]);
+        }
+      })
+      .catch(() => { if (!cancelled) { setSubsubLoading(false); setDynamicSubsubOptions([]); } });
+    return () => { cancelled = true; };
+  }, [form.category, form.subcategory]);
   const [editAdId, setEditAdId] = useState(null);         // non-null = edit mode
   const [verificationError, setVerificationError] = useState(false);
   const [backendDupError, setBackendDupError] = useState(null); // { existingAdId }
@@ -440,7 +466,9 @@ export default function SellPage() {
 
         // Subsub — only if not already set
         if (result.subsub && result.subsub !== 'Other') {
-          setSubsub(s => (s === 'Other' ? result.subsub : s));
+          setSubsub(s => (s === 'Other' || s === '' ? result.subsub : s));
+        } else if (!result.subsub || result.subsub === 'Other') {
+          setSubsub(s => (s === '' ? 'other' : s));
         }
 
         if (result.category) {
@@ -916,7 +944,7 @@ export default function SellPage() {
               <select
                 id="sell-category"
                 value={form.category}
-                onChange={e => { setForm(p => ({ ...p, category: e.target.value, subcategory: 'Other' })); setSubsub(''); }}
+                onChange={e => { const _newCat = e.target.value; setForm(p => ({ ...p, category: _newCat, subcategory: 'Other', condition: (getStatusOptions(_newCat)[0] || {}).value || '' })); setSubsub(''); }}
                 aria-hidden="false"
                 tabIndex={-1}
                 style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}
@@ -932,7 +960,7 @@ export default function SellPage() {
                       if (aiDetectedLabel && form.category && cat.en !== form.category) {
                         saveAICorrection(aiDetectedLabel, { category: cat.en, subcategory: 'Other', subsub: 'Other' });
                       }
-                      setForm(p => ({ ...p, category: cat.en, subcategory: 'Other' }));
+                      setForm(p => ({ ...p, category: cat.en, subcategory: 'Other', condition: (getStatusOptions(cat.en)[0] || {}).value || '' }));
                       setSubsub('');
                       if (errors.category) setErrors(p => ({ ...p, category: '' }));
                     }}
@@ -992,6 +1020,12 @@ export default function SellPage() {
                       التصنيف الفرعي الثاني <span style={{ color: '#e53e3e', fontWeight: 900 }}>*</span>
                       {!subsub && <span style={{ marginRight: 6, fontSize: 12, background: '#e53e3e', color: '#fff', borderRadius: 6, padding: '1px 7px', fontWeight: 700 }}>مطلوب</span>}
                     </label>
+                    {subsubLoading && (
+                      <div style={{ fontSize: 12, color: '#6366f1', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid #6366f1', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+                        جاري تحميل خيارات إضافية...
+                      </div>
+                    )}
                     <select
                       id="sell-subsub"
                       name="sell-subsub"
@@ -1002,9 +1036,17 @@ export default function SellPage() {
                       style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid ' + (errors.subsub ? '#e53e3e' : '#c7d2fe'), fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', fontWeight: 600 }}
                     >
                       <option value="">-- اختر التصنيف الفرعي الثاني --</option>
-                      {_selSub.subsubs.map(function(ss) { return (
-                        <option key={ss.v} value={ss.v}>{ss.ar}</option>
-                      ); })}
+                      {(function() {
+                        var staticOpts = _selSub.subsubs.filter(function(ss) { return ss.v !== 'Other'; });
+                        var dynamicOpts = dynamicSubsubOptions.filter(function(d) {
+                          return !staticOpts.some(function(s) { return s.ar === d.ar || s.v === d.en; });
+                        });
+                        return [
+                          ...staticOpts.map(function(ss) { return <option key={ss.v} value={ss.v}>{ss.ar}</option>; }),
+                          ...dynamicOpts.map(function(d, i) { return <option key={'dyn_' + i} value={d.en || d.ar}>{d.ar}</option>; }),
+                          <option key="other" value="other">أخرى</option>,
+                        ];
+                      })()}
                     </select>
                     <p style={{ margin: '6px 0 0', fontSize: 12, color: errors.subsub ? '#e53e3e' : '#6366f1', fontWeight: 600 }}>
                       {errors.subsub ? ('⚠️ ' + errors.subsub) : 'هذا الحقل مهم جداً لظهور إعلانك في التصنيف الصحيح'}
@@ -1028,22 +1070,22 @@ export default function SellPage() {
                 style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}
               >
                 <option value="">اختر الحالة</option>
-                {CONDITIONS.map(c => <option key={c.en} value={c.en}>{c.ar}</option>)}
+                {getStatusOptions(form.category).map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {CONDITIONS.map(c => (
-                  <button key={c.en} type="button"
-                    onClick={() => setForm(p => ({ ...p, condition: c.en }))}
-                    aria-pressed={form.condition === c.en}
+                {getStatusOptions(form.category).map(c => (
+                  <button key={c.value} type="button"
+                    onClick={() => setForm(p => ({ ...p, condition: c.value }))}
+                    aria-pressed={form.condition === c.value}
                     style={{
                       padding: '8px 14px', borderRadius: 20,
-                      border: '2px solid ' + (form.condition === c.en ? '#002f34' : '#e0e0e0'),
-                      background: form.condition === c.en ? '#002f34' : '#fafafa',
-                      color: form.condition === c.en ? 'white' : '#444',
+                      border: '2px solid ' + (form.condition === c.value ? '#002f34' : '#e0e0e0'),
+                      background: form.condition === c.value ? '#002f34' : '#fafafa',
+                      color: form.condition === c.value ? 'white' : '#444',
                       cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
                       fontFamily: 'inherit', transition: 'all 0.15s',
                     }}>
-                    {c.icon} {c.ar}
+                    {c.icon} {c.label}
                   </button>
                 ))}
               </div>
