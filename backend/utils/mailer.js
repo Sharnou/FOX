@@ -30,9 +30,21 @@ function getTransporter() {
   return transporter;
 }
 
-export async function sendOTPEmail(to, otp, lang = 'ar') {
-  const isAr = lang === 'ar';
+export async function sendOTPEmail(to, otp, lang = 'ar', custom = null) {
   const t = getTransporter();
+  // Support custom email (for admin confirmation notifications etc.)
+  if (custom && custom.subject && custom.html) {
+    await t.sendMail({
+      from: '"XTOX" <' + process.env.EMAIL_USER + '>',
+      to,
+      subject: custom.subject,
+      html: custom.html,
+    });
+    console.log('[MAILER] Custom email sent to ' + to + ' | Subject: ' + custom.subject);
+    return;
+  }
+  // Standard OTP email
+  const isAr = lang === 'ar';
   await t.sendMail({
     from: '"XTOX" <' + process.env.EMAIL_USER + '>',
     to,

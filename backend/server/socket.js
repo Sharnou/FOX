@@ -97,10 +97,33 @@ export function initSocket(io) {
     });
 
     // Initiate call — notify the target user
-    socket.on('call:initiate', ({ targetUserId, callerId, callerName }) => {
+    socket.on('call:initiate', async ({ targetUserId, callerId, callerName }) => {
+      // Check if target is actually in the room (Fix B: user unavailable response)
+      try {
+        const roomSockets = await io.in('user_' + targetUserId).fetchSockets();
+        if (!roomSockets || roomSockets.length === 0) {
+          socket.emit('call:user_unavailable', { targetUserId });
+          console.log('[Socket] call:initiate — target user offline:', targetUserId);
+          return;
+        }
+      } catch (e) { /* fetchSockets failed — proceed anyway */ }
       io.to('user_' + targetUserId).emit('call:incoming', {
-        callerId, callerName, callerSocketId: socket.id
+        callerId: callerId || socket.data.userId,
+        callerName: callerName || 'مستخدم',
+        callerSocketId: socket.id
       });
+      console.log('[Socket] call:incoming sent to user_' + targetUserId);
+    });
+
+    // get_peer_socket: return current socket ID of a user (Fix C)
+    socket.on('get_peer_socket', async ({ userId }, callback) => {
+      try {
+        const roomSockets = await io.in('user_' + userId).fetchSockets();
+        const peerSocketId = roomSockets && roomSockets.length > 0 ? roomSockets[0].id : null;
+        if (typeof callback === 'function') callback({ socketId: peerSocketId });
+      } catch (e) {
+        if (typeof callback === 'function') callback({ socketId: null });
+      }
     });
 
     // Caller sends SDP offer to responder

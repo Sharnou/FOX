@@ -2,6 +2,7 @@ import express from 'express';
 import { auth } from '../middleware/auth.js';
 import Ad from '../models/Ad.js';
 import User from '../models/User.js';
+import PendingPayment from '../models/PendingPayment.js';
 
 const router = express.Router();
 
@@ -65,39 +66,64 @@ router.post('/', auth, async (req, res) => {
         });
       }
 
-      // First time or 2+ months passed — allow free, update timestamp
+      // First time or 2+ months passed — allow free, update timestamp, activate immediately
       await User.findByIdAndUpdate(req.user.id, { lastFreePlanUsed: now });
+      await Ad.findByIdAndUpdate(adId, {
+        isFeatured: true,
+        featuredStyle: planConfig.style,
+        featuredUntil: until,
+        featuredAt: new Date(),
+        visibilityScore: Math.max(ad.visibilityScore || 0, 50),
+      });
+      return res.json({
+        success: true,
+        status: 'active',
+        plan,
+        durationDays,
+        until,
+        style: planConfig.style,
+        message: 'تم تفعيل الإعلان المميز مجاناً! 🎉',
+      });
     }
 
-    // ── Paid $1 charge for exceeded free plan ────────────────────────────
-    // When frontend sends plan='free' + chargeOverride=true (user paid $1),
-    // reset the free plan clock so they get another 2-month window.
+    // ── Paid $1 charge for exceeded free plan (chargeOverride) ────────────
     if (req.body.chargeOverride && plan === 'free') {
       await User.findByIdAndUpdate(req.user.id, { lastFreePlanUsed: new Date() });
     }
 
-    await Ad.findByIdAndUpdate(adId, {
-      isFeatured: true,
-      featuredStyle: planConfig.style,
-      featuredUntil: until,
-      featuredAt: new Date(),
-      visibilityScore: Math.max(ad.visibilityScore || 0, 50),
+    // ── PAID plans: create PENDING order — NO activation yet ──────────────
+    // "No money no funny" — ad NEVER activates until payment is manually confirmed by admin
+    const order = await PendingPayment.create({
+      user:          req.user.id,
+      ad:            adId,
+      planType:      plan,
+      days:          durationDays,
+      amount:        planConfig.price,
+      currency:      'USD',
+      status:        'pending',
+      paymentMethod: 'vodafone_cash',
+      paymentNumber: '+201020326953',
+      expiresAt:     new Date(Date.now() + 48 * 60 * 60 * 1000), // 48h window
     });
 
-    // Log promotion request for manual follow-up (for paid plans)
-    if (planConfig.price > 0 || req.body.chargeOverride) {
-      console.log(`[PROMOTE] Ad ${adId} by user ${req.user.id}: plan=${plan}, payment=${payment}, price=$${req.body.chargeOverride ? 1 : planConfig.price}`);
-    }
+    console.log(`[PROMOTE] Pending order created: ${order._id} | Ad: ${adId} | User: ${req.user.id} | Plan: ${plan} | $${planConfig.price}`);
 
-    res.json({ 
-      success: true, 
-      plan, 
-      durationDays, 
-      until,
-      style: planConfig.style,
-      message: (planConfig.price > 0 || req.body.chargeOverride)
-        ? 'تم تقديم طلب الترقية. سيتواصل معك فريق XTOX خلال 24 ساعة.'
-        : 'تم تفعيل الإعلان المميز.',
+    return res.json({
+      success: true,
+      status:  'pending_payment',
+      orderId: order._id,
+      message: 'في انتظار تأكيد الدفع',
+      plan,
+      durationDays,
+      amount:  planConfig.price,
+      instructions: {
+        ar: `لتفعيل إعلانك المميز:\n1. أرسل ${planConfig.price}$ عبر فودافون كاش على الرقم: +201020326953\n2. أرسل إيصال الدفع عبر واتساب على نفس الرقم أو راسل: XTOX@XTOX.com\n3. سيتم تفعيل إعلانك خلال 24 ساعة من تأكيد الدفع\n\n⚠️ لن يتم تفعيل الإعلان قبل استلام المدفوعات`,
+        slogan: 'No money no funny 💸',
+      },
+      contact: {
+        whatsapp: '+201020326953',
+        email:    'XTOX@XTOX.com',
+      },
     });
   } catch (err) {
     console.error('[PROMOTE] Error:', err);

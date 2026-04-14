@@ -26,6 +26,7 @@ function PromotePageInner() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [pendingPayment, setPendingPayment] = useState(null); // { orderId, amount, instructions, contact }
   const [showComparison, setShowComparison] = useState(false);
 
   // Free plan status
@@ -160,8 +161,23 @@ function PromotePageInner() {
       }
 
       if (res.ok) {
-        setSuccess(true);
-        setStep(3);
+        const data = await res.json().catch(() => ({}));
+        if (data.status === 'pending_payment') {
+          // Paid plan: show payment instructions — NO auto-activation
+          setPendingPayment({
+            orderId: data.orderId,
+            amount:  data.amount || selectedPlan?.price?.replace('$', ''),
+            plan:    data.plan,
+            days:    data.durationDays,
+            instructions: data.instructions,
+            contact: data.contact,
+          });
+          setStep(3);
+        } else {
+          // Free plan: activated immediately
+          setSuccess(true);
+          setStep(3);
+        }
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.message || t('حدث خطأ، حاول مرة أخرى', 'An error occurred, please try again'));
@@ -604,86 +620,127 @@ function PromotePageInner() {
           </>
         )}
 
-        {/* Step 3: Success */}
+        {/* Step 3: Success or Pending Payment */}
         {step === 3 && (
-          <div style={{
-            background: 'rgba(16,185,129,0.1)',
-            border: '1px solid rgba(16,185,129,0.3)',
-            borderRadius: 24,
-            padding: '36px 24px',
-            textAlign: 'center',
-            color: '#fff',
-          }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-            <h2 style={{ color: '#34D399', fontSize: 22, fontWeight: 800, margin: '0 0 10px' }}>
-              {t('تم تقديم طلبك بنجاح!', 'Request Submitted Successfully!')}
-            </h2>
-            <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.8, margin: '0 0 20px' }}>
-              {t(
-                'طلبك لترويج "' + adTitle + '" بخطة ' + selectedPlan?.labelAr + ' لمدة ' + selectedPlan?.days + ' يوم وصلنا بنجاح. سيتواصل معك فريقنا قريباً.',
-                'Your request to promote "' + adTitle + '" with ' + selectedPlan?.labelEn + ' plan for ' + selectedPlan?.days + ' days was received. Our team will contact you soon.'
-              )}
-            </p>
-
-            {/* Summary Box */}
-            <div style={{
-              background: 'rgba(52,211,153,0.1)',
-              border: '1px solid rgba(52,211,153,0.2)',
-              borderRadius: 14,
-              padding: '14px 18px',
-              marginBottom: 20,
-              textAlign: isRTL ? 'right' : 'left',
-            }}>
-              {[
-                { labelAr: 'الخطة', labelEn: 'Plan', val: isRTL ? selectedPlan?.labelAr : selectedPlan?.labelEn },
-                { labelAr: 'المدة', labelEn: 'Duration', val: selectedPlan?.days + ' ' + t('يوم', 'days') },
-                { labelAr: 'السعر', labelEn: 'Price', val: selectedPlan?.price },
-                { labelAr: 'طريقة الدفع', labelEn: 'Payment', val: isRTL ? PAYMENT_METHODS.find(p => p.id === paymentMethod)?.labelAr : PAYMENT_METHODS.find(p => p.id === paymentMethod)?.labelEn },
-              ].map((row, i) => (
-                <div key={i} style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  padding: '6px 0',
-                  borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                  fontSize: 14,
-                }}>
-                  <span style={{ color: '#888' }}>{isRTL ? row.labelAr : row.labelEn}</span>
-                  <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{row.val}</span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => router.back()}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(90deg, #10B981, #059669)',
+          <>
+            {/* ── Paid plan: manual payment instructions ── */}
+            {pendingPayment && (
+              <div style={{
+                background: 'rgba(245,158,11,0.08)',
+                border: '2px solid #F59E0B',
+                borderRadius: 24,
+                padding: '28px 20px',
                 color: '#fff',
-                border: 'none',
-                borderRadius: 14,
-                padding: '16px',
-                fontSize: 16,
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginBottom: 10,
-                boxShadow: '0 4px 16px rgba(16,185,129,0.3)',
+                direction: 'rtl',
               }}>
-              {t('العودة للإعلان ←', '← Back to Ad')}
-            </button>
-            <button
-              onClick={() => router.push('/')}
-              style={{
-                width: '100%',
-                background: 'transparent',
-                color: '#666',
-                border: '1px solid #333',
-                borderRadius: 14,
-                padding: '12px',
-                fontSize: 14,
-                cursor: 'pointer',
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 52 }}>💳</div>
+                  <h2 style={{ color: '#F59E0B', fontSize: 20, fontWeight: 800, margin: '8px 0 4px' }}>
+                    {t('أكمل الدفع لتفعيل إعلانك', 'Complete Payment to Activate')}
+                  </h2>
+                  <p style={{ color: '#aaa', fontSize: 13, margin: 0 }}>
+                    {t('لن يتم تفعيل الإعلان قبل استلام المدفوعات', 'Ad will NOT be activated until payment is confirmed')}
+                  </p>
+                </div>
+
+                {/* Payment amount box */}
+                <div style={{
+                  background: 'rgba(255,255,255,0.07)',
+                  borderRadius: 14,
+                  padding: '18px',
+                  textAlign: 'center',
+                  marginBottom: 14,
+                }}>
+                  <p style={{ margin: '0 0 6px', color: '#aaa', fontSize: 14 }}>
+                    📱 {t('أرسل عبر فودافون كاش', 'Send via Vodafone Cash')}
+                  </p>
+                  <div style={{ fontSize: 38, fontWeight: 900, color: '#F59E0B', margin: '6px 0' }}>
+                    ${pendingPayment.amount}
+                  </div>
+                  <p style={{ margin: '6px 0 0', color: '#aaa', fontSize: 13 }}>{t('على الرقم:', 'To number:')}</p>
+                  <div style={{
+                    fontSize: 26, fontWeight: 900, letterSpacing: 3, color: '#fff',
+                    direction: 'ltr', margin: '6px 0',
+                    fontFamily: 'monospace',
+                  }}>
+                    +201020326953
+                  </div>
+                </div>
+
+                {/* Contact buttons */}
+                <p style={{ fontSize: 13, color: '#999', textAlign: 'center', margin: '0 0 12px' }}>
+                  {t('بعد الدفع أرسل إيصالاً عبر:', 'After payment, send receipt via:')}
+                </p>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+                  <a href="https://wa.me/201020326953" target="_blank" rel="noopener noreferrer"
+                    style={{ background: '#25d366', color: 'white', padding: '12px 20px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15 }}>
+                    💬 {t('واتساب', 'WhatsApp')}
+                  </a>
+                  <a href="mailto:XTOX@XTOX.com"
+                    style={{ background: '#002f34', color: 'white', padding: '12px 20px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15, border: '1px solid #444' }}>
+                    ✉️ XTOX@XTOX.com
+                  </a>
+                </div>
+
+                {/* Slogan */}
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <span style={{ color: '#F59E0B', fontWeight: 800, fontSize: 15, fontStyle: 'italic' }}>
+                    ⚠️ No money no funny 💸
+                  </span>
+                  <p style={{ color: '#666', fontSize: 12, margin: '4px 0 0' }}>
+                    {t('سيتم تفعيل إعلانك خلال 24 ساعة من تأكيد الدفع', 'Ad activated within 24h of payment confirmation')}
+                  </p>
+                </div>
+
+                {/* Order ID */}
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <span style={{ fontSize: 11, color: '#555', fontFamily: 'monospace' }}>
+                    Order: {pendingPayment.orderId}
+                  </span>
+                </div>
+
+                <button onClick={() => router.back()}
+                  style={{ width: '100%', background: 'linear-gradient(90deg, #F59E0B, #EF4444)', color: '#fff', border: 'none', borderRadius: 14, padding: '14px', fontSize: 15, fontWeight: 800, cursor: 'pointer', marginBottom: 8 }}>
+                  {t('العودة للإعلان ←', '← Back to Ad')}
+                </button>
+                <button onClick={() => router.push('/')}
+                  style={{ width: '100%', background: 'transparent', color: '#666', border: '1px solid #333', borderRadius: 14, padding: '12px', fontSize: 13, cursor: 'pointer' }}>
+                  {t('الصفحة الرئيسية', 'Home')}
+                </button>
+              </div>
+            )}
+
+            {/* ── Free plan: activated immediately ── */}
+            {!pendingPayment && (
+              <div style={{
+                background: 'rgba(16,185,129,0.1)',
+                border: '1px solid rgba(16,185,129,0.3)',
+                borderRadius: 24,
+                padding: '36px 24px',
+                textAlign: 'center',
+                color: '#fff',
               }}>
-              {t('الصفحة الرئيسية', 'Home')}
-            </button>
-          </div>
+                <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+                <h2 style={{ color: '#34D399', fontSize: 22, fontWeight: 800, margin: '0 0 10px' }}>
+                  {t('تم تفعيل إعلانك المميز!', 'Featured Ad Activated!')}
+                </h2>
+                <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.8, margin: '0 0 20px' }}>
+                  {t(
+                    'إعلانك "' + adTitle + '" مميز الآن لمدة ' + selectedPlan?.days + ' يوم.',
+                    '"' + adTitle + '" is now featured for ' + selectedPlan?.days + ' days.'
+                  )}
+                </p>
+                <button onClick={() => router.back()}
+                  style={{ width: '100%', background: 'linear-gradient(90deg, #10B981, #059669)', color: '#fff', border: 'none', borderRadius: 14, padding: '16px', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginBottom: 10, boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}>
+                  {t('العودة للإعلان ←', '← Back to Ad')}
+                </button>
+                <button onClick={() => router.push('/')}
+                  style={{ width: '100%', background: 'transparent', color: '#666', border: '1px solid #333', borderRadius: 14, padding: '12px', fontSize: 14, cursor: 'pointer' }}>
+                  {t('الصفحة الرئيسية', 'Home')}
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {/* Back button for step 1 */}

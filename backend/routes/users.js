@@ -317,9 +317,36 @@ router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     await getOrCreateCountry(countryCode, countryCode);
     let user = await getUserModel().findOne({ phone });
-    if (!user) user = await getUserModel().create({ phone, name: name || phone, country: countryCode, city, registrationIp: ip, isVerified: true });
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId || null }, JWT_SECRET, { expiresIn: '90d' });
-    res.json({ token, user: { id: user._id, name: user.name, country: user.country, role: user.role } });
+    if (!user) {
+      // ── Account linking: check if email user exists with this phone ──
+      const emailBody = req.body.email;
+      if (emailBody) {
+        const emailUser = await getUserModel().findOne({ email: emailBody.trim().toLowerCase() });
+        if (emailUser) {
+          // Link phone to existing email account — same _id, same xtoxId
+          emailUser.phone = phone;
+          emailUser.whatsappVerified = true;
+          if (!emailUser.xtoxId) {
+            const _seq = Date.now().toString(36).toUpperCase().slice(-5);
+            emailUser.xtoxId = 'XTOX-' + _seq + Math.random().toString(36).toUpperCase().slice(-2);
+          }
+          await emailUser.save();
+          user = emailUser;
+        }
+      }
+    }
+    if (!user) {
+      const _seq = Date.now().toString(36).toUpperCase().slice(-5);
+      const newId = 'XTOX-' + _seq + Math.random().toString(36).toUpperCase().slice(-2);
+      user = await getUserModel().create({ phone, name: name || phone, country: countryCode, city, registrationIp: ip, isVerified: true, xtoxId: newId });
+    }
+    if (!user.xtoxId) {
+      const _seq = Date.now().toString(36).toUpperCase().slice(-5);
+      user.xtoxId = 'XTOX-' + _seq + Math.random().toString(36).toUpperCase().slice(-2);
+      await user.save();
+    }
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId }, JWT_SECRET, { expiresIn: '90d' });
+    res.json({ token, user: { id: user._id, name: user.name, country: user.country, role: user.role, xtoxId: user.xtoxId } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -363,7 +390,8 @@ router.post('/register', registerLimiter, async (req, res) => {
     const fraud = getActiveDB() !== 'mongodb' ? { isFraud: false } : await detectFraud(ip);
     if (fraud.isFraud) return res.status(400).json({ error: 'Account creation restricted' });
     if (getActiveDB() === 'mongodb') await getOrCreateCountry(countryCode, countryCode);
-    const existing = await getUserModel().findOne({ email });
+    // Check if email already registered
+    let existing = await getUserModel().findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already registered' });
     const hash = await bcrypt.hash(password, 10);
     let finalCountry = countryCode;
@@ -372,13 +400,33 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
     // Generate a unique xtoxId for this email-registered user so they can post ads
     const _regSeq = Date.now().toString(36).toUpperCase().slice(-5);
-    const xtoxId = 'XTOX-' + _regSeq + Math.random().toString(36).toUpperCase().slice(-2);
-    const user = await getUserModel().create({ email, password: hash, name, country: finalCountry, city,
-      xtoxId,
-      phone: rawPhone ? String(rawPhone).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined,
-      registrationIp: ip });
-    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId || xtoxId }, JWT_SECRET, { expiresIn: '90d' });
-    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role || 'user', avatar: user.avatar || null, phone: user.phone || null, xtoxId: user.xtoxId || xtoxId } });
+    const newXtoxId = 'XTOX-' + _regSeq + Math.random().toString(36).toUpperCase().slice(-2);
+    const cleanPhone = rawPhone ? String(rawPhone).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined;
+
+    // ── Account linking: if phone is provided, check if a WhatsApp user already exists ──
+    let user;
+    if (cleanPhone) {
+      const phoneUser = await getUserModel().findOne({ $or: [{ phone: cleanPhone }, { whatsappPhone: cleanPhone }] });
+      if (phoneUser) {
+        // Link email to existing WhatsApp account — same _id, same xtoxId
+        phoneUser.email = email;
+        phoneUser.password = hash;
+        phoneUser.emailVerified = true;
+        phoneUser.name = phoneUser.name || name;
+        if (!phoneUser.xtoxId) phoneUser.xtoxId = newXtoxId;
+        phoneUser.lastActive = new Date();
+        await phoneUser.save();
+        user = phoneUser;
+      }
+    }
+    if (!user) {
+      user = await getUserModel().create({ email, password: hash, name, country: finalCountry, city,
+        xtoxId: newXtoxId,
+        phone: cleanPhone,
+        registrationIp: ip });
+    }
+    const token = jwt.sign({ id: user._id, role: user.role, country: user.country, xtoxId: user.xtoxId || newXtoxId }, JWT_SECRET, { expiresIn: '90d' });
+    res.json({ success: true, token, user: { id: user._id, email: user.email, name: user.name, country: user.country, role: user.role || 'user', avatar: user.avatar || null, phone: user.phone || null, xtoxId: user.xtoxId || newXtoxId } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

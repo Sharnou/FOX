@@ -677,4 +677,98 @@ router.post('/subsub-options/run', adminAuth, async (req, res) => {
   }
 });
 
+// ── Payment Management (Vodafone Cash manual confirmation) ──────────────────
+
+// GET /api/admin/payments — list pending payments
+router.get('/payments', adminAuth, async (req, res) => {
+  try {
+    const PendingPayment = (await import('../models/PendingPayment.js')).default;
+    const status = req.query.status || 'pending';
+    const payments = await PendingPayment.find({ status })
+      .populate('user', 'name email phone xtoxId')
+      .populate('ad', 'title category')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, payments });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/payments/:id/confirm — confirm and activate ad
+router.post('/payments/:id/confirm', adminAuth, async (req, res) => {
+  try {
+    const PendingPayment = (await import('../models/PendingPayment.js')).default;
+    const Ad = (await import('../models/Ad.js')).default;
+    const User = (await import('../models/User.js')).default;
+    const { sendOTPEmail } = await import('../utils/mailer.js');
+
+    const payment = await PendingPayment.findById(req.params.id).populate('ad').populate('user');
+    if (!payment) return res.status(404).json({ error: 'Order not found' });
+    if (payment.status !== 'pending') return res.status(400).json({ error: 'Payment already processed' });
+
+    // Activate the ad
+    const expiresAt = new Date(Date.now() + payment.days * 24 * 60 * 60 * 1000);
+    const PLAN_STYLES = { free: 'normal', basic: 'normal', featured: 'gold', premium: 'banner' };
+    await Ad.findByIdAndUpdate(payment.ad._id, {
+      isFeatured: true,
+      featuredStyle: PLAN_STYLES[payment.planType] || 'gold',
+      featuredUntil: expiresAt,
+      featuredAt: new Date(),
+      visibilityScore: 80,
+    });
+
+    // Mark payment confirmed
+    payment.status = 'confirmed';
+    payment.confirmedAt = new Date();
+    payment.confirmedBy = req.user.id;
+    await payment.save();
+
+    // Notify user via email
+    try {
+      const user = payment.user;
+      if (user && user.email) {
+        await sendOTPEmail(user.email, null, 'ar', {
+          subject: 'تم تفعيل إعلانك المميز ✅',
+          html: `<div dir="rtl" style="font-family:Cairo,Arial,sans-serif;max-width:520px;margin:auto;padding:32px;background:#f9fafb;border-radius:12px">
+            <h2 style="color:#002f34;margin-bottom:8px">مرحباً ${user.name || 'عزيزنا'}!</h2>
+            <p style="color:#475569">تم تأكيد دفعتك وتفعيل إعلانك المميز بنجاح 🎉</p>
+            <div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:10px;padding:16px;margin:16px 0">
+              <p style="margin:0 0 6px;color:#15803d;font-weight:700">تفاصيل الترقية:</p>
+              <p style="margin:0;color:#166534">📌 الإعلان: <strong>${payment.ad?.title || 'إعلانك'}</strong></p>
+              <p style="margin:0;color:#166534">📅 المدة: <strong>${payment.days} يوم</strong></p>
+              <p style="margin:0;color:#166534">⏰ ينتهي: <strong>${expiresAt.toLocaleDateString('ar-EG')}</strong></p>
+              <p style="margin:0;color:#166534">💰 المدفوع: <strong>$${payment.amount}</strong></p>
+            </div>
+            <p style="color:#64748b;font-size:13px">شكراً لثقتك في XTOX. إعلانك الآن يظهر في أعلى النتائج! 🚀</p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+            <p style="color:#cbd5e1;font-size:11px;text-align:center;margin:0">XTOX — xtox.app | XTOX@XTOX.com</p>
+          </div>`
+        });
+      }
+    } catch (emailErr) {
+      console.error('[PROMOTE] Confirmation email failed:', emailErr.message);
+    }
+
+    res.json({ success: true, message: 'Payment confirmed and ad activated', expiresAt });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/payments/:id/reject
+router.post('/payments/:id/reject', adminAuth, async (req, res) => {
+  try {
+    const PendingPayment = (await import('../models/PendingPayment.js')).default;
+    const payment = await PendingPayment.findByIdAndUpdate(req.params.id,
+      { status: 'rejected', adminNote: req.body.reason || 'Payment not received' },
+      { new: true }
+    );
+    if (!payment) return res.status(404).json({ error: 'Order not found' });
+    res.json({ success: true, message: 'Payment rejected' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

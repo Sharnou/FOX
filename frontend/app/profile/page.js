@@ -243,6 +243,15 @@ export default function ProfilePage() {
               : <span style={{ background: '#f1f5f9', color: '#64748b', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>بريد غير موثق</span>
             }
           </div>
+
+          {/* XTOX Unique ID */}
+          {(user.xtoxId) && (
+            <div style={{ marginTop: 10, padding: '6px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, display: 'inline-block' }}>
+              <span style={{ fontSize: 12, color: '#15803d', fontWeight: 600 }}>
+                🆔 معرّفك: <strong style={{ letterSpacing: 1, fontFamily: 'monospace' }}>{user.xtoxId}</strong>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Chat Toggle */}

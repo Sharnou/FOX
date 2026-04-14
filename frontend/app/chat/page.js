@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import CallManager from '../components/CallManager';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -140,8 +140,9 @@ function LocationCard({ msg }) {
 }
 
 // Main ChatPage component
-export default function ChatPage() {
+function ChatPageInner() {
   var router = useRouter();
+  var searchParams = useSearchParams();
   var [myId, setMyId]                   = useState('');
   var [currentUser, setCurrentUser]     = useState(null);
   var [targetId, setTargetId]           = useState('');
@@ -194,22 +195,29 @@ export default function ChatPage() {
   }, []);
 
   // Init: read user + URL params
+  // NOTE: deps include searchParams so this re-runs on client-side navigation
   useEffect(function() {
     if (typeof window !== 'undefined') {
       var user   = JSON.parse(localStorage.getItem('user') || '{}');
-      var params = new URLSearchParams(window.location.search);
       var uid    = user.id || user._id || '';
-      var cid    = params.get('chatId') || '';
-      setMyId(uid);
+      var cid    = searchParams.get('chatId') || new URLSearchParams(window.location.search).get('chatId') || '';
+      var tid    = searchParams.get('target') || new URLSearchParams(window.location.search).get('target') || '';
+      var sname  = searchParams.get('sellerName') || new URLSearchParams(window.location.search).get('sellerName') || '';
       setCurrentUser(user);
-      setTargetId(params.get('target') || '');
-      setChatId(cid);
-      chatIdRef.current = cid;
-      // Pre-populate sellerName from URL if available (passed by chat list)
-      var urlSellerName = params.get('sellerName') || '';
-      if (urlSellerName) setSellerName(urlSellerName);
+      setTargetId(tid);
+      if (sname) setSellerName(sname);
+      // If chatId changed: clear stale messages and re-init
+      if (cid && cid !== chatIdRef.current) {
+        setMessages([]);
+        setChatId(cid);
+        chatIdRef.current = cid;
+      } else if (!chatIdRef.current) {
+        setChatId(cid);
+        chatIdRef.current = cid;
+      }
+      if (!myId && uid) setMyId(uid);
     }
-  }, []);
+  }, [searchParams]);
 
   // Auto-scroll to latest message
   useEffect(function() {
@@ -255,6 +263,35 @@ export default function ChatPage() {
       setUnreadCounts(storedUnread);
     }
   }, [targetId]);
+
+  // Re-fetch messages when chatId changes (fixes blank page on client-side navigation)
+  useEffect(function() {
+    var cid = chatId || chatIdRef.current;
+    if (!cid || !myId) return;
+    var token = null;
+    try {
+      var stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      var userObj = stored ? JSON.parse(stored) : null;
+      token = (userObj && userObj.token) || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+    } catch(e) {}
+    if (!token) return;
+    // Clear stale messages before loading new ones
+    setMessages([]);
+    fetch(API_URL + '/api/chat/' + cid + '/messages?limit=50', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(msgData) {
+        if (!msgData) return;
+        var msgs = (msgData.messages || []).slice().reverse();
+        setMessages(msgs.map(function(m) {
+          return { from: (String(m.sender) === String(myId)) ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(), readBy: m.readBy || [] };
+        }));
+      })
+      .catch(function() {});
+    // Also rejoin socket room for the new chat
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('join', myId);
+    }
+  }, [chatId, myId]);
 
   // Fetch seller name from profile API when targetId is set
   useEffect(function() {
@@ -881,5 +918,13 @@ export default function ChatPage() {
         '}',
       ].join('\n')}</style>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div style={{textAlign:'center',padding:60,fontSize:20}}>⏳ جارٍ التحميل...</div>}>
+      <ChatPageInner />
+    </Suspense>
   );
 }

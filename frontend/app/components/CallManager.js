@@ -88,6 +88,11 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   useImperativeHandle(ref, () => ({
     async initiateCall(targetUserId, targetName) {
       if (active || incoming) return;
+      // Fix A: Guard — socket must be connected before calling
+      if (!socket || !socket.connected) {
+        alert('جارٍ الاتصال بالخادم... حاول مرة أخرى بعد ثانية');
+        return;
+      }
       try {
         const stream = await getAudio().catch(err => {
           if (err.name === 'NotAllowedError') {
@@ -101,11 +106,14 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         const offer = await p.createOffer();
         await p.setLocalDescription(offer);
 
+        const callerId = currentUser?._id || currentUser?.id || '';
+        const callerName = currentUser?.name || 'مستخدم';
         socket.emit('call:initiate', {
           targetUserId,
-          callerId: currentUser?._id || currentUser?.id,
-          callerName: currentUser?.name,
+          callerId,
+          callerName,
         });
+        console.log('[CallManager] Initiated call to', targetUserId, 'from', callerId);
 
         // Start 30-second no-answer timer
         noAnswerTimer.current = setTimeout(() => {
@@ -158,7 +166,17 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     if (!socket || !currentUser) return;
     const userId = currentUser._id || currentUser.id;
     if (!userId) return;
+    // Join user room now and re-join on every reconnect
     socket.emit('join_user_room', { userId });
+    socket.emit('join', userId); // also emit 'join' for backward compatibility
+
+    const onReconnect = () => {
+      socket.emit('join_user_room', { userId });
+      socket.emit('join', userId);
+      console.log('[CallManager] Rejoined user rooms after reconnect:', userId);
+    };
+    socket.on('reconnect', onReconnect);
+    socket.on('connect', onReconnect); // in case socket reconnects
 
     const onIncoming = ({ callerId, callerName, callerSocketId }) => {
       setIncoming({ callerId, callerName, callerSocketId });
@@ -200,18 +218,27 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     const onRejected = () => { cleanup(); };
     const onEnded    = () => { cleanup(); };
 
-    socket.on('call:incoming', onIncoming);
-    socket.on('call:offer',    onOffer);
-    socket.on('call:ice',      onICE);
-    socket.on('call:rejected', onRejected);
-    socket.on('call:ended',    onEnded);
+    const onUnavailable = ({ targetUserId }) => {
+      alert('المستخدم غير متصل حالياً — لا يمكن إجراء المكالمة');
+      cleanup();
+    };
+
+    socket.on('call:incoming',          onIncoming);
+    socket.on('call:offer',             onOffer);
+    socket.on('call:ice',               onICE);
+    socket.on('call:rejected',          onRejected);
+    socket.on('call:ended',             onEnded);
+    socket.on('call:user_unavailable',  onUnavailable);
 
     return () => {
-      socket.off('call:incoming', onIncoming);
-      socket.off('call:offer',    onOffer);
-      socket.off('call:ice',      onICE);
-      socket.off('call:rejected', onRejected);
-      socket.off('call:ended',    onEnded);
+      socket.off('call:incoming',          onIncoming);
+      socket.off('call:offer',             onOffer);
+      socket.off('call:ice',               onICE);
+      socket.off('call:rejected',          onRejected);
+      socket.off('call:ended',             onEnded);
+      socket.off('call:user_unavailable',  onUnavailable);
+      socket.off('reconnect',              onReconnect);
+      socket.off('connect',                onReconnect);
     };
   }, [socket, currentUser]);
 

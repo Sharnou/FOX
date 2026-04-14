@@ -262,6 +262,30 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
     };
 
     if (isNew) {
+      // ── Account linking: check if email user exists with same email ──
+      var userEmail = req.body.email || user.email || '';
+      var linkedUser = null;
+      if (userEmail) {
+        linkedUser = await User.findOne({ email: userEmail.toLowerCase(), _id: { $ne: user._id } });
+        if (linkedUser) {
+          // Merge: link phone to existing email account
+          linkedUser.whatsappPhone = phone;
+          linkedUser.whatsappVerified = true;
+          linkedUser.lastSeen = new Date();
+          if (!linkedUser.xtoxId) linkedUser.xtoxId = await generateXtoxId();
+          await linkedUser.save();
+          // Remove the orphan phone-only user
+          await User.deleteOne({ _id: user._id });
+          user = linkedUser;
+          isNew = false;
+          var token2 = issueToken(linkedUser);
+          return res.json({
+            success: true, token: token2, isNew: false,
+            user: { id: linkedUser._id, xtoxId: linkedUser.xtoxId, name: linkedUser.name,
+              phone: linkedUser.whatsappPhone, authProvider: 'whatsapp', whatsappVerified: true, emailVerified: true }
+          });
+        }
+      }
       updateData.xtoxId = await generateXtoxId();
       var phoneName = 'user' + phone.slice(-4);
       updateData.xtoxEmail = await assignUniqueXtoxEmail(User, phoneName);
