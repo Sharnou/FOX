@@ -22,6 +22,7 @@ import mongoose from 'mongoose';
 import multer from 'multer';
 import { CLOUDINARY_ENABLED } from '../server/cloudinary.js';
 import { moderateAdContent } from '../utils/adModeration.js';
+import { createBloggerPost, deleteBloggerPost } from '../utils/blogger.js';
 
 // Smart model selector: MongoDB → Couchbase → in-memory
 function getAdModel() {
@@ -1008,6 +1009,22 @@ router.post('/', auth, multerUpload, async (req, res) => {
 
     console.log('[ADS POST] 8: responding 201, ad._id=', _normalizedAd._id?.toString());
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
+
+    // BLOGGER AUTO-SYNC: create post async after response (non-blocking)
+    setImmediate(async () => {
+      try {
+        const result = await createBloggerPost(ad.toObject ? ad.toObject() : ad);
+        if (result) {
+          await getAdModel().findByIdAndUpdate(ad._id, {
+            bloggerPostId: result.postId,
+            bloggerPostUrl: result.postUrl,
+          });
+          console.log('[Blogger] Synced ad', ad._id.toString(), '→', result.postUrl);
+        }
+      } catch (e) {
+        console.error('[Blogger] Async post creation failed:', e.message);
+      }
+    });
   } catch (fatalErr) {
     console.error('[POST /api/ads] FATAL:', fatalErr?.constructor?.name, fatalErr?.message);
     console.error('[POST /api/ads] Stack:', fatalErr?.stack);
@@ -1205,6 +1222,13 @@ router.patch('/:id/sold', auth, async (req, res) => {
     ad.expiredAt = new Date();
     await ad.save();
 
+    // BLOGGER: delete post when ad is sold (async, non-blocking)
+    if (ad.bloggerPostId) {
+      const bPostId = ad.bloggerPostId;
+      setImmediate(() => deleteBloggerPost(bPostId));
+      await getAdModel().findByIdAndUpdate(ad._id, { bloggerPostId: null, bloggerPostUrl: null });
+    }
+
     // Archive all chats linked to this ad — no new messages can be sent
     let archivedCount = 0;
     try {
@@ -1245,6 +1269,11 @@ router.delete('/:id', auth, async (req, res) => {
     const query = isAdmin ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
     const ad = await getAdModel().findOne(query);
     if (!ad) return res.status(404).json({ error: 'Not found' });
+
+    // BLOGGER: delete post before soft-deleting ad
+    if (ad.bloggerPostId) {
+      setImmediate(() => deleteBloggerPost(ad.bloggerPostId));
+    }
 
     // Soft-delete the ad
     ad.isDeleted = true; ad.deletedAt = new Date(); await ad.save();

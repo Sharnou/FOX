@@ -55,7 +55,9 @@ const AdSchema = new mongoose.Schema({
   whatsapp: { type: String, default: null }, // separate WhatsApp contact
   tags: [String], // searchable tags array
   // ──────────────────────────────────────────────────────────────────────────
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  bloggerPostId: { type: String, default: null },
+  bloggerPostUrl: { type: String, default: null },
 });
 
 // Compound indexes for fast queries — free performance boost

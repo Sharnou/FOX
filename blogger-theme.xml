@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html b:version='2' class='v2' expr:dir='data:blog.languageDirection' xmlns='http://www.w3.org/1999/xhtml' xmlns:b='http://www.google.com/2005/gbl' xmlns:data='http://www.google.com/2005/gbl' xmlns:expr='http://www.google.com/2005/gbl'>
+<head>
+  <meta charset='UTF-8'/>
+  <meta content='width=device-width, initial-scale=1' name='viewport'/>
+  <b:include data='blog' name='all-head-content'/>
+  <title><data:blog.pageTitle/></title>
+
+  <!-- SEO Meta -->
+  <meta expr:content='data:blog.metaDescription' name='description'/>
+  <meta content='XTOX, سوق عربي, إعلانات مبوبة, بيع وشراء, سيارات, عقارات, إلكترونيات, وظائف' name='keywords'/>
+  <meta content='index, follow, max-image-preview:large' name='robots'/>
+
+  <!-- Open Graph -->
+  <meta content='website' property='og:type'/>
+  <meta expr:content='data:blog.title' property='og:site_name'/>
+  <meta expr:content='data:blog.canonicalUrl' property='og:url'/>
+  <meta content='https://fox-kohl-eight.vercel.app/icon-512x512.png' property='og:image'/>
+
+  <!-- Twitter Card -->
+  <meta content='summary_large_image' name='twitter:card'/>
+  <meta expr:content='data:blog.title' name='twitter:site'/>
+
+  <!-- Canonical -->
+  <link expr:href='data:blog.canonicalUrl' rel='canonical'/>
+
+  <b:skin><![CDATA[
+/* ============================================
+   XTOX BLOGGER THEME — Dark Professional
+   Brand: #6366f1 (indigo) / #8b5cf6 (violet)
+   BG: #0f0f1a / Surface: #1a1a2e
+============================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', 'Tahoma', Arial, sans-serif;
+  background: #0f0f1a;
+  color: #e2e8f0;
+  direction: rtl;
+  min-height: 100vh;
+}
+
+/* ---- HEADER ---- */
+#header-wrapper {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  border-bottom: 1px solid rgba(99,102,241,0.3);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+
+#header {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+#header h1 {
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -1px;
+}
+
+#header h1 a {
+  color: #fff;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#header h1 a::before {
+  content: '🦊';
+  font-size: 24px;
+}
+
+.header-cta {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff !important;
+  text-decoration: none !important;
+  padding: 8px 20px;
+  border-radius: 50px;
+  font-weight: bold;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* ---- NAV ---- */
+#nav-wrapper {
+  background: rgba(26,26,46,0.95);
+  border-bottom: 1px solid rgba(99,102,241,0.15);
+}
+
+#nav {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+#nav a {
+  color: #a5b4fc;
+  text-decoration: none;
+  padding: 12px 16px;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+#nav a:hover {
+  color: #fff;
+  border-bottom-color: #6366f1;
+}
+
+/* ---- LAYOUT ---- */
+#outer-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+}
+
+/* ---- POST CARDS ---- */
+.blog-posts { }
+
+.post-outer {
+  background: #1a1a2e;
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 16px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.post-outer:hover {
+  border-color: rgba(99,102,241,0.5);
+  transform: translateY(-2px);
+}
+
+.post-thumbnail {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-body {
+  padding: 20px;
+}
+
+h3.post-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+h3.post-title a {
+  color: #fff;
+  text-decoration: none;
+}
+
+h3.post-title a:hover { color: #a5b4fc; }
+
+.post-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.post-labels a {
+  background: rgba(99,102,241,0.15);
+  color: #a5b4fc;
+  text-decoration: none;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  border: 1px solid rgba(99,102,241,0.3);
+}
+
+.post-snippet {
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.read-more-link {
+  display: inline-block;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  text-decoration: none;
+  padding: 10px 24px;
+  border-radius: 50px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* ---- SIDEBAR ---- */
+#sidebar-wrapper { }
+
+.sidebar-widget {
+  background: #1a1a2e;
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.sidebar-widget h2 {
+  color: #a5b4fc;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(99,102,241,0.2);
+}
+
+.app-download-card {
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  border: 1px solid rgba(99,102,241,0.4);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.app-download-card h2 {
+  color: #fff;
+  font-size: 20px;
+  margin-bottom: 8px;
+  border: none;
+  padding: 0;
+}
+
+.app-download-card p {
+  color: #a5b4fc;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.app-download-btn {
+  display: block;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  text-decoration: none;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+/* ---- INDIVIDUAL POST PAGE ---- */
+.post-body-content {
+  background: #1a1a2e;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(99,102,241,0.2);
+}
+
+/* ---- FOOTER ---- */
+#footer-wrapper {
+  background: #1a1a2e;
+  border-top: 1px solid rgba(99,102,241,0.2);
+  margin-top: 48px;
+}
+
+#footer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.footer-col h4 { color: #a5b4fc; margin-bottom: 12px; font-size: 14px; }
+.footer-col a { display: block; color: #6b7280; text-decoration: none; margin-bottom: 8px; font-size: 13px; }
+.footer-col a:hover { color: #e2e8f0; }
+.footer-col p { color: #6b7280; font-size: 13px; line-height: 1.8; }
+
+.footer-bottom {
+  text-align: center;
+  padding: 16px 20px;
+  color: #4b5563;
+  font-size: 12px;
+  border-top: 1px solid rgba(99,102,241,0.1);
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 768px) {
+  #outer-wrapper {
+    grid-template-columns: 1fr;
+  }
+  #sidebar-wrapper { order: -1; }
+  #footer { grid-template-columns: 1fr; }
+  .post-thumbnail { height: 180px; }
+  #header h1 { font-size: 20px; }
+}
+
+/* ---- SEARCH ---- */
+.search-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.search-form input {
+  flex: 1;
+  background: #1a1a2e;
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 50px;
+  padding: 10px 18px;
+  color: #e2e8f0;
+  font-size: 14px;
+  outline: none;
+  direction: rtl;
+}
+
+.search-form input:focus { border-color: #6366f1; }
+
+.search-form button {
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* ---- PAGER ---- */
+.blog-pager {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.blog-pager a {
+  background: rgba(99,102,241,0.15);
+  color: #a5b4fc;
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 50px;
+  font-size: 14px;
+  border: 1px solid rgba(99,102,241,0.3);
+}
+
+.blog-pager a:hover { background: rgba(99,102,241,0.3); }
+
+/* ---- STAT BADGES ---- */
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(99,102,241,0.1);
+  color: #a5b4fc;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  margin-left: 6px;
+}
+  ]]></b:skin>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div id='header-wrapper'>
+  <div id='header'>
+    <b:section class='header' id='header' maxwidgets='1' showaddelement='no'>
+      <b:widget id='Header1' locked='true' title='XTOX' type='Header'>
+        <b:widget-settings>
+          <b:widget-setting name='displayUrl'></b:widget-setting>
+          <b:widget-setting name='displayHeight'>0</b:widget-setting>
+          <b:widget-setting name='sectionWidth'>0</b:widget-setting>
+          <b:widget-setting name='useImage'>false</b:widget-setting>
+          <b:widget-setting name='displayWidth'>0</b:widget-setting>
+          <b:widget-setting name='shrinkToFit'>false</b:widget-setting>
+        </b:widget-settings>
+        <b:includable id='main'>
+          <h1><a expr:href='data:blog.homepageUrl'>XTOX — سوق عربي</a></h1>
+          <a class='header-cta' href='https://fox-kohl-eight.vercel.app/install'>📲 حمّل التطبيق</a>
+        </b:includable>
+      </b:widget>
+    </b:section>
+  </div>
+</div>
+
+<!-- NAV -->
+<div id='nav-wrapper'>
+  <nav id='nav'>
+    <a href='/'>🏠 الرئيسية</a>
+    <a href='/search/label/سيارات'>🚗 سيارات</a>
+    <a href='/search/label/عقارات'>🏠 عقارات</a>
+    <a href='/search/label/إلكترونيات'>📱 إلكترونيات</a>
+    <a href='/search/label/أثاث'>🛋️ أثاث</a>
+    <a href='/search/label/وظائف'>💼 وظائف</a>
+    <a href='/search/label/خدمات'>🔧 خدمات</a>
+    <a href='/search/label/ملابس'>👗 ملابس</a>
+    <a href='https://fox-kohl-eight.vercel.app/install' style='color:#fbbf24;font-weight:bold;'>📲 التطبيق</a>
+  </nav>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id='outer-wrapper'>
+
+  <!-- POSTS MAIN COLUMN -->
+  <div id='content-wrapper'>
+
+    <!-- Search Bar -->
+    <form action='/search' class='search-form' method='get'>
+      <input name='q' placeholder='ابحث في الإعلانات... سيارات، شقق، موبايل...' type='text'/>
+      <button type='submit'>🔍 بحث</button>
+    </form>
+
+    <b:section class='main' id='main' showaddelement='no'>
+      <b:widget id='Blog1' locked='true' title='Blog Posts' type='Blog'>
+        <b:includable id='main' var='top'>
+          <b:loop values='data:posts' var='post'>
+            <b:include data='post' name='post'/>
+          </b:loop>
+          <div class='blog-pager'>
+            <b:include name='nextprev'/>
+          </div>
+        </b:includable>
+
+        <b:includable id='post' var='post'>
+          <div class='post-outer'>
+            <b:if cond='data:post.featuredImage'>
+              <img class='post-thumbnail' expr:alt='data:post.title' expr:src='data:post.featuredImage' loading='lazy'/>
+            </b:if>
+            <div class='post-body'>
+              <h3 class='post-title'>
+                <a expr:href='data:post.url'><data:post.title/></a>
+              </h3>
+              <b:if cond='data:post.labels'>
+                <div class='post-labels'>
+                  <b:loop values='data:post.labels' var='label'>
+                    <a expr:href='data:label.url'><data:label.name/></a>
+                  </b:loop>
+                </div>
+              </b:if>
+              <p class='post-snippet'><data:post.snippet/></p>
+              <div style='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;'>
+                <a class='read-more-link' expr:href='data:post.url'>🔍 عرض الإعلان كاملاً</a>
+                <span class='stat-badge'>📅 <data:post.dateHeader/></span>
+              </div>
+            </div>
+          </div>
+        </b:includable>
+
+        <b:includable id='nextprev'>
+          <b:if cond='data:blog.newerPageUrl'>
+            <a expr:href='data:blog.newerPageUrl'>→ أحدث الإعلانات</a>
+          </b:if>
+          <b:if cond='data:blog.olderPageUrl'>
+            <a expr:href='data:blog.olderPageUrl'>الإعلانات الأقدم ←</a>
+          </b:if>
+        </b:includable>
+
+        <b:includable id='status-message'>
+          <b:if cond='data:navMessage'>
+            <div style='text-align:center;color:#6b7280;padding:16px;'><data:navMessage/></div>
+          </b:if>
+        </b:includable>
+      </b:widget>
+    </b:section>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id='sidebar-wrapper'>
+
+    <!-- App Download Card -->
+    <div class='app-download-card'>
+      <div style='font-size:48px;margin-bottom:8px;'>🦊</div>
+      <h2>تطبيق XTOX</h2>
+      <p>السوق المحلي العربي الذكي — بيع واشترِ بكل سهولة وأمان</p>
+      <a class='app-download-btn' href='https://fox-kohl-eight.vercel.app/install'>📲 تحميل مجاني</a>
+    </div>
+
+    <b:section class='sidebar' id='sidebar' preferred='yes'>
+
+      <!-- Search Widget -->
+      <b:widget id='HTML1' title='🔍 بحث سريع' type='HTML'>
+        <b:includable id='main'>
+          <div class='sidebar-widget'>
+            <h2>🔍 بحث سريع</h2>
+            <form action='/search' class='search-form' method='get'>
+              <input name='q' placeholder='ابحث...' type='text'/>
+              <button type='submit'>بحث</button>
+            </form>
+          </div>
+        </b:includable>
+      </b:widget>
+
+      <!-- Categories Label Widget -->
+      <b:widget id='Label1' title='📂 الأقسام' type='Label'>
+        <b:includable id='main'>
+          <div class='sidebar-widget'>
+            <h2>📂 تصفح الأقسام</h2>
+            <ul style='list-style:none;'>
+              <b:loop values='data:labels' var='label'>
+                <li style='margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;'>
+                  <a expr:href='data:label.url' style='color:#a5b4fc;text-decoration:none;font-size:14px;'>
+                    <data:label.name/>
+                  </a>
+                  <span style='background:rgba(99,102,241,0.15);color:#6b7280;padding:2px 8px;border-radius:12px;font-size:11px;'><data:label.count/></span>
+                </li>
+              </b:loop>
+            </ul>
+          </div>
+        </b:includable>
+      </b:widget>
+
+      <!-- XTOX Features -->
+      <b:widget id='HTML2' title='⭐ مميزات XTOX' type='HTML'>
+        <b:includable id='main'>
+          <div class='sidebar-widget'>
+            <h2>⭐ مميزات التطبيق</h2>
+            <ul style='list-style:none;color:#94a3b8;font-size:13px;line-height:2.2;'>
+              <li>🆓 نشر مجاني بدون عمولة</li>
+              <li>📞 مكالمات صوتية مع البائع</li>
+              <li>💬 دردشة مباشرة ومشفرة</li>
+              <li>🔔 إشعارات فورية</li>
+              <li>🏆 مسابقة بائع الشهر</li>
+              <li>⭐ نظام تقييم الموثوقية</li>
+              <li>🌍 جميع الدول العربية</li>
+              <li>🔍 بحث ذكي بالذكاء الاصطناعي</li>
+            </ul>
+            <a href='https://fox-kohl-eight.vercel.app/install' style='display:block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;text-decoration:none;padding:10px;border-radius:50px;text-align:center;font-weight:bold;margin-top:12px;font-size:14px;'>📲 جرّب الآن مجاناً</a>
+          </div>
+        </b:includable>
+      </b:widget>
+
+      <!-- Recent Posts -->
+      <b:widget id='BlogArchive1' title='📋 أحدث الإعلانات' type='BlogArchive'>
+        <b:includable id='main'>
+          <div class='sidebar-widget'>
+            <h2>📋 أرشيف الإعلانات</h2>
+            <b:include name='interval'/>
+          </div>
+        </b:includable>
+        <b:includable id='interval' var='interval'>
+          <ul style='list-style:none;'>
+            <b:loop values='data:interval.posts' var='post'>
+              <li style='margin-bottom:8px;'>
+                <a expr:href='data:post.url' style='color:#a5b4fc;text-decoration:none;font-size:13px;display:block;padding:4px 0;border-bottom:1px solid rgba(99,102,241,0.1);'>
+                  <data:post.title/>
+                </a>
+              </li>
+            </b:loop>
+          </ul>
+        </b:includable>
+      </b:widget>
+
+    </b:section>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div id='footer-wrapper'>
+  <div id='footer'>
+    <div class='footer-col'>
+      <h4>🦊 XTOX</h4>
+      <p>السوق المحلي العربي الذكي. بيع واشترِ بأمان وسهولة مع التواصل المباشر. لا عمولة، لا وسيط.</p>
+    </div>
+    <div class='footer-col'>
+      <h4>🔗 روابط سريعة</h4>
+      <a href='https://fox-kohl-eight.vercel.app'>الموقع الرئيسي</a>
+      <a href='https://fox-kohl-eight.vercel.app/install'>تحميل التطبيق</a>
+      <a href='https://fox-kohl-eight.vercel.app/register'>إنشاء حساب</a>
+      <a href='https://fox-kohl-eight.vercel.app/sell'>نشر إعلان</a>
+      <a href='/'>كل الإعلانات</a>
+    </div>
+    <div class='footer-col'>
+      <h4>📂 الأقسام الرئيسية</h4>
+      <a href='/search/label/سيارات'>🚗 سيارات</a>
+      <a href='/search/label/عقارات'>🏠 عقارات</a>
+      <a href='/search/label/إلكترونيات'>📱 إلكترونيات</a>
+      <a href='/search/label/وظائف'>💼 وظائف</a>
+      <a href='/search/label/أثاث'>🛋️ أثاث</a>
+      <a href='/search/label/خدمات'>🔧 خدمات</a>
+    </div>
+  </div>
+  <div class='footer-bottom'>
+    © 2026 XTOX — جميع الحقوق محفوظة | السوق المحلي العربي الذكي |
+    <a href='https://fox-kohl-eight.vercel.app' style='color:#6366f1;text-decoration:none;'>fox-kohl-eight.vercel.app</a>
+  </div>
+</div>
+
+<!-- Schema.org Structured Data -->
+<script type='application/ld+json'>
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "XTOX — سوق عربي",
+  "url": "https://xt0x.blogspot.com",
+  "description": "السوق المحلي العربي الذكي — بيع واشترِ بكل سهولة",
+  "inLanguage": "ar",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://xt0x.blogspot.com/search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+
+</body>
+</html>

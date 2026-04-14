@@ -1,0 +1,42 @@
+User-agent: *
+Allow: /
+Allow: /search/label/
+Allow: /search?q=
+
+Disallow: /search?updated-max=
+Disallow: /?m=1
+Disallow: /*?m=1
+Disallow: /p/
+Disallow: /feeds/
+
+# Priority crawling for ads
+Allow: /search/label/سيارات
+Allow: /search/label/عقارات
+Allow: /search/label/إلكترونيات
+Allow: /search/label/أثاث
+Allow: /search/label/وظائف
+
+# Sitemaps
+Sitemap: https://xt0x.blogspot.com/sitemap.xml
+Sitemap: https://xt0x.blogspot.com/atom.xml
+
+# Major search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
