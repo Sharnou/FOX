@@ -22,8 +22,10 @@ export function initSocket(io) {
 
     // ── Register user → join personal room ──────────────────────
     // Room-per-User pattern: all tabs for same user share the room
-    socket.on('join', (userId) => {
-      if (!userId) return;
+    socket.on('join', (payload) => {
+      // Accept both plain string userId (correct) and {userId} object (defensive fallback)
+      const userId = typeof payload === 'string' ? payload : (payload?.userId || null);
+      if (!userId || typeof userId !== 'string') return;
       socket.data.userId = userId;
       // Join personal notification room (supports multi-tab)
       socket.join('user_' + userId);
@@ -259,7 +261,7 @@ export function initSocket(io) {
         return;
       }
       seenOffers.add(offerKey);
-      setTimeout(() => seenOffers.delete(offerKey), 30000);
+      setTimeout(() => seenOffers.delete(offerKey), 5000);  // 5s dedup window (reduced from 30s to allow quick retries)
       // Check if target is actually in the room
       try {
         const roomSockets = await io.in('user_' + targetUserId).fetchSockets();
@@ -423,6 +425,16 @@ export function initSocket(io) {
     // End call
     socket.on('call:end', ({ otherSocketId }) => {
       io.to(otherSocketId).emit('call:ended');
+    });
+
+    // Cancel outgoing call before callee answers (notify callee to stop ringing)
+    // Caller knows targetUserId but not callee's socket ID yet
+    socket.on('call:cancel', ({ targetUserId }) => {
+      if (!targetUserId) return;
+      io.to('user_' + targetUserId).emit('call:cancelled', {
+        callerId: socket.data.userId,
+      });
+      console.log('[Socket] call:cancel — caller:', socket.data.userId, '→ callee room:', 'user_' + targetUserId);
     });
 
     // Responder signals readiness to receive offer

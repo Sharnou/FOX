@@ -236,9 +236,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
           offer: p.localDescription,  // SDP offer for offline push answering
         });
 
-        // Start 30-second no-answer timer
+        // Start 30-second no-answer timer — cancel call and notify callee to stop ringing
         noAnswerTimer.current = setTimeout(() => {
-          socket.emit('call:end', { otherSocketId: '_no_answer_' });
+          socket.emit('call:cancel', { targetUserId });  // callee stops ringing
           cleanup();
         }, NO_ANSWER_TIMEOUT_MS);
 
@@ -389,11 +389,19 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       // (caller will receive call:answered via socket, this is for the callee side)
     };
 
+    // call:cancelled — caller hung up before callee answered (stop ringing)
+    const onCancelled = () => {
+      console.log('[CallManager] Call was cancelled by caller');
+      stopRingtone();
+      setIncoming(null);
+    };
+
     socket.on('call:incoming',          onIncoming);
     socket.on('call:offer',             onOffer);
     socket.on('call:ice',               onICE);
     socket.on('call:rejected',          onRejected);
     socket.on('call:ended',             onEnded);
+    socket.on('call:cancelled',         onCancelled);
     socket.on('call:user_unavailable',  onUnavailable);
     socket.on('call:ringing_offline',   onRingingOffline);
     socket.on('call:expired',           onExpired);
@@ -420,6 +428,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       socket.off('call:ice',               onICE);
       socket.off('call:rejected',          onRejected);
       socket.off('call:ended',             onEnded);
+      socket.off('call:cancelled',         onCancelled);
       socket.off('call:user_unavailable',  onUnavailable);
       socket.off('call:ringing_offline',   onRingingOffline);
       socket.off('call:expired',           onExpired);
