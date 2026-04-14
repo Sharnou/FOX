@@ -76,14 +76,29 @@ router.post('/', auth, async (req, res) => {
       const now = new Date();
 
       if (lastUsed && (now - new Date(lastUsed)) < TWO_MONTHS_MS) {
-        // Within 2 months — user must pay $1
-        const nextFreeAt = new Date(new Date(lastUsed).getTime() + TWO_MONTHS_MS);
-        return res.status(402).json({
-          error: 'free_limit_reached',
-          message: 'لقد استخدمت الباقة المجانية مؤخراً. يمكنك الترقية مقابل $1 فقط.',
-          chargeAmount: 1,
-          nextFreeAt,
-          daysLeft: Math.ceil((nextFreeAt - now) / (1000 * 60 * 60 * 24)),
+        // Cooldown active — silently upgrade to paid $1 plan (3-day) instead of returning an error
+        const order = await PendingPayment.create({
+          user:          req.user.id,
+          ad:            adId,
+          planType:      'free',
+          days:          3,
+          amount:        1,
+          currency:      'USD',
+          status:        'pending',
+          paymentMethod: 'vodafone_cash',
+          paymentNumber: '+201020326953',
+          expiresAt:     new Date(Date.now() + 48 * 60 * 60 * 1000),
+        });
+        console.log(`[PROMOTE] Free cooldown active — upgraded to $1 paid plan. Order: ${order._id} | Ad: ${adId} | User: ${req.user.id}`);
+        return res.json({
+          requiresPayment:  true,
+          plan:             '3-day',
+          price:            1,
+          message:          'أرسل 1$ عبر Vodafone Cash إلى +201020326953 ثم انتظر التأكيد',
+          vodafoneCash:     '+201020326953',
+          whatsapp:         'https://wa.me/201020326953',
+          email:            'XTOX@XTOX.com',
+          pendingPaymentId: order._id,
         });
       }
 

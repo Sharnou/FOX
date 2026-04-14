@@ -158,19 +158,21 @@ function PromotePageInner() {
         }),
       });
 
-      if (res.status === 402) {
-        // Free plan limit reached — should have been caught by status check
-        // but handle it gracefully anyway
-        const data = await res.json().catch(() => ({}));
-        setFreePlanStatus({ canUseFree: false, daysLeft: data.daysLeft || 60, nextFreeAt: data.nextFreeAt });
-        setError(data.message || t('الباقة المجانية مستخدمة. الرجاء إعادة تحميل الصفحة.', 'Free plan limit reached. Please reload.'));
-        setLoading(false);
-        return;
-      }
-
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        if (data.status === 'pending_payment') {
+        if (data.requiresPayment) {
+          // Free plan cooldown active — backend upgraded to $1 paid plan silently
+          // Show Vodafone Cash payment instructions (same UI as regular paid plan)
+          setPendingPayment({
+            orderId: data.pendingPaymentId,
+            amount:  data.price,
+            plan:    data.plan,
+            days:    3,
+            instructions: null,
+            contact: { whatsapp: data.vodafoneCash, email: data.email },
+          });
+          setStep(3);
+        } else if (data.status === 'pending_payment') {
           // Paid plan: show payment instructions — NO auto-activation
           setPendingPayment({
             orderId: data.orderId,
