@@ -33,6 +33,9 @@ function PromotePageInner() {
   const [freePlanStatus, setFreePlanStatus] = useState({ canUseFree: true, daysLeft: 0, nextFreeAt: null });
   const [freePlanLoading, setFreePlanLoading] = useState(true);
 
+  // Featured slots (max 16 normal-style ads)
+  const [featuredSlots, setFeaturedSlots] = useState(null); // { used, max, available }
+
   const isRTL = lang === 'ar';
   const t = (ar, en) => isRTL ? ar : en;
 
@@ -116,9 +119,14 @@ function PromotePageInner() {
 
   const selectedPlan = PLANS.find(p => p.id === selected);
 
-  // Fetch free plan status on mount
+  // Fetch free plan status and featured slots on mount
   useEffect(() => {
     const token = localStorage.getItem('token') || localStorage.getItem('fox_token') || '';
+    // Fetch featured slots (public endpoint — no auth needed)
+    fetch(API + '/api/promote/featured-slots')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setFeaturedSlots(data); })
+      .catch(() => {});
     if (!token) { setFreePlanLoading(false); return; }
     fetch(API + '/api/promote/free-plan-status', {
       headers: { 'Authorization': 'Bearer ' + token }
@@ -435,6 +443,24 @@ function PromotePageInner() {
                   </div>
                 </div>
               ))
+            )}
+
+            {/* Featured slots availability indicator */}
+            {featuredSlots && (
+              <div style={{
+                textAlign: 'center',
+                fontSize: 12,
+                fontWeight: 600,
+                marginBottom: 8,
+                color: featuredSlots.available === 0 ? '#ef4444' : '#10b981',
+                background: featuredSlots.available === 0 ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+                padding: '6px 12px',
+                borderRadius: 10,
+              }}>
+                {featuredSlots.available === 0
+                  ? t('⚠️ قائمة الإعلانات العادية ممتلئة — جرّب الباقة الذهبية', '⚠️ Normal featured list full — try the Gold plan')
+                  : t(`✅ ${featuredSlots.available} مكان متاح من أصل ${featuredSlots.max} للإعلانات العادية`, `✅ ${featuredSlots.available} of ${featuredSlots.max} normal slots available`)}
+              </div>
             )}
 
             <button

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CallManager from '../components/CallManager';
+import { playNotificationSound } from '../utils/notificationSound';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -431,6 +432,10 @@ function ChatPageInner() {
     s.on('receive_message', function(data) {
       var senderId = data.from || targetId;
       var msgTime  = Date.now();
+      // Play notification sound for incoming messages (not from ourselves)
+      if (senderId && senderId !== myId) {
+        playNotificationSound();
+      }
       setMessages(function(prev) { return prev.concat([{ from: senderId, text: data.text, type: data.type || 'text', duration: data.duration || 0, time: msgTime, readBy: [] }]); });
       if (senderId && senderId !== targetId) {
         setUnreadCounts(function(prev) {

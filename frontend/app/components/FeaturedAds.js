@@ -38,10 +38,27 @@ function SkeletonCard() {
 }
 
 // ─── Single featured card ─────────────────────────────────────────────────────
-function FeaturedCard({ ad }) {
+function FeaturedCard({ ad, featIdx }) {
   const isCartoon = ad.featuredStyle === 'cartoon';
+  // Gold style = "مميز ذهبي" — full description, golden border/background
+  const isGolden = ad.featuredStyle === 'gold';
   const whatsappNum = ad.phone ? ad.phone.replace(/\D/g, '') : null;
-  const whatsappUrl = whatsappNum ? 'https://wa.me/' + whatsappNum + '?text=' + encodeURIComponent('مرحباً، رأيت إعلانك "' + ad.title + '" على XTOX' + '" على XTOX') : null;
+  const whatsappUrl = whatsappNum ? 'https://wa.me/' + whatsappNum + '?text=' + encodeURIComponent('مرحباً، رأيت إعلانك "' + ad.title + '" على XTOX') : null;
+
+  // Card border & background
+  const cardBorder = isGolden
+    ? '2px solid #f59e0b'
+    : isCartoon
+    ? '3px solid #f1c40f'
+    : '2px solid #002f34';
+
+  const cardBackground = isGolden
+    ? 'linear-gradient(135deg, #fffbeb 0%, #fff 100%)'
+    : '#fff';
+
+  const cardShadow = isGolden
+    ? '0 4px 20px rgba(245,158,11,0.22)'
+    : '0 4px 16px rgba(0,47,52,0.10)';
 
   return (
     <article
@@ -49,38 +66,54 @@ function FeaturedCard({ ad }) {
       role="article"
       aria-label={'إعلان مميز: ' + ad.title}
       style={{
-        minWidth: 180,
-        maxWidth: 200,
-        background: '#fff',
+        minWidth: isGolden ? 210 : 180,
+        maxWidth: isGolden ? 240 : 200,
+        background: cardBackground,
         borderRadius: 16,
         overflow: 'hidden',
         flexShrink: 0,
-        border: isCartoon ? '3px solid #f1c40f' : '2px solid #002f34',
-        boxShadow: '0 4px 16px rgba(0,47,52,0.10)',
+        border: cardBorder,
+        boxShadow: cardShadow,
         transition: 'transform 0.2s, box-shadow 0.2s',
         cursor: 'pointer',
         position: 'relative',
       }}
       onMouseEnter={e => {
         e.currentTarget.style.transform = 'translateY(-4px)';
-        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,47,52,0.18)';
+        e.currentTarget.style.boxShadow = isGolden
+          ? '0 8px 28px rgba(245,158,11,0.32)'
+          : '0 8px 24px rgba(0,47,52,0.18)';
       }}
       onMouseLeave={e => {
         e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,47,52,0.10)';
+        e.currentTarget.style.boxShadow = cardShadow;
       }}
     >
       {/* Featured badge */}
-      <span style={{
-        position: 'absolute', top: 8, right: 8, zIndex: 2,
-        background: isCartoon ? '#f1c40f' : '#002f34',
-        color: isCartoon ? '#002f34' : '#fff',
-        fontSize: 10, fontWeight: 700,
-        borderRadius: 8, padding: '2px 8px',
-        fontFamily: 'Cairo, sans-serif',
-      }}>
-        {isCartoon ? '⭐ مميز' : '✓ مميز'}
-      </span>
+      {isGolden ? (
+        <span style={{
+          position: 'absolute', top: 8, right: 8, zIndex: 2,
+          background: '#f59e0b',
+          color: '#fff',
+          fontSize: 10, fontWeight: 700,
+          borderRadius: 8, padding: '2px 8px',
+          fontFamily: 'Cairo, sans-serif',
+          boxShadow: '0 1px 4px rgba(245,158,11,0.4)',
+        }}>
+          ⭐ ذهبي
+        </span>
+      ) : (
+        <span style={{
+          position: 'absolute', top: 8, right: 8, zIndex: 2,
+          background: isCartoon ? '#f1c40f' : '#002f34',
+          color: isCartoon ? '#002f34' : '#fff',
+          fontSize: 10, fontWeight: 700,
+          borderRadius: 8, padding: '2px 8px',
+          fontFamily: 'Cairo, sans-serif',
+        }}>
+          {isCartoon ? '⭐ مميز' : '✓ مميز'}
+        </span>
+      )}
 
       <Link href={'/ads/' + ad._id} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
         {/* Image with gradient overlay */}
@@ -112,7 +145,29 @@ function FeaturedCard({ ad }) {
           <p style={{ fontWeight: 700, fontSize: 13, color: '#002f34', margin: '0 0 4px', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
             {ad.title}
           </p>
-          <p style={{ fontWeight: 700, fontSize: 14, color: '#e67e22', margin: '0 0 4px' }}>
+
+          {/* Description — full for golden, truncated (2 lines) for others */}
+          {ad.description && (
+            <p style={{
+              color: '#555',
+              fontSize: 11,
+              lineHeight: 1.5,
+              margin: '4px 0',
+              ...(isGolden
+                ? {}  // full description — no clamp
+                : {
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                  }
+              ),
+            }}>
+              {ad.description}
+            </p>
+          )}
+
+          <p style={{ fontWeight: 700, fontSize: 14, color: '#e67e22', margin: '4px 0' }}>
             {ad.price ? ad.price + ' ' + (ad.currency || LABELS.currency) : 'السعر عند الاتصال'}
           </p>
           {(ad.city || ad.location) && (
@@ -122,7 +177,7 @@ function FeaturedCard({ ad }) {
             </p>
           )}
           {ad.views !== undefined && (
-            <p style={{ fontSize: 10, color: '#aaa', margin: 0 }}>
+            <p style={{ fontSize: 10, color: isGolden ? '#b45309' : '#aaa', margin: 0, fontWeight: isGolden ? 600 : 400 }}>
               {ad.views || 0} {LABELS.views}
             </p>
           )}
@@ -139,12 +194,13 @@ function FeaturedCard({ ad }) {
           onClick={e => e.stopPropagation()}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-            background: '#25D366', color: '#fff',
+            background: isGolden ? '#16a34a' : '#25D366',
+            color: '#fff',
             fontSize: 11, fontWeight: 700,
             padding: '6px 12px',
             fontFamily: 'Cairo, sans-serif',
             textDecoration: 'none',
-            borderTop: '1px solid rgba(0,0,0,0.06)',
+            borderTop: isGolden ? '1px solid rgba(245,158,11,0.2)' : '1px solid rgba(0,0,0,0.06)',
           }}
         >
           <span aria-hidden="true">💬</span> {LABELS.whatsapp}
@@ -183,7 +239,7 @@ export default function FeaturedAds({ ads = [], loading = false }) {
   }, [featured.length]);
 
   function scrollBy(dir) {
-    scrollRef.current?.scrollBy({ left: dir * 210, behavior: 'smooth' });
+    scrollRef.current?.scrollBy({ left: dir * 220, behavior: 'smooth' });
   }
 
   // Don't render if nothing to show and not loading
@@ -211,6 +267,8 @@ export default function FeaturedAds({ ads = [], loading = false }) {
     pointerEvents: enabled ? 'auto' : 'none',
   });
 
+  const goldenCount = featured.filter(a => a.featuredStyle === 'gold').length;
+
   return (
     <section
       dir="rtl"
@@ -229,7 +287,10 @@ export default function FeaturedAds({ ads = [], loading = false }) {
           {LABELS.title}
         </h2>
         {featured.length > 0 && (
-          <span style={{ fontSize: 12, color: '#888' }}>{featured.length} إعلان</span>
+          <span style={{ fontSize: 12, color: '#888' }}>
+            {featured.length} إعلان
+            {goldenCount > 0 && <span style={{ color: '#f59e0b', marginRight: 4 }}>({goldenCount} ذهبي)</span>}
+          </span>
         )}
       </div>
 
@@ -266,7 +327,7 @@ export default function FeaturedAds({ ads = [], loading = false }) {
             ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
             : featured.map((ad, featIdx) => (
                 <div key={ad._id} role="listitem" className="featured-card">
-                  <FeaturedCard ad={ad} />
+                  <FeaturedCard ad={ad} featIdx={featIdx} />
                 </div>
               ))
           }

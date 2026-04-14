@@ -13,6 +13,10 @@ const PLANS = {
   premium:  { days: 30, style: 'banner', price: 15 },
 };
 
+// Golden/premium styles are UNLIMITED — only 'normal' style is capped at 16
+const UNLIMITED_STYLES = ['gold', 'banner'];
+const MAX_NORMAL_FEATURED = 16;
+
 const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000; // 60 days in ms
 
 // GET /api/promote/free-plan-status
@@ -29,6 +33,23 @@ router.get('/free-plan-status', auth, async (req, res) => {
     res.json({ canUseFree, nextFreeAt, daysLeft });
   } catch (err) {
     console.error('[PROMOTE] free-plan-status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/promote/featured-slots — remaining normal-style featured slots (max 16)
+router.get('/featured-slots', async (req, res) => {
+  try {
+    const used = await Ad.countDocuments({
+      isFeatured: true,
+      featuredStyle: { $nin: UNLIMITED_STYLES }, // only count normal-style ads
+      featuredUntil: { $gt: new Date() },
+      isDeleted: { $ne: true },
+    });
+    const available = Math.max(0, MAX_NORMAL_FEATURED - used);
+    res.json({ used, max: MAX_NORMAL_FEATURED, available });
+  } catch (err) {
+    console.error('[PROMOTE] featured-slots error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -66,11 +87,31 @@ router.post('/', auth, async (req, res) => {
         });
       }
 
+      // ── Max 16 normal-style check for free plan ──────────────────────────
+      if (planConfig.style === 'normal') {
+        const usedSlots = await Ad.countDocuments({
+          isFeatured: true,
+          featuredStyle: { $nin: UNLIMITED_STYLES },
+          featuredUntil: { $gt: now },
+          isDeleted: { $ne: true },
+        });
+        if (usedSlots >= MAX_NORMAL_FEATURED) {
+          return res.status(409).json({
+            success: false,
+            error: `قائمة الإعلانات المميزة ممتلئة (الحد الأقصى ${MAX_NORMAL_FEATURED} إعلان)`,
+            message: 'Featured ads list is full. Try the Gold plan instead!',
+            suggestion: 'featured',
+            currentCount: usedSlots,
+          });
+        }
+      }
+
       // First time or 2+ months passed — allow free, update timestamp, activate immediately
       await User.findByIdAndUpdate(req.user.id, { lastFreePlanUsed: now });
       await Ad.findByIdAndUpdate(adId, {
         isFeatured: true,
         featuredStyle: planConfig.style,
+        featuredPlan: plan,
         featuredUntil: until,
         featuredAt: new Date(),
         visibilityScore: Math.max(ad.visibilityScore || 0, 50),
@@ -90,6 +131,26 @@ router.post('/', auth, async (req, res) => {
     if (req.body.chargeOverride && plan === 'free') {
       await User.findByIdAndUpdate(req.user.id, { lastFreePlanUsed: new Date() });
     }
+
+    // ── Max 16 check for basic (normal-style) paid plan ───────────────────
+    if (planConfig.style === 'normal') {
+      const usedSlots = await Ad.countDocuments({
+        isFeatured: true,
+        featuredStyle: { $nin: UNLIMITED_STYLES },
+        featuredUntil: { $gt: new Date() },
+        isDeleted: { $ne: true },
+      });
+      if (usedSlots >= MAX_NORMAL_FEATURED) {
+        return res.status(409).json({
+          success: false,
+          error: `قائمة الإعلانات المميزة ممتلئة (الحد الأقصى ${MAX_NORMAL_FEATURED} إعلان)`,
+          message: 'Featured ads list is full (max 16). Try the Gold plan instead!',
+          suggestion: 'featured', // upgrade suggestion
+          currentCount: usedSlots,
+        });
+      }
+    }
+    // Golden/premium: no limit check needed
 
     // ── PAID plans: create PENDING order — NO activation yet ──────────────
     // "No money no funny" — ad NEVER activates until payment is manually confirmed by admin

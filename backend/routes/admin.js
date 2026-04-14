@@ -713,6 +713,7 @@ router.post('/payments/:id/confirm', adminAuth, async (req, res) => {
     await Ad.findByIdAndUpdate(payment.ad._id, {
       isFeatured: true,
       featuredStyle: PLAN_STYLES[payment.planType] || 'gold',
+      featuredPlan: payment.planType || 'featured',
       featuredUntil: expiresAt,
       featuredAt: new Date(),
       visibilityScore: 80,
