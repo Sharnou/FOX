@@ -130,8 +130,48 @@ export async function runMonthlyWinner() {
   }
 }
 
+export async function broadcastWinnerRules() {
+  console.log('[WinnerRules] Broadcasting bi-weekly rules update...');
+
+  const rules = [
+    '⭐ كل مشاهدة لإعلانك = +1 نقطة سمعة',
+    '🌟 تقييم 5 نجوم = +10 نقاط',
+    '💛 تقييم 4 نجوم = +7 نقاط',
+    '✅ تقييم 3 نجوم = +3 نقاط',
+    '🏆 الفائز بنهاية الشهر يحصل على إعلان مميز مجاني 7 أيام!',
+    '🎉 سيتم إعلام جميع المستخدمين بالفائز وإشعارهم تلقائياً',
+    '💬 يمكن لأي مستخدم إرسال تهنئة مباشرة للفائز',
+    '🔄 تُعاد النقاط الشهرية كل أول الشهر — ابدأ من جديد!',
+  ];
+
+  const payload = JSON.stringify({
+    type: 'winner_rules_update',
+    title: '🏆 قواعد بائع الشهر — تذكير',
+    body: 'كل مشاهدة لإعلانك = نقطة! الفائز يحصل على إعلان مميز مجاني 7 أيام 🎁',
+    rules,
+    url: '/',
+    timestamp: new Date().toISOString(),
+  });
+
+  const { PushSubscription } = await getModels();
+  const pushSubs = await PushSubscription.find({});
+  let sent = 0;
+  for (const sub of pushSubs) {
+    try {
+      await webpush.sendNotification(sub.subscription, payload);
+      sent++;
+    } catch (e) {
+      if (e.statusCode === 410) await PushSubscription.deleteOne({ _id: sub._id });
+    }
+  }
+  console.log(`[WinnerRules] Sent to ${sent} users.`);
+}
+
 export function initMonthlyWinner() {
   // Run at 23:30 on days 28-31 (self-checks if last day of month)
   cron.schedule('30 23 28-31 * *', runMonthlyWinner, { timezone: 'Africa/Cairo' });
+  // Bi-weekly rules reminder: 1st and 15th of every month at 10:00 Cairo
+  cron.schedule('0 10 1,15 * *', broadcastWinnerRules, { timezone: 'Africa/Cairo' });
   console.log('[MonthlyWinner] Cron scheduled (23:30 on last day of month, Cairo time).');
+  console.log('[WinnerRules] Bi-weekly cron scheduled (1st & 15th at 10:00 Cairo).');
 }

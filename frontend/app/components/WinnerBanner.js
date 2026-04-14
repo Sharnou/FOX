@@ -15,12 +15,21 @@ export default function WinnerBanner() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [rules, setRules] = useState([]);
   const router = useRouter();
 
   useEffect(() => {
     fetch(`${API}/api/winner/current`)
       .then(r => r.json())
       .then(d => { if (d.winner) setWinner(d.winner); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API}/api/winner/rules`)
+      .then(r => r.json())
+      .then(d => { if (d.rules) setRules(d.rules); })
       .catch(() => {});
   }, []);
 
@@ -148,6 +157,26 @@ export default function WinnerBanner() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Rules Toggle Button */}
+      <button
+        onClick={() => setRulesOpen(o => !o)}
+        style={{ width: '100%', background: 'rgba(255,255,255,0.5)', border: '1px solid #fbbf24', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, color: '#92400e', marginBottom: 8, textAlign: 'center' }}
+      >
+        {rulesOpen ? '▲ إخفاء قواعد النقاط' : '▼ كيف أكسب نقاطاً وأفوز؟'}
+      </button>
+
+      {/* Rules List */}
+      {rulesOpen && rules.length > 0 && (
+        <div style={{ background: 'rgba(255,255,255,0.7)', borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
+          {rules.map((r, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < rules.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+              <span style={{ fontSize: 14, color: '#1c1917' }}>{r.icon} {r.ar}</span>
+              <span style={{ fontWeight: 'bold', fontSize: 13, color: '#b45309', whiteSpace: 'nowrap', marginRight: 8 }}>{r.points}</span>
+            </div>
+          ))}
         </div>
       )}
 

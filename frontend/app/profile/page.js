@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import VerifiedBadge from '../components/VerifiedBadge';
+import MicPermissionCard from '../components/MicPermissionCard';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -252,6 +253,9 @@ export default function ProfilePage() {
               </span>
             </div>
           )}
+
+          {/* Mic Permission */}
+          <MicPermissionCard />
 
           {/* Reputation Points */}
           {user.reputationPoints > 0 && (

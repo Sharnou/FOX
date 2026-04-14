@@ -153,8 +153,29 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   }
 
   async function getAudio() {
-    // ─── Fix E: Richer audio constraints ─────────────────────────────────────
-    const stream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
+    // ─── Robust mic permission + rich audio constraints ───────────────────────
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+        }
+      });
+    } catch (e) {
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        alert('يرجى السماح بالمايكروفون من إعدادات الجهاز أو المتصفح');
+        throw e;
+      }
+      if (e.name === 'NotFoundError') {
+        alert('لم يتم العثور على مايكروفون في جهازك');
+        throw e;
+      }
+      alert('خطأ في الوصول للمايكروفون: ' + e.message);
+      throw e;
+    }
     localStream.current = stream;
     stream.getTracks().forEach(t => console.log('[WebRTC] Got local track:', t.kind, t.label, 'enabled:', t.enabled));
     return stream;

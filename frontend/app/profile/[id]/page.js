@@ -3,6 +3,7 @@ import React from 'react';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import MicPermissionCard from '../../components/MicPermissionCard';
 import { useRouter } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -346,6 +347,7 @@ export default function ProfilePage({ params }) {
                 {callStatus}
               </div>
             )}
+            <MicPermissionCard />
             {!callActive ? (
               <button onClick={startCall}
                 style={{ flex: 1, background: '#00aa44', color: 'white', border: 'none', padding: '12px', borderRadius: 12, fontWeight: 'bold', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>

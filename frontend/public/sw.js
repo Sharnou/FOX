@@ -1,6 +1,6 @@
 // ─── XTOX Service Worker v11 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v15';
+const CACHE_VERSION = 'v16';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -104,6 +104,19 @@ self.addEventListener('push', (event) => {
         data: { url: data.url || '/', type: 'monthly_winner', winnerId: data.winnerId || '' },
       })
     );
+  } else if (data.type === 'winner_rules_update') {
+    event.waitUntil(
+      self.registration.showNotification(data.title || '🏆 قواعد بائع الشهر', {
+        body: data.body,
+        icon: '/icon-192x192.png',
+        badge: '/icon-72x72.png',
+        tag: 'winner-rules',
+        requireInteraction: false,
+        vibrate: [100, 50, 100],
+        data: { url: data.url || '/', type: 'winner_rules_update' },
+      })
+    );
+    return;
   } else {
     // Generic notification
     event.waitUntil(

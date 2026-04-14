@@ -63,6 +63,22 @@ router.get('/current', async (req, res) => {
   }
 });
 
+// GET /api/winner/rules — public, returns the full rules list
+router.get('/rules', (req, res) => {
+  res.json({
+    rules: [
+      { icon: '⭐', ar: 'كل مشاهدة لإعلانك', points: '+1 نقطة' },
+      { icon: '🌟', ar: 'تقييم 5 نجوم من مشتري', points: '+10 نقاط' },
+      { icon: '💛', ar: 'تقييم 4 نجوم', points: '+7 نقاط' },
+      { icon: '✅', ar: 'تقييم 3 نجوم', points: '+3 نقاط' },
+      { icon: '🏆', ar: 'الفوز بجائزة بائع الشهر', points: 'إعلان مميز 7 أيام مجاناً' },
+      { icon: '🎁', ar: 'مكافأة الفوز الإضافية', points: '+50 نقطة سمعة دائمة' },
+      { icon: '🔄', ar: 'تُصفَّر النقاط الشهرية كل أول شهر', points: 'ابدأ من جديد!' },
+    ],
+    lastUpdated: new Date().toISOString(),
+  });
+});
+
 // POST /api/winner/congratulate — send congratulations chat to winner
 router.post('/congratulate', auth, async (req, res) => {
   try {
