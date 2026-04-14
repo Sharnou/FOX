@@ -326,28 +326,6 @@ export default function Home() {
           {t.sell || (lang === 'ar' ? '＋ أعلن' : '＋ Sell')}
         </Link>
 
-        {/* Install App */}
-        <Link
-          href="/install"
-          aria-label={lang === 'ar' ? 'تحميل تطبيق XTOX' : 'Download XTOX app'}
-          title={lang === 'ar' ? 'تحميل التطبيق' : 'Download App'}
-          style={{
-            width: 38,
-            height: 38,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(99,102,241,0.18)',
-            borderRadius: '50%',
-            textDecoration: 'none',
-            flexShrink: 0,
-            border: '1px solid rgba(99,102,241,0.3)',
-            transition: 'background 0.2s',
-          }}
-        >
-          <span style={{ fontSize: 18 }} aria-hidden="true">📲</span>
-        </Link>
-
         {/* Saved */}
         <Link
           href="/saved"
@@ -451,36 +429,6 @@ export default function Home() {
       <SeasonalBanner />
 
       {/* ══════════════════════════════════════════
-          APP INSTALL BANNER
-      ══════════════════════════════════════════ */}
-      <a
-        href="/install"
-        dir="rtl"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-          color: '#fff',
-          textAlign: 'center',
-          padding: '13px 20px',
-          fontWeight: 800,
-          fontSize: 15,
-          textDecoration: 'none',
-          boxShadow: '0 4px 16px rgba(99,102,241,0.35)',
-          fontFamily: "'Cairo', 'Noto Sans Arabic', system-ui, sans-serif",
-          letterSpacing: 0.3,
-        }}
-        aria-label="حمّل تطبيق XTOX الآن"
-      >
-        <span style={{ fontSize: 20 }}>📲</span>
-        <span>حمّل تطبيق XTOX الآن</span>
-        <span style={{ opacity: 0.8, fontSize: 13 }}>مجاناً</span>
-      </a>
-
-
-            {/* ══════════════════════════════════════════
           ANIMATED GRADIENT HERO
       ══════════════════════════════════════════ */}
       <section
