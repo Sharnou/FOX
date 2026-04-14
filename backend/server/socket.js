@@ -25,6 +25,19 @@ export function initSocket(io) {
       // Join personal notification room (supports multi-tab)
       socket.join('user_' + userId);
       console.log('[Socket] User joined room:', 'user_' + userId, '| socket:', socket.id);
+      // Broadcast online status to all other clients
+      socket.broadcast.emit('user_online', { userId, timestamp: new Date() });
+    });
+
+    // ── Check online status ─────────────────────────────────────
+    socket.on('check_online', async ({ userId }, callback) => {
+      if (!userId || typeof callback !== 'function') return;
+      try {
+        const roomSockets = await io.in('user_' + userId).fetchSockets();
+        callback({ userId, online: roomSockets.length > 0 });
+      } catch(e) {
+        callback({ userId, online: false });
+      }
     });
 
     // ── Text Chat ────────────────────────────────────────────────
@@ -233,10 +246,56 @@ export function initSocket(io) {
 
     // Initiate call — notify the target user
     socket.on('call:initiate', async ({ targetUserId, callerId, callerName }) => {
-      // Check if target is actually in the room (Fix B: user unavailable response)
+      // Check if target is actually in the room
       try {
         const roomSockets = await io.in('user_' + targetUserId).fetchSockets();
         if (!roomSockets || roomSockets.length === 0) {
+          // User is OFFLINE — send push notification if available
+          try {
+            const webpush = (await import('web-push')).default;
+            const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY;
+            const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+            const vapidSubject    = process.env.VAPID_SUBJECT || 'mailto:XTOX@XTOX.com';
+
+            if (vapidPublicKey && vapidPrivateKey) {
+              webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+
+              const PushSubscription = (await import('../models/PushSubscription.js')).default;
+              const subs = await PushSubscription.find({ user: targetUserId }).lean();
+
+              if (subs.length > 0) {
+                const payload = JSON.stringify({
+                  type: 'incoming_call',
+                  fromUserId: callerId || socket.data.userId,
+                  fromName: callerName || 'مستخدم XTOX',
+                  title: `📞 مكالمة واردة من ${callerName || 'مستخدم XTOX'}`,
+                  body: 'اضغط للرد على المكالمة',
+                  icon: '/favicon.ico',
+                  badge: '/favicon.ico',
+                  tag: 'incoming-call',
+                  requireInteraction: true,
+                  actions: [
+                    { action: 'accept', title: '✅ رد' },
+                    { action: 'reject', title: '❌ رفض' },
+                  ],
+                  data: { url: '/chat', fromUserId: callerId || socket.data.userId },
+                });
+
+                for (const sub of subs) {
+                  webpush.sendNotification(sub.subscription, payload).catch(async (err) => {
+                    if (err.statusCode === 410) {
+                      // Subscription expired — remove it
+                      await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {});
+                    }
+                  });
+                }
+                console.log('[Push] Sent call notification to', subs.length, 'subscription(s) for user:', targetUserId);
+              }
+            }
+          } catch (pushErr) {
+            console.error('[Push] Failed to send call notification:', pushErr.message);
+          }
+
           socket.emit('call:user_unavailable', { targetUserId });
           console.log('[Socket] call:initiate — target user offline:', targetUserId);
           return;
@@ -301,6 +360,8 @@ export function initSocket(io) {
         if (room.length === 0) {
           // User is fully offline (all tabs closed)
           console.log('[Socket] User fully offline:', userId);
+          // Broadcast offline status to all other clients
+          socket.broadcast.emit('user_offline', { userId, timestamp: new Date() });
           // Update lastSeen in DB
           try {
             const mongoose = await import('mongoose');

@@ -75,6 +75,7 @@ import favoritesRouter from '../routes/favorites.js';
 import promoteRouter from '../routes/promote.js';
 import whatsappRouter from '../routes/whatsapp.js';
 import notificationRoutes from '../routes/notifications.js';
+import pushRoutes from '../routes/push.js';
 import jwt from 'jsonwebtoken';
 import { initMemoryStore, dbState } from './memoryStore.js';
 import { connectDatabases, getActiveDB, getCouchbaseError } from './dbManager.js';
@@ -235,6 +236,7 @@ app.use('/api/favorites', favoritesRouter);
 app.use('/api/promote', promoteRouter);
 app.use('/api/whatsapp', whatsappRouter); // WhatsApp chatbot webhook (no auth — UltraMsg posts here)
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/push', pushRoutes);
 
 // GET /api/metrics — admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {

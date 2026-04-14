@@ -205,6 +205,8 @@ function ChatPageInner() {
   var [historyLoaded, setHistoryLoaded] = useState(false);
   var [loginRequired, setLoginRequired] = useState(false);
   var [chatError, setChatError]         = useState('');
+  var [partnerOnline, setPartnerOnline] = useState(false); // online presence indicator
+  var [onlineUsers, setOnlineUsers]     = useState(new Set()); // all online users (for conv list)
   var [isMobile, setIsMobile]           = useState(false);
   var [socketInstance, setSocketInstance] = useState(null);
   var [chatStatus, setChatStatus]       = useState('active'); // 'active' | 'archived' | 'blocked'
@@ -336,6 +338,33 @@ function ChatPageInner() {
     window.addEventListener('focus', onFocus);
     return function() { window.removeEventListener('focus', onFocus); };
   }, [chatId, myId]);
+
+  // ── Online/offline presence ─────────────────────────────────────────────────
+  useEffect(function() {
+    var socket = socketInstance;
+    if (!socket || !targetId) return;
+
+    // Check initial status of current chat partner
+    socket.emit('check_online', { userId: targetId }, function(res) {
+      if (res) setPartnerOnline(!!res.online);
+    });
+
+    var onOnline = function(data) {
+      if (String(data.userId) === String(targetId)) setPartnerOnline(true);
+      setOnlineUsers(function(prev) { var s = new Set(prev); s.add(String(data.userId)); return s; });
+    };
+    var onOffline = function(data) {
+      if (String(data.userId) === String(targetId)) setPartnerOnline(false);
+      setOnlineUsers(function(prev) { var s = new Set(prev); s.delete(String(data.userId)); return s; });
+    };
+
+    socket.on('user_online', onOnline);
+    socket.on('user_offline', onOffline);
+    return function() {
+      socket.off('user_online', onOnline);
+      socket.off('user_offline', onOffline);
+    };
+  }, [socketInstance, targetId]);
 
   // Re-fetch messages when chatId changes (fixes blank page on client-side navigation)
   useEffect(function() {
@@ -774,8 +803,17 @@ function ChatPageInner() {
           <p style={{ margin: 0, fontWeight: 'bold', fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {targetId ? 'محادثة مع ' + (sellerName || targetId) : 'اختر محادثة للبدء'}
           </p>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
-            {joined ? 'متصل' : 'جار الاتصال...'}
+          <p style={{ margin: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            {targetId ? (
+              <>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: partnerOnline ? '#22c55e' : '#9ca3af', display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ color: partnerOnline ? '#86efac' : 'rgba(255,255,255,0.55)' }}>
+                  {partnerOnline ? 'متصل الآن' : 'غير متصل'}
+                </span>
+              </>
+            ) : (
+              <span style={{ opacity: 0.7 }}>{joined ? 'متصل' : 'جارٍ الاتصال...'}</span>
+            )}
           </p>
         </div>
         {targetId && (
@@ -875,8 +913,11 @@ function ChatPageInner() {
                         router.push(dest);
                       }}
                       style={{ width: '100%', background: isActive ? 'rgba(35,229,219,0.15)' : 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'right' }}>
-                      <div style={{ width: 42, height: 42, borderRadius: '50%', background: isActive ? '#23e5db' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, color: isActive ? '#002f34' : 'white', fontWeight: 'bold' }}>
-                        {conv.name ? conv.name.charAt(0).toUpperCase() : '?'}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div style={{ width: 42, height: 42, borderRadius: '50%', background: isActive ? '#23e5db' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: isActive ? '#002f34' : 'white', fontWeight: 'bold' }}>
+                          {conv.name ? conv.name.charAt(0).toUpperCase() : '?'}
+                        </div>
+                        <span style={{ position: 'absolute', bottom: 1, right: 1, width: 11, height: 11, borderRadius: '50%', background: onlineUsers.has(String(conv.id)) ? '#22c55e' : '#4b5563', border: '2px solid #002f34' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                         <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: unread > 0 ? 'bold' : 'normal', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>

@@ -1,12 +1,42 @@
 'use client';
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 
-const STUN = {
+// ─── ICE config: STUN + TURN (TURN is critical for NAT traversal / different networks) ───
+const ICE_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    // TURN servers — essential for calls between users on different networks/ISPs
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
+  iceCandidatePoolSize: 10,
+};
+
+// ─── Audio constraints: echo cancellation + noise suppression ───────────────
+const AUDIO_CONSTRAINTS = {
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+    sampleRate: 48000,
+  },
+  video: false,
 };
 
 const NO_ANSWER_TIMEOUT_MS = 30000; // 30 seconds
@@ -20,11 +50,32 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const pc               = useRef(null);
   const localStream      = useRef(null);
   const remoteAudio      = useRef(null);
+  const ringtoneRef      = useRef(null);
   const pendingICE       = useRef([]);   // buffer ICE candidates until responder socket ID is known
   const receivedICE      = useRef([]);   // buffer incoming ICE candidates until remote description is set
   const noAnswerTimer    = useRef(null); // 30-second auto-hangup timer
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  // ─── Ringtone helpers ────────────────────────────────────────────────────────
+  const startRingtone = useCallback(() => {
+    try {
+      if (ringtoneRef.current) return; // already playing
+      const audio = new Audio('/sounds/ringtone.wav');
+      audio.loop = true;
+      audio.volume = 0.8;
+      audio.play().catch(() => {}); // autoplay may be blocked — OK
+      ringtoneRef.current = audio;
+    } catch (e) {}
+  }, []);
+
+  const stopRingtone = useCallback(() => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+      ringtoneRef.current = null;
+    }
+  }, []);
 
   const cleanup = useCallback(() => {
     clearTimeout(noAnswerTimer.current);
@@ -35,15 +86,17 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     pc.current = null;
     localStream.current?.getTracks().forEach(t => t.stop());
     localStream.current = null;
+    stopRingtone();
     setActive(null);
     setIncoming(null);
     setDuration(0);
     setMuted(false);
-  }, []);
+  }, [stopRingtone]);
 
   function createPC(remoteSocketId) {
     if (pc.current) { pc.current.close(); pc.current = null; }
-    const p = new RTCPeerConnection(STUN);
+    const p = new RTCPeerConnection(ICE_CONFIG);
+
     p.onicecandidate = e => {
       if (!e.candidate) return;
       if (remoteSocketId && socket) {
@@ -53,25 +106,53 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         pendingICE.current.push(e.candidate);
       }
     };
+
+    // ─── Fix B: ontrack — set volume/muted explicitly, handle autoplay block ───
     p.ontrack = e => {
-      if (remoteAudio.current) {
+      console.log('[WebRTC] Remote track received:', e.track.kind, 'streams:', e.streams.length);
+      if (remoteAudio.current && e.streams && e.streams[0]) {
         remoteAudio.current.srcObject = e.streams[0];
-        remoteAudio.current.play().catch(err => console.warn('[CallManager] remoteAudio.play():', err.message));
+        remoteAudio.current.volume = 1.0;
+        remoteAudio.current.muted = false;
+        remoteAudio.current.play()
+          .then(() => console.log('[WebRTC] Remote audio playing ✓'))
+          .catch(err => {
+            console.warn('[WebRTC] Audio autoplay blocked:', err.message, '— attaching click handler');
+            // Recover from autoplay block on first user interaction
+            const resume = () => {
+              remoteAudio.current?.play().catch(() => {});
+              document.removeEventListener('click', resume);
+              document.removeEventListener('touchend', resume);
+            };
+            document.addEventListener('click', resume, { once: true });
+            document.addEventListener('touchend', resume, { once: true });
+          });
+      } else {
+        console.error('[WebRTC] ontrack fired but remoteAudio ref or streams missing!');
       }
     };
+
     p.oniceconnectionstatechange = () => {
       const s = p.iceConnectionState;
+      console.log('[WebRTC] ICE state:', s);
       if (s === 'failed' || s === 'disconnected' || s === 'closed') {
         cleanup();
       }
     };
+
+    p.onconnectionstatechange = () => {
+      console.log('[WebRTC] Connection state:', p.connectionState);
+    };
+
     pc.current = p;
     return p;
   }
 
   async function getAudio() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    // ─── Fix E: Richer audio constraints ─────────────────────────────────────
+    const stream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
     localStream.current = stream;
+    stream.getTracks().forEach(t => console.log('[WebRTC] Got local track:', t.kind, t.label, 'enabled:', t.enabled));
     return stream;
   }
 
@@ -88,32 +169,36 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   useImperativeHandle(ref, () => ({
     async initiateCall(targetUserId, targetName) {
       if (active || incoming) return;
-      // Fix A: Guard — socket must be connected before calling
       if (!socket || !socket.connected) {
         alert('جارٍ الاتصال بالخادم... حاول مرة أخرى بعد ثانية');
         return;
       }
       try {
+        // ─── Fix A: Get microphone FIRST before creating PC or offer ─────────
         const stream = await getAudio().catch(err => {
           if (err.name === 'NotAllowedError') {
             alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
           }
           throw err;
         });
+
         // Create PC with null remote socket ID — ICE will be buffered
         const p = createPC(null);
-        stream.getTracks().forEach(t => p.addTrack(t, stream));
-        const offer = await p.createOffer();
-        await p.setLocalDescription(offer);
 
-        const callerId = currentUser?._id || currentUser?.id || '';
-        const callerName = currentUser?.name || 'مستخدم';
-        socket.emit('call:initiate', {
-          targetUserId,
-          callerId,
-          callerName,
+        // ─── Fix A: Add tracks BEFORE createOffer ────────────────────────────
+        stream.getTracks().forEach(t => {
+          p.addTrack(t, stream);
+          console.log('[WebRTC] Caller added local track:', t.kind);
         });
-        console.log('[CallManager] Initiated call to', targetUserId, 'from', callerId);
+
+        // Now create offer (tracks already present → SDP includes audio)
+        const offer = await p.createOffer({ offerToReceiveAudio: true });
+        await p.setLocalDescription(offer);
+        console.log('[WebRTC] Caller created offer, SDP has audio:', offer.sdp.includes('m=audio'));
+
+        const callerId   = currentUser?._id || currentUser?.id || '';
+        const callerName = currentUser?.name || 'مستخدم';
+        socket.emit('call:initiate', { targetUserId, callerId, callerName });
 
         // Start 30-second no-answer timer
         noAnswerTimer.current = setTimeout(() => {
@@ -135,7 +220,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
           // Flush previously buffered ICE candidates
           flushPendingICE(responderSocketId);
           // Send the offer to the responder
-          socket.emit('call:offer', { targetSocketId: responderSocketId, offer });
+          socket.emit('call:offer', { targetSocketId: responderSocketId, offer: p.localDescription });
+          console.log('[WebRTC] Sent offer to responder:', responderSocketId);
         });
 
         socket.once('call:answered', async ({ answer, responderSocketId }) => {
@@ -143,6 +229,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
             clearTimeout(noAnswerTimer.current);
             if (pc.current) {
               await pc.current.setRemoteDescription(new RTCSessionDescription(answer));
+              console.log('[WebRTC] Caller set remote description (answer)');
               // Flush any ICE candidates received before answer's remote description
               for (const c of receivedICE.current) {
                 await pc.current.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
@@ -150,7 +237,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
               receivedICE.current = [];
             }
             setActive({ peerName: targetName, remoteSocketId: responderSocketId, startTime: Date.now() });
-          } catch (e) { console.error('[CallManager] call:answered error:', e.message); cleanup(); }
+          } catch (e) {
+            console.error('[CallManager] call:answered error:', e.message);
+            cleanup();
+          }
         });
       } catch {
         cleanup();
@@ -176,14 +266,17 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       console.log('[CallManager] Rejoined user rooms after reconnect:', userId);
     };
     socket.on('reconnect', onReconnect);
-    socket.on('connect', onReconnect); // in case socket reconnects
+    socket.on('connect', onReconnect);
 
     const onIncoming = ({ callerId, callerName, callerSocketId }) => {
       setIncoming({ callerId, callerName, callerSocketId });
+      startRingtone(); // play ringtone when incoming call arrives
     };
 
+    // ─── Fix A (callee side): Get mic → add tracks → setRemoteDesc → createAnswer ───
     const onOffer = async ({ offer, callerSocketId }) => {
       try {
+        stopRingtone(); // stop ringing when offer arrives (callee accepted)
         const stream = await getAudio().catch(err => {
           if (err.name === 'NotAllowedError') {
             alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
@@ -191,18 +284,33 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
           return null;
         });
         if (!stream) return;
+
         const p = createPC(callerSocketId);
-        stream.getTracks().forEach(t => p.addTrack(t, stream));
+
+        // ─── Fix A: Add local tracks BEFORE setRemoteDescription ─────────────
+        stream.getTracks().forEach(t => {
+          p.addTrack(t, stream);
+          console.log('[WebRTC] Callee added local track:', t.kind);
+        });
+
         await p.setRemoteDescription(new RTCSessionDescription(offer));
+        console.log('[WebRTC] Callee set remote description (offer)');
+
         // Flush any ICE candidates that arrived before the remote description was set
         for (const c of receivedICE.current) {
           await p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
         }
         receivedICE.current = [];
+
         const answer = await p.createAnswer();
         await p.setLocalDescription(answer);
+        console.log('[WebRTC] Callee created answer');
+
         socket.emit('call:answer', { callerSocketId, answer });
-      } catch (e) { console.error('[CallManager] onOffer error:', e.message); cleanup(); }
+      } catch (e) {
+        console.error('[CallManager] onOffer error:', e.message);
+        cleanup();
+      }
     };
 
     const onICE = ({ candidate }) => {
@@ -215,9 +323,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       pc.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
     };
 
-    const onRejected = () => { cleanup(); };
-    const onEnded    = () => { cleanup(); };
-
+    const onRejected    = () => { stopRingtone(); cleanup(); };
+    const onEnded       = () => { stopRingtone(); cleanup(); };
     const onUnavailable = ({ targetUserId }) => {
       alert('المستخدم غير متصل حالياً — لا يمكن إجراء المكالمة');
       cleanup();
@@ -238,9 +345,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       socket.off('call:ended',             onEnded);
       socket.off('call:user_unavailable',  onUnavailable);
       socket.off('reconnect',              onReconnect);
-      socket.off('connect',                onReconnect);
+      socket.off('connect',               onReconnect);
     };
-  }, [socket, currentUser]);
+  }, [socket, currentUser, startRingtone, stopRingtone]);
 
   // Call duration timer
   useEffect(() => {
@@ -251,21 +358,23 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
   function hangup() {
     if (active?.remoteSocketId) socket.emit('call:end', { otherSocketId: active.remoteSocketId });
+    stopRingtone();
     cleanup();
   }
 
   async function acceptCall() {
     const { callerSocketId, callerName } = incoming;
+    stopRingtone();
     setIncoming(null);
     // Signal caller that we're ready to receive the offer
     socket.emit('call:answered_ready', { callerSocketId });
-    // Active state is set after call:answered (when PC is actually connected)
-    // But we set a preliminary active to show the overlay immediately
+    // Set active immediately to show the active call overlay
     setActive({ peerName: callerName, remoteSocketId: callerSocketId, startTime: Date.now() });
   }
 
   function rejectCall() {
     if (incoming?.callerSocketId) socket.emit('call:reject', { callerSocketId: incoming.callerSocketId });
+    stopRingtone();
     setIncoming(null);
   }
 
@@ -292,7 +401,15 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
   return (
     <>
-      <audio ref={remoteAudio} autoPlay playsInline />
+      {/* ─── Fix C: audio element ALWAYS in DOM — never conditional ─────────── */}
+      <audio
+        ref={remoteAudio}
+        id="xtox-remote-audio"
+        autoPlay
+        playsInline
+        controls={false}
+        style={{ display: 'none' }}
+      />
 
       {incoming && !active && (
         <div style={overlay}>

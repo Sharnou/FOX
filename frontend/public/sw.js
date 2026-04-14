@@ -1,6 +1,6 @@
 // ─── XTOX Service Worker v11 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v12';
+const CACHE_VERSION = 'v13';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -50,6 +50,82 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+});
+
+
+// ── PUSH: handle incoming push notifications (e.g. incoming calls) ──────────
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let data;
+  try { data = JSON.parse(event.data.text()); } catch { return; }
+
+  if (data.type === 'incoming_call') {
+    event.waitUntil(
+      self.registration.showNotification(data.title || '📞 مكالمة واردة', {
+        body: data.body || 'اضغط للرد على المكالمة',
+        icon: data.icon || '/favicon.ico',
+        badge: data.badge || '/favicon.ico',
+        tag: data.tag || 'incoming-call',
+        requireInteraction: true, // notification persists until user acts
+        vibrate: [200, 100, 200, 100, 200], // vibration pattern
+        actions: data.actions || [
+          { action: 'accept', title: '✅ رد' },
+          { action: 'reject', title: '❌ رفض' },
+        ],
+        data: data.data || {},
+      })
+    );
+  } else {
+    // Generic notification
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'XTOX', {
+        body: data.body || '',
+        icon: data.icon || '/favicon.ico',
+        tag: data.tag || 'xtox-notification',
+        data: data.data || {},
+      })
+    );
+  }
+});
+
+// ── NOTIFICATION CLICK: handle user tapping notification ────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const notifData = event.notification.data || {};
+  const targetUrl = notifData.url || '/chat';
+
+  if (event.action === 'accept') {
+    // Open app and signal CALL_ACCEPT
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client) {
+            client.focus();
+            client.postMessage({ type: 'CALL_ACCEPT', fromUserId: notifData.fromUserId });
+            return;
+          }
+        }
+        return clients.openWindow(targetUrl);
+      })
+    );
+  } else if (event.action === 'reject') {
+    // Just close the notification (already done above)
+  } else {
+    // Clicked notification body — open or focus app
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client) {
+            client.focus();
+            return;
+          }
+        }
+        return clients.openWindow(targetUrl);
+      })
+    );
   }
 });
 

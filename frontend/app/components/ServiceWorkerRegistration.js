@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { registerPushNotifications } from '../utils/pushNotifications';
 
 /**
  * Registers the XTOX service worker for PWA offline support.
@@ -18,6 +19,15 @@ export default function ServiceWorkerRegistration() {
           .register('/sw.js', { scope: '/' })
           .then((registration) => {
             console.log('[XTOX SW] Registered, scope:', registration.scope);
+
+            // ── Register push notifications after SW is ready ──────────────
+            // Give SW a moment to fully activate before subscribing
+            setTimeout(() => {
+              const token = localStorage.getItem('token') || localStorage.getItem('xtox_token') || '';
+              if (token) {
+                registerPushNotifications(token).catch(() => {});
+              }
+            }, 2000);
 
             // ── Force immediate SW takeover ────────────────────────────────
             // Listen for a new SW installing. When it reaches 'installed'
