@@ -28,14 +28,149 @@ export function initSocket(io) {
     });
 
     // ── Text Chat ────────────────────────────────────────────────
-    socket.on('send_message', (data) => {
+    socket.on('send_message', async (data) => {
       if (!data || !data.to) return;
+      const senderId = data.from || socket.data.userId;
+      const recipientId = data.to;
+
       // Deliver to ALL of recipient's tabs via their room
-      io.to('user_' + data.to).emit('receive_message', {
+      io.to('user_' + recipientId).emit('receive_message', {
         ...data,
         delivered: true,
         timestamp: Date.now(),
       });
+
+      // ── WhatsApp-style delivery receipt ──────────────────────
+      // Check if recipient is currently online (in their room)
+      try {
+        const recipientSockets = await io.in('user_' + recipientId).fetchSockets();
+        if (recipientSockets && recipientSockets.length > 0) {
+          // Recipient is online → mark as delivered, notify sender
+          socket.emit('message_delivered', {
+            chatId: data.chatId,
+            tempId: data.tempId || data.time,  // temp key to match local message
+            recipientId,
+          });
+
+          // Persist deliveredTo in DB (non-blocking, best-effort)
+          if (data.chatId && data.messageId) {
+            try {
+              const mongoose = await import('mongoose');
+              const Chat = mongoose.default.models.Chat || (await import('../models/Chat.js')).default;
+              await Chat.updateOne(
+                { _id: data.chatId, 'messages._id': data.messageId },
+                {
+                  $set: { 'messages.$.status': 'delivered' },
+                  $addToSet: { 'messages.$.deliveredTo': recipientId },
+                }
+              );
+            } catch (dbErr) {
+              // Non-fatal
+            }
+          }
+        }
+      } catch (e) { /* fetchSockets failed — proceed anyway */ }
+    });
+
+    // ── Mark messages as READ (WhatsApp-style) ──────────────────
+    // Emitted by recipient when they open a chat
+    socket.on('mark_read', async ({ chatId }) => {
+      try {
+        if (!chatId) return;
+        const userId = socket.data.userId;
+        if (!userId) return;
+
+        // Persist read status in DB
+        try {
+          const mongoose = await import('mongoose');
+          const Chat = mongoose.default.models.Chat || (await import('../models/Chat.js')).default;
+
+          // Fetch chat to find the other participant
+          const chat = await Chat.findById(chatId).select('buyer seller messages').lean();
+          if (!chat) return;
+
+          const otherId = String(chat.buyer) === String(userId)
+            ? String(chat.seller)
+            : String(chat.buyer);
+
+          // Update all unread messages not sent by this user
+          await Chat.updateOne(
+            { _id: chatId },
+            [
+              {
+                $set: {
+                  messages: {
+                    $map: {
+                      input: '$messages',
+                      as: 'msg',
+                      in: {
+                        $cond: [
+                          {
+                            $and: [
+                              { $ne: [{ $toString: '$$msg.sender' }, userId] },
+                              { $not: { $in: [{ $toObjectId: userId }, { $ifNull: ['$$msg.readBy', []] }] } },
+                            ]
+                          },
+                          {
+                            $mergeObjects: [
+                              '$$msg',
+                              {
+                                status: 'read',
+                                readBy: { $concatArrays: [{ $ifNull: ['$$msg.readBy', []] }, [{ $toObjectId: userId }]] },
+                              }
+                            ]
+                          },
+                          '$$msg'
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          ).catch(async () => {
+            // Fallback: simpler update if aggregation pipeline fails
+            await Chat.updateOne(
+              { _id: chatId },
+              {
+                $set: { 'messages.$[elem].status': 'read' },
+                $addToSet: { 'messages.$[elem].readBy': userId },
+              },
+              {
+                arrayFilters: [
+                  {
+                    'elem.sender': { $ne: mongoose.default.Types.ObjectId.isValid(userId) ? new mongoose.default.Types.ObjectId(userId) : userId },
+                    'elem.readBy': { $not: { $elemMatch: { $eq: mongoose.default.Types.ObjectId.isValid(userId) ? new mongoose.default.Types.ObjectId(userId) : userId } } },
+                  }
+                ],
+              }
+            );
+          });
+
+          // Reset unread counter for this user
+          if (String(chat.buyer) === String(userId)) {
+            await Chat.updateOne({ _id: chatId }, { $set: { unreadBuyer: 0 } });
+          } else {
+            await Chat.updateOne({ _id: chatId }, { $set: { unreadSeller: 0 } });
+          }
+
+          // Notify the OTHER participant that their messages were read
+          io.to('user_' + otherId).emit('messages_read', {
+            chatId,
+            readBy: userId,
+            readAt: new Date(),
+          });
+
+          console.log('[Socket] mark_read: chat', chatId, '| reader:', userId, '| notified:', otherId);
+        } catch (dbErr) {
+          console.error('[Socket] mark_read DB error:', dbErr.message);
+        }
+
+        // Confirm to reader that unread count is cleared
+        socket.emit('unread_cleared', { chatId });
+      } catch (e) {
+        console.error('[Socket] mark_read error:', e.message);
+      }
     });
 
     // Typing indicator

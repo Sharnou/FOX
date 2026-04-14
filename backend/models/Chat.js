@@ -7,6 +7,9 @@ const MessageSchema = new mongoose.Schema({
   duration: { type: Number, default: 0 },
   read:   { type: Boolean, default: false },
   readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // ── Read Receipt fields (WhatsApp-style) ─────────────────────
+  deliveredTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' },
   createdAt: { type: Date, default: Date.now },
 }, { _id: true });
 

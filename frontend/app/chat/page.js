@@ -55,6 +55,46 @@ function TypingDots() {
   );
 }
 
+
+// ── WhatsApp-style read receipt tick component ────────────────
+// ✓ grey = sent | ✓✓ grey = delivered | ✓✓ blue = read
+function MessageTick({ status, readBy }) {
+  var isRead      = status === 'read' || (readBy && readBy.length > 0);
+  var isDelivered = status === 'delivered' || status === 'read';
+
+  if (isRead) {
+    // ✓✓ BLUE — recipient has read the message
+    return (
+      <span
+        aria-label="تمت القراءة"
+        title="تمت القراءة"
+        style={{ fontSize: 13, color: '#53bdeb', marginLeft: 2, letterSpacing: -1, fontWeight: 700, lineHeight: 1 }}>
+        ✓✓
+      </span>
+    );
+  }
+  if (isDelivered) {
+    // ✓✓ GREY — delivered to recipient's device
+    return (
+      <span
+        aria-label="تم التسليم"
+        title="تم التسليم"
+        style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginLeft: 2, letterSpacing: -1, fontWeight: 700, lineHeight: 1 }}>
+        ✓✓
+      </span>
+    );
+  }
+  // ✓ GREY — sent to server
+  return (
+    <span
+      aria-label="تم الإرسال"
+      title="تم الإرسال"
+      style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginLeft: 2, fontWeight: 700, lineHeight: 1 }}>
+      ✓
+    </span>
+  );
+}
+
 // Incoming call modal
 function IncomingCallModal({ from, onAccept, onReject }) {
   return (
@@ -265,6 +305,38 @@ function ChatPageInner() {
     }
   }, [targetId]);
 
+
+  // ── WhatsApp-style: Emit mark_read when chat opens or window regains focus ──
+  // This turns all unread messages blue (✓✓ blue) on the sender's screen
+  useEffect(function() {
+    var cid = chatId || chatIdRef.current;
+    if (!cid || !myId) return;
+
+    function emitMarkRead() {
+      // Via socket (real-time, preferred):
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('mark_read', { chatId: cid });
+      }
+      // Via REST fallback (ensures DB is updated even if socket fails):
+      var token = null;
+      try { token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('xtox_token')) : null; } catch(e) {}
+      if (token) {
+        fetch(API_URL + '/api/chat/' + cid + '/read', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token },
+        }).catch(function() {});
+      }
+    }
+
+    // Mark as read immediately on chat open
+    emitMarkRead();
+
+    // Re-mark when window regains focus (user switches back from another tab)
+    function onFocus() { emitMarkRead(); }
+    window.addEventListener('focus', onFocus);
+    return function() { window.removeEventListener('focus', onFocus); };
+  }, [chatId, myId]);
+
   // Re-fetch messages when chatId changes (fixes blank page on client-side navigation)
   useEffect(function() {
     var cid = chatId || chatIdRef.current;
@@ -284,7 +356,7 @@ function ChatPageInner() {
         if (!msgData) return;
         var msgs = (msgData.messages || []).slice().reverse();
         setMessages(msgs.map(function(m) {
-          return { from: (String(m.sender) === String(myId)) ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(), readBy: m.readBy || [] };
+          return { from: (String(m.sender) === String(myId)) ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(), readBy: m.readBy || [], status: m.status || (m.readBy && m.readBy.length > 0 ? 'read' : 'sent') };
         }));
       })
       .catch(function() {});
@@ -384,7 +456,7 @@ function ChatPageInner() {
                 var msgData = await msgRes.json();
                 var msgs = (msgData.messages || []).slice().reverse();
                 setMessages(msgs.map(function(m) {
-                  return { from: (m.sender === myId || String(m.sender) === String(myId)) ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(), readBy: m.readBy || [] };
+                  return { from: (m.sender === myId || String(m.sender) === String(myId)) ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(), readBy: m.readBy || [], status: m.status || (m.readBy && m.readBy.length > 0 ? 'read' : 'sent') };
                 }));
               }
             // Read chat status (archived = ad sold or admin closed)
@@ -436,7 +508,12 @@ function ChatPageInner() {
       if (senderId && senderId !== myId) {
         playNotificationSound();
       }
-      setMessages(function(prev) { return prev.concat([{ from: senderId, text: data.text, type: data.type || 'text', duration: data.duration || 0, time: msgTime, readBy: [] }]); });
+      setMessages(function(prev) { return prev.concat([{ from: senderId, text: data.text, type: data.type || 'text', duration: data.duration || 0, time: msgTime, readBy: [], status: 'sent' }]); });
+      // If chat is currently open and window is focused → mark as read immediately
+      var curChatId = chatIdRef.current;
+      if (curChatId && document.hasFocus()) {
+        s.emit('mark_read', { chatId: curChatId });
+      }
       if (senderId && senderId !== targetId) {
         setUnreadCounts(function(prev) {
           var upd = Object.assign({}, prev);
@@ -451,6 +528,54 @@ function ChatPageInner() {
           ? prev.map(function(c) { return c.id === senderId ? Object.assign({}, c, { lastMessage: data.text, lastTime: msgTime }) : c; })
           : [{ id: senderId, lastMessage: data.text, lastTime: msgTime }].concat(prev.slice(0, 49));
         localStorage.setItem('xtox_conversations', JSON.stringify(upd));
+        return upd;
+      });
+    });
+
+    // ── WhatsApp-style read receipt listeners ──────────────────
+    // Sender gets notified that recipient received the message (double grey)
+    s.on('message_delivered', function(data) {
+      var cid = chatIdRef.current;
+      if (!data || !data.chatId || data.chatId !== cid) return;
+      setMessages(function(prev) {
+        return prev.map(function(m) {
+          // Match by tempId (timestamp) or messageId
+          if (m.from === 'me' && m.status === 'sent') {
+            var tempMatch = data.tempId && (m.tempId === data.tempId || m.time === data.tempId);
+            if (tempMatch) {
+              return Object.assign({}, m, { status: 'delivered' });
+            }
+          }
+          return m;
+        });
+      });
+    });
+
+    // Sender gets notified that recipient READ the messages (double blue)
+    s.on('messages_read', function(data) {
+      var cid = chatIdRef.current;
+      if (!data || !data.chatId || data.chatId !== cid) return;
+      // Update ALL our sent messages in this chat to 'read'
+      setMessages(function(prev) {
+        return prev.map(function(m) {
+          if (m.from === 'me') {
+            return Object.assign({}, m, {
+              status: 'read',
+              readBy: m.readBy && m.readBy.length > 0 ? m.readBy : [data.readBy || 'other'],
+            });
+          }
+          return m;
+        });
+      });
+    });
+
+    // Recipient gets told their unread count for this chat was cleared
+    s.on('unread_cleared', function(data) {
+      if (!data || !data.chatId) return;
+      setUnreadCounts(function(prev) {
+        var upd = Object.assign({}, prev);
+        upd[data.chatId] = 0;
+        localStorage.setItem('xtox_unread_counts', JSON.stringify(upd));
         return upd;
       });
     });
@@ -555,9 +680,11 @@ function ChatPageInner() {
     if (chatStatus === 'archived' || adStatus === 'sold') return;
     var now  = Date.now();
     var text = msg;
+    var curChatId = chatIdRef.current;
     setMsg('');
-    setMessages(function(prev) { return prev.concat([{ from: 'me', text: text, type: 'text', duration: 0, time: now, readBy: [] }]); });
-    socketRef.current.emit('send_message', { from: myId, to: targetId, text: text, time: now });
+    // Optimistic message with 'sent' status (✓ grey)
+    setMessages(function(prev) { return prev.concat([{ from: 'me', text: text, type: 'text', duration: 0, time: now, readBy: [], status: 'sent', tempId: now }]); });
+    socketRef.current.emit('send_message', { from: myId, to: targetId, text: text, time: now, chatId: curChatId, tempId: now });
     setConversations(function(prev) {
       var exists = prev.find(function(c) { return c.id === targetId; });
       var upd = exists
@@ -835,9 +962,7 @@ function ChatPageInner() {
                       <div style={{ fontSize: 11, marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: isSent ? 'flex-start' : 'flex-end', gap: 3, opacity: 0.75 }}>
                         <span>{arabicRelTime(m.time)}</span>
                         {isSent && (
-                          <span style={{ color: (m.readBy && m.readBy.length > 0) ? '#34d399' : 'inherit', fontSize: 12, fontWeight: 700 }} title={(m.readBy && m.readBy.length > 0) ? 'تمت القراءة' : 'تم الإرسال'}>
-                            {(m.readBy && m.readBy.length > 0) ? '✓✓' : '✓'}
-                          </span>
+                          <MessageTick status={m.status} readBy={m.readBy} />
                         )}
                       </div>
                     </div>

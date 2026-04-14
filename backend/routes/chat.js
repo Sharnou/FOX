@@ -505,4 +505,42 @@ router.post('/:id/voice', auth, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/:chatId/read  — mark all messages as read (REST fallback)
+// Mirrors PATCH /:chatId/read but accessible via POST for socket fallback
+// ─────────────────────────────────────────────────────────────
+router.post('/:chatId/read', auth, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(chatId)) {
+      return res.status(400).json({ error: 'Invalid chatId' });
+    }
+    const chat = await getChat().findOne({ _id: chatId, ...userInChatQuery(req.user.id) });
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+
+    const userId = req.user.id.toString();
+    let markedCount = 0;
+
+    chat.messages = chat.messages.map((msg) => {
+      const alreadyRead = msg.readBy?.map((id) => id.toString()).includes(userId);
+      if (!alreadyRead && msg.sender?.toString() !== userId) {
+        msg.readBy = [...(msg.readBy || []), req.user.id];
+        msg.status = 'read';
+        markedCount++;
+      }
+      return msg;
+    });
+
+    if (String(chat.buyer) === userId) {
+      chat.unreadBuyer = 0;
+    } else if (String(chat.seller) === userId) {
+      chat.unreadSeller = 0;
+    }
+
+    await chat.save();
+    res.json({ ok: true, success: true, markedAsRead: markedCount });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 export default router;
