@@ -344,9 +344,10 @@ router.patch('/:chatId/read', auth, async (req, res) => {
     let markedCount = 0;
 
     chat.messages = chat.messages.map((msg) => {
-      const alreadyRead = msg.readBy?.map((id) => id.toString()).includes(userId);
+      const readByList = msg.readBy || [];
+      const alreadyRead = readByList.some(id => id?.toString() === userId);
       if (!alreadyRead && msg.sender?.toString() !== userId) {
-        msg.readBy = [...(msg.readBy || []), req.user.id];
+        msg.readBy = [...readByList, req.user.id];
         markedCount++;
       }
       return msg;
@@ -522,9 +523,10 @@ router.post('/:chatId/read', auth, async (req, res) => {
     let markedCount = 0;
 
     chat.messages = chat.messages.map((msg) => {
-      const alreadyRead = msg.readBy?.map((id) => id.toString()).includes(userId);
+      const readByList2 = msg.readBy || [];
+      const alreadyRead = readByList2.some(id => id?.toString() === userId);
       if (!alreadyRead && msg.sender?.toString() !== userId) {
-        msg.readBy = [...(msg.readBy || []), req.user.id];
+        msg.readBy = [...readByList2, req.user.id];
         msg.status = 'read';
         markedCount++;
       }

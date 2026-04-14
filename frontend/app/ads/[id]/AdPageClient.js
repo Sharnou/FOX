@@ -474,7 +474,12 @@ export default function AdPageClient({ params }) {
 
   const rawMedia = ad.media || ad.images || [];
   const media = Array.isArray(rawMedia) ? rawMedia : [rawMedia].filter(Boolean);
-  const sellerId = (ad.userId && ad.userId._id) || ad.userId;
+  // Safely extract seller ID — handles ObjectId, populated object {_id/id}, or string
+  const sellerId = (
+    (ad.userId && typeof ad.userId === 'object' ? (ad.userId._id || ad.userId.id) : ad.userId) ||
+    (ad.seller && typeof ad.seller === 'object' ? (ad.seller._id || ad.seller.id) : ad.seller) ||
+    ad.sellerId || ''
+  )?.toString?.() || '';
   const phone = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone);
 
   return (

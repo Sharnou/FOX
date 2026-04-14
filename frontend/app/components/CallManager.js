@@ -56,6 +56,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const pendingICE       = useRef([]);   // buffer ICE candidates until responder socket ID is known
   const receivedICE      = useRef([]);   // buffer incoming ICE candidates until remote description is set
   const noAnswerTimer    = useRef(null); // 30-second auto-hangup timer
+  // Use ref to avoid stale closure — always has latest currentUser without re-registering socket listeners
+  const currentUserRef   = useRef(currentUser);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -286,17 +289,23 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   }), [socket, currentUser, active, incoming]);
 
   useEffect(() => {
-    if (!socket || !currentUser) return;
-    const userId = currentUser._id || currentUser.id;
-    if (!userId) return;
+    if (!socket) return;
+    // Use ref to get fresh currentUser without re-registering (avoids duplicate listeners)
+    const getCurrent = () => currentUserRef.current;
+    const userId = (getCurrent()?._id || getCurrent()?.id) || '';
     // Join user room now and re-join on every reconnect
-    socket.emit('join_user_room', { userId });
-    socket.emit('join', userId); // also emit 'join' for backward compatibility
+    if (userId) {
+      socket.emit('join_user_room', { userId });
+      socket.emit('join', userId); // also emit 'join' for backward compatibility
+    }
 
     const onReconnect = () => {
-      socket.emit('join_user_room', { userId });
-      socket.emit('join', userId);
-      console.log('[CallManager] Rejoined user rooms after reconnect:', userId);
+      const uid = (getCurrent()?._id || getCurrent()?.id) || '';
+      if (uid) {
+        socket.emit('join_user_room', { userId: uid });
+        socket.emit('join', uid);
+        console.log('[CallManager] Rejoined user rooms after reconnect:', uid);
+      }
     };
     socket.on('reconnect', onReconnect);
     socket.on('connect', onReconnect);
@@ -421,7 +430,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         navigator.serviceWorker.removeEventListener('message', onSWMessage);
       }
     };
-  }, [socket, currentUser, startRingtone, stopRingtone]);
+  }, [socket]); // Only [socket] dep: listeners are re-registered only when socket changes (prevents duplicate listeners)
 
   // Call duration timer
   useEffect(() => {

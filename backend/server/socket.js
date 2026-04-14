@@ -248,8 +248,18 @@ export function initSocket(io) {
     });
 
     // Initiate call — notify the target user (offer optional, used for offline push)
+    // Guard: prevent duplicate relay of same offer (e.g., due to React effect re-runs)
+    const seenOffers = new Set();
     socket.on('call:initiate', async ({ targetUserId, callerId, callerName, callerAvatar, offer }) => {
       const actualCallerId = callerId || socket.data.userId;
+      // Dedup: same caller→target+offer within 30s is treated as duplicate
+      const offerKey = `${actualCallerId}_${targetUserId}_${(offer?.sdp || '').slice(0, 50)}`;
+      if (seenOffers.has(offerKey)) {
+        console.log('[Socket] call:initiate duplicate suppressed:', offerKey.slice(0, 60));
+        return;
+      }
+      seenOffers.add(offerKey);
+      setTimeout(() => seenOffers.delete(offerKey), 30000);
       // Check if target is actually in the room
       try {
         const roomSockets = await io.in('user_' + targetUserId).fetchSockets();

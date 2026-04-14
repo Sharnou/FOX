@@ -450,17 +450,19 @@ function ChatPageInner() {
         setApiChats(chatList);
         var apiConvs = chatList.map(function(c) {
           // buyer/seller are populated objects: { _id, name, avatar, ... }
-          var buyerId  = (c.buyer?._id  || (typeof c.buyer  === 'string' ? c.buyer  : '')).toString();
-          var sellerId = (c.seller?._id || (typeof c.seller === 'string' ? c.seller : '')).toString();
+          // Robust ID extraction: handles ObjectId, populated object, and string
+          var buyerId  = ((c.buyer?._id  || c.buyer )?.toString?.()  || '').replace(/^new ObjectId\("?|"?\)$/g,'');
+          var sellerId = ((c.seller?._id || c.seller)?.toString?.() || '').replace(/^new ObjectId\("?|"?\)$/g,'');
           var otherId = '', otherName = '', otherAvatar = '';
-          if (buyerId && buyerId !== String(myId)) {
+          var myIdStr = String(myId);
+          if (buyerId && buyerId !== myIdStr && buyerId.length >= 5) {
             otherId = buyerId;
-            otherName = c.buyer?.name || '';
-            otherAvatar = c.buyer?.avatar || '';
-          } else if (sellerId && sellerId !== String(myId)) {
+            otherName = (c.buyer && typeof c.buyer === 'object') ? (c.buyer.name || '') : '';
+            otherAvatar = (c.buyer && typeof c.buyer === 'object') ? (c.buyer.avatar || '') : '';
+          } else if (sellerId && sellerId !== myIdStr && sellerId.length >= 5) {
             otherId = sellerId;
-            otherName = c.seller?.name || '';
-            otherAvatar = c.seller?.avatar || '';
+            otherName = (c.seller && typeof c.seller === 'object') ? (c.seller.name || '') : '';
+            otherAvatar = (c.seller && typeof c.seller === 'object') ? (c.seller.avatar || '') : '';
           }
           var lastMsg = c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1] : null;
           var adTitle = c.adTitle || c.ad?.title || '';
@@ -475,11 +477,12 @@ function ChatPageInner() {
         if (urlChatId) {
           var chat = chatList.find(function(c) { return String(c._id) === urlChatId; });
           if (chat) {
-            var buyerId2  = (chat.buyer?._id  || (typeof chat.buyer  === 'string' ? chat.buyer  : '')).toString();
-            var sellerId2 = (chat.seller?._id || (typeof chat.seller === 'string' ? chat.seller : '')).toString();
+            var buyerId2  = ((chat.buyer?._id  || chat.buyer )?.toString?.()  || '').replace(/^new ObjectId\("?|"?\)$/g,'');
+            var sellerId2 = ((chat.seller?._id || chat.seller)?.toString?.() || '').replace(/^new ObjectId\("?|"?\)$/g,'');
+            var myIdStr2  = String(myId);
             var otherId = '', otherName2 = '';
-            if (buyerId2 && buyerId2 !== String(myId)) { otherId = buyerId2; otherName2 = chat.buyer?.name || ''; }
-            else if (sellerId2 && sellerId2 !== String(myId)) { otherId = sellerId2; otherName2 = chat.seller?.name || ''; }
+            if (buyerId2 && buyerId2 !== myIdStr2 && buyerId2.length >= 5) { otherId = buyerId2; otherName2 = (chat.buyer && typeof chat.buyer === 'object') ? (chat.buyer.name || '') : ''; }
+            else if (sellerId2 && sellerId2 !== myIdStr2 && sellerId2.length >= 5) { otherId = sellerId2; otherName2 = (chat.seller && typeof chat.seller === 'object') ? (chat.seller.name || '') : ''; }
             if (otherId) setTargetId(function(prev) { return prev || otherId; });
             if (otherName2) setSellerName(function(prev) { return prev || otherName2; });
             setChatId(urlChatId);
@@ -805,9 +808,20 @@ function ChatPageInner() {
           &#128100;
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontWeight: 'bold', fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {targetId ? 'محادثة مع ' + (sellerName || targetId) : 'اختر محادثة للبدء'}
-          </p>
+          {targetId ? (
+            <>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {sellerName || targetId}
+              </p>
+              {(function() {
+                var _conv = conversations.find(function(c) { return c.id === targetId || c.chatId === chatId; });
+                var _adTitle = (_conv && _conv.adTitle) || (apiChats.find(function(c) { return String(c._id) === chatId; }) || {}).adTitle || ((apiChats.find(function(c) { return String(c._id) === chatId; }) || {}).ad || {}).title || '';
+                return _adTitle ? <p style={{ margin: 0, fontSize: 11, color: '#9ca3af', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{_adTitle}</p> : null;
+              })()}
+            </>
+          ) : (
+            <p style={{ margin: 0, fontWeight: 'bold', fontSize: 15 }}>اختر محادثة للبدء</p>
+          )}
           <p style={{ margin: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
             {targetId ? (
               <>
