@@ -72,6 +72,17 @@ const UserSchema = new mongoose.Schema(
 
     // -- Free plan tracking ------------------------------------------------
     lastFreePlanUsed: { type: Date, default: null },
+    // -- Reputation points (gamification) -----------------------------------
+    reputationPoints: { type: Number, default: 0 },
+    monthlyPoints: { type: Number, default: 0 },
+    lastMonthPoints: { type: Number, default: 0 },
+    reputationHistory: [{
+      type: { type: String, enum: ['ad_view', 'rating_received', 'winner_bonus'] },
+      points: Number,
+      adId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ad' },
+      fromUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      createdAt: { type: Date, default: Date.now },
+    }],
 
     // -- Verification status -------------------------------------------------
     emailVerified: { type: Boolean, default: false },

@@ -464,6 +464,28 @@ router.get('/:id', async (req, res) => {
       ad.views = (ad.views || 0) + 1;
     } catch {}
 
+    // Award 1 reputation point to the ad seller for this view (best-effort, non-blocking)
+    try {
+      const sellerId = ad.userId || ad.seller;
+      if (sellerId) {
+        // Optionally skip own views if JWT present
+        let viewerId = null;
+        try {
+          const ah = req.headers.authorization;
+          if (ah && ah.startsWith('Bearer ')) {
+            const dec = jwt.verify(ah.slice(7), process.env.JWT_SECRET || 'fox-default-secret');
+            viewerId = dec.id || dec._id || dec.userId;
+          }
+        } catch {}
+        if (!viewerId || viewerId.toString() !== sellerId.toString()) {
+          await User.findByIdAndUpdate(sellerId, {
+            $inc: { reputationPoints: 1, monthlyPoints: 1 },
+            $push: { reputationHistory: { $each: [{ type: 'ad_view', points: 1, adId: ad._id }], $slice: -500 } },
+          });
+        }
+      }
+    } catch {}
+
     // Normalize media — ensure both images and media fields are populated
     const normalized = {
       ...ad,
@@ -1294,6 +1316,16 @@ router.patch('/:id/view', async (req, res) => {
       { new: true }
     );
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
+    // Award 1 reputation point to ad seller (best-effort, non-blocking)
+    try {
+      const sellerId = ad.userId || ad.seller;
+      if (sellerId) {
+        await User.findByIdAndUpdate(sellerId, {
+          $inc: { reputationPoints: 1, monthlyPoints: 1 },
+          $push: { reputationHistory: { $each: [{ type: 'ad_view', points: 1, adId: ad._id }], $slice: -500 } },
+        });
+      }
+    } catch {}
     res.json({ views: ad.views });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

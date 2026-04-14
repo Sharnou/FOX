@@ -39,11 +39,11 @@ export async function getFeaturedAds(country) {
 
     // Golden/premium: no limit
     const goldenAds = await AdModel.find({ ...base, featuredStyle: { $in: UNLIMITED_STYLES } })
-      .sort({ views: -1, featuredAt: -1 });
+      .sort({ price: -1, views: -1, featuredAt: -1 });
 
     // Normal featured: max 16
     const normalAds = await AdModel.find({ ...base, featuredStyle: { $nin: UNLIMITED_STYLES } })
-      .sort({ views: -1, featuredAt: -1 })
+      .sort({ price: -1, views: -1, featuredAt: -1 })
       .limit(16);
 
     // Golden first, then normal — dedup handled by caller
@@ -69,10 +69,10 @@ export async function getFeaturedByCategory(country, category, subcategory) {
     if (subcategory) query.subcategory = subcategory;
 
     const goldenAds = await AdModel.find({ ...query, featuredStyle: { $in: UNLIMITED_STYLES } })
-      .sort({ views: -1, featuredAt: -1 });
+      .sort({ price: -1, views: -1, featuredAt: -1 });
 
     const normalAds = await AdModel.find({ ...query, featuredStyle: { $nin: UNLIMITED_STYLES } })
-      .sort({ views: -1, featuredAt: -1 })
+      .sort({ price: -1, views: -1, featuredAt: -1 })
       .limit(16);
 
     return [...goldenAds, ...normalAds];

@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { auth as requireAuth } from "../middleware/auth.js";
 import { db, makeId } from "../lib/store.js";
+import User from "../models/User.js";
 
 const router = Router();
 
 // Use req.user.id (from JWT) instead of req.user.id (not in JWT)
-router.post("/", requireAuth, (req, res) => {
+router.post("/", requireAuth, async (req, res) => {
   const { seller_id, rating, comment } = req.body;
   const userId = req.user.id;
   if (!seller_id || !rating) return res.status(400).json({ error: "seller_id and rating required" });
@@ -23,6 +24,21 @@ router.post("/", requireAuth, (req, res) => {
     created_at: new Date().toISOString(),
   };
   db.seller_reviews.push(review);
+
+  // Award reputation points to seller based on rating (non-blocking)
+  try {
+    const ratingPoints = [0, 0, 1, 3, 7, 10][ratingNum] || 0;
+    if (ratingPoints > 0 && seller_id) {
+      await User.findByIdAndUpdate(seller_id, {
+        $inc: { reputationPoints: ratingPoints, monthlyPoints: ratingPoints },
+        $push: { reputationHistory: {
+          $each: [{ type: 'rating_received', points: ratingPoints, fromUserId: userId }],
+          $slice: -500
+        }},
+      });
+    }
+  } catch (_) {}
+
   res.status(201).json(review);
 });
 

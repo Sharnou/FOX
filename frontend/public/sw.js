@@ -1,6 +1,6 @@
 // ─── XTOX Service Worker v11 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v14';
+const CACHE_VERSION = 'v15';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -92,6 +92,18 @@ self.addEventListener('push', (event) => {
       )
     );
     return;
+  } else if (data.type === 'monthly_winner') {
+    event.waitUntil(
+      self.registration.showNotification(data.title || '🏆 بائع الشهر', {
+        body: data.body || '',
+        icon: '/icon-192x192.png',
+        badge: '/icon-72x72.png',
+        tag: 'monthly-winner',
+        requireInteraction: false,
+        vibrate: [200, 100, 200],
+        data: { url: data.url || '/', type: 'monthly_winner', winnerId: data.winnerId || '' },
+      })
+    );
   } else {
     // Generic notification
     event.waitUntil(
@@ -164,6 +176,20 @@ self.addEventListener('notificationclick', (event) => {
     );
   } else if (event.action === 'reject') {
     // Just close the notification (already done above)
+  } else if (notifData.type === 'monthly_winner') {
+    // Open root or winner page
+    const winnerUrl = notifData.url || '/';
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client) {
+            client.focus();
+            return;
+          }
+        }
+        return clients.openWindow(winnerUrl);
+      })
+    );
   } else {
     // Clicked notification body — open or focus app
     event.waitUntil(

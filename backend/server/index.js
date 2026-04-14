@@ -76,6 +76,8 @@ import promoteRouter from '../routes/promote.js';
 import whatsappRouter from '../routes/whatsapp.js';
 import notificationRoutes from '../routes/notifications.js';
 import pushRoutes from '../routes/push.js';
+import winnerRouter from '../routes/winner.js';
+import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 import jwt from 'jsonwebtoken';
 import { initMemoryStore, dbState } from './memoryStore.js';
 import { connectDatabases, getActiveDB, getCouchbaseError } from './dbManager.js';
@@ -237,6 +239,7 @@ app.use('/api/promote', promoteRouter);
 app.use('/api/whatsapp', whatsappRouter); // WhatsApp chatbot webhook (no auth — UltraMsg posts here)
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/winner', winnerRouter);
 
 // GET /api/metrics — admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {
@@ -497,6 +500,13 @@ connectDatabases().then(async (db) => {
       scheduleLocationLanguageLearner();
     } catch (_locErr) {
       console.warn('[SEED] locationLanguageLearner init failed (non-fatal):', _locErr.message);
+    }
+
+    // Monthly winner cron
+    try {
+      initMonthlyWinner();
+    } catch (_winErr) {
+      console.warn('[MonthlyWinner] init failed (non-fatal):', _winErr.message);
     }
 
     await (async function cleanupDuplicates() {

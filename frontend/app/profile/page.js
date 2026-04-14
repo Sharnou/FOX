@@ -252,6 +252,17 @@ export default function ProfilePage() {
               </span>
             </div>
           )}
+
+          {/* Reputation Points */}
+          {user.reputationPoints > 0 && (
+            <div style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', borderRadius: 16, padding: '16px 20px', margin: '12px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: 12, direction: 'rtl', justifyContent: 'center' }}>
+              <span style={{ fontSize: 32 }}>⭐</span>
+              <div>
+                <div style={{ fontWeight: 'bold', fontSize: 18 }}>{user.reputationPoints} نقطة سمعة</div>
+                <div style={{ fontSize: 13, opacity: 0.9 }}>هذا الشهر: {user.monthlyPoints || 0} نقطة</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Chat Toggle */}
