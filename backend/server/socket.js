@@ -3,6 +3,9 @@
 // Each user joins room 'user_<userId>' — supports multiple tabs/devices
 // Messages delivered via io.to('user_X').emit() — no manual socket ID mapping
 
+// ── Pending push calls: roomId → { offer, callerId, callerSocketId, to, timeout } ──
+const pendingCalls = new Map();
+
 export function initSocket(io) {
 
   // ── Auth middleware ───────────────────────────────────────────
@@ -244,8 +247,9 @@ export function initSocket(io) {
       if (userId) socket.join('user_' + userId);
     });
 
-    // Initiate call — notify the target user
-    socket.on('call:initiate', async ({ targetUserId, callerId, callerName }) => {
+    // Initiate call — notify the target user (offer optional, used for offline push)
+    socket.on('call:initiate', async ({ targetUserId, callerId, callerName, callerAvatar, offer }) => {
+      const actualCallerId = callerId || socket.data.userId;
       // Check if target is actually in the room
       try {
         const roomSockets = await io.in('user_' + targetUserId).fetchSockets();
@@ -264,32 +268,68 @@ export function initSocket(io) {
               const subs = await PushSubscription.find({ user: targetUserId }).lean();
 
               if (subs.length > 0) {
+                // Generate a unique roomId for this pending call
+                const roomId = `call_${actualCallerId}_${targetUserId}_${Date.now()}`;
+                
                 const payload = JSON.stringify({
                   type: 'incoming_call',
-                  fromUserId: callerId || socket.data.userId,
-                  fromName: callerName || 'مستخدم XTOX',
+                  callerId: actualCallerId,
+                  callerName: callerName || 'مستخدم XTOX',
+                  callerAvatar: callerAvatar || '',
+                  offer: offer || null,   // SDP offer for offline answering
+                  roomId,
                   title: `📞 مكالمة واردة من ${callerName || 'مستخدم XTOX'}`,
-                  body: 'اضغط للرد على المكالمة',
+                  body: 'اضغط للرد أو الرفض',
                   icon: '/favicon.ico',
                   badge: '/favicon.ico',
-                  tag: 'incoming-call',
+                  tag: `call-${roomId}`,
                   requireInteraction: true,
+                  data: {
+                    type: 'incoming_call',
+                    callerId: actualCallerId,
+                    callerName: callerName || 'مستخدم XTOX',
+                    offer: offer || null,
+                    roomId,
+                    url: `/chat?call=incoming&roomId=${roomId}&callerId=${actualCallerId}`,
+                  },
                   actions: [
                     { action: 'accept', title: '✅ رد' },
                     { action: 'reject', title: '❌ رفض' },
                   ],
-                  data: { url: '/chat', fromUserId: callerId || socket.data.userId },
                 });
 
+                let sent = 0;
                 for (const sub of subs) {
-                  webpush.sendNotification(sub.subscription, payload).catch(async (err) => {
+                  try {
+                    await webpush.sendNotification(sub.subscription, payload);
+                    sent++;
+                  } catch (err) {
                     if (err.statusCode === 410) {
-                      // Subscription expired — remove it
                       await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {});
                     }
-                  });
+                  }
                 }
-                console.log('[Push] Sent call notification to', subs.length, 'subscription(s) for user:', targetUserId);
+
+                if (sent > 0) {
+                  // Store pending call with 60s TTL
+                  const timeout = setTimeout(() => {
+                    pendingCalls.delete(roomId);
+                    // Notify caller that time expired
+                    try { io.to(socket.id).emit('call:expired', { roomId }); } catch {}
+                  }, 60000);
+                  pendingCalls.set(roomId, {
+                    offer,
+                    callerId: actualCallerId,
+                    callerSocketId: socket.id,
+                    to: targetUserId,
+                    timeout,
+                  });
+
+                  // Tell caller we're ringing the offline user
+                  socket.emit('call:ringing_offline', { roomId, to: targetUserId });
+                  console.log('[Push] Sent call notification to', sent, 'subscription(s), roomId:', roomId);
+                  return;
+                }
               }
             }
           } catch (pushErr) {
@@ -302,11 +342,41 @@ export function initSocket(io) {
         }
       } catch (e) { /* fetchSockets failed — proceed anyway */ }
       io.to('user_' + targetUserId).emit('call:incoming', {
-        callerId: callerId || socket.data.userId,
+        callerId: actualCallerId,
         callerName: callerName || 'مستخدم',
-        callerSocketId: socket.id
+        callerSocketId: socket.id,
       });
       console.log('[Socket] call:incoming sent to user_' + targetUserId);
+    });
+
+    // ── Offline push call: callee accepts via push notification ──────────
+    socket.on('call:accept_from_push', async ({ roomId, answer }) => {
+      const pending = pendingCalls.get(roomId);
+      if (!pending) {
+        socket.emit('call:expired', { roomId });
+        return;
+      }
+      clearTimeout(pending.timeout);
+      pendingCalls.delete(roomId);
+      // Relay answer to the original caller
+      io.to(pending.callerSocketId).emit('call:answered', {
+        answer,
+        responderSocketId: socket.id,
+      });
+      // Tell callee to proceed
+      socket.emit('call:accepted_ok', { callerId: pending.callerId, callerSocketId: pending.callerSocketId });
+      console.log('[Socket] call:accept_from_push — roomId:', roomId, 'callee:', socket.id);
+    });
+
+    // ── Offline push call: callee rejects via push notification ──────────
+    socket.on('call:reject_from_push', ({ roomId }) => {
+      const pending = pendingCalls.get(roomId);
+      if (pending) {
+        clearTimeout(pending.timeout);
+        pendingCalls.delete(roomId);
+        io.to(pending.callerSocketId).emit('call:rejected');
+        console.log('[Socket] call:reject_from_push — roomId:', roomId);
+      }
     });
 
     // get_peer_socket: return current socket ID of a user (Fix C)

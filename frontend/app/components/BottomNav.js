@@ -22,7 +22,7 @@ export default function BottomNav() {
     { icon: '🏠', label: 'الرئيسية', href: '/' },
     { icon: '🔍', label: 'بحث', href: '/search' },
     { icon: '➕', label: 'بيع', href: '/sell', highlight: true },
-    { icon: '❤️', label: 'المفضلة', href: '/wishlist' },
+    { icon: '📲', label: 'تحميل', href: '/install' },
     // Navigate to /profile if logged in, otherwise /login
     { icon: '👤', label: 'حسابي', href: isLoggedIn ? '/profile' : '/login' },
   ];
@@ -86,7 +86,7 @@ export default function BottomNav() {
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: isActive ? '#002f34' : '#999',
+                color: isActive ? '#6366f1' : '#999',
                 minWidth: 48,
               }}>
               <span style={{ fontSize: 22 }}>{item.icon}</span>

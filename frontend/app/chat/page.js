@@ -246,6 +246,11 @@ function ChatPageInner() {
       var cid    = searchParams.get('chatId') || new URLSearchParams(window.location.search).get('chatId') || '';
       var tid    = searchParams.get('target') || new URLSearchParams(window.location.search).get('target') || '';
       var sname  = searchParams.get('sellerName') || new URLSearchParams(window.location.search).get('sellerName') || '';
+      // Handle push notification reject: /chat?reject_call=<roomId>
+      var rejectRoomId = searchParams.get('reject_call') || new URLSearchParams(window.location.search).get('reject_call') || '';
+      if (rejectRoomId && socketRef.current) {
+        socketRef.current.emit('call:reject_from_push', { roomId: rejectRoomId });
+      }
       setCurrentUser(user);
       setTargetId(tid);
       if (sname) setSellerName(sname);

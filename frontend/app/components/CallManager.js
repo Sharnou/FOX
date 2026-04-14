@@ -46,6 +46,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const [active, setActive]     = useState(null);   // { peerName, remoteSocketId, startTime }
   const [duration, setDuration] = useState(0);
   const [muted, setMuted]       = useState(false);
+  const [offlineRinging, setOfflineRinging] = useState(null);  // { roomId, to } — ringing an offline user via push
+  const [pushIncoming, setPushIncoming]     = useState(null);  // { callerId, callerName, offer, roomId } — received via SW push
 
   const pc               = useRef(null);
   const localStream      = useRef(null);
@@ -89,6 +91,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     stopRingtone();
     setActive(null);
     setIncoming(null);
+    setPushIncoming(null);
+    setOfflineRinging(null);
     setDuration(0);
     setMuted(false);
   }, [stopRingtone]);
@@ -198,7 +202,15 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
         const callerId   = currentUser?._id || currentUser?.id || '';
         const callerName = currentUser?.name || 'مستخدم';
-        socket.emit('call:initiate', { targetUserId, callerId, callerName });
+        const callerAvatar = currentUser?.avatar || '';
+        // Include the offer in call:initiate so offline users can receive it via push
+        socket.emit('call:initiate', {
+          targetUserId,
+          callerId,
+          callerName,
+          callerAvatar,
+          offer: p.localDescription,  // SDP offer for offline push answering
+        });
 
         // Start 30-second no-answer timer
         noAnswerTimer.current = setTimeout(() => {
@@ -330,12 +342,47 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       cleanup();
     };
 
+    // ── Offline push call events ──────────────────────────────────────────────
+    const onRingingOffline = ({ roomId, to }) => {
+      // Caller: user is offline, we sent a push notification — show "جارٍ الاتصال..." UI
+      setOfflineRinging({ roomId, to });
+    };
+
+    const onExpired = () => {
+      // Call timed out (no answer from push within 60s)
+      stopRingtone();
+      cleanup();
+    };
+
+    const onAcceptedOk = ({ callerSocketId }) => {
+      // Push callee accepted — we're now connected as the callee
+      // (caller will receive call:answered via socket, this is for the callee side)
+    };
+
     socket.on('call:incoming',          onIncoming);
     socket.on('call:offer',             onOffer);
     socket.on('call:ice',               onICE);
     socket.on('call:rejected',          onRejected);
     socket.on('call:ended',             onEnded);
     socket.on('call:user_unavailable',  onUnavailable);
+    socket.on('call:ringing_offline',   onRingingOffline);
+    socket.on('call:expired',           onExpired);
+    socket.on('call:accepted_ok',       onAcceptedOk);
+
+    // ── Service Worker message: incoming call from push notification ──────
+    const onSWMessage = async (event) => {
+      if (!event.data) return;
+      const { type, callerId, callerName, offer, roomId } = event.data;
+      if (type === 'incoming_call_push' && offer && roomId) {
+        // Show incoming call UI (push-based)
+        setPushIncoming({ callerId, callerName, offer, roomId });
+        startRingtone();
+      }
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', onSWMessage);
+    }
 
     return () => {
       socket.off('call:incoming',          onIncoming);
@@ -344,8 +391,14 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       socket.off('call:rejected',          onRejected);
       socket.off('call:ended',             onEnded);
       socket.off('call:user_unavailable',  onUnavailable);
+      socket.off('call:ringing_offline',   onRingingOffline);
+      socket.off('call:expired',           onExpired);
+      socket.off('call:accepted_ok',       onAcceptedOk);
       socket.off('reconnect',              onReconnect);
       socket.off('connect',               onReconnect);
+      if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener('message', onSWMessage);
+      }
     };
   }, [socket, currentUser, startRingtone, stopRingtone]);
 
@@ -358,8 +411,70 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
   function hangup() {
     if (active?.remoteSocketId) socket.emit('call:end', { otherSocketId: active.remoteSocketId });
+    // Also cancel any pending offline ring
+    if (offlineRinging?.roomId) {
+      socket.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
+    }
     stopRingtone();
     cleanup();
+  }
+
+  // Accept an incoming push call (callee side — push notification brought us here)
+  async function acceptPushCall() {
+    if (!pushIncoming) return;
+    const { callerId, callerName, offer, roomId } = pushIncoming;
+    stopRingtone();
+    setPushIncoming(null);
+    try {
+      const stream = await getAudio().catch(err => {
+        if (err.name === 'NotAllowedError') alert('يرجى السماح بالوصول للميكروفون');
+        return null;
+      });
+      if (!stream) return;
+
+      const p = createPC(null);  // remote socket ID unknown yet — will learn via call:accepted_ok
+      stream.getTracks().forEach(t => {
+        p.addTrack(t, stream);
+        console.log('[WebRTC] Push-callee added local track:', t.kind);
+      });
+
+      await p.setRemoteDescription(new RTCSessionDescription(offer));
+      console.log('[WebRTC] Push-callee set remote description (offer)');
+
+      for (const c of receivedICE.current) {
+        await p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+      }
+      receivedICE.current = [];
+
+      const answer = await p.createAnswer();
+      await p.setLocalDescription(answer);
+      console.log('[WebRTC] Push-callee created answer');
+
+      socket.emit('call:accept_from_push', { roomId, answer: p.localDescription });
+
+      // Wait for call:accepted_ok to know callerSocketId
+      socket.once('call:accepted_ok', ({ callerSocketId }) => {
+        // Update ICE candidate target to caller's socket
+        if (p) {
+          p.onicecandidate = e => {
+            if (e.candidate && socket) {
+              socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: e.candidate });
+            }
+          };
+        }
+        setActive({ peerName: callerName || 'مستخدم', remoteSocketId: callerSocketId, startTime: Date.now() });
+      });
+    } catch (e) {
+      console.error('[CallManager] acceptPushCall error:', e.message);
+      cleanup();
+    }
+  }
+
+  function rejectPushCall() {
+    if (!pushIncoming) return;
+    socket.emit('call:reject_from_push', { roomId: pushIncoming.roomId });
+    stopRingtone();
+    setPushIncoming(null);
   }
 
   async function acceptCall() {
@@ -432,6 +547,48 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
               <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>قبول</div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Push incoming call (callee opened app via notification) ── */}
+      {pushIncoming && !active && (
+        <div style={overlay}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>📲</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{pushIncoming.callerName || 'مستخدم'}</div>
+          <div style={{ fontSize: 13, color: '#aaa', margin: '6px 0 18px' }}>مكالمة واردة عبر الإشعارات</div>
+          <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
+              <button onClick={rejectPushCall} aria-label="رفض المكالمة"
+                style={{ background: '#e74c3c', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>
+                📵
+              </button>
+              <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>رفض</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <button onClick={acceptPushCall} aria-label="قبول المكالمة"
+                style={{ background: '#25d366', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>
+                📞
+              </button>
+              <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>قبول</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Offline ringing UI (caller waiting for offline user to accept push) ── */}
+      {offlineRinging && !active && !incoming && (
+        <div style={overlay}>
+          <div style={{ fontSize: 40, marginBottom: 8, animation: 'pulse 1.5s infinite' }}>📞</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#aaa' }}>جارٍ الاتصال...</div>
+          <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>تم إرسال إشعار للمستخدم</div>
+          <button
+            onClick={() => {
+              socket.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
+              cleanup();
+            }}
+            style={{ background: '#e74c3c', border: 'none', borderRadius: 24, padding: '10px 24px', color: '#fff', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>
+            إلغاء 📵
+          </button>
         </div>
       )}
 

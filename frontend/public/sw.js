@@ -1,6 +1,6 @@
 // ─── XTOX Service Worker v11 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v13';
+const CACHE_VERSION = 'v14';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -62,21 +62,36 @@ self.addEventListener('push', (event) => {
   try { data = JSON.parse(event.data.text()); } catch { return; }
 
   if (data.type === 'incoming_call') {
+    // Include full call data (offer, roomId, etc.) in notification data
+    const notifData = {
+      type: 'incoming_call',
+      callerId: data.callerId || data.fromUserId || '',
+      callerName: data.callerName || data.fromName || 'مستخدم XTOX',
+      callerAvatar: data.callerAvatar || '',
+      offer: data.offer || null,
+      roomId: data.roomId || data.tag || '',
+      url: data.data?.url || `/chat?call=incoming&roomId=${data.roomId || ''}&callerId=${data.callerId || ''}`,
+    };
+
     event.waitUntil(
-      self.registration.showNotification(data.title || '📞 مكالمة واردة', {
-        body: data.body || 'اضغط للرد على المكالمة',
-        icon: data.icon || '/favicon.ico',
-        badge: data.badge || '/favicon.ico',
-        tag: data.tag || 'incoming-call',
-        requireInteraction: true, // notification persists until user acts
-        vibrate: [200, 100, 200, 100, 200], // vibration pattern
-        actions: data.actions || [
-          { action: 'accept', title: '✅ رد' },
-          { action: 'reject', title: '❌ رفض' },
-        ],
-        data: data.data || {},
-      })
+      self.registration.showNotification(
+        data.title || `📞 مكالمة واردة من ${notifData.callerName}`,
+        {
+          body: data.body || 'اضغط للرد أو الرفض',
+          icon: data.icon || '/favicon.ico',
+          badge: data.badge || '/favicon.ico',
+          tag: data.tag || `call-${notifData.roomId}`,
+          requireInteraction: true,
+          vibrate: [300, 100, 300, 100, 300],
+          actions: [
+            { action: 'accept', title: '✅ رد' },
+            { action: 'reject', title: '❌ رفض' },
+          ],
+          data: notifData,
+        }
+      )
     );
+    return;
   } else {
     // Generic notification
     event.waitUntil(
@@ -97,8 +112,44 @@ self.addEventListener('notificationclick', (event) => {
   const notifData = event.notification.data || {};
   const targetUrl = notifData.url || '/chat';
 
+  if (notifData.type === 'incoming_call') {
+    const callUrl = notifData.url || `/chat?call=incoming&roomId=${notifData.roomId}&callerId=${notifData.callerId}`;
+    const rejectUrl = `/chat?reject_call=${notifData.roomId}&callerId=${notifData.callerId}`;
+
+    if (event.action === 'reject') {
+      // Open app to reject URL so it can emit call:reject_from_push
+      event.waitUntil(clients.openWindow(rejectUrl));
+      return;
+    }
+
+    // accept OR clicked body → open app and post message with call data
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        const callData = {
+          type: 'incoming_call_push',
+          callerId: notifData.callerId,
+          callerName: notifData.callerName,
+          callerAvatar: notifData.callerAvatar,
+          offer: notifData.offer,
+          roomId: notifData.roomId,
+        };
+        // Try to focus an existing window and send it the call data
+        for (const client of clientList) {
+          if ('focus' in client) {
+            client.focus();
+            client.postMessage(callData);
+            return;
+          }
+        }
+        // No existing window — open the call URL
+        return clients.openWindow(callUrl);
+      })
+    );
+    return;
+  }
+
   if (event.action === 'accept') {
-    // Open app and signal CALL_ACCEPT
+    // Generic accept — open or focus app
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
         for (const client of clientList) {
