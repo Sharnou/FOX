@@ -1,5 +1,4 @@
 // Use global fetch (Node 18+ built-in) — avoids node-fetch ESM import issues
-// import nodeFetch from 'node-fetch'; // REMOVED — use globalThis.fetch instead
 
 const SITE = 'xt0x.wordpress.com';
 const WP_API = `https://public-api.wordpress.com/rest/v1.1/sites/${SITE}`;
@@ -55,6 +54,50 @@ const CAT_KEYWORDS = {
     ar: ['موبايل للبيع','هاتف مستعمل','لاب توب للبيع','جهاز كمبيوتر','تابلت للبيع','شاشة للبيع','سماعات للبيع','كاميرا للبيع','اكسسوارات موبايل','بلايستيشن للبيع','إكس بوكس','درون للبيع','أجهزة إلكترونية','موبايل مستعمل بسعر رخيص','جوال'],
     en: ['phone for sale','used mobile','laptop for sale','computer','tablet','screen','headphones','camera','accessories','playstation','xbox','drone','electronics'],
   },
+  موبايل: {
+    ar: ['موبايل للبيع','هاتف مستعمل','آيفون','سامسونج','هواوي','شاومي','أوبو','جهاز مستعمل','موبايل بسعر رخيص','شراء موبايل','بيع موبايل'],
+    en: ['phone for sale','used mobile','iphone','samsung','huawei','xiaomi','oppo','buy phone','sell phone'],
+  },
+  سيارات: {
+    ar: ['سيارات للبيع','سيارة مستعملة','سيارة بسعر مناسب','شراء سيارة','بيع سيارة','قطع غيار','موتوسيكل','تقسيط سيارة','سيارة بدون حوادث'],
+    en: ['car for sale','used car','buy car','sell car','auto parts','motorcycle'],
+  },
+  عقارات: {
+    ar: ['شقق للبيع','شقق للإيجار','فيلا للبيع','أرض للبيع','عقار','مكتب للإيجار','شقة مفروشة','استثمار عقاري'],
+    en: ['apartment for sale','apartment for rent','real estate','villa','land','office for rent'],
+  },
+  إلكترونيات: {
+    ar: ['لاب توب','جهاز كمبيوتر','تابلت','شاشة','سماعات','كاميرا','أجهزة إلكترونية','درون','طباعة'],
+    en: ['laptop','computer','tablet','screen','headphones','camera','electronics'],
+  },
+  أثاث: {
+    ar: ['أثاث للبيع','كنبة للبيع','غرفة نوم','طقم صالون','مطبخ','ديكور','سجاد','مفروشات','أثاث مستعمل','طاولة'],
+    en: ['furniture for sale','sofa','bedroom','living room','kitchen','carpet'],
+  },
+  ملابس: {
+    ar: ['ملابس للبيع','ملابس نسائية','ملابس رجالية','ملابس أطفال','أزياء','موضة','حقائب','أحذية','ساعات','مجوهرات'],
+    en: ['clothes','women fashion','men fashion','kids clothes','bags','shoes','watches','jewelry'],
+  },
+  وظائف: {
+    ar: ['وظائف شاغرة','فرص عمل','مطلوب موظف','وظيفة بدوام كامل','عمل من المنزل','راتب مجزي','وظيفة فورية'],
+    en: ['job vacancy','employment','hiring','full time job','part time','work from home'],
+  },
+  خدمات: {
+    ar: ['خدمات منزلية','سباك','كهربائي','نجار','دهان','تكييف','تنظيف','نقل عفش','مصور','معلم خصوصي'],
+    en: ['home services','plumber','electrician','carpenter','painter','AC','cleaning','moving'],
+  },
+  حيوانات: {
+    ar: ['حيوانات أليفة','كلاب للبيع','قطط للبيع','طيور للبيع','أسماك','خيول','ماعز','خراف','مستلزمات حيوانات'],
+    en: ['pets','dogs','cats','birds','fish','horses','sheep','goats','pet supplies'],
+  },
+  رياضة: {
+    ar: ['أدوات رياضية','دراجة للبيع','ملابس رياضية','كرة القدم','معدات رياضية','جهاز ركض'],
+    en: ['sports equipment','bicycle','gym','football','tennis','swimming','treadmill'],
+  },
+  كتب: {
+    ar: ['كتب للبيع','كتب مستعملة','كتب دراسية','مواد تعليمية','دورات تدريبية','تعليم لغات'],
+    en: ['books for sale','used books','textbooks','educational materials','training courses'],
+  },
   furn: {
     ar: ['أثاث للبيع','كنبة للبيع','غرفة نوم','طقم صالون','مطبخ للبيع','ديكور','سجاد للبيع','مفروشات','أثاث مستعمل','طاولة طعام','خزانة ملابس','تصميم داخلي','إكسسوارات منزلية','ستائر','إضاءة'],
     en: ['furniture for sale','sofa','bedroom set','living room','kitchen','decor','carpet','used furniture','dining table','wardrobe','interior design'],
@@ -78,18 +121,6 @@ const CAT_KEYWORDS = {
   sport: {
     ar: ['أدوات رياضية','جهاز رياضي','دراجة للبيع','ملابس رياضية','كرة القدم','تنس','سباحة','صالة جيم','معدات رياضية','جهاز ركض','دراجة ثابتة','رياضة'],
     en: ['sports equipment','bicycle','gym equipment','football','tennis','swimming','treadmill','fitness','sports clothes','weights'],
-  },
-  food: {
-    ar: ['مطعم للبيع','كافيه','مشروع غذائي','منتجات عضوية','طعام منزلي','حلويات','مخبز','عصائر','توصيل طعام','وجبات سريعة'],
-    en: ['restaurant for sale','cafe','food project','organic products','home food','sweets','bakery','juices','food delivery'],
-  },
-  edu: {
-    ar: ['كتب للبيع','كتب مستعملة','كتب دراسية','مواد تعليمية','دورات تدريبية','تعليم لغات','شهادات','معلم خصوصي','كورسات','دراسة في الخارج'],
-    en: ['books for sale','used books','textbooks','educational materials','training courses','language learning','certificates','tutoring','online courses'],
-  },
-  tool: {
-    ar: ['أدوات للبيع','معدات للبيع','ماكينات للبيع','أدوات كهربائية','عدة يدوية','معدات زراعية','معدات بناء','جرار','مضخة مياه'],
-    en: ['tools for sale','equipment','machines','power tools','hand tools','agricultural equipment','construction equipment'],
   },
 };
 
@@ -124,23 +155,26 @@ const COUNTRY_SUFFIXES = {
   PS: ['في فلسطين','Palestine'],
 };
 
-// ─── Ultra-smart keyword generator — returns 20-30 highly targeted keywords ──
+// ─── 2H: Ultra-smart keyword generator — returns 20-30 highly targeted keywords ──
 export function generateKeywords(ad) {
   const keywords = new Set();
 
-  // 1. Always include base XTOX keywords
-  ['XTOX', 'سوق XTOX', 'إعلانات مبوبة', 'بيع وشراء', 'سوق عربي', 'إعلان مجاني'].forEach(k => keywords.add(k));
+  // 1. Always include base XTOX keywords (2H requirement)
+  ['XTOX', 'سوق XTOX', 'إعلانات مبوبة', 'بيع وشراء', 'سوق محلي', 'إعلانات مجانية', 'سوق عربي', 'إعلان مجاني'].forEach(k => keywords.add(k));
 
   // 2. Category keywords
   const cat = (ad.category || ad.subCategory || '').toLowerCase();
-  const catEntry = Object.entries(CAT_KEYWORDS).find(([k]) => cat.includes(k));
+  // Try Arabic category name first, then English fallback
+  const catEntry = Object.entries(CAT_KEYWORDS).find(([k]) =>
+    cat.includes(k) || (ad.category || '').includes(k) || (ad.subCategory || '').includes(k)
+  );
   if (catEntry) {
     const [, catKws] = catEntry;
     catKws.ar.slice(0, 8).forEach(k => keywords.add(k));
     catKws.en.slice(0, 4).forEach(k => keywords.add(k));
   }
 
-  // 3. City keywords (city itself + "للبيع في X" + "إعلانات X")
+  // 3. City keywords (city itself + "للبيع في X" + "إعلانات X") — 2H: city always included
   const city = ad.city || ad.location || '';
   if (city) {
     keywords.add(city);
@@ -156,15 +190,17 @@ export function generateKeywords(ad) {
   const country = ad.country || 'EG';
   (COUNTRY_SUFFIXES[country] || COUNTRY_SUFFIXES.EG).forEach(k => keywords.add(k));
 
-  // 5. Price keywords
+  // 5. 2H: Price range tags
   if (ad.price) {
     const p = Number(ad.price);
     keywords.add(`${p.toLocaleString()} جنيه`);
-    if (p < 200) keywords.add('رخيص جداً');
-    else if (p < 1000) keywords.add('سعر رخيص');
-    else if (p < 5000) keywords.add('سعر معقول');
-    else if (p < 20000) keywords.add('سعر مناسب');
-    else keywords.add('سعر تفاوضي');
+    if (p < 200) { keywords.add('أقل من 200 جنيه'); keywords.add('رخيص جداً'); }
+    else if (p < 500) { keywords.add('أقل من 500 جنيه'); keywords.add('سعر رخيص'); }
+    else if (p < 1000) { keywords.add('أقل من 1000 جنيه'); keywords.add('سعر رخيص'); }
+    else if (p < 5000) { keywords.add('1000-5000 جنيه'); keywords.add('سعر معقول'); }
+    else if (p < 10000) { keywords.add('5000-10000 جنيه'); keywords.add('سعر مناسب'); }
+    else if (p < 50000) { keywords.add('10000-50000 جنيه'); keywords.add('سعر تفاوضي'); }
+    else { keywords.add('أكثر من 50000 جنيه'); keywords.add('للبيع بسعر تفاوضي'); }
   }
 
   // 6. Intent keywords (pick 5 relevant ones)
@@ -173,44 +209,99 @@ export function generateKeywords(ad) {
   // 7. Title words as keywords (each word > 3 chars)
   (ad.title || '').split(/\s+/).filter(w => w.length > 3).slice(0, 6).forEach(k => keywords.add(k));
 
-  // 8. Condition/state
-  if (ad.condition === 'new' || ad.condition === 'جديد') keywords.add('جديد');
-  else if (ad.condition) keywords.add('مستعمل');
+  // 8. 2H: Condition/state tags
+  if (ad.condition === 'new' || ad.condition === 'جديد') {
+    keywords.add('جديد');
+    keywords.add('بضاعة جديدة');
+  } else if (ad.condition === 'used' || ad.condition === 'مستعمل') {
+    keywords.add('مستعمل');
+    keywords.add('بحالة جيدة');
+  } else if (ad.condition) {
+    keywords.add(ad.condition);
+  }
+
+  // 9. 2H: Season/year tags — always add current year
+  const currentYear = new Date().getFullYear();
+  keywords.add(`${currentYear}`);
+  keywords.add(`ربيع ${currentYear}`);
+  // Add season based on current month
+  const month = new Date().getMonth(); // 0-11
+  if (month >= 2 && month <= 4) keywords.add(`ربيع ${currentYear}`);
+  else if (month >= 5 && month <= 7) keywords.add(`صيف ${currentYear}`);
+  else if (month >= 8 && month <= 10) keywords.add(`خريف ${currentYear}`);
+  else keywords.add(`شتاء ${currentYear}`);
 
   return [...keywords].slice(0, 20); // WordPress tag limit friendly
 }
 
-// ─── SEO-optimized title ─────────────────────────────────────────────────────
+// ─── 2A: SEO-Perfect Post Title ─────────────────────────────────────────────
 export function buildTitle(ad) {
-  // Formula: [Title] | [Price] [Currency] | [City] | سوق XTOX
-  const parts = [ad.title];
-  if (ad.price) parts.push(`${Number(ad.price).toLocaleString()} ${ad.currency || 'ج.م'}`);
-  if (ad.city) parts.push(ad.city);
+  // Formula: {ad.title} | {category} في {city} | XTOX
+  const category = ad.category || ad.subCategory || 'إعلانات';
+  const city = ad.city || ad.location || '';
+  const parts = [ad.title || 'إعلان'];
+  if (city) {
+    parts.push(`${category} في ${city}`);
+  } else {
+    parts.push(category);
+  }
   parts.push('XTOX');
   return parts.join(' | ');
 }
 
-// ─── IndexNow ping (Bing + Yandex instant indexing) ─────────────────────────
+// ─── 2B: Rich Meta Description (excerpt) ────────────────────────────────────
+function buildExcerpt(ad) {
+  const desc = (ad.description || ad.title || '').slice(0, 120);
+  const price = ad.price ? `${Number(ad.price).toLocaleString()} ${ad.currency || 'جنيه'}` : '';
+  const city = ad.city || ad.location || '';
+  let excerpt = desc;
+  if (price) excerpt += ` — السعر: ${price}`;
+  if (city) excerpt += ` — ${city}`;
+  excerpt += ' | XTOX سوق محلي';
+  return excerpt;
+}
+
+// ─── 2F: IndexNow ping (Bing + Yandex instant indexing) ─────────────────────
 async function pingIndexNow(postUrl) {
-  const INDEXNOW_KEY = 'xtox-indexnow-key-2026';
-  const indexNowUrl = `https://api.indexnow.org/indexnow?url=${encodeURIComponent(postUrl)}&key=${INDEXNOW_KEY}`;
+  const INDEXNOW_KEY = 'xtox2026indexnow';
   try {
-    const r = await fetch(indexNowUrl);
-    console.log('[IndexNow] Pinged:', r.status, postUrl);
+    // Ping Bing
+    fetch(`https://www.bing.com/indexnow?url=${encodeURIComponent(postUrl)}&key=${INDEXNOW_KEY}`, { method: 'GET' }).catch(() => {});
+    // Ping Yandex
+    fetch(`https://yandex.com/indexnow?url=${encodeURIComponent(postUrl)}&key=${INDEXNOW_KEY}`, { method: 'GET' }).catch(() => {});
+    // Also try api.indexnow.org (generic endpoint)
+    fetch(`https://api.indexnow.org/indexnow?url=${encodeURIComponent(postUrl)}&key=${INDEXNOW_KEY}`, { method: 'GET' }).catch(() => {});
+    console.log('[IndexNow] Pinged Bing + Yandex for:', postUrl);
   } catch (e) {
     console.log('[IndexNow] Ping failed (non-critical):', e.message);
   }
 }
 
+// ─── 2G: Google sitemap ping ─────────────────────────────────────────────────
+function pingGoogle(postUrl) {
+  try {
+    // Google sitemap notification
+    fetch(`https://www.google.com/ping?sitemap=${encodeURIComponent('https://xt0x.wordpress.com/sitemap.xml')}`, { method: 'GET' }).catch(() => {});
+    console.log('[Google] Pinged sitemap for:', postUrl);
+  } catch (e) {
+    console.log('[Google] Ping failed (non-critical):', e.message);
+  }
+}
+
 function buildContent(ad) {
   const appUrl = 'https://fox-kohl-eight.vercel.app';
-  const adLink = `${appUrl}/redirect?adId=${ad._id}`;
+  const adId = ad._id || ad.id || '';
+  const adLink = `${appUrl}/ads/${adId}`;
   const installLink = `${appUrl}/install`;
   const keywords = generateKeywords(ad).join(', ');
-  const wpPostUrl = ad.wpPostUrl || `https://xt0x.wordpress.com/?p=${ad._id}`;
+  const wpPostUrl = ad.wpPostUrl || `https://xt0x.wordpress.com/?p=${adId}`;
+  const category = ad.category || ad.subCategory || 'إعلانات';
+  const city = ad.city || ad.location || '';
+  const sellerName = ad.sellerName || ad.userName || 'XTOX Seller';
+  const firstImage = (ad.images || ad.media || [])[0] || 'https://fox-kohl-eight.vercel.app/logo192.png';
 
   const imagesHtml = (ad.images || ad.media || []).slice(0, 6).map((src, i) =>
-    `<img src="${src}" alt="${ad.title} صورة ${i + 1}" style="max-width:100%;border-radius:12px;margin:8px 0;" loading="lazy"/>`
+    `<img src="${src}" alt="${(ad.title||'').replace(/"/g,'')}" style="max-width:100%;border-radius:12px;margin:8px 0;" loading="lazy"/>`
   ).join('\n');
 
   const videoHtml = ad.video
@@ -221,41 +312,54 @@ function buildContent(ad) {
     ? `<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:16px;border-radius:12px;font-size:24px;font-weight:bold;text-align:center;margin:16px 0;">💰 ${Number(ad.price).toLocaleString()} ${ad.currency || 'ج.م'}</div>`
     : '';
 
-  // Schema.org Product markup
-  const priceCurrency = ad.currency === 'ريال' ? 'SAR' : ad.currency === 'درهم' ? 'AED' : 'EGP';
-  const schemaBlock = `
-<script type="application/ld+json">
+  // 2D: Schema.org Product markup (exact spec)
+  const priceCurrency = ad.currency === 'ريال' ? 'SAR' : ad.currency === 'درهم' ? 'AED' : ad.currency === 'KWD' ? 'KWD' : 'EGP';
+  const schemaBlock = `<script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Product",
-  "name": "${(ad.title || '').replace(/"/g, '\\"')}",
-  "description": "${(ad.description || ad.title || '').slice(0, 200).replace(/"/g, '\\"')}",
-  "image": ${JSON.stringify((ad.images || []).slice(0, 3))},
+  "name": "${(ad.title || '').replace(/"/g, '\\"').replace(/\n/g, ' ')}",
+  "description": "${(ad.description || ad.title || '').slice(0, 300).replace(/"/g, '\\"').replace(/\n/g, ' ')}",
+  "image": "${firstImage}",
   "offers": {
     "@type": "Offer",
-    "priceCurrency": "${priceCurrency}",
     "price": "${ad.price || 0}",
+    "priceCurrency": "${priceCurrency}",
     "availability": "https://schema.org/InStock",
-    "url": "${adLink}",
-    "seller": {
-      "@type": "Person",
-      "name": "${(ad.sellerName || 'XTOX Seller').replace(/"/g, '\\"')}"
-    }
+    "url": "${adLink}"
   },
-  "brand": {
-    "@type": "Brand",
-    "name": "XTOX"
+  "seller": {
+    "@type": "Person",
+    "name": "${sellerName.replace(/"/g, '\\"')}"
   }
 }
 </script>`;
 
+  // 2E: Call-to-Action Footer (exact spec)
+  const ctaBlock = `<hr>
+<div style="background:#f0f7ff;border-radius:8px;padding:16px;text-align:center;margin-top:20px">
+  <p style="font-size:18px;font-weight:bold">🔥 هل أعجبك هذا الإعلان؟</p>
+  <a href="${adLink}"
+     style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:16px">
+     👀 عرض الإعلان الكامل والتواصل مع البائع
+  </a>
+  <p style="margin-top:12px;font-size:14px">
+    📱 <a href="${appUrl}">XTOX</a> — السوق المحلي العربي الأول | إعلانات مجانية | محادثة مباشرة | مكالمات صوتية
+  </p>
+</div>`;
+
+  // 2I: Related Posts Section (exact spec)
+  const relatedBlock = `<p style="margin-top:16px">
+  🔍 <strong>تصفح المزيد:</strong>
+  <a href="https://xt0x.wordpress.com/?cat=${encodeURIComponent(category)}">المزيد من إعلانات ${category}</a> |
+  <a href="https://xt0x.wordpress.com/">جميع الإعلانات</a>
+</p>`;
+
   return `<div dir="rtl" style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;">
 
-<link rel="canonical" href="${wpPostUrl}" />
-
 <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:20px;margin-bottom:20px;border:2px solid rgba(99,102,241,0.4);">
-<h2 style="color:#fff;margin:0 0 8px;">${ad.title}</h2>
-<p style="color:#a5b4fc;margin:0;font-size:14px;">${ad.city ? `📍 ${ad.city} &nbsp;|&nbsp;` : ''}${ad.category ? `🏷️ ${ad.category} &nbsp;|&nbsp;` : ''}👁️ ${ad.views || 0} مشاهدة</p>
+<h2 style="color:#fff;margin:0 0 8px;">${ad.title || ''}</h2>
+<p style="color:#a5b4fc;margin:0;font-size:14px;">${city ? `📍 ${city} &nbsp;|&nbsp;` : ''}${category ? `🏷️ ${category} &nbsp;|&nbsp;` : ''}👁️ ${ad.views || 0} مشاهدة</p>
 ${priceBlock}
 </div>
 
@@ -281,27 +385,53 @@ ${ad.description ? `<div style="background:#f8f9ff;border-radius:12px;padding:16
 </ul>
 </div>
 
+${ctaBlock}
+${relatedBlock}
+
 <p style="font-size:1px;color:#fff;line-height:1;">${keywords}</p>
 <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px;">نُشر تلقائياً من <a href="${appUrl}">تطبيق XTOX</a></p>
 ${schemaBlock}
 </div>`;
 }
 
+// ─── 2C: Build Open Graph + Twitter Card metadata object ────────────────────
+function buildOGMetadata(ad, title, excerpt) {
+  const appUrl = 'https://fox-kohl-eight.vercel.app';
+  const adId = ad._id || ad.id || '';
+  const firstImage = (ad.images || ad.media || [])[0] || 'https://fox-kohl-eight.vercel.app/logo192.png';
+  const adUrl = `${appUrl}/ads/${adId}`;
+
+  return {
+    'og:title': title,
+    'og:description': excerpt,
+    'og:image': firstImage,
+    'og:type': 'product',
+    'og:url': adUrl,
+    'twitter:card': 'summary_large_image',
+    'twitter:title': title,
+    'twitter:description': excerpt,
+    'twitter:image': firstImage,
+  };
+}
+
 // ─── Create WordPress.com post ─────────────────────────────────────────────
 export async function createWPPost(ad) {
   console.log('[WordPress] createWPPost called, token configured:', !!getToken());
   if (!isConfigured()) {
-    console.log('[WordPress.com] WP_ACCESS_TOKEN not set — skipping');
+    console.log('[WordPress.com] WP_ACCESS_TOKEN not set — skipping. Set WP_ACCESS_TOKEN in Railway env vars.');
     return null;
   }
 
   try {
-    const tags = generateKeywords(ad).slice(0, 10).join(',');
+    const tags = generateKeywords(ad).slice(0, 15).join(',');
     const title = buildTitle(ad);
+    const excerpt = buildExcerpt(ad);
     const content = buildContent(ad);
+    const metadata = buildOGMetadata(ad, title, excerpt);
 
     console.log('[WordPress] Posting title:', title);
     console.log('[WordPress] API URL:', `${WP_API}/posts/new`);
+    console.log('[WordPress] Tags:', tags.slice(0, 80));
 
     const res = await fetch(`${WP_API}/posts/new`, {
       method: 'POST',
@@ -311,8 +441,9 @@ export async function createWPPost(ad) {
         content,
         status: 'publish',
         tags,
-        excerpt: (ad.description || ad.title || '').slice(0, 200),
+        excerpt,
         format: 'standard',
+        metadata,
       }),
     });
 
@@ -334,9 +465,11 @@ export async function createWPPost(ad) {
 
     console.log('[WordPress.com] ✅ Post created:', post.URL, 'ID:', post.ID);
 
-    // Ping IndexNow (Bing + Yandex) for instant indexing — non-blocking
+    // 2F: Ping IndexNow (Bing + Yandex) for instant indexing — non-blocking
     if (post.URL) {
       pingIndexNow(post.URL).catch(() => {});
+      // 2G: Ping Google sitemap
+      pingGoogle(post.URL);
     }
 
     return { wpPostId: String(post.ID), wpPostUrl: post.URL };
@@ -370,13 +503,18 @@ export async function deleteWPPost(wpPostId) {
 export async function updateWPPost(wpPostId, ad) {
   if (!isConfigured() || !wpPostId) return;
   try {
+    const title = buildTitle(ad);
+    const excerpt = buildExcerpt(ad);
+    const metadata = buildOGMetadata(ad, title, excerpt);
     const res = await fetch(`${WP_API}/posts/${wpPostId}`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
-        title: buildTitle(ad),
+        title,
         content: buildContent(ad),
-        excerpt: (ad.description || ad.title || '').slice(0, 200),
+        excerpt,
+        metadata,
+        tags: generateKeywords(ad).slice(0, 15).join(','),
       }),
     });
     if (res.ok) console.log('[WordPress.com] ✅ Post updated:', wpPostId);

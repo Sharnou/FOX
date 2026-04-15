@@ -48,9 +48,10 @@ router.get('/callback', async (req, res) => {
       return res.status(500).json({ error: 'Failed to get token', details: data });
     }
 
-    console.log('[WP OAuth] ✅ Got access token');
+    // Auto-set in process env
+    process.env.WP_ACCESS_TOKEN = data.access_token;
+    console.log('[WP OAuth] ✅ Got access token and set in process.env');
 
-    // Return the token clearly so user can copy it to Railway
     res.send(`
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
@@ -137,7 +138,7 @@ router.post('/sync-ad/:id', async (req, res) => {
       });
       res.json({ ok: true, wpPostId: result.wpPostId, wpPostUrl: result.wpPostUrl });
     } else {
-      res.status(500).json({ error: 'createWPPost returned null — check Railway logs' });
+      res.status(500).json({ error: 'createWPPost returned null — check Railway logs. Ensure WP_ACCESS_TOKEN is set.' });
     }
   } catch (e) {
     console.error('[WP sync-ad] Error:', e.message, e.stack);
@@ -145,47 +146,75 @@ router.post('/sync-ad/:id', async (req, res) => {
   }
 });
 
-// POST /api/wp/sync-all — sync all active ads that don't have wpPostId yet
+// 2K: POST /api/wp/sync-all — sync all active ads that don't have wpPostId yet
+// Batches of 5, rate limit 1 per second, returns progress
 router.post('/sync-all', async (req, res) => {
   try {
     const { default: Ad } = await import('../models/Ad.js');
     const { createWPPost } = await import('../utils/wordpress.js');
 
-    const ads = await Ad.find({ isDeleted: { $ne: true }, isExpired: { $ne: true }, wpPostId: null }).limit(50);
-    res.json({ message: `Syncing ${ads.length} ads in background...`, count: ads.length });
+    if (!process.env.WP_ACCESS_TOKEN) {
+      return res.status(400).json({ error: 'WP_ACCESS_TOKEN not set' });
+    }
 
-    // Process in background
+    const ads = await Ad.find({
+      isDeleted: { $ne: true },
+      isExpired: { $ne: true },
+      $or: [{ wpPostId: null }, { wpPostId: { $exists: false } }],
+    }).limit(200);
+
+    const total = ads.length;
+    res.json({
+      message: `Syncing ${total} ads in background (batches of 5, 1/sec rate limit)...`,
+      total,
+    });
+
+    // Process in background — batches of 5
     (async () => {
-      let success = 0, fail = 0;
-      for (const ad of ads) {
-        try {
-          const result = await createWPPost(ad.toObject());
-          if (result) {
-            await Ad.findByIdAndUpdate(ad._id, { wpPostId: result.wpPostId, wpPostUrl: result.wpPostUrl });
-            success++;
-            console.log(`[WordPress] Synced "${ad.title}" → ${result.wpPostUrl}`);
-          } else {
-            fail++;
-            console.warn(`[WordPress] sync-all: null result for ad ${ad._id}`);
+      let synced = 0, failed = 0;
+      const BATCH_SIZE = 5;
+
+      for (let i = 0; i < ads.length; i += BATCH_SIZE) {
+        const batch = ads.slice(i, i + BATCH_SIZE);
+        console.log(`[WP sync-all] Processing batch ${Math.floor(i / BATCH_SIZE) + 1} (ads ${i + 1}-${Math.min(i + BATCH_SIZE, total)} of ${total})`);
+
+        for (const ad of batch) {
+          try {
+            const result = await createWPPost(ad.toObject());
+            if (result) {
+              await Ad.findByIdAndUpdate(ad._id, {
+                wpPostId: result.wpPostId,
+                wpPostUrl: result.wpPostUrl,
+              });
+              synced++;
+              console.log(`[WP sync-all] ✅ [${synced}/${total}] "${ad.title}" → ${result.wpPostUrl}`);
+            } else {
+              failed++;
+              console.warn(`[WP sync-all] ⚠️ null result for ad ${ad._id} "${ad.title}"`);
+            }
+            // Rate limit: 1 per second between posts to avoid WP API throttling
+            await new Promise(r => setTimeout(r, 1000));
+          } catch (e) {
+            failed++;
+            console.error(`[WP sync-all] ❌ Error syncing ad ${ad._id}:`, e.message);
           }
-          // Rate limit: 1 post per 2 seconds to avoid WordPress API throttling
+        }
+
+        // Brief pause between batches
+        if (i + BATCH_SIZE < ads.length) {
           await new Promise(r => setTimeout(r, 2000));
-        } catch (e) {
-          fail++;
-          console.error('[WordPress] Sync error for', ad._id, e.message);
         }
       }
-      console.log(`[WordPress] Bulk sync done: ${success} success, ${fail} fail`);
+
+      console.log(`[WP sync-all] ✅ Complete: synced=${synced}, failed=${failed}, total=${total}`);
     })();
   } catch (e) {
-    console.error('[WP sync-all] Error:', e.message);
+    console.error('[WP sync-all] Fatal error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-
-// GET /api/wp/get-token — Try to get WP token via password grant (fallback when OAuth not possible)
-// This is useful for initial setup on Railway — visit this URL once to auto-set token in memory
+// GET /api/wp/get-token — Try to get WP token via password grant
 router.post('/get-token', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -209,7 +238,6 @@ router.post('/get-token', async (req, res) => {
       console.error('[WP get-token] Failed:', data);
       return res.status(400).json({ error: 'Failed to get token', details: data });
     }
-    // Set token in process env (persists for this process lifetime)
     process.env.WP_ACCESS_TOKEN = data.access_token;
     console.log('[WP get-token] ✅ Token obtained and set in process.env');
     res.json({
@@ -224,109 +252,195 @@ router.post('/get-token', async (req, res) => {
   }
 });
 
-
-// POST /api/wp/setup-site — Comprehensive WordPress site setup (C1-C5)
-// Requires WP_ACCESS_TOKEN to be set in env
-router.post('/setup-site', async (req, res) => {
+// ─── 2J: Comprehensive WordPress site setup ────────────────────────────────
+// Exported for use by server startup
+export async function setupWordPressSite() {
   const token = process.env.WP_ACCESS_TOKEN;
   if (!token) {
-    return res.status(400).json({ 
-      error: 'WP_ACCESS_TOKEN not set',
-      hint: 'Visit /api/wp/auth or POST /api/wp/get-token to get a token first'
-    });
+    console.log('[WP Setup] Skipped — WP_ACCESS_TOKEN not set');
+    return { skipped: true };
   }
 
-  const WP_API = `https://public-api.wordpress.com/rest/v1.1/sites/${SITE}`;
+  const WP_API_BASE = `https://public-api.wordpress.com/rest/v1.1/sites/${SITE}`;
   const authH = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const formH = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' };
   const results = [];
 
   async function wpPost(endpoint, body, useForm = false) {
-    const res = await fetch(WP_API + endpoint, {
+    const r = await fetch(WP_API_BASE + endpoint, {
       method: 'POST',
       headers: useForm ? formH : authH,
       body: useForm ? new URLSearchParams(body).toString() : JSON.stringify(body),
     });
-    const data = await res.json();
-    return { ok: res.ok, data };
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, data };
   }
 
   async function wpGet(endpoint) {
-    const res = await fetch(WP_API + endpoint, { headers: authH });
-    return res.ok ? await res.json() : null;
+    const r = await fetch(WP_API_BASE + endpoint, { headers: authH });
+    return r.ok ? await r.json().catch(() => null) : null;
   }
 
+  console.log('[WP Setup] Starting comprehensive WordPress site setup...');
+
+  // 1. Update site settings: name, tagline, language, timezone
+  try {
+    const r = await wpPost('/settings', {
+      blogname: 'XTOX - سوق محلي عربي',
+      blogdescription: 'أكبر سوق محلي عربي - بيع واشتري مجاناً | إعلانات مبوبة',
+      lang_id: 'ar',
+      timezone: 'Africa/Cairo',
+    }, true);
+    if (r.ok) {
+      console.log('[WP Setup] ✅ Site settings updated (name, tagline, language=ar, timezone=Cairo)');
+      results.push('settings: OK');
+    } else {
+      console.error('[WP Setup] ❌ Settings failed:', r.status, JSON.stringify(r.data).slice(0, 200));
+      results.push('settings: FAILED');
+    }
+  } catch (e) { console.error('[WP Setup] Settings error:', e.message); results.push('settings: ERROR'); }
+
+  // 2. Create categories: all 12 standard Arabic categories
+  const CATEGORIES = ['سيارات', 'موبايلات', 'إلكترونيات', 'عقارات', 'أثاث', 'ملابس', 'وظائف', 'خدمات', 'حيوانات', 'رياضة', 'كتب', 'أخرى'];
+  try {
+    const existingCats = await wpGet('/categories?number=100');
+    const existingNames = new Set((existingCats?.categories || []).map(c => c.name));
+    let catCreated = 0;
+    for (const catName of CATEGORIES) {
+      if (!existingNames.has(catName)) {
+        const r = await wpPost('/categories/new', { name: catName, description: `إعلانات ${catName} في XTOX` });
+        if (r.ok) { catCreated++; console.log(`[WP Setup] ✅ Category created: ${catName}`); }
+        else console.warn(`[WP Setup] Category "${catName}" failed:`, r.data?.message || r.status);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+    results.push(`categories: ${catCreated} created, ${CATEGORIES.length - catCreated} existed`);
+  } catch (e) { console.error('[WP Setup] Categories error:', e.message); results.push('categories: ERROR'); }
+
+  // 3. Create "من نحن" (About XTOX) page if missing
+  try {
+    const pagesData = await wpGet('/pages/?number=50');
+    const pages = pagesData?.pages || [];
+    const pageTitles = pages.map(p => (p.title || '').toLowerCase());
+
+    if (!pageTitles.some(t => t.includes('من نحن') || t.includes('about'))) {
+      const r = await wpPost('/posts/new', {
+        title: 'من نحن | XTOX السوق المحلي العربي',
+        type: 'page',
+        status: 'publish',
+        content: `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;">
+<h1 style="color:#6366f1;">🌟 من نحن — XTOX</h1>
+<p style="font-size:18px;line-height:2;">XTOX هو السوق المحلي العربي الأول الذي يربط البائعين بالمشترين في جميع أنحاء العالم العربي.</p>
+<h2>🎯 مهمتنا</h2>
+<p>نوفر منصة مجانية آمنة وسهلة لنشر الإعلانات المبوبة وإتمام الصفقات بشكل مباشر بين الأفراد.</p>
+<h2>✨ مميزاتنا</h2>
+<ul style="line-height:2.5;">
+<li>🆓 <strong>مجاني 100%</strong> — بدون عمولات أو رسوم خفية</li>
+<li>📞 <strong>مكالمات صوتية</strong> — تواصل مع البائع مباشرة</li>
+<li>💬 <strong>دردشة آمنة</strong> — محادثات مشفرة</li>
+<li>🏆 <strong>مسابقة بائع الشهر</strong> — جوائز نقدية للأفضل</li>
+<li>🌍 <strong>جميع الدول العربية</strong> — مصر، السعودية، الإمارات وأكثر</li>
+<li>📱 <strong>تطبيق PWA</strong> — يعمل على كل الأجهزة</li>
+</ul>
+<h2>📱 ابدأ الآن</h2>
+<p><a href="https://fox-kohl-eight.vercel.app" style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:16px;">🚀 افتح التطبيق مجاناً</a></p>
+<p style="margin-top:20px;color:#6b7280;">📧 للتواصل: <a href="mailto:xtox.noreply@gmail.com">xtox.noreply@gmail.com</a></p>
+</div>`,
+      });
+      if (r.ok) { console.log('[WP Setup] ✅ About page created:', r.data.URL); results.push('about-page: created'); }
+      else { console.error('[WP Setup] About page failed:', r.data); results.push('about-page: FAILED'); }
+    } else {
+      results.push('about-page: existed');
+    }
+
+    // 4. Create "حمّل التطبيق" PWA install page
+    if (!pageTitles.some(t => t.includes('تطبيق') || t.includes('download') || t.includes('install'))) {
+      const r = await wpPost('/posts/new', {
+        title: 'حمّل تطبيق XTOX مجاناً',
+        type: 'page',
+        status: 'publish',
+        content: `<div dir="rtl" style="font-family:Arial,sans-serif;text-align:center;padding:40px 20px;">
+<h1 style="color:#6366f1;font-size:32px;">📱 حمّل تطبيق XTOX</h1>
+<p style="font-size:18px;">تطبيق PWA — يعمل على الموبايل والكمبيوتر بدون متجر تطبيقات</p>
+<div style="margin:30px 0;">
+<a href="https://fox-kohl-eight.vercel.app/install" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:16px 40px;border-radius:50px;font-size:20px;font-weight:bold;text-decoration:none;margin:10px;">
+📲 تحميل XTOX الآن
+</a>
+</div>
+<h2>كيفية التثبيت:</h2>
+<ol style="text-align:right;max-width:400px;margin:0 auto;line-height:2.5;">
+<li>افتح الرابط: <a href="https://fox-kohl-eight.vercel.app">fox-kohl-eight.vercel.app</a></li>
+<li>اضغط على قائمة المتصفح (⋮)</li>
+<li>اختر "إضافة إلى الشاشة الرئيسية"</li>
+<li>اضغط "إضافة" ← تم!</li>
+</ol>
+</div>`,
+      });
+      if (r.ok) { console.log('[WP Setup] ✅ Install page created:', r.data.URL); results.push('install-page: created'); }
+      else { results.push('install-page: FAILED'); }
+    } else {
+      results.push('install-page: existed');
+    }
+  } catch (e) { console.error('[WP Setup] Pages error:', e.message); results.push('pages: ERROR'); }
+
+  // 5. Create/update welcome sticky post if no posts exist
+  try {
+    const postsData = await wpGet('/posts/?number=5&type=post');
+    const posts = postsData?.posts || [];
+
+    if (posts.length === 0) {
+      const r = await wpPost('/posts/new', {
+        title: 'مرحباً بك في XTOX - السوق المحلي العربي الجديد',
+        status: 'publish',
+        format: 'standard',
+        tags: 'XTOX,سوق,بيع,شراء,إعلانات,عربي,مجاني,سوق محلي,إعلانات مبوبة',
+        sticky: true,
+        excerpt: 'XTOX هو السوق المحلي العربي الأول — بيع واشتري مجاناً بدون عمولة | إعلانات مبوبة في مصر والسعودية والإمارات وجميع الدول العربية',
+        content: `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;">
+<h1 style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:20px;border-radius:16px;text-align:center;">🌟 مرحباً بك في XTOX!</h1>
+<p style="font-size:18px;line-height:2;text-align:center;">XTOX هو السوق المحلي العربي الذي يربط البائعين بالمشترين في جميع أنحاء العالم العربي. <strong>مجاني 100%، آمن وسهل الاستخدام.</strong></p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0;">
+<div style="background:#f0f7ff;border-radius:12px;padding:16px;"><h3>🛒 للمشترين</h3><p>تصفح آلاف الإعلانات، تواصل مباشرة، احصل على أفضل الأسعار.</p></div>
+<div style="background:#f0fff4;border-radius:12px;padding:16px;"><h3>💼 للبائعين</h3><p>انشر إعلانك مجاناً، احصل على مشترين محتملين فوراً.</p></div>
+</div>
+<div style="text-align:center;margin:32px 0;">
+<a href="https://fox-kohl-eight.vercel.app" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:16px 40px;border-radius:50px;font-size:20px;font-weight:bold;text-decoration:none;">🚀 ابدأ الآن مجاناً</a>
+</div>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"XTOX","url":"https://fox-kohl-eight.vercel.app","description":"السوق المحلي العربي الأول للإعلانات المبوبة المجانية","potentialAction":{"@type":"SearchAction","target":"https://fox-kohl-eight.vercel.app/search?q={search_term_string}","query-input":"required name=search_term_string"}}
+</script>
+</div>`,
+      });
+      if (r.ok) { console.log('[WP Setup] ✅ Welcome post created:', r.data.URL); results.push('welcome-post: created'); }
+      else { results.push('welcome-post: FAILED'); }
+    } else {
+      // Make first post sticky
+      if (!posts[0].sticky) {
+        await wpPost(`/posts/${posts[0].ID}`, { sticky: '1' }, true);
+        console.log('[WP Setup] ✅ First post set as sticky');
+      }
+      results.push(`welcome-post: existed (${posts.length} posts)`);
+    }
+  } catch (e) { console.error('[WP Setup] Posts error:', e.message); results.push('posts: ERROR'); }
+
+  console.log('[WP Setup] ✅ Setup complete! Results:', results.join(', '));
+  return { ok: true, results };
+}
+
+// POST /api/wp/setup-site — HTTP endpoint (triggers setupWordPressSite)
+router.post('/setup-site', async (req, res) => {
+  const token = process.env.WP_ACCESS_TOKEN;
+  if (!token) {
+    return res.status(400).json({
+      error: 'WP_ACCESS_TOKEN not set',
+      hint: 'Visit /api/wp/auth or POST /api/wp/get-token to get a token first',
+    });
+  }
+
+  // Respond immediately, run setup in background
   res.json({ message: 'WordPress site setup started in background. Check Railway logs for progress.' });
 
-  // Run setup in background
-  (async () => {
-    console.log('[WP Setup] Starting comprehensive site setup...');
-
-    // C1: Update site settings
-    try {
-      const r = await wpPost('/settings', { blogname: 'XTOX - سوق محلي عربي', blogdescription: 'أكبر سوق محلي عربي - بيع واشتري بكل سهولة', lang_id: 'ar' }, true);
-      if (r.ok) console.log('[WP Setup] ✅ Site settings updated');
-      else console.error('[WP Setup] ❌ Settings failed:', r.data);
-    } catch(e) { console.error('[WP Setup] Settings error:', e.message); }
-
-    // C2: Check and create pages
-    try {
-      const pagesData = await wpGet('/pages/?number=50');
-      const pages = (pagesData && pagesData.pages) || [];
-      const titles = pages.map(p => (p.title || '').toLowerCase());
-
-      if (!titles.some(t => t.includes('من نحن') || t.includes('about'))) {
-        const r = await wpPost('/posts/new', { title: 'من نحن', type: 'page', status: 'publish', content: '<div dir="rtl"><h1>مرحباً بك في XTOX</h1><p>XTOX هو سوق محلي عربي مجاني. <a href="https://fox-kohl-eight.vercel.app">ابدأ الآن →</a></p></div>' });
-        if (r.ok) console.log('[WP Setup] ✅ About page created:', r.data.URL);
-      }
-
-      if (!titles.some(t => t.includes('تواصل') || t.includes('contact'))) {
-        const r = await wpPost('/posts/new', { title: 'تواصل معنا', type: 'page', status: 'publish', content: '<div dir="rtl"><h1>تواصل معنا</h1><p>📧 <a href="mailto:xtox.noreply@gmail.com">xtox.noreply@gmail.com</a></p></div>' });
-        if (r.ok) console.log('[WP Setup] ✅ Contact page created');
-      }
-
-      if (!titles.some(t => t.includes('تطبيق') || t.includes('download'))) {
-        const r = await wpPost('/posts/new', { title: 'حمّل التطبيق', type: 'page', status: 'publish', content: '<div dir="rtl"><h1>حمّل تطبيق XTOX</h1><p><a href="https://fox-kohl-eight.vercel.app">افتح التطبيق →</a></p></div>' });
-        if (r.ok) console.log('[WP Setup] ✅ Download page created');
-      }
-    } catch(e) { console.error('[WP Setup] Pages error:', e.message); }
-
-    // C3/C4: Handle posts
-    try {
-      const postsData = await wpGet('/posts/?number=10&type=post');
-      const posts = (postsData && postsData.posts) || [];
-
-      if (posts.length > 0) {
-        // Make first post sticky
-        if (!posts[0].sticky) {
-          const r = await wpPost(`/posts/${posts[0].ID}`, { sticky: '1' }, true);
-          if (r.ok) console.log('[WP Setup] ✅ First post set as sticky');
-        }
-        // C5: Update posts without tags
-        for (const post of posts) {
-          if (!post.tags || Object.keys(post.tags).length === 0) {
-            await wpPost(`/posts/${post.ID}`, { tags: 'سوق,بيع,شراء,إعلانات,عربي' }, true);
-            console.log('[WP Setup] ✅ Updated tags for:', post.title.slice(0, 40));
-            await new Promise(r => setTimeout(r, 500));
-          }
-        }
-      } else {
-        // C4: Create welcome post
-        const r = await wpPost('/posts/new', {
-          title: 'مرحباً بك في XTOX - السوق المحلي العربي الجديد',
-          status: 'publish',
-          format: 'standard',
-          tags: 'سوق,بيع,شراء,إعلانات,عربي,مجاني',
-          sticky: true,
-          content: '<div dir="rtl"><h1>🌟 مرحباً بك في XTOX!</h1><p>XTOX هو السوق المحلي العربي الذي يربط البائعين بالمشترين في جميع أنحاء العالم العربي. مجاني 100%، آمن وسهل الاستخدام.</p><p><a href="https://fox-kohl-eight.vercel.app">ابدأ الآن مجاناً →</a></p></div>',
-        });
-        if (r.ok) console.log('[WP Setup] ✅ Welcome post created:', r.data.URL);
-        else console.error('[WP Setup] ❌ Welcome post failed:', r.data);
-      }
-    } catch(e) { console.error('[WP Setup] Posts error:', e.message); }
-
-    console.log('[WP Setup] ✅ Setup complete!');
-  })();
+  setupWordPressSite().catch(e => console.error('[WP Setup] Fatal error:', e.message));
 });
 
 export default router;

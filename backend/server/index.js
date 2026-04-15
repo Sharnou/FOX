@@ -77,7 +77,7 @@ import whatsappRouter from '../routes/whatsapp.js';
 import notificationRoutes from '../routes/notifications.js';
 import pushRoutes from '../routes/push.js';
 import winnerRouter from '../routes/winner.js';
-import wpRouter from '../routes/wp.js';
+import wpRouter, { setupWordPressSite } from "../routes/wp.js";
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 // Pre-register WinnerHistory model so it is available before first query
 import('../models/WinnerHistory.js').catch(e => console.warn('[WinnerHistory] model load failed:', e.message));
@@ -382,6 +382,23 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  GEMINI_API_KEY=<google-gemini-key>');
   console.log('  COUCHBASE_URL=<couchbase-capella-url>  # optional');
 });
+
+// ─── 2J: Auto-run WordPress site setup 30 seconds after server starts ────────
+// Only runs if WP_ACCESS_TOKEN is configured in Railway env vars
+setTimeout(async () => {
+  if (process.env.WP_ACCESS_TOKEN) {
+    try {
+      console.log("[WP] Auto-running site setup (30s timer)...");
+      await setupWordPressSite();
+      console.log("[WP] Auto site setup complete");
+    } catch (e) {
+      console.error("[WP] Auto site setup failed:", e.message);
+    }
+  } else {
+    console.log("[WP] WP_ACCESS_TOKEN not set — skipping auto site setup. Visit /api/wp/auth to connect.");
+  }
+}, 30000);
+// ─────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────
 
 // ── DB startup race: MongoDB vs Couchbase — handled by dbManager ─────────────
