@@ -1013,16 +1013,20 @@ router.post('/', auth, multerUpload, async (req, res) => {
     // WORDPRESS AUTO-SYNC: create post async after response (non-blocking)
     setImmediate(async () => {
       try {
-        const result = await createWPPost(ad.toObject ? ad.toObject() : ad);
+        const adObj = ad.toObject ? ad.toObject() : ad;
+        console.log('[WordPress] Attempting to sync ad:', adObj._id, adObj.title);
+        const result = await createWPPost(adObj);
         if (result) {
           await getAdModel().findByIdAndUpdate(ad._id, {
             wpPostId: result.wpPostId,
             wpPostUrl: result.wpPostUrl,
           });
-          console.log('[WordPress] Synced ad', ad._id.toString(), '→', result.wpPostUrl);
+          console.log('[WordPress] ✅ Synced ad to WordPress:', result.wpPostUrl);
+        } else {
+          console.log('[WordPress] ⚠️ createWPPost returned null for ad:', adObj._id);
         }
       } catch (e) {
-        console.error('[WordPress] Async post creation failed:', e.message);
+        console.error('[WordPress] ❌ Sync failed:', e.message, e.stack);
       }
     });
   } catch (fatalErr) {

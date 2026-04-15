@@ -1,4 +1,5 @@
-import nodeFetch from 'node-fetch';
+// Use global fetch (Node 18+ built-in) — avoids node-fetch ESM import issues
+// import nodeFetch from 'node-fetch'; // REMOVED — use globalThis.fetch instead
 
 const SITE = 'xt0x.wordpress.com';
 const WP_API = `https://public-api.wordpress.com/rest/v1.1/sites/${SITE}`;
@@ -62,7 +63,7 @@ function buildContent(ad) {
   const installLink = `${appUrl}/install`;
   const keywords = generateKeywords(ad).join(', ');
 
-  const imagesHtml = (ad.images || []).slice(0, 6).map((src, i) =>
+  const imagesHtml = (ad.images || ad.media || []).slice(0, 6).map((src, i) =>
     `<img src="${src}" alt="${ad.title} صورة ${i + 1}" style="max-width:100%;border-radius:12px;margin:8px 0;" loading="lazy"/>`
   ).join('\n');
 
@@ -111,18 +112,26 @@ ${ad.description ? `<div style="background:#f8f9ff;border-radius:12px;padding:16
 
 // ─── Create WordPress.com post ─────────────────────────────────────────────
 export async function createWPPost(ad) {
+  console.log('[WordPress] createWPPost called, token configured:', !!getToken());
   if (!isConfigured()) {
     console.log('[WordPress.com] WP_ACCESS_TOKEN not set — skipping');
     return null;
   }
+
   try {
     const tags = generateKeywords(ad).slice(0, 10).join(',');
-    const res = await nodeFetch(`${WP_API}/posts/new`, {
+    const title = buildTitle(ad);
+    const content = buildContent(ad);
+
+    console.log('[WordPress] Posting title:', title);
+    console.log('[WordPress] API URL:', `${WP_API}/posts/new`);
+
+    const res = await fetch(`${WP_API}/posts/new`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
-        title: buildTitle(ad),
-        content: buildContent(ad),
+        title,
+        content,
         status: 'publish',
         tags,
         excerpt: (ad.description || ad.title || '').slice(0, 200),
@@ -130,17 +139,27 @@ export async function createWPPost(ad) {
       }),
     });
 
+    const responseText = await res.text();
+    console.log('[WordPress] Response status:', res.status);
+
     if (!res.ok) {
-      const err = await res.text();
-      console.error('[WordPress.com] Create failed:', res.status, err.slice(0, 300));
+      console.error('[WordPress.com] Create failed:', res.status, responseText.slice(0, 500));
       return null;
     }
 
-    const post = await res.json();
-    console.log('[WordPress.com] ✅ Post created:', post.URL);
+    let post;
+    try {
+      post = JSON.parse(responseText);
+    } catch (parseErr) {
+      console.error('[WordPress.com] JSON parse error:', parseErr.message, '| body:', responseText.slice(0, 300));
+      return null;
+    }
+
+    console.log('[WordPress.com] ✅ Post created:', post.URL, 'ID:', post.ID);
     return { wpPostId: String(post.ID), wpPostUrl: post.URL };
   } catch (e) {
     console.error('[WordPress.com] Create error:', e.message);
+    console.error('[WordPress.com] Stack:', e.stack);
     return null;
   }
 }
@@ -149,14 +168,15 @@ export async function createWPPost(ad) {
 export async function deleteWPPost(wpPostId) {
   if (!isConfigured() || !wpPostId) return;
   try {
-    const res = await nodeFetch(`${WP_API}/posts/${wpPostId}/delete`, {
+    const res = await fetch(`${WP_API}/posts/${wpPostId}/delete`, {
       method: 'POST',
       headers: authHeaders(),
     });
     if (res.ok) {
       console.log('[WordPress.com] ✅ Post deleted:', wpPostId);
     } else {
-      console.error('[WordPress.com] Delete failed:', res.status);
+      const errText = await res.text().catch(() => '');
+      console.error('[WordPress.com] Delete failed:', res.status, errText.slice(0, 200));
     }
   } catch (e) {
     console.error('[WordPress.com] Delete error:', e.message);
@@ -167,7 +187,7 @@ export async function deleteWPPost(wpPostId) {
 export async function updateWPPost(wpPostId, ad) {
   if (!isConfigured() || !wpPostId) return;
   try {
-    const res = await nodeFetch(`${WP_API}/posts/${wpPostId}`, {
+    const res = await fetch(`${WP_API}/posts/${wpPostId}`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({

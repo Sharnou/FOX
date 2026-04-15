@@ -1,5 +1,5 @@
 import express from 'express';
-import nodeFetch from 'node-fetch';
+// Using global fetch (Node 18+ built-in) — avoids node-fetch ESM import issues
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.get('/callback', async (req, res) => {
   }
 
   try {
-    const tokenRes = await nodeFetch('https://public-api.wordpress.com/oauth2/token', {
+    const tokenRes = await fetch('https://public-api.wordpress.com/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -102,7 +102,7 @@ router.get('/status', async (req, res) => {
   }
 
   try {
-    const testRes = await nodeFetch('https://public-api.wordpress.com/rest/v1.1/me/', {
+    const testRes = await fetch('https://public-api.wordpress.com/rest/v1.1/me/', {
       headers: { Authorization: `Bearer ${token}` },
     });
     const me = await testRes.json();
@@ -115,6 +115,71 @@ router.get('/status', async (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ connected: false, error: e.message });
+  }
+});
+
+// POST /api/wp/sync-ad/:id — manually sync a specific ad to WordPress (for testing)
+router.post('/sync-ad/:id', async (req, res) => {
+  try {
+    const { default: Ad } = await import('../models/Ad.js');
+    const { createWPPost } = await import('../utils/wordpress.js');
+
+    const ad = await Ad.findById(req.params.id);
+    if (!ad) return res.status(404).json({ error: 'Ad not found' });
+
+    console.log('[WordPress] Manual sync for ad:', ad._id, ad.title);
+    const result = await createWPPost(ad.toObject());
+
+    if (result) {
+      await Ad.findByIdAndUpdate(ad._id, {
+        wpPostId: result.wpPostId,
+        wpPostUrl: result.wpPostUrl,
+      });
+      res.json({ ok: true, wpPostId: result.wpPostId, wpPostUrl: result.wpPostUrl });
+    } else {
+      res.status(500).json({ error: 'createWPPost returned null — check Railway logs' });
+    }
+  } catch (e) {
+    console.error('[WP sync-ad] Error:', e.message, e.stack);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// POST /api/wp/sync-all — sync all active ads that don't have wpPostId yet
+router.post('/sync-all', async (req, res) => {
+  try {
+    const { default: Ad } = await import('../models/Ad.js');
+    const { createWPPost } = await import('../utils/wordpress.js');
+
+    const ads = await Ad.find({ isDeleted: { $ne: true }, isExpired: { $ne: true }, wpPostId: null }).limit(50);
+    res.json({ message: `Syncing ${ads.length} ads in background...`, count: ads.length });
+
+    // Process in background
+    (async () => {
+      let success = 0, fail = 0;
+      for (const ad of ads) {
+        try {
+          const result = await createWPPost(ad.toObject());
+          if (result) {
+            await Ad.findByIdAndUpdate(ad._id, { wpPostId: result.wpPostId, wpPostUrl: result.wpPostUrl });
+            success++;
+            console.log(`[WordPress] Synced "${ad.title}" → ${result.wpPostUrl}`);
+          } else {
+            fail++;
+            console.warn(`[WordPress] sync-all: null result for ad ${ad._id}`);
+          }
+          // Rate limit: 1 post per 2 seconds to avoid WordPress API throttling
+          await new Promise(r => setTimeout(r, 2000));
+        } catch (e) {
+          fail++;
+          console.error('[WordPress] Sync error for', ad._id, e.message);
+        }
+      }
+      console.log(`[WordPress] Bulk sync done: ${success} success, ${fail} fail`);
+    })();
+  } catch (e) {
+    console.error('[WP sync-all] Error:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
