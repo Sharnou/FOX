@@ -473,6 +473,17 @@ a:hover { color: #1d4ed8; }
     results.push('custom-css: ERROR');
   }
 
+  // 3E: Submit sitemaps to Google and Bing for immediate indexing
+  const sitemaps = [
+    'https://xt0x.wordpress.com/sitemap.xml',
+    'https://fox-kohl-eight.vercel.app/sitemap.xml',
+  ];
+  for (const sm of sitemaps) {
+    fetch(`https://www.google.com/ping?sitemap=${encodeURIComponent(sm)}`).catch(()=>{});
+    fetch(`https://www.bing.com/ping?sitemap=${encodeURIComponent(sm)}`).catch(()=>{});
+  }
+  console.log('[WP Setup] Sitemaps submitted to Google and Bing');
+
   return { ok: true, results };
 }
 

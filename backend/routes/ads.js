@@ -24,6 +24,7 @@ import { CLOUDINARY_ENABLED } from '../server/cloudinary.js';
 import { moderateAdContent } from '../utils/adModeration.js';
 import { createWPPost, deleteWPPost } from '../utils/wordpress.js';
 import { addPointsToUser } from '../utils/points.js';
+import { locationToCountry, countryFromIP } from '../utils/geoCountry.js';
 
 // ── Anti-gaming: 1 view point per user per ad per 24h ───────────────────────
 // Key: "${adId}-${userId}", value: timestamp of last point award
@@ -302,7 +303,13 @@ router.get('/', async (req, res) => {
       }
     } catch { /* non-fatal — seller info is optional */ }
 
-    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+    res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600'); // 5 min fresh, 1h stale
+    res.set('Vary', 'Accept-Language, Accept-Encoding');
+    if (allAds.length > 0) {
+      const firstAd = allAds[0];
+      const lastModified = firstAd.updatedAt || firstAd.createdAt;
+      if (lastModified) res.set('Last-Modified', new Date(lastModified).toUTCString());
+    }
     res.json({ success: true, ads: allAds, total: allAds.length, page: Number(page) });
   } catch (e) {
     // Return empty results instead of 500 so frontend renders correctly
@@ -790,9 +797,19 @@ router.post('/', auth, multerUpload, async (req, res) => {
     const lat = parseFloat(body.lat || body.latitude);
     const validLocation = !isNaN(lng) && !isNaN(lat) && lng !== 0 && lat !== 0;
 
-    // COUNTRY LOCK: always use country from JWT token — user cannot override
-    // Fallback to 'EG' if country is missing from older JWT tokens
-    const country = req.user.country || 'EG';
+    // COUNTRY ASSIGNMENT: use 2-letter ISO code from multiple sources
+    // Priority: 1) body.country (if valid 2-letter code), 2) IP header, 3) location text, 4) JWT, 5) default EG
+    let country = req.user.country || '';
+    if (!country || country.length > 3) {
+      country =
+        (req.body.country && req.body.country.length <= 3 ? req.body.country : '') ||
+        countryFromIP(req) ||
+        locationToCountry(city || req.body.location || '') ||
+        req.user?.country ||
+        'EG'; // default Egypt
+    }
+    // Always uppercase 2-letter code
+    country = (country || 'EG').toUpperCase().slice(0, 2);
 
     // TEXT MODERATION — wrapped in try/catch so a moderation engine crash never returns 400
     let textCheck = { clean: true };
@@ -1211,6 +1228,13 @@ router.patch('/:id', auth, async (req, res) => {
 
     // 5. Update allowed fields
     const { title, description, price, location, subCategory, subSubCategory, images, phoneNumber } = req.body;
+    // Update country if provided (with location-text fallback)
+    if (req.body.country && req.body.country.length <= 3) {
+      ad.country = req.body.country.toUpperCase().slice(0, 2);
+    } else if (location !== undefined) {
+      const detectedCountry = locationToCountry(String(location).slice(0, 60).trim());
+      if (detectedCountry) ad.country = detectedCountry;
+    }
     if (title !== undefined) ad.title = String(title).slice(0, 120).trim();
     if (description !== undefined) ad.description = String(description).slice(0, 1500).trim();
     if (price !== undefined) ad.price = Math.max(0, Number(price) || 0);

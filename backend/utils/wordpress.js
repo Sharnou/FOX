@@ -453,6 +453,244 @@ ${relatedBlock}
 <p style="font-size:1px;color:#fff;line-height:1;">${keywords}</p>
 <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px;">نُشر تلقائياً من <a href="${appUrl}">تطبيق XTOX</a></p>
 ${schemaBlock}
+${buildCountryJS(ad)}
+</div>`;
+}
+
+// ─── 2A: Country-specific JS widget for WordPress posts ─────────────────────
+export function buildCountryJS(ad) {
+  const adId = ad._id?.toString() || '';
+  const adCountry = ad.country || 'EG';
+  const adTitle = (ad.title || '').replace(/'/g, "\\'");
+  const adPrice = ad.price || 0;
+  const adCat = (ad.category || '').replace(/'/g, "\\'");
+  const adCity = (ad.location || ad.city || '').replace(/'/g, "\\'");
+
+  return `<script>
+(function() {
+  'use strict';
+  
+  // ─── Country/Language Data ───────────────────────────────
+  var COUNTRIES = {
+    EG:{lang:'ar',dir:'rtl',name:'مصر',nameEn:'Egypt',currency:'EGP',label:'إعلانات مصر'},
+    SA:{lang:'ar',dir:'rtl',name:'السعودية',nameEn:'Saudi Arabia',currency:'SAR',label:'إعلانات السعودية'},
+    AE:{lang:'ar',dir:'rtl',name:'الإمارات',nameEn:'UAE',currency:'AED',label:'إعلانات الإمارات'},
+    KW:{lang:'ar',dir:'rtl',name:'الكويت',nameEn:'Kuwait',currency:'KWD',label:'إعلانات الكويت'},
+    QA:{lang:'ar',dir:'rtl',name:'قطر',nameEn:'Qatar',currency:'QAR',label:'إعلانات قطر'},
+    BH:{lang:'ar',dir:'rtl',name:'البحرين',nameEn:'Bahrain',currency:'BHD',label:'إعلانات البحرين'},
+    OM:{lang:'ar',dir:'rtl',name:'عُمان',nameEn:'Oman',currency:'OMR',label:'إعلانات عُمان'},
+    JO:{lang:'ar',dir:'rtl',name:'الأردن',nameEn:'Jordan',currency:'JOD',label:'إعلانات الأردن'},
+    LB:{lang:'ar',dir:'rtl',name:'لبنان',nameEn:'Lebanon',currency:'LBP',label:'إعلانات لبنان'},
+    MA:{lang:'ar',dir:'rtl',name:'المغرب',nameEn:'Morocco',currency:'MAD',label:'إعلانات المغرب'},
+    DZ:{lang:'ar',dir:'rtl',name:'الجزائر',nameEn:'Algeria',currency:'DZD',label:'إعلانات الجزائر'},
+    TN:{lang:'ar',dir:'rtl',name:'تونس',nameEn:'Tunisia',currency:'TND',label:'إعلانات تونس'},
+    LY:{lang:'ar',dir:'rtl',name:'ليبيا',nameEn:'Libya',currency:'LYD',label:'إعلانات ليبيا'},
+    IQ:{lang:'ar',dir:'rtl',name:'العراق',nameEn:'Iraq',currency:'IQD',label:'إعلانات العراق'},
+    SD:{lang:'ar',dir:'rtl',name:'السودان',nameEn:'Sudan',currency:'SDG',label:'إعلانات السودان'},
+    SY:{lang:'ar',dir:'rtl',name:'سوريا',nameEn:'Syria',currency:'SYP',label:'إعلانات سوريا'},
+    PS:{lang:'ar',dir:'rtl',name:'فلسطين',nameEn:'Palestine',currency:'ILS',label:'إعلانات فلسطين'},
+    YE:{lang:'ar',dir:'rtl',name:'اليمن',nameEn:'Yemen',currency:'YER',label:'إعلانات اليمن'},
+    US:{lang:'en',dir:'ltr',name:'USA',nameEn:'United States',currency:'USD',label:'US Ads'},
+    GB:{lang:'en',dir:'ltr',name:'UK',nameEn:'United Kingdom',currency:'GBP',label:'UK Ads'},
+    FR:{lang:'fr',dir:'ltr',name:'France',nameEn:'France',currency:'EUR',label:'Annonces France'},
+    DE:{lang:'de',dir:'ltr',name:'Deutschland',nameEn:'Germany',currency:'EUR',label:'Anzeigen Deutschland'},
+    CA:{lang:'en',dir:'ltr',name:'Canada',nameEn:'Canada',currency:'CAD',label:'Canadian Ads'},
+    AU:{lang:'en',dir:'ltr',name:'Australia',nameEn:'Australia',currency:'AUD',label:'Australian Ads'},
+  };
+  
+  var AD_COUNTRY = '${adCountry}';
+  var AD_ID = '${adId}';
+  var API = 'https://xtox-production.up.railway.app';
+  var APP_URL = 'https://fox-kohl-eight.vercel.app';
+
+  // ─── Step 1: Detect visitor country ─────────────────────
+  function detectCountry(cb) {
+    var cached = null, cachedTime = 0;
+    try { cached = localStorage.getItem('xtox_wpcountry'); cachedTime = parseInt(localStorage.getItem('xtox_wpcountry_t') || '0'); } catch(e){}
+    if (cached && Date.now() - cachedTime < 3600000) return cb(cached);
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = controller ? setTimeout(function(){ controller.abort(); }, 3000) : null;
+    fetch('https://ipapi.co/json/', controller ? { signal: controller.signal } : {})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (timer) clearTimeout(timer);
+        var code = (d.country_code || '').toUpperCase();
+        if (!code) throw new Error('no code');
+        try { localStorage.setItem('xtox_wpcountry', code); localStorage.setItem('xtox_wpcountry_t', Date.now()); } catch(e){}
+        cb(code);
+      }).catch(function(){
+        if (timer) clearTimeout(timer);
+        // Fallback: Intl timezone
+        var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        var tzMap = {
+          'Africa/Cairo':'EG','Asia/Riyadh':'SA','Asia/Dubai':'AE','Asia/Kuwait':'KW',
+          'Asia/Qatar':'QA','Asia/Bahrain':'BH','Asia/Muscat':'OM','Asia/Amman':'JO',
+          'Asia/Beirut':'LB','Africa/Casablanca':'MA','Africa/Algiers':'DZ',
+          'Africa/Tunis':'TN','Africa/Tripoli':'LY','Asia/Baghdad':'IQ',
+          'Africa/Khartoum':'SD','Asia/Damascus':'SY','Asia/Gaza':'PS','Asia/Aden':'YE',
+          'America/New_York':'US','America/Los_Angeles':'US','America/Chicago':'US',
+          'Europe/London':'GB','Europe/Paris':'FR','Europe/Berlin':'DE',
+          'America/Toronto':'CA','Australia/Sydney':'AU',
+        };
+        cb(tzMap[tz] || 'EG');
+      });
+  }
+
+  // ─── Step 2: Apply language/direction to WP page ─────────
+  function applyLanguage(code) {
+    var info = COUNTRIES[code] || COUNTRIES['EG'];
+    document.documentElement.lang = info.lang;
+    document.documentElement.dir = info.dir;
+    document.body.style.direction = info.dir;
+    document.body.style.textAlign = info.dir === 'rtl' ? 'right' : 'left';
+    if (info.dir === 'rtl') {
+      var style = document.createElement('style');
+      style.textContent = 'body,p,h1,h2,h3,h4,h5,h6,.entry-content,.entry-title{direction:rtl!important;text-align:right!important;font-family:Arial,"Helvetica Neue",sans-serif!important}.widget{direction:rtl!important}';
+      document.head.appendChild(style);
+    }
+  }
+
+  // ─── Step 3: Inject geo + hreflang meta tags ─────────────
+  function injectGeoMeta(code) {
+    var info = COUNTRIES[code] || COUNTRIES['EG'];
+    var metas = [
+      ['geo.region', code],['geo.country', code],
+      ['language', info.lang],['content-language', info.lang],
+    ];
+    metas.forEach(function(m) {
+      var el = document.querySelector('meta[name="' + m[0] + '"]') || document.createElement('meta');
+      el.name = m[0]; el.content = m[1];
+      if (!el.parentNode) document.head.appendChild(el);
+    });
+    var hreflang = document.createElement('link');
+    hreflang.rel = 'alternate'; hreflang.hreflang = info.lang; hreflang.href = window.location.href;
+    document.head.appendChild(hreflang);
+    var xdef = document.createElement('link');
+    xdef.rel = 'alternate'; xdef.hreflang = 'x-default'; xdef.href = window.location.href;
+    document.head.appendChild(xdef);
+    var canonical = document.querySelector('link[rel="canonical"]') || document.createElement('link');
+    canonical.rel = 'canonical'; canonical.href = window.location.href;
+    if (!canonical.parentNode) document.head.appendChild(canonical);
+    document.title = document.title.replace('| XTOX', '| XTOX ' + info.name);
+  }
+
+  // ─── Step 4: Inject country-aware structured data ────────
+  function injectStructuredData(visitorCode) {
+    var info = COUNTRIES[visitorCode] || COUNTRIES['EG'];
+    var adInfo = COUNTRIES[AD_COUNTRY] || COUNTRIES['EG'];
+    var existing = document.querySelector('script[data-xtox-schema]');
+    if (existing) existing.remove();
+    var schema = {
+      '@context': 'https://schema.org','@type': 'Product',
+      'name': '${adTitle}',
+      'description': document.querySelector('.entry-content p') ? document.querySelector('.entry-content p').textContent.slice(0,200) : '${adTitle}',
+      'offers': {
+        '@type': 'Offer','price': '${adPrice}','priceCurrency': adInfo.currency,
+        'availability': 'https://schema.org/InStock','url': APP_URL + '/ads/' + AD_ID,
+        'areaServed': {'@type': 'Country','name': adInfo.nameEn,'identifier': AD_COUNTRY}
+      },
+      'inLanguage': info.lang,
+      'audience': {'@type': 'Audience','geographicArea': {'@type': 'Country','name': info.nameEn}}
+    };
+    var script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-xtox-schema', '1');
+    script.textContent = JSON.stringify(schema);
+    document.head.appendChild(script);
+  }
+
+  // ─── Step 5: Load country-filtered ads sidebar ───────────
+  function loadCountryAds(visitorCode) {
+    var info = COUNTRIES[visitorCode] || COUNTRIES['EG'];
+    var container = document.getElementById('xtox-country-ads');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#94a3b8;font-size:13px;text-align:center">' + (info.lang === 'ar' ? 'جاري تحميل الإعلانات...' : 'Loading ads...') + '</p>';
+    fetch(API + '/api/ads?country=' + visitorCode + '&limit=5&sort=-createdAt')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var ads = d.ads || d || [];
+        if (!ads.length) {
+          container.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center">' + (info.label || 'No ads') + '</p>';
+          return;
+        }
+        container.innerHTML = '<div style="font-weight:700;color:#60a5fa;margin-bottom:10px;font-size:15px">' + info.label + '</div>' +
+          ads.map(function(a) {
+            var img = (a.images && a.images[0]) || (a.media && a.media[0]) || '';
+            return '<a href="' + APP_URL + '/ads/' + a._id + '" target="_blank" style="display:flex;gap:8px;padding:8px;border-radius:8px;background:#1e293b;margin-bottom:6px;text-decoration:none">' +
+              (img ? '<img src="' + img + '" width="48" height="48" style="border-radius:6px;object-fit:cover;flex-shrink:0" loading="lazy" />' : '<div style="width:48px;height:48px;border-radius:6px;background:#334155;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px">🛒</div>') +
+              '<div style="flex:1;min-width:0"><div style="color:white;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (a.title || '') + '</div>' +
+              '<div style="color:#10b981;font-size:12px;font-weight:700">' + (a.price ? a.price + ' ' + info.currency : '') + '</div>' +
+              '<div style="color:#64748b;font-size:11px">' + (a.location || '') + '</div></div></a>';
+          }).join('') +
+          '<a href="' + APP_URL + '/?country=' + visitorCode + '" target="_blank" style="display:block;text-align:center;color:#60a5fa;font-size:13px;margin-top:8px;text-decoration:none">← ' + (info.lang === 'ar' ? 'عرض جميع الإعلانات' : 'View all ads') + '</a>';
+      }).catch(function() {
+        container.innerHTML = '<a href="' + APP_URL + '" target="_blank" style="color:#60a5fa;font-size:13px">XTOX - ' + (info.label || 'Ads') + '</a>';
+      });
+  }
+
+  // ─── Step 6: Performance — preload app resources ─────────
+  function preloadResources() {
+    var links = [
+      { rel: 'preconnect', href: 'https://xtox-production.up.railway.app' },
+      { rel: 'preconnect', href: 'https://fox-kohl-eight.vercel.app' },
+      { rel: 'dns-prefetch', href: 'https://ipapi.co' },
+      { rel: 'prefetch', href: APP_URL + '/ads/' + AD_ID },
+    ];
+    links.forEach(function(l) {
+      var el = document.createElement('link');
+      el.rel = l.rel; el.href = l.href;
+      document.head.appendChild(el);
+    });
+  }
+
+  // ─── Step 7: IndexNow ping for this page ─────────────────
+  function pingIndexNow() {
+    var pageUrl = encodeURIComponent(window.location.href);
+    new Image().src = 'https://www.bing.com/indexnow?url=' + pageUrl + '&key=xtox2026indexnow';
+    new Image().src = 'https://yandex.com/indexnow?url=' + pageUrl + '&key=xtox2026indexnow';
+  }
+
+  // ─── Step 8: Social share meta update ────────────────────
+  function updateSocialMeta(visitorCode) {
+    var info = COUNTRIES[visitorCode] || COUNTRIES['EG'];
+    var ogLocale = document.querySelector('meta[property="og:locale"]');
+    if (ogLocale) ogLocale.content = info.lang === 'ar' ? 'ar_' + visitorCode : info.lang.toLowerCase();
+  }
+
+  // ─── MAIN: Run everything ────────────────────────────────
+  preloadResources();
+  detectCountry(function(code) {
+    applyLanguage(code);
+    injectGeoMeta(code);
+    injectStructuredData(code);
+    updateSocialMeta(code);
+    loadCountryAds(code);
+    try {
+      if (!sessionStorage.getItem('xtox_pinged')) {
+        pingIndexNow();
+        sessionStorage.setItem('xtox_pinged', '1');
+      }
+    } catch(e) {}
+  });
+
+  // ─── Step 9: Notify search engines of content freshness ──
+  var freshness = document.createElement('meta');
+  freshness.name = 'revisit-after'; freshness.content = '3 days';
+  document.head.appendChild(freshness);
+  var robots2 = document.querySelector('meta[name="robots"]');
+  if (!robots2) {
+    robots2 = document.createElement('meta');
+    robots2.name = 'robots';
+    document.head.appendChild(robots2);
+  }
+  robots2.content = 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1';
+
+})();
+</script>
+
+<!-- Country-specific ads widget (filled by JS above) -->
+<div id="xtox-country-ads" style="background:#0f172a;border-radius:10px;padding:14px;margin-top:20px;direction:rtl;font-family:Arial,sans-serif">
+  <p style="color:#94a3b8;text-align:center;font-size:13px">جاري التحميل...</p>
 </div>`;
 }
 

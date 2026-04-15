@@ -1,3 +1,64 @@
+// ─── XTOX Background Sync + Cache Strategy ───────────────
+// NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
+// The main CACHE_VERSION constant below may differ — both operate independently.
+const _XTOX_CACHE = 'xtox-v17';
+const _XTOX_API = 'https://xtox-production.up.railway.app';
+
+// Stale-While-Revalidate for API calls (shows cached, fetches fresh)
+self.addEventListener('fetch', function(event) {
+  // Avoid handling non-GET requests
+  if (event.request.method !== 'GET') return;
+  
+  var url;
+  try { url = new URL(event.request.url); } catch(e) { return; }
+  
+  // SWR for ads API — already handled above by main SW; this block is a backup
+  if (url.origin === _XTOX_API && url.pathname.startsWith('/api/ads')) {
+    event.respondWith(
+      caches.open(_XTOX_CACHE).then(function(cache) {
+        return cache.match(event.request).then(function(cached) {
+          var fetchPromise = fetch(event.request).then(function(response) {
+            if (response.ok) cache.put(event.request, response.clone());
+            return response;
+          }).catch(function() { return cached; });
+          return cached || fetchPromise;
+        });
+      })
+    );
+    return;
+  }
+  
+  // Cache-first for static assets
+  if (event.request.destination === 'image' || 
+      event.request.destination === 'style' || 
+      event.request.destination === 'script') {
+    event.respondWith(
+      caches.open(_XTOX_CACHE).then(function(cache) {
+        return cache.match(event.request).then(function(cached) {
+          return cached || fetch(event.request).then(function(r) {
+            if (r.ok) cache.put(event.request, r.clone());
+            return r;
+          });
+        });
+      })
+    );
+    return;
+  }
+});
+
+// Background sync — refresh ads every 15 minutes
+self.addEventListener('periodicsync', function(event) {
+  if (event.tag === 'refresh-ads') {
+    event.waitUntil(
+      fetch(_XTOX_API + '/api/ads?limit=20').then(function(r) {
+        if (r.ok) return caches.open(_XTOX_CACHE).then(function(c) {
+          return c.put(_XTOX_API + '/api/ads?limit=20', r);
+        });
+      }).catch(function() {})
+    );
+  }
+});
+
 // ─── XTOX Service Worker v11 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
 const CACHE_VERSION = 'v17';

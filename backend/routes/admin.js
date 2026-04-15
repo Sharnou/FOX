@@ -822,4 +822,36 @@ router.get("/reviews", adminAuth, async (req, res) => {
 });
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/admin/backfill-countries — Backfill missing/invalid country codes
+// Reads city text from each ad and assigns the correct 2-letter ISO country code
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/backfill-countries', adminAuth, async (req, res) => {
+  try {
+    const { locationToCountry } = await import('../utils/geoCountry.js');
+    const ads = await Ad.find({
+      $or: [
+        { country: '' },
+        { country: { $exists: false } },
+        { country: { $regex: /^[^A-Z]{0,1}$|.{3,}/ } }
+      ]
+    })
+      .select('_id location city country seller')
+      .populate('seller', 'country');
+    let updated = 0;
+    for (const ad of ads) {
+      const code = locationToCountry(ad.location || ad.city || '') || ad.seller?.country || 'EG';
+      if (code) {
+        await Ad.updateOne({ _id: ad._id }, { country: code.toUpperCase().slice(0, 2) });
+        updated++;
+      }
+    }
+    res.json({ updated, total: ads.length });
+  } catch (err) {
+    console.error('[Admin backfill-countries] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 export default router;

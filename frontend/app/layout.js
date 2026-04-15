@@ -10,6 +10,7 @@ import ErrorCapture from './components/ErrorCapture';
 import MarkPoint from './components/MarkPoint';
 import ChatFloat from './components/ChatFloat';
 import WhatsAppFloat from './components/WhatsAppFloat';
+import GeoMetaInjector from './components/GeoMetaInjector';
 
 // JSON-LD structured data for rich Google search results
 const jsonLd = {
@@ -95,6 +96,21 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
         <link rel="preconnect" href="https://xtox-production.up.railway.app" />
         <link rel="dns-prefetch" href="https://xtox-production.up.railway.app" />
+        {/* SEO: Additional resource hints for Core Web Vitals */}
+        <link rel="dns-prefetch" href="https://ipapi.co" />
+        <link rel="dns-prefetch" href="https://public-api.wordpress.com" />
+        {/* Theme color for browser UI */}
+        <meta name="theme-color" content="#0f172a" />
+        <meta name="msapplication-TileColor" content="#2563eb" />
+        {/* Mobile optimization */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        {/* Geo */}
+        <meta name="geo.placename" content="Arab World" />
+        <meta name="coverage" content="Worldwide" />
+        <meta name="distribution" content="Global" />
+        {/* Revisit */}
+        <meta name="revisit-after" content="3 days" />
+        <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
       </head>
       <body style={{
         margin: 0,
@@ -104,6 +120,7 @@ export default function RootLayout({ children }) {
         overflowX: 'hidden',
       }}>
         <LanguageProvider>
+      <GeoMetaInjector />
       <ErrorCapture />
         <MarkPoint />
         {children}

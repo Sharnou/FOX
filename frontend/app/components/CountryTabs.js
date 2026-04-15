@@ -64,7 +64,7 @@ export default function CountryTabs({ onCountrySelect, activeCountry }) {
             borderColor: !activeCountry ? '#6366f1' : 'rgba(99,102,241,0.2)',
           }}
         >
-          🌍 الكل <span style={{ opacity: 0.7, fontSize: 11 }}>({total})</span>
+          🌍 كل الدول <span style={{ opacity: 0.7, fontSize: 11 }}>({total})</span>
         </button>
 
         {/* Country tabs */}
@@ -98,7 +98,7 @@ export default function CountryTabs({ onCountrySelect, activeCountry }) {
             >
               <span>{info.flag}</span>
               <span>{info.name}</span>
-              {count > 0 && <span style={{ opacity: 0.7, fontSize: 11 }}>({count})</span>}
+              {count > 0 && <span style={{ opacity: 0.7, fontSize: 11 }}>({count} إعلان)</span>}
             </button>
           );
         })}
