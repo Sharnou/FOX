@@ -145,3 +145,92 @@ router.post('/congratulate', auth, async (req, res) => {
 });
 
 export default router;
+
+// ── GET /api/winner/leaderboard — top 10 by monthlyPoints ──────────────────
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const { myId } = req.query;
+
+    const top10 = await User.find({ monthlyPoints: { $gt: 0 } })
+      .sort({ monthlyPoints: -1, reputationPoints: -1 })
+      .limit(10)
+      .select('name avatar xtoxId monthlyPoints reputationPoints _id')
+      .lean();
+
+    // Compute tier for each user (virtuals not applied on lean())
+    function getTier(pts) {
+      if (pts >= 500) return 'Platinum';
+      if (pts >= 200) return 'Gold';
+      if (pts >= 50)  return 'Silver';
+      return 'Bronze';
+    }
+    function getTierBadge(pts) {
+      const t = getTier(pts);
+      const emojis = { Bronze: '🥉', Silver: '🥈', Gold: '🥇', Platinum: '💎' };
+      return `${emojis[t]} ${t}`;
+    }
+
+    const leaderboard = top10.map((u, i) => ({
+      rank: i + 1,
+      userId: u._id,
+      name: u.name || 'مستخدم',
+      avatar: u.avatar || null,
+      xtoxId: u.xtoxId || null,
+      monthlyPoints: u.monthlyPoints || 0,
+      reputationPoints: u.reputationPoints || 0,
+      tier: getTier(u.reputationPoints || 0),
+      tierBadge: getTierBadge(u.reputationPoints || 0),
+    }));
+
+    // If myId provided and not already in top 10, return their rank too
+    let myRank = null;
+    if (myId && mongoose.Types.ObjectId.isValid(myId)) {
+      const isInTop10 = leaderboard.some(u => u.userId.toString() === myId);
+      if (!isInTop10) {
+        // Count users with more monthly points
+        const rank = await User.countDocuments({ monthlyPoints: { $gt: 0 } });
+        const me = await User.findById(myId).select('name avatar xtoxId monthlyPoints reputationPoints').lean();
+        if (me) {
+          const aboveMe = await User.countDocuments({ monthlyPoints: { $gt: me.monthlyPoints || 0 } });
+          myRank = {
+            rank: aboveMe + 1,
+            userId: me._id,
+            name: me.name || 'مستخدم',
+            avatar: me.avatar || null,
+            xtoxId: me.xtoxId || null,
+            monthlyPoints: me.monthlyPoints || 0,
+            reputationPoints: me.reputationPoints || 0,
+            tier: getTier(me.reputationPoints || 0),
+            tierBadge: getTierBadge(me.reputationPoints || 0),
+          };
+        }
+      }
+    }
+
+    res.json({ leaderboard, myRank, total: top10.length });
+  } catch (e) {
+    console.error('[Winner] /leaderboard error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── GET /api/winner/history — last 6 months of WinnerHistory ───────────────
+router.get('/history', async (req, res) => {
+  try {
+    let WinnerHistory;
+    try {
+      WinnerHistory = mongoose.model('WinnerHistory');
+    } catch {
+      const { default: WH } = await import('../models/WinnerHistory.js');
+      WinnerHistory = WH;
+    }
+    const history = await WinnerHistory.find({})
+      .sort({ year: -1, month: -1 })
+      .limit(6)
+      .lean();
+    res.json({ history });
+  } catch (e) {
+    console.error('[Winner] /history error:', e.message);
+    res.status(500).json({ error: e.message, history: [] });
+  }
+});

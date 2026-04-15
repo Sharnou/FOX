@@ -8,6 +8,26 @@ import MicPermissionCard from '../components/MicPermissionCard';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
+function getTierBadge(pts) {
+  if (pts >= 500) return '💎 Platinum';
+  if (pts >= 200) return '🥇 Gold';
+  if (pts >= 50)  return '🥈 Silver';
+  return '🥉 Bronze';
+}
+function getTierColor(pts) {
+  if (pts >= 500) return '#1e40af';
+  if (pts >= 200) return '#a16207';
+  if (pts >= 50)  return '#475569';
+  return '#92400e';
+}
+function getTierBg(pts) {
+  if (pts >= 500) return '#e8f4fd';
+  if (pts >= 200) return '#fefce8';
+  if (pts >= 50)  return '#f1f5f9';
+  return '#fef3c7';
+}
+
+
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -27,6 +47,9 @@ export default function ProfilePage() {
   // ── My Ads state ──────────────────────────────────────────────────────
   const [myAds, setMyAds] = useState([]);
   const [adsLoading, setAdsLoading] = useState(false);
+
+  // ── Winner state ──────────────────────────────────────────────────────
+  const [isCurrentWinner, setIsCurrentWinner] = useState(false);
 
 
   const getToken = () =>
@@ -257,13 +280,31 @@ export default function ProfilePage() {
           {/* Mic Permission */}
           <MicPermissionCard />
 
-          {/* Reputation Points */}
+          {/* Winner Crown Badge */}
+          {isCurrentWinner && (
+            <div style={{ background: 'linear-gradient(135deg, #fcd34d, #f59e0b)', borderRadius: 16, padding: '12px 20px', margin: '8px 0', color: '#78350f', display: 'flex', alignItems: 'center', gap: 10, direction: 'rtl', justifyContent: 'center', boxShadow: '0 4px 16px rgba(245,158,11,0.4)' }}>
+              <span style={{ fontSize: 28 }}>👑</span>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>الفائز هذا الشهر!</div>
+            </div>
+          )}
+
+          {/* Reputation Points + Tier */}
           {user.reputationPoints > 0 && (
             <div style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', borderRadius: 16, padding: '16px 20px', margin: '12px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: 12, direction: 'rtl', justifyContent: 'center' }}>
               <span style={{ fontSize: 32 }}>⭐</span>
               <div>
                 <div style={{ fontWeight: 'bold', fontSize: 18 }}>{user.reputationPoints} نقطة سمعة</div>
                 <div style={{ fontSize: 13, opacity: 0.9 }}>هذا الشهر: {user.monthlyPoints || 0} نقطة</div>
+                <div style={{ marginTop: 6 }}>
+                  <span style={{
+                    background: getTierBg(user.reputationPoints),
+                    color: getTierColor(user.reputationPoints),
+                    fontSize: 12, fontWeight: 700,
+                    padding: '3px 10px', borderRadius: 10,
+                  }}>
+                    {getTierBadge(user.reputationPoints)}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -339,7 +380,7 @@ export default function ProfilePage() {
           <>
             {[
               ['📧 البريد', user.email],
-              ['📱 الهاتف', user.phone || '—'],
+              ['📱 الواتساب', user.phone || '—'],
               ['🏙️ المدينة', user.city || '—'],
               ['🌍 البلد', user.country || '—'],
               ['📝 نبذة', user.bio || '—'],
@@ -369,7 +410,7 @@ export default function ProfilePage() {
           <>
             {[
               ['username', 'اسم المستخدم', 'text'],
-              ['phone', 'رقم الهاتف', 'tel'],
+              ['phone', 'رقم الواتساب (يظهر على إعلاناتك)', 'tel'],
               ['city', 'المدينة', 'text'],
               ['bio', 'نبذة عنك', 'text'],
             ].map(([key, label, type]) => (

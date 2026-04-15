@@ -603,4 +603,28 @@ router.patch('/chat-toggle', auth, async (req, res) => {
   }
 });
 
+// ── GET /api/users/me/points-history — returns point log for current user ──
+router.get('/me/points-history', auth, async (req, res) => {
+  try {
+    const UserModel = getUserModel();
+    const user = await UserModel.findById(req.user.id)
+      .select('reputationPoints monthlyPoints pointsHistory tier tierBadge');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const userObj = user.toObject ? user.toObject() : user;
+    // Compute tier inline in case virtuals not applied to lean objects
+    const pts = userObj.reputationPoints || 0;
+    const tier = pts >= 500 ? 'Platinum' : pts >= 200 ? 'Gold' : pts >= 50 ? 'Silver' : 'Bronze';
+    const tierEmoji = { Bronze: '🥉', Silver: '🥈', Gold: '🥇', Platinum: '💎' }[tier];
+    res.json({
+      reputationPoints: userObj.reputationPoints || 0,
+      monthlyPoints:    userObj.monthlyPoints    || 0,
+      tier,
+      tierBadge: `${tierEmoji} ${tier}`,
+      pointsHistory: (userObj.pointsHistory || []).slice(-20).reverse(),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

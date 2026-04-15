@@ -7,6 +7,26 @@ import MicPermissionCard from '../../components/MicPermissionCard';
 import { useRouter } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+
+function getTierBadge(pts) {
+  if (pts >= 500) return '💎 Platinum';
+  if (pts >= 200) return '🥇 Gold';
+  if (pts >= 50)  return '🥈 Silver';
+  return '🥉 Bronze';
+}
+function getTierColor(pts) {
+  if (pts >= 500) return '#1e40af';
+  if (pts >= 200) return '#a16207';
+  if (pts >= 50)  return '#475569';
+  return '#92400e';
+}
+function getTierBg(pts) {
+  if (pts >= 500) return '#e8f4fd';
+  if (pts >= 200) return '#fefce8';
+  if (pts >= 50)  return '#f1f5f9';
+  return '#fef3c7';
+}
+
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 
 function Stars({ rating }) {
@@ -38,6 +58,7 @@ export default function ProfilePage({ params }) {
   const [token, setToken] = React.useState('');
   const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [avatarUrl, setAvatarUrl] = React.useState(null);
+  const [isCurrentWinner, setIsCurrentWinner] = React.useState(false);
   const avatarInputRef = useRef(null);
 
   // ── Fix 1: redirect if params.id is invalid ──────────────────────────
@@ -64,25 +85,35 @@ export default function ProfilePage({ params }) {
       return;
     }
     setLoading(true);
-    fetch(API + '/api/profile/' + id)
-      .then(r => {
+    const loadProfile = async () => {
+      try {
+        const r = await fetch(API + '/api/profile/' + id);
         if (!r.ok) {
           setError('المستخدم غير موجود');
           setLoading(false);
-          return null;
+          return;
         }
-        return r.json();
-      })
-      .then(d => {
+        const d = await r.json();
         if (d) {
           setData(d);
           setLoading(false);
         }
-      })
-      .catch(() => {
+        // Check if viewed profile is the current winner
+        try {
+          const wr = await fetch(`${API}/api/winner/current`);
+          if (wr.ok) {
+            const wd = await wr.json();
+            if (wd.winner && wd.winner._id && id) {
+              setIsCurrentWinner(wd.winner._id.toString() === id.toString());
+            }
+          }
+        } catch {}
+      } catch {
         setError('حدث خطأ، يرجى المحاولة لاحقاً');
         setLoading(false);
-      });
+      }
+    };
+    loadProfile();
   }, [params?.id]);
 
   useEffect(() => {
@@ -304,9 +335,30 @@ export default function ProfilePage({ params }) {
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
               <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 'bold', fontSize: 18, color: '#002f34' }}>{ads.length}</div><div style={{ color: '#999', fontSize: 11 }}>إعلان</div></div>
-              <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 'bold', fontSize: 18, color: '#002f34' }}>{user.reputation || 0}</div><div style={{ color: '#999', fontSize: 11 }}>سمعة</div></div>
+              <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 'bold', fontSize: 18, color: '#002f34' }}>{user.reputationPoints || user.reputation || 0}</div><div style={{ color: '#999', fontSize: 11 }}>نقاط سمعة</div></div>
               <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 'bold', fontSize: 18, color: '#002f34' }}>{reviewCount}</div><div style={{ color: '#999', fontSize: 11 }}>تقييم</div></div>
             </div>
+
+            {/* Winner Crown Badge */}
+            {isCurrentWinner && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg, #fcd34d, #f59e0b)', color: '#78350f', borderRadius: 20, padding: '4px 14px', marginTop: 10, fontWeight: 800, fontSize: 13 }}>
+                👑 الفائز هذا الشهر
+              </div>
+            )}
+
+            {/* Tier badge */}
+            {(user.reputationPoints || 0) > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <span style={{
+                  background: getTierBg(user.reputationPoints || 0),
+                  color: getTierColor(user.reputationPoints || 0),
+                  fontSize: 12, fontWeight: 700,
+                  padding: '3px 10px', borderRadius: 10,
+                }}>
+                  {getTierBadge(user.reputationPoints || 0)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

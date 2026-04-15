@@ -26,13 +26,11 @@ const UserSchema = new mongoose.Schema(
     isSimulation: Boolean,
     showPhone: { type: Boolean, default: false },
     showWhatsapp: { type: Boolean, default: false },
-    chatEnabled: { type: Boolean, default: true },   // allow buyers to message seller directly
+    chatEnabled: { type: Boolean, default: true },
     muteSounds: { type: Boolean, default: false },
     favorites: [String],
     blockedUsers: [String],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ad' }],
-    // Capped at 50 most recent — use $push + $slice: -50 on every insert
-    // Example: User.updateOne({ _id }, { $push: { notifications: { $each: [n], $slice: -50 } }, $inc: { notificationCount: 1 } })
     notifications: [{
       _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
       type: { type: String, enum: ['chat', 'ad', 'system', 'review', 'featured', 'broadcast'], default: 'system' },
@@ -44,8 +42,8 @@ const UserSchema = new mongoose.Schema(
     }],
     username: { type: String, sparse: true },
     bio: { type: String, maxlength: 500 },
-    lastSeen: { type: Date, default: null },   // updated on each authenticated request
-    lastActive: Date,                           // kept for backward compat
+    lastSeen: { type: Date, default: null },
+    lastActive: Date,
 
     // -- Auth provider -------------------------------------------------------
     authProvider: { type: String, enum: ['email', 'google', 'apple', 'whatsapp'], default: 'email' },
@@ -57,7 +55,7 @@ const UserSchema = new mongoose.Schema(
     xtoxId: { type: String, unique: true, sparse: true },
     xtoxEmail: { type: String, unique: true, sparse: true },
 
-    // -- Blocking (real identifiers so they can never re-register) -----------
+    // -- Blocking ------------------------------------------------------------
     blocked: { type: Boolean, default: false },
     blockedAt: { type: Date },
     blockReason: { type: String },
@@ -72,6 +70,7 @@ const UserSchema = new mongoose.Schema(
 
     // -- Free plan tracking ------------------------------------------------
     lastFreePlanUsed: { type: Date, default: null },
+
     // -- Reputation points (gamification) -----------------------------------
     reputationPoints: { type: Number, default: 0 },
     monthlyPoints: { type: Number, default: 0 },
@@ -83,6 +82,16 @@ const UserSchema = new mongoose.Schema(
       fromUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       createdAt: { type: Date, default: Date.now },
     }],
+
+    // -- Points history (last 20 events) ------------------------------------
+    pointsHistory: [{
+      reason: String,
+      points: Number,
+      date: { type: Date, default: Date.now },
+    }],
+
+    // -- Profile completion bonus (one-time) --------------------------------
+    profileBonusAwarded: { type: Boolean, default: false },
 
     // -- Verification status -------------------------------------------------
     emailVerified: { type: Boolean, default: false },
@@ -108,27 +117,50 @@ UserSchema.virtual('isOnline').get(function () {
 UserSchema.virtual('onlineStatus').get(function () {
   if (!this.lastSeen) return 'offline';
   const diffMs = Date.now() - this.lastSeen.getTime();
-  if (diffMs < 5 * 60 * 1000) return 'online';          // < 5 min
-  if (diffMs < 24 * 60 * 60 * 1000) return 'recently';  // < 24 h
+  if (diffMs < 5 * 60 * 1000) return 'online';
+  if (diffMs < 24 * 60 * 60 * 1000) return 'recently';
   return 'offline';
 });
 
-/**
- * Human-readable Arabic/English label for onlineStatus.
- * Example: { ar: 'متصل الآن', en: 'Online now' }
- */
 UserSchema.virtual('onlineStatusLabel').get(function () {
   const labels = {
-    online:   { ar: '\u0645\u062a\u0635\u0644 \u0627\u0644\u0622\u0646',          en: 'Online now' },
-    recently: { ar: '\u0645\u062a\u0635\u0644 \u0645\u0624\u062e\u0631\u0627\u064b',        en: 'Recently active' },
-    offline:  { ar: '\u063a\u064a\u0631 \u0645\u062a\u0635\u0644',           en: 'Offline' },
+    online:   { ar: 'متصل الآن',          en: 'Online now' },
+    recently: { ar: 'متصل مؤخراً',        en: 'Recently active' },
+    offline:  { ar: 'غير متصل',           en: 'Offline' },
   };
   return labels[this.onlineStatus] || labels.offline;
+});
+
+/**
+ * Reputation tier based on reputationPoints:
+ *   0–49    → Bronze  🥉
+ *   50–199  → Silver  🥈
+ *   200–499 → Gold    🥇
+ *   500+    → Platinum 💎
+ */
+UserSchema.virtual('tier').get(function () {
+  const pts = this.reputationPoints || 0;
+  if (pts >= 500) return 'Platinum';
+  if (pts >= 200) return 'Gold';
+  if (pts >= 50)  return 'Silver';
+  return 'Bronze';
+});
+
+/** Emoji + label pair for the tier */
+UserSchema.virtual('tierBadge').get(function () {
+  const map = {
+    Bronze:   '🥉 Bronze',
+    Silver:   '🥈 Silver',
+    Gold:     '🥇 Gold',
+    Platinum: '💎 Platinum',
+  };
+  return map[this.tier] || '🥉 Bronze';
 });
 
 // ── Indexes ─────────────────────────────────────────────────────────────────
 
 UserSchema.index({ country: 1 });
-UserSchema.index({ lastSeen: -1 });  // supports "online users" queries
+UserSchema.index({ lastSeen: -1 });
+UserSchema.index({ monthlyPoints: -1 });   // supports leaderboard queries
 
 export default mongoose.model('User', UserSchema);

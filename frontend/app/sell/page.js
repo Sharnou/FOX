@@ -565,7 +565,7 @@ export default function SellPage() {
     else if (form.title.trim().length < 5) e.title = 'العنوان قصير جداً (5 أحرف على الأقل)';
     if (!form.category) e.category = 'الفئة مطلوبة';
     if (form.price && isNaN(Number(form.price))) e.price = 'السعر يجب أن يكون رقماً';
-    if (form.phone && !/^[\d\s+\-()]{7,15}$/.test(form.phone)) e.phone = 'رقم الهاتف غير صحيح';
+    // phone validation removed — phone is taken from user profile
     if (form.category && SUBCATS[form.category]) {
       const _selSub2 = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
       if (_selSub2 && _selSub2.subsubs && _selSub2.subsubs.length > 0 && (!subsub || subsub === 'أخرى')) {
@@ -606,7 +606,7 @@ export default function SellPage() {
       formData.append('category', form.category);
       formData.append('city', form.city || '');
       formData.append('country', country || 'EG');
-      formData.append('phone', form.phone || '');
+      // phone is not sent from sell form — taken from user profile on backend
       formData.append('currency', form.currency || 'EGP');
       formData.append('condition', form.condition || '');
       formData.append('subcategory', form.subcategory || '');
@@ -642,7 +642,7 @@ export default function SellPage() {
         return;
       }
       var resData = await res.json().catch(function() { return {}; });
-      if (form.phone) localStorage.setItem('last_used_phone', form.phone);
+      // phone no longer stored in localStorage — taken from profile
       var _adResult = (resData && resData.ad && resData.ad._id) ? resData.ad : resData;
       var newAdId = (resData && resData._id) || (_adResult && _adResult._id) || (resData && resData.id);
       if (_isEdit) {
@@ -1011,14 +1011,14 @@ export default function SellPage() {
               {lng && <input type="hidden" id="sell-lng" name="lng" value={lng} />}
             </div>
 
-            {/* Phone */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle} htmlFor="sell-phone">رقم التواصل</label>
-              <input id="sell-phone" value={form.phone}
-                onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); if (errors.phone) setErrors(p => ({ ...p, phone: '' })); }}
-                inputMode="tel" autoComplete="tel" type="tel" placeholder="مثال: +201012345678"
-                style={{ ...inputStyle('phone'), direction: 'ltr' }} />
-              {errors.phone && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.phone}</p>}
+            {/* Phone — taken from profile, no longer entered here */}
+            <div style={{ marginBottom: 20, background: '#f0fdf4', borderRadius: 10, padding: '10px 14px', border: '1px solid #bbf7d0' }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#166534', fontWeight: 600 }}>
+                📱 رقم التواصل يُستخدم من ملفك الشخصي
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#15803d' }}>
+                يمكنك تحديث رقم الواتساب من صفحة <a href="/profile" style={{ color: '#166534', fontWeight: 700 }}>الملف الشخصي</a>
+              </p>
             </div>
 
             {/* Submit */}

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { auth as requireAuth } from "../middleware/auth.js";
 import { db, makeId } from "../lib/store.js";
 import User from "../models/User.js";
+import { addPointsToUser } from "../utils/points.js";
 
 const router = Router();
 
@@ -26,16 +27,14 @@ router.post("/", requireAuth, async (req, res) => {
   db.seller_reviews.push(review);
 
   // Award reputation points to seller based on rating (non-blocking)
+  // Points scale: 1★=0, 2★=0, 3★=3, 4★=7, 5★=10
   try {
     const ratingPoints = [0, 0, 1, 3, 7, 10][ratingNum] || 0;
     if (ratingPoints > 0 && seller_id) {
-      await User.findByIdAndUpdate(seller_id, {
-        $inc: { reputationPoints: ratingPoints, monthlyPoints: ratingPoints },
-        $push: { reputationHistory: {
-          $each: [{ type: 'rating_received', points: ratingPoints, fromUserId: userId }],
-          $slice: -500
-        }},
-      });
+      const sellerDoc = await User.findById(seller_id);
+      if (sellerDoc) {
+        await addPointsToUser(sellerDoc, ratingPoints, `تقييم ${ratingNum} نجوم من مشتري +${ratingPoints} نقطة`);
+      }
     }
   } catch (_) {}
 

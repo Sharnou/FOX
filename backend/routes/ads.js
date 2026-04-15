@@ -23,6 +23,18 @@ import multer from 'multer';
 import { CLOUDINARY_ENABLED } from '../server/cloudinary.js';
 import { moderateAdContent } from '../utils/adModeration.js';
 import { createWPPost, deleteWPPost } from '../utils/wordpress.js';
+import { addPointsToUser } from '../utils/points.js';
+
+// ── Anti-gaming: 1 view point per user per ad per 24h ───────────────────────
+// Key: "${adId}-${userId}", value: timestamp of last point award
+const viewThrottle = new Map();
+// Clean stale entries every hour
+setInterval(() => {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  for (const [key, ts] of viewThrottle.entries()) {
+    if (ts < cutoff) viewThrottle.delete(key);
+  }
+}, 60 * 60 * 1000);
 
 // Smart model selector: MongoDB → Couchbase → in-memory
 function getAdModel() {
@@ -465,24 +477,23 @@ router.get('/:id', async (req, res) => {
       ad.views = (ad.views || 0) + 1;
     } catch {}
 
-    // Award 1 reputation point to the ad seller for this view (best-effort, non-blocking)
+    // Award 1 reputation point to the ad seller — throttled: 1 point per viewer per 24h
     try {
-      const sellerId = ad.userId || ad.seller;
-      if (sellerId) {
-        // Optionally skip own views if JWT present
-        let viewerId = null;
-        try {
-          const ah = req.headers.authorization;
-          if (ah && ah.startsWith('Bearer ')) {
-            const dec = jwt.verify(ah.slice(7), process.env.JWT_SECRET || 'fox-default-secret');
-            viewerId = dec.id || dec._id || dec.userId;
+      const sellerId = (ad.userId || ad.seller)?.toString();
+      // Only authenticated viewers earn points for sellers
+      if (sellerId && req.user) {
+        const viewerId = req.user.id?.toString();
+        const throttleKey = `${ad._id}-${viewerId}`;
+        const lastAward = viewThrottle.get(throttleKey) || 0;
+        const elapsed = Date.now() - lastAward;
+
+        // Skip if same viewer already triggered a point within 24h, or if seller views own ad
+        if (elapsed >= 24 * 60 * 60 * 1000 && viewerId !== sellerId) {
+          viewThrottle.set(throttleKey, Date.now());
+          const sellerDoc = await User.findById(sellerId);
+          if (sellerDoc) {
+            await addPointsToUser(sellerDoc, 1, 'مشاهدة إعلان');
           }
-        } catch {}
-        if (!viewerId || viewerId.toString() !== sellerId.toString()) {
-          await User.findByIdAndUpdate(sellerId, {
-            $inc: { reputationPoints: 1, monthlyPoints: 1 },
-            $push: { reputationHistory: { $each: [{ type: 'ad_view', points: 1, adId: ad._id }], $slice: -500 } },
-          });
         }
       }
     } catch {}
@@ -913,7 +924,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
         country, // LOCKED from JWT
         condition: condition || null,
         featuredStyle: featuredStyle || 'normal',
-        phone: phone || undefined,
+        // phone is intentionally excluded from ad creation — taken from seller's profile
         whatsapp: whatsapp || undefined,
         tags: tags || [],
         // language field intentionally omitted from insert — schema default handles it
@@ -950,6 +961,24 @@ router.post('/', auth, multerUpload, async (req, res) => {
     }
 
     console.log('[ADS POST] 7: saved ad _id=', ad?._id?.toString());
+
+    // ── FIRST AD BONUS: +5 points when user publishes their first ad ────────
+    try {
+      const adCount = await getAdModel().countDocuments({
+        userId: req.user.id,
+        isDeleted: { $ne: true },
+      });
+      if (adCount === 1) {
+        // This is their first ad (just saved = count is exactly 1 now)
+        const firstAdUser = await User.findById(req.user.id);
+        if (firstAdUser) {
+          await addPointsToUser(firstAdUser, 5, 'أول إعلان منشور +5 نقاط');
+          console.log('[ADS POST] First-ad bonus +5 awarded to user:', req.user.id);
+        }
+      }
+    } catch (_firstAdErr) {
+      console.warn('[ADS POST] First-ad bonus failed (non-fatal):', _firstAdErr.message);
+    }
 
     await rankAd(ad).catch(() => {});
     await indexAd(ad).catch(() => {});
@@ -1151,10 +1180,8 @@ router.patch('/:id', auth, async (req, res) => {
       return res.status(400).json({ error: 'تحتاج 10 نقاط سمعة على الأقل لتعديل الإعلان' });
     }
 
-    // 4. Deduct 10 reputation points (floor at 0)
-    user.reputationPoints = Math.max(0, (user.reputationPoints || 0) - 10);
-    user.monthlyPoints = Math.max(0, (user.monthlyPoints || 0) - 10);
-    await user.save();
+    // 4. Deduct 10 reputation points (floor at 0) for editing an ad
+    await addPointsToUser(user, -10, 'تعديل إعلان -10 نقاط');
 
     // 5. Update allowed fields
     const { title, description, price, location, subCategory, subSubCategory, images, phoneNumber } = req.body;
@@ -1168,7 +1195,7 @@ router.patch('/:id', auth, async (req, res) => {
       const cleanImages = images.slice(0, 10).map(u => String(u || '').trim()).filter(u => u.startsWith('http') || u.startsWith('data:'));
       if (cleanImages.length > 0) { ad.images = cleanImages; ad.media = cleanImages; }
     }
-    if (phoneNumber !== undefined) ad.phone = String(phoneNumber).replace(/[^+\d\s\-()]/g, '').slice(0, 20);
+    // phoneNumber update removed — phone is taken from user profile only
     ad.updatedAt = new Date();
     ad.editedAt = new Date();
 
@@ -1312,6 +1339,17 @@ router.patch('/:id/sold', auth, async (req, res) => {
     ad.expiredAt = new Date();
     await ad.save();
 
+    // ── SOLD BONUS: +15 points to seller when ad is marked as sold ──────────
+    try {
+      const soldSeller = await User.findById(req.user.id);
+      if (soldSeller) {
+        await addPointsToUser(soldSeller, 15, 'إعلان مباع +15 نقطة');
+        console.log('[PATCH /:id/sold] Sold bonus +15 awarded to seller:', req.user.id);
+      }
+    } catch (_soldErr) {
+      console.warn('[PATCH /:id/sold] Sold bonus failed (non-fatal):', _soldErr.message);
+    }
+
     // WORDPRESS: delete post when ad is sold (async, non-blocking)
     if (ad.wpPostId) {
       setImmediate(() => deleteWPPost(ad.wpPostId));
@@ -1434,14 +1472,22 @@ router.patch('/:id/view', async (req, res) => {
       { new: true }
     );
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
-    // Award 1 reputation point to ad seller (best-effort, non-blocking)
+    // Award 1 reputation point to ad seller — throttled via viewThrottle map (anti-gaming)
     try {
-      const sellerId = ad.userId || ad.seller;
-      if (sellerId) {
-        await User.findByIdAndUpdate(sellerId, {
-          $inc: { reputationPoints: 1, monthlyPoints: 1 },
-          $push: { reputationHistory: { $each: [{ type: 'ad_view', points: 1, adId: ad._id }], $slice: -500 } },
-        });
+      const sellerId = (ad.userId || ad.seller)?.toString();
+      // optionalAuth sets req.user if a valid JWT was sent
+      if (sellerId && req.user) {
+        const viewerId = req.user.id?.toString();
+        const throttleKey = `${ad._id}-${viewerId}`;
+        const lastAward = viewThrottle.get(throttleKey) || 0;
+        const elapsed = Date.now() - lastAward;
+        if (elapsed >= 24 * 60 * 60 * 1000 && viewerId !== sellerId) {
+          viewThrottle.set(throttleKey, Date.now());
+          const sellerDoc = await User.findById(sellerId);
+          if (sellerDoc) {
+            await addPointsToUser(sellerDoc, 1, 'مشاهدة إعلان');
+          }
+        }
       }
     } catch {}
     res.json({ views: ad.views });

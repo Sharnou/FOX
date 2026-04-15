@@ -447,6 +447,17 @@ export default function AdCard({ ad, eager = false }) {
               موثق ✓
             </span>
           )}
+          {/* Tier badge based on seller reputation */}
+          {(() => {
+            const pts = ad.seller?.reputationPoints || ad.userId?.reputationPoints || 0;
+            if (pts < 50) return null;
+            const tier = pts >= 500 ? {emoji:'💎',label:'Platinum',bg:'#e8f4fd',color:'#1e40af'} : pts >= 200 ? {emoji:'🥇',label:'Gold',bg:'#fefce8',color:'#a16207'} : {emoji:'🥈',label:'Silver',bg:'#f1f5f9',color:'#475569'};
+            return (
+              <span style={{background:tier.bg,color:tier.color,fontSize:'0.65rem',fontWeight:700,padding:'1px 5px',borderRadius:6,whiteSpace:'nowrap'}}>
+                {tier.emoji} {tier.label}
+              </span>
+            );
+          })()}
           <StarRating rating={rating} count={ratingCount} />
           {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
         </div>

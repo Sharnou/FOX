@@ -79,6 +79,8 @@ import pushRoutes from '../routes/push.js';
 import winnerRouter from '../routes/winner.js';
 import wpRouter from '../routes/wp.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
+// Pre-register WinnerHistory model so it is available before first query
+import('../models/WinnerHistory.js').catch(e => console.warn('[WinnerHistory] model load failed:', e.message));
 import jwt from 'jsonwebtoken';
 import { initMemoryStore, dbState } from './memoryStore.js';
 import { connectDatabases, getActiveDB, getCouchbaseError } from './dbManager.js';

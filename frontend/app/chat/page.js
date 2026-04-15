@@ -810,8 +810,16 @@ function ChatPageInner() {
         <div style={{ flex: 1, minWidth: 0 }}>
           {targetId ? (
             <>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }}>
                 {sellerName || targetId}
+                {/* Tier badge next to other user's name in chat header */}
+                {(function() {
+                  var conv = conversations.find(function(c) { return c.id === targetId; });
+                  var pts = conv?.reputationPoints || 0;
+                  if (pts < 50) return null;
+                  var tier = pts >= 500 ? {emoji:'💎',label:'Platinum',bg:'#1e40af'} : pts >= 200 ? {emoji:'🥇',label:'Gold',bg:'#a16207'} : {emoji:'🥈',label:'Silver',bg:'#475569'};
+                  return <span style={{background:'rgba(255,255,255,0.15)',color:'white',fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:6,flexShrink:0}}>{tier.emoji} {tier.label}</span>;
+                })()}
               </p>
               {(function() {
                 var _conv = conversations.find(function(c) { return c.id === targetId || c.chatId === chatId; });

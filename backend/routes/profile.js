@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import Ad from '../models/Ad.js';
 import Review from '../models/Review.js';
 import { auth } from '../middleware/auth.js';
+import { addPointsToUser } from '../utils/points.js';
 
 const router = express.Router();
 
@@ -66,7 +67,7 @@ router.post('/:id/review', auth, async (req, res) => {
 // PUT update own profile
 router.put('/me', auth, async (req, res) => {
   try {
-    const { name, city, avatar } = req.body;
+    const { name, city, avatar, phone, username, bio } = req.body;
 
     // ── Input Validation & Sanitization ───────────────────────────────────
     const update = {};
@@ -90,10 +91,42 @@ router.put('/me', auth, async (req, res) => {
       }
       update.avatar = avatar.trim().slice(0, 500);
     }
+
+    // Phone / WhatsApp number — used on all ads from this seller
+    if (phone !== undefined) {
+      const cleanPhone = String(phone || '').replace(/[^+\d\s\-()]/g, '').slice(0, 20);
+      update.phone = cleanPhone;
+    }
+
+    if (username !== undefined) {
+      update.username = String(username || '').trim().slice(0, 50);
+    }
+
+    if (bio !== undefined) {
+      update.bio = String(bio || '').trim().slice(0, 500);
+    }
     // ──────────────────────────────────────────────────────────────────────
 
-    const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password');
-    res.json(user);
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password');
+
+    // ── PROFILE COMPLETION BONUS: +10 points (one-time) ────────────────────
+    // Awarded once when user has name + phone + avatar all set
+    try {
+      if (!updatedUser.profileBonusAwarded) {
+        const hasName   = !!updatedUser.name?.trim();
+        const hasPhone  = !!updatedUser.phone?.trim();
+        const hasAvatar = !!updatedUser.avatar?.trim();
+        if (hasName && hasPhone && hasAvatar) {
+          await addPointsToUser(updatedUser, 10, 'اكتمال الملف الشخصي +10 نقاط');
+          await User.findByIdAndUpdate(req.user.id, { profileBonusAwarded: true });
+          updatedUser.profileBonusAwarded = true;
+        }
+      }
+    } catch (_bonusErr) {
+      console.warn('[PUT /profile/me] Profile bonus failed (non-fatal):', _bonusErr.message);
+    }
+
+    res.json(updatedUser);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

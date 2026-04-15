@@ -10,6 +10,7 @@ import BannerAds from './components/BannerAds';
 import { detectLang } from '../lib/lang';
 import SeasonalBanner from './components/SeasonalBanner';
 import WinnerBanner from './components/WinnerBanner';
+import Leaderboard from './components/Leaderboard';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -429,6 +430,7 @@ export default function Home() {
       ══════════════════════════════════════════ */}
       <SeasonalBanner />
       <WinnerBanner />
+      <Leaderboard />
 
       {/* ══════════════════════════════════════════
           ANIMATED GRADIENT HERO
