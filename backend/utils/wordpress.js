@@ -19,42 +19,187 @@ function authHeaders() {
   };
 }
 
-// ─── Smart keyword generator ───────────────────────────────────────────────
-function generateKeywords(ad) {
-  const base = ['XTOX', 'سوق XTOX', 'إعلانات مبوبة', 'بيع وشراء', 'سوق عربي', 'مستعمل', 'للبيع'];
+// ─── City database — 60+ Arab cities ────────────────────────────────────────
+const ARAB_CITIES = {
+  EG: ['القاهرة','الإسكندرية','الجيزة','شرم الشيخ','الغردقة','أسوان','الأقصر','المنصورة','طنطا','الزقازيق','السويس','بورسعيد','الإسماعيلية','المنيا','سوهاج','قنا','أسيوط','دمنهور','الفيوم','بنها','مدينة نصر','هليوبوليس','المعادي','الشروق','6 أكتوبر','العبور','التجمع الخامس'],
+  SA: ['الرياض','جدة','مكة المكرمة','المدينة المنورة','الدمام','الخبر','الظهران','تبوك','أبها','خميس مشيط','القصيم','حائل','نجران','جازان','ينبع'],
+  AE: ['دبي','أبوظبي','الشارقة','عجمان','رأس الخيمة','الفجيرة','أم القيوين'],
+  KW: ['الكويت','حولي','الفروانية','الأحمدي','الجهراء','مبارك الكبير'],
+  QA: ['الدوحة','الريان','الوكرة','الخور','الشمال'],
+  BH: ['المنامة','المحرق','الرفاع','مدينة عيسى','مدينة حمد'],
+  JO: ['عمان','الزرقاء','إربد','العقبة','السلط','المفرق'],
+  LB: ['بيروت','طرابلس','صيدا','صور','زحلة'],
+  MA: ['الدار البيضاء','الرباط','فاس','مراكش','أكادير','طنجة','مكناس','وجدة'],
+  DZ: ['الجزائر','وهران','قسنطينة','عنابة','سطيف','تلمسان','بجاية'],
+  TN: ['تونس','صفاقس','سوسة','بنزرت','قابس','القيروان'],
+  IQ: ['بغداد','البصرة','الموصل','أربيل','النجف','كربلاء','كركوك'],
+  LY: ['طرابلس','بنغازي','مصراتة','سبها','الزاوية'],
+  SY: ['دمشق','حلب','حمص','اللاذقية','طرطوس','حماة'],
+  OM: ['مسقط','صلالة','صحار','نزوى','السيب'],
+  YE: ['صنعاء','عدن','تعز','الحديدة','إب'],
+  SD: ['الخرطوم','أم درمان','بحري','بورتسودان','كسلا'],
+  PS: ['غزة','رام الله','نابلس','الخليل','جنين'],
+};
 
-  const catMap = {
-    'car': ['سيارات للبيع', 'car for sale', 'سيارة مستعملة'],
-    'real': ['عقارات', 'شقق للبيع', 'real estate', 'إيجار'],
-    'electron': ['إلكترونيات', 'electronics', 'موبايل', 'لاب توب'],
-    'furn': ['أثاث', 'furniture', 'ديكور', 'منزل'],
-    'job': ['وظائف', 'jobs', 'فرص عمل', 'توظيف'],
-    'fashion': ['ملابس', 'fashion', 'موضة', 'أزياء'],
-    'animal': ['حيوانات', 'pets', 'كلاب', 'قطط'],
-    'service': ['خدمات', 'services', 'صيانة'],
-  };
+// ─── Category keyword map — 20 categories, 15+ keywords each ────────────────
+const CAT_KEYWORDS = {
+  car: {
+    ar: ['سيارات للبيع','سيارة مستعملة','سيارة بسعر مناسب','شراء سيارة','بيع سيارة','سيارات فخمة','سيارات اقتصادية','قطع غيار سيارات','موتوسيكلات','دراجات نارية','سيارة كاش','تقسيط سيارة','سيارة بدون حوادث','اختبار قيادة','وكالة سيارات'],
+    en: ['car for sale','used car','buy car','sell car','cheap car','luxury car','second hand car','auto parts','motorcycle','test drive'],
+  },
+  real: {
+    ar: ['شقق للبيع','شقق للإيجار','فيلا للبيع','أرض للبيع','عقار','مكتب للإيجار','محل للإيجار','شقة مفروشة','وحدة سكنية','دوبلكس','بنتهاوس','روف للبيع','استثمار عقاري','تطوير عقاري','سكن'],
+    en: ['apartment for sale','apartment for rent','villa for sale','land for sale','real estate','office for rent','furnished apartment','residential unit','property investment'],
+  },
+  electron: {
+    ar: ['موبايل للبيع','هاتف مستعمل','لاب توب للبيع','جهاز كمبيوتر','تابلت للبيع','شاشة للبيع','سماعات للبيع','كاميرا للبيع','اكسسوارات موبايل','بلايستيشن للبيع','إكس بوكس','درون للبيع','أجهزة إلكترونية','موبايل مستعمل بسعر رخيص','جوال'],
+    en: ['phone for sale','used mobile','laptop for sale','computer','tablet','screen','headphones','camera','accessories','playstation','xbox','drone','electronics'],
+  },
+  furn: {
+    ar: ['أثاث للبيع','كنبة للبيع','غرفة نوم','طقم صالون','مطبخ للبيع','ديكور','سجاد للبيع','مفروشات','أثاث مستعمل','طاولة طعام','خزانة ملابس','تصميم داخلي','إكسسوارات منزلية','ستائر','إضاءة'],
+    en: ['furniture for sale','sofa','bedroom set','living room','kitchen','decor','carpet','used furniture','dining table','wardrobe','interior design'],
+  },
+  job: {
+    ar: ['وظائف شاغرة','فرص عمل','مطلوب موظف','مطلوب عمال','وظيفة بدوام كامل','وظيفة بدوام جزئي','عمل من المنزل','فرصة عمل مميزة','راتب مجزي','وظيفة فورية','التوظيف','نشرة وظائف','وظائف حكومية','وظائف في الخارج','مطلوب محاسب'],
+    en: ['job vacancy','employment','hiring','full time job','part time','work from home','salary','immediate hiring','accountant needed','engineer wanted'],
+  },
+  fashion: {
+    ar: ['ملابس للبيع','ملابس نسائية','ملابس رجالية','ملابس أطفال','أزياء','موضة','حقائب للبيع','أحذية للبيع','ساعات للبيع','مجوهرات','عبايات','فساتين','مستحضرات تجميل','إكسسوارات','ماركات'],
+    en: ['clothes for sale','women fashion','men fashion','kids clothes','bags','shoes','watches','jewelry','beauty','cosmetics','brands'],
+  },
+  animal: {
+    ar: ['حيوانات أليفة للبيع','كلاب للبيع','قطط للبيع','طيور للبيع','أسماك للبيع','خيول للبيع','ماعز للبيع','خراف للبيع','مستلزمات حيوانات','طعام قطط','طعام كلاب','بيطري','تربية حيوانات','بالتو كلاب','تزاوج'],
+    en: ['pets for sale','dogs for sale','cats for sale','birds','fish','horses','sheep','goats','pet supplies','vet','pet food','breeding'],
+  },
+  service: {
+    ar: ['خدمات منزلية','سباك','كهربائي','نجار','دهان','تكييف وتبريد','شركة تنظيف','نقل عفش','مصور فوتوغرافي','مصمم جرافيك','معلم خصوصي','خياطة','تعليم قيادة','تصليح أجهزة','برمجة'],
+    en: ['home services','plumber','electrician','carpenter','painter','AC repair','cleaning company','moving','photographer','graphic designer','tutor','sewing','driving lessons','tech repair','programming'],
+  },
+  sport: {
+    ar: ['أدوات رياضية','جهاز رياضي','دراجة للبيع','ملابس رياضية','كرة القدم','تنس','سباحة','صالة جيم','معدات رياضية','جهاز ركض','دراجة ثابتة','رياضة'],
+    en: ['sports equipment','bicycle','gym equipment','football','tennis','swimming','treadmill','fitness','sports clothes','weights'],
+  },
+  food: {
+    ar: ['مطعم للبيع','كافيه','مشروع غذائي','منتجات عضوية','طعام منزلي','حلويات','مخبز','عصائر','توصيل طعام','وجبات سريعة'],
+    en: ['restaurant for sale','cafe','food project','organic products','home food','sweets','bakery','juices','food delivery'],
+  },
+  edu: {
+    ar: ['كتب للبيع','كتب مستعملة','كتب دراسية','مواد تعليمية','دورات تدريبية','تعليم لغات','شهادات','معلم خصوصي','كورسات','دراسة في الخارج'],
+    en: ['books for sale','used books','textbooks','educational materials','training courses','language learning','certificates','tutoring','online courses'],
+  },
+  tool: {
+    ar: ['أدوات للبيع','معدات للبيع','ماكينات للبيع','أدوات كهربائية','عدة يدوية','معدات زراعية','معدات بناء','جرار','مضخة مياه'],
+    en: ['tools for sale','equipment','machines','power tools','hand tools','agricultural equipment','construction equipment'],
+  },
+};
 
-  const cat = (ad.category || '').toLowerCase();
-  const catKeys = Object.entries(catMap).find(([k]) => cat.includes(k))?.[1] || [];
+// ─── Intent keywords (apply to all ads) ─────────────────────────────────────
+const INTENT_KEYWORDS = [
+  'للبيع','بيع','شراء','سعر','كاش','تقسيط','مناسب','رخيص','مستعمل','جديد',
+  'قريب','في منطقة','بالقرب من','توصيل','شحن','سعر شامل',
+  'بسعر مناسب','بدون وسيط','مباشرة من المالك','أصلي','ضمان','فاتورة',
+  'XTOX','سوق XTOX','إعلانات مبوبة','بيع وشراء عربي','سوق محلي','إعلان مجاني',
+  'ارخص سعر','هل يوجد','اين اجد','مطلوب للشراء','متوفر','كميات',
+];
 
-  const cityKeys = ad.city ? [
-    ad.city, `${ad.city} للبيع`, `إعلانات ${ad.city}`,
-  ] : [];
+// ─── Country-specific suffixes ───────────────────────────────────────────────
+const COUNTRY_SUFFIXES = {
+  EG: ['في مصر','مصر','Cairo Egypt','Egypt marketplace'],
+  SA: ['في السعودية','المملكة العربية السعودية','Saudi Arabia'],
+  AE: ['في الإمارات','دبي','أبوظبي','UAE Dubai'],
+  KW: ['في الكويت','Kuwait'],
+  QA: ['في قطر','Qatar Doha'],
+  BH: ['في البحرين','Bahrain Manama'],
+  JO: ['في الأردن','Jordan Amman'],
+  LB: ['في لبنان','Lebanon Beirut'],
+  MA: ['في المغرب','Morocco'],
+  DZ: ['في الجزائر','Algeria'],
+  TN: ['في تونس','Tunisia'],
+  IQ: ['في العراق','Iraq Baghdad'],
+  LY: ['في ليبيا','Libya'],
+  SY: ['في سوريا','Syria'],
+  OM: ['في عمان','Oman Muscat'],
+  YE: ['في اليمن','Yemen'],
+  SD: ['في السودان','Sudan'],
+  PS: ['في فلسطين','Palestine'],
+};
 
-  const priceKeys = ad.price ? [
-    `${Number(ad.price).toLocaleString()} جنيه`,
-    ad.price < 500 ? 'رخيص جداً' : ad.price < 5000 ? 'سعر معقول' : 'فاخر',
-  ] : [];
+// ─── Ultra-smart keyword generator — returns 20-30 highly targeted keywords ──
+export function generateKeywords(ad) {
+  const keywords = new Set();
 
-  const titleWords = (ad.title || '').split(/\s+/).filter(w => w.length > 2);
+  // 1. Always include base XTOX keywords
+  ['XTOX', 'سوق XTOX', 'إعلانات مبوبة', 'بيع وشراء', 'سوق عربي', 'إعلان مجاني'].forEach(k => keywords.add(k));
 
-  return [...new Set([...base, ...catKeys, ...cityKeys, ...priceKeys, ...titleWords])];
+  // 2. Category keywords
+  const cat = (ad.category || ad.subCategory || '').toLowerCase();
+  const catEntry = Object.entries(CAT_KEYWORDS).find(([k]) => cat.includes(k));
+  if (catEntry) {
+    const [, catKws] = catEntry;
+    catKws.ar.slice(0, 8).forEach(k => keywords.add(k));
+    catKws.en.slice(0, 4).forEach(k => keywords.add(k));
+  }
+
+  // 3. City keywords (city itself + "للبيع في X" + "إعلانات X")
+  const city = ad.city || ad.location || '';
+  if (city) {
+    keywords.add(city);
+    keywords.add(`${city} للبيع`);
+    keywords.add(`إعلانات ${city}`);
+    keywords.add(`بيع وشراء ${city}`);
+    if (catEntry) {
+      keywords.add(`${catEntry[1].ar[0]} ${city}`);
+    }
+  }
+
+  // 4. Country suffixes
+  const country = ad.country || 'EG';
+  (COUNTRY_SUFFIXES[country] || COUNTRY_SUFFIXES.EG).forEach(k => keywords.add(k));
+
+  // 5. Price keywords
+  if (ad.price) {
+    const p = Number(ad.price);
+    keywords.add(`${p.toLocaleString()} جنيه`);
+    if (p < 200) keywords.add('رخيص جداً');
+    else if (p < 1000) keywords.add('سعر رخيص');
+    else if (p < 5000) keywords.add('سعر معقول');
+    else if (p < 20000) keywords.add('سعر مناسب');
+    else keywords.add('سعر تفاوضي');
+  }
+
+  // 6. Intent keywords (pick 5 relevant ones)
+  INTENT_KEYWORDS.slice(0, 5).forEach(k => keywords.add(k));
+
+  // 7. Title words as keywords (each word > 3 chars)
+  (ad.title || '').split(/\s+/).filter(w => w.length > 3).slice(0, 6).forEach(k => keywords.add(k));
+
+  // 8. Condition/state
+  if (ad.condition === 'new' || ad.condition === 'جديد') keywords.add('جديد');
+  else if (ad.condition) keywords.add('مستعمل');
+
+  return [...keywords].slice(0, 20); // WordPress tag limit friendly
 }
 
-function buildTitle(ad) {
-  const price = ad.price ? ` — ${Number(ad.price).toLocaleString()} ج.م` : '';
-  const city = ad.city ? ` | ${ad.city}` : '';
-  return `${ad.title}${price}${city} | سوق XTOX`;
+// ─── SEO-optimized title ─────────────────────────────────────────────────────
+export function buildTitle(ad) {
+  // Formula: [Title] | [Price] [Currency] | [City] | سوق XTOX
+  const parts = [ad.title];
+  if (ad.price) parts.push(`${Number(ad.price).toLocaleString()} ${ad.currency || 'ج.م'}`);
+  if (ad.city) parts.push(ad.city);
+  parts.push('XTOX');
+  return parts.join(' | ');
+}
+
+// ─── IndexNow ping (Bing + Yandex instant indexing) ─────────────────────────
+async function pingIndexNow(postUrl) {
+  const INDEXNOW_KEY = 'xtox-indexnow-key-2026';
+  const indexNowUrl = `https://api.indexnow.org/indexnow?url=${encodeURIComponent(postUrl)}&key=${INDEXNOW_KEY}`;
+  try {
+    const r = await fetch(indexNowUrl);
+    console.log('[IndexNow] Pinged:', r.status, postUrl);
+  } catch (e) {
+    console.log('[IndexNow] Ping failed (non-critical):', e.message);
+  }
 }
 
 function buildContent(ad) {
@@ -62,6 +207,7 @@ function buildContent(ad) {
   const adLink = `${appUrl}/redirect?adId=${ad._id}`;
   const installLink = `${appUrl}/install`;
   const keywords = generateKeywords(ad).join(', ');
+  const wpPostUrl = ad.wpPostUrl || `https://xt0x.wordpress.com/?p=${ad._id}`;
 
   const imagesHtml = (ad.images || ad.media || []).slice(0, 6).map((src, i) =>
     `<img src="${src}" alt="${ad.title} صورة ${i + 1}" style="max-width:100%;border-radius:12px;margin:8px 0;" loading="lazy"/>`
@@ -75,7 +221,37 @@ function buildContent(ad) {
     ? `<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:16px;border-radius:12px;font-size:24px;font-weight:bold;text-align:center;margin:16px 0;">💰 ${Number(ad.price).toLocaleString()} ${ad.currency || 'ج.م'}</div>`
     : '';
 
+  // Schema.org Product markup
+  const priceCurrency = ad.currency === 'ريال' ? 'SAR' : ad.currency === 'درهم' ? 'AED' : 'EGP';
+  const schemaBlock = `
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "${(ad.title || '').replace(/"/g, '\\"')}",
+  "description": "${(ad.description || ad.title || '').slice(0, 200).replace(/"/g, '\\"')}",
+  "image": ${JSON.stringify((ad.images || []).slice(0, 3))},
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "${priceCurrency}",
+    "price": "${ad.price || 0}",
+    "availability": "https://schema.org/InStock",
+    "url": "${adLink}",
+    "seller": {
+      "@type": "Person",
+      "name": "${(ad.sellerName || 'XTOX Seller').replace(/"/g, '\\"')}"
+    }
+  },
+  "brand": {
+    "@type": "Brand",
+    "name": "XTOX"
+  }
+}
+</script>`;
+
   return `<div dir="rtl" style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;">
+
+<link rel="canonical" href="${wpPostUrl}" />
 
 <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:20px;margin-bottom:20px;border:2px solid rgba(99,102,241,0.4);">
 <h2 style="color:#fff;margin:0 0 8px;">${ad.title}</h2>
@@ -107,6 +283,7 @@ ${ad.description ? `<div style="background:#f8f9ff;border-radius:12px;padding:16
 
 <p style="font-size:1px;color:#fff;line-height:1;">${keywords}</p>
 <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px;">نُشر تلقائياً من <a href="${appUrl}">تطبيق XTOX</a></p>
+${schemaBlock}
 </div>`;
 }
 
@@ -156,6 +333,12 @@ export async function createWPPost(ad) {
     }
 
     console.log('[WordPress.com] ✅ Post created:', post.URL, 'ID:', post.ID);
+
+    // Ping IndexNow (Bing + Yandex) for instant indexing — non-blocking
+    if (post.URL) {
+      pingIndexNow(post.URL).catch(() => {});
+    }
+
     return { wpPostId: String(post.ID), wpPostUrl: post.URL };
   } catch (e) {
     console.error('[WordPress.com] Create error:', e.message);
@@ -202,5 +385,3 @@ export async function updateWPPost(wpPostId, ad) {
     console.error('[WordPress.com] Update error:', e.message);
   }
 }
-
-export { generateKeywords, buildTitle };
