@@ -288,6 +288,64 @@ function pingGoogle(postUrl) {
   }
 }
 
+function buildPWAWidget(adId) {
+  const appUrl = 'https://fox-kohl-eight.vercel.app';
+  const adLink = `${appUrl}/ads/${adId}`;
+  const installLink = `${appUrl}/install`;
+  
+  return `<!-- XTOX Smart App Widget -->
+<div id="xtox-app-widget" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:12px;padding:20px;margin-bottom:24px;text-align:center;color:white;font-family:Arial,sans-serif">
+  <div id="xtox-pwa-detected" style="display:none">
+    <p style="font-size:20px;margin:0 0 12px">📱 يبدو أن تطبيق XTOX مثبّت على جهازك!</p>
+    <a id="xtox-open-app" href="${adLink}" 
+       style="background:white;color:#2563eb;padding:12px 28px;border-radius:8px;font-size:17px;font-weight:bold;text-decoration:none;display:inline-block">
+      🚀 افتح في تطبيق XTOX
+    </a>
+  </div>
+  <div id="xtox-pwa-not-detected">
+    <p style="font-size:18px;margin:0 0 8px;font-weight:bold">🛒 XTOX - السوق المحلي العربي</p>
+    <p style="font-size:14px;margin:0 0 16px;opacity:0.9">حمّل التطبيق مجاناً وتواصل مع البائع مباشرة</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <a href="${adLink}" 
+         style="background:white;color:#2563eb;padding:10px 20px;border-radius:8px;font-size:15px;font-weight:bold;text-decoration:none">
+        👀 عرض الإعلان
+      </a>
+      <a href="${installLink}" 
+         style="background:#10b981;color:white;padding:10px 20px;border-radius:8px;font-size:15px;font-weight:bold;text-decoration:none">
+        📲 تحميل التطبيق
+      </a>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var adId = '${adId}';
+  var appUrl = '${appUrl}/ads/' + adId;
+  var isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+              window.navigator.standalone === true;
+  if (isPWA) {
+    window.location.href = appUrl;
+    return;
+  }
+  if ('getInstalledRelatedApps' in navigator) {
+    navigator.getInstalledRelatedApps().then(function(apps) {
+      if (apps && apps.length > 0) {
+        document.getElementById('xtox-pwa-detected').style.display = 'block';
+        document.getElementById('xtox-pwa-not-detected').style.display = 'none';
+      }
+    }).catch(function() {});
+  }
+  var visited = localStorage ? localStorage.getItem('xtox_visited') : null;
+  if (visited) {
+    document.getElementById('xtox-pwa-detected').style.display = 'block';
+    document.getElementById('xtox-pwa-not-detected').style.display = 'none';
+    document.getElementById('xtox-open-app').href = appUrl;
+  }
+  if (localStorage) localStorage.setItem('xtox_visited', '1');
+})();
+</script>`;
+}
+
 function buildContent(ad) {
   const appUrl = 'https://fox-kohl-eight.vercel.app';
   const adId = ad._id || ad.id || '';
@@ -355,7 +413,11 @@ function buildContent(ad) {
   <a href="https://xt0x.wordpress.com/">جميع الإعلانات</a>
 </p>`;
 
+  const pwaWidget = buildPWAWidget(adId);
+  
   return `<div dir="rtl" style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;">
+
+${pwaWidget}
 
 <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:20px;margin-bottom:20px;border:2px solid rgba(99,102,241,0.4);">
 <h2 style="color:#fff;margin:0 0 8px;">${ad.title || ''}</h2>

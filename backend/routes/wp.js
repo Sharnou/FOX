@@ -424,6 +424,55 @@ export async function setupWordPressSite() {
   } catch (e) { console.error('[WP Setup] Posts error:', e.message); results.push('posts: ERROR'); }
 
   console.log('[WP Setup] ✅ Setup complete! Results:', results.join(', '));
+  // 3B: Apply professional Arabic RTL theme CSS
+  try {
+    const customCSS = `
+/* XTOX WordPress Theme - Professional Arabic RTL */
+body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important; direction: rtl !important; }
+.entry-title { font-size: 1.8em; color: #1e3a5f; font-weight: 700; }
+.entry-content { font-size: 1.1em; line-height: 1.8; color: #333; }
+.site-title { font-size: 2em; font-weight: 900; color: #2563eb !important; }
+.site-title a { color: #2563eb !important; text-decoration: none !important; }
+.site-description { color: #666; font-size: 0.95em; }
+.site-header { background: #0f172a !important; padding: 20px !important; border-bottom: 3px solid #2563eb; }
+.site-header .site-title a { color: white !important; }
+.site-header .site-description { color: #94a3b8 !important; }
+.main-navigation a { color: #cbd5e1 !important; font-weight: 600; }
+.main-navigation a:hover { color: #60a5fa !important; }
+.entry-header { border-right: 4px solid #2563eb; padding-right: 16px; margin-bottom: 20px; }
+img.attachment-post-thumbnail { border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; }
+.widget-title { color: #2563eb; font-weight: 700; border-bottom: 2px solid #2563eb; padding-bottom: 8px; }
+.wp-block-separator { border-color: #e2e8f0; }
+a { color: #2563eb; }
+a:hover { color: #1d4ed8; }
+.site-footer { background: #0f172a !important; color: #94a3b8 !important; padding: 30px !important; text-align: center; }
+.site-footer a { color: #60a5fa !important; }
+.blog .entry-title { font-size: 1.3em; }
+.blog .entry-summary { color: #555; font-size: 0.95em; line-height: 1.6; }
+.widget_recent_entries ul li { text-align: right; }
+.comment-list { direction: rtl; }
+.comment-form { direction: rtl; }
+.xtox-price-badge { background: #10b981; color: white; padding: 4px 12px; border-radius: 20px; font-weight: 700; display: inline-block; margin: 8px 0; }
+.post-categories a { background: #eff6ff; color: #2563eb; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; text-decoration: none; margin: 2px; display: inline-block; }
+`;
+    const cssRes = await fetch(`https://public-api.wordpress.com/rest/v1.1/sites/${SITE}/settings`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ 'custom_css': customCSS }).toString()
+    });
+    if (cssRes.ok) {
+      console.log('[WP Setup] ✅ Custom CSS applied');
+      results.push('custom-css: OK');
+    } else {
+      const cssErr = await cssRes.text().catch(() => '');
+      console.warn('[WP Setup] Custom CSS failed:', cssRes.status, cssErr.slice(0, 200));
+      results.push('custom-css: FAILED');
+    }
+  } catch (cssErr) {
+    console.warn('[WP Setup] Custom CSS error (non-fatal):', cssErr.message);
+    results.push('custom-css: ERROR');
+  }
+
   return { ok: true, results };
 }
 

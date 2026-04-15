@@ -1,0 +1,23 @@
+<div style="background:#0f172a;border-radius:12px;padding:16px;color:white;direction:rtl;font-family:Arial,sans-serif">
+  <div style="font-size:18px;font-weight:700;color:#60a5fa;margin-bottom:8px;text-align:center">📱 تطبيق XTOX</div>
+  <div id="xtox-recent-ads" style="font-size:13px;color:#94a3b8;margin-bottom:12px;text-align:center">جاري تحميل الإعلانات...</div>
+  <a href="https://fox-kohl-eight.vercel.app" target="_blank"
+     style="display:block;margin-bottom:8px;background:#2563eb;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700;text-align:center">
+    🏠 الصفحة الرئيسية
+  </a>
+  <a href="https://fox-kohl-eight.vercel.app/install" target="_blank"
+     style="display:block;background:#10b981;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700;text-align:center">
+    📲 تحميل التطبيق
+  </a>
+  <script>
+  fetch('https://xtox-production.up.railway.app/api/ads?limit=3')
+    .then(r=>r.json()).then(d=>{
+      var ads=(d.ads||d||[]).slice(0,3);
+      var el=document.getElementById('xtox-recent-ads');
+      if(ads.length){
+        el.innerHTML='<b style="color:white">أحدث الإعلانات:</b><br>'+
+          ads.map(a=>'<a href="https://fox-kohl-eight.vercel.app/ads/'+a._id+'" target="_blank" style="color:#60a5fa;display:block;margin:4px 0;font-size:12px">• '+a.title+' - '+(a.price||'')+'</a>').join('');
+      }
+    }).catch(()=>{});
+  </script>
+</div>

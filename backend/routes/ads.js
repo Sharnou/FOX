@@ -144,6 +144,19 @@ function sanitizeAdFields({ title, description, category, subcategory, price, ci
 
 
 // ── GET all ads (country from JWT — locked, user cannot override) ──
+// ── GET /countries — ad count by country ──────────────────────────────────
+router.get("/countries", async (req, res) => {
+  try {
+    const results = await Ad.aggregate([
+      { $match: { status: { $ne: "deleted" }, sold: { $ne: true }, isDeleted: { $ne: true }, isExpired: { $ne: true } } },
+      { $group: { _id: "$country", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+    const total = results.reduce((s, r) => s + r.count, 0);
+    res.json({ total, countries: results.filter(r => r._id) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/', async (req, res) => {
   try {
     const { category, city, page = 0, q, userId, subcategory: querySubcategory, subsub: querySubsub } = req.query;

@@ -1,4 +1,5 @@
 import './globals.css';
+import LanguageProvider from './components/LanguageProvider';
 import ScrollToTop from './components/ScrollToTop';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
@@ -30,30 +31,28 @@ const jsonLd = {
 };
 
 export const metadata = {
-  title: {
-    default: 'XTOX Marketplace',
-    template: '%s — XTOX',
+  title: { default: 'XTOX - سوق محلي عربي | بيع واشتري مجاناً', template: '%s | XTOX' },
+  description: 'أكبر سوق محلي عربي - نشر إعلانات مجاني، بيع وشراء في مصر والدول العربية، محادثة فورية، مكالمات صوتية، تطبيق PWA',
+  keywords: ['سوق محلي', 'إعلانات مبوبة', 'بيع وشراء', 'مصر', 'السعودية', 'الإمارات', 'XTOX', 'marketplace', 'Arabic marketplace', 'OLX مصر', 'Dubizzle عربي', 'إعلانات مجانية'],
+  openGraph: {
+    type: 'website', locale: 'ar_EG', url: 'https://fox-kohl-eight.vercel.app',
+    siteName: 'XTOX - سوق محلي عربي',
+    title: 'XTOX - سوق محلي عربي | بيع واشتري مجاناً',
+    description: 'أكبر سوق محلي عربي - نشر إعلانات مجاني، بيع وشراء في مصر والدول العربية',
+    images: [{ url: 'https://fox-kohl-eight.vercel.app/icon-512.png', width: 512, height: 512 }],
   },
-  description: 'XTOX Marketplace — السوق المحلي الذكي',
-  keywords: ['سوق', 'بيع', 'شراء', 'إعلانات مجانية', 'marketplace', 'XTOX', 'سيارات', 'عقارات', 'إلكترونيات', 'وظائف', 'مصر', 'السعودية'],
-  robots: { index: true, follow: true },
+  twitter: { card: 'summary_large_image', site: '@XTOXapp', creator: '@XTOXapp' },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-video-preview': -1, 'max-image-preview': 'large', 'max-snippet': -1 } },
+  alternates: {
+    canonical: 'https://fox-kohl-eight.vercel.app',
+    languages: { 'ar': 'https://fox-kohl-eight.vercel.app', 'ar-EG': 'https://fox-kohl-eight.vercel.app' }
+  },
+  verification: { google: 'xtox-google-verify', yandex: 'xtox-yandex-verify' },
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
     apple: '/favicon.svg',
-  },
-  openGraph: {
-    type: 'website',
-    siteName: 'XTOX',
-    title: 'XTOX Marketplace',
-    description: 'XTOX Marketplace — السوق المحلي الذكي',
-    locale: 'ar_EG',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'XTOX Marketplace',
-    description: 'XTOX Marketplace — السوق المحلي الذكي',
   },
 };
 
@@ -104,7 +103,8 @@ export default function RootLayout({ children }) {
         background: '#f5f5f5',
         overflowX: 'hidden',
       }}>
-        <ErrorCapture />
+        <LanguageProvider>
+      <ErrorCapture />
         <MarkPoint />
         {children}
         <FloatingSearchBar />
@@ -115,6 +115,7 @@ export default function RootLayout({ children }) {
         <BottomNav />
         <ChatFloat />
         <WhatsAppFloat />
+      </LanguageProvider>
       </body>
     </html>
   );

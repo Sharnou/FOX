@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Sitemap: https://fox-kohl-eight.vercel.app/sitemap.xml
+Sitemap: https://xt0x.wordpress.com/sitemap.xml
+Host: https://fox-kohl-eight.vercel.app

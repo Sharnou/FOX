@@ -14,40 +14,32 @@ export async function generateMetadata({ params }) {
     if (!res.ok) throw new Error('Ad not found');
     const ad = await res.json();
 
-    const title = ad.title ? ad.title + ' — XTOX' : 'XTOX Marketplace';
-    const rawDescription = ad.description || '';
-    const description = rawDescription.length > 160
-      ? rawDescription.slice(0, 157) + '...'
-      : rawDescription || 'اعثر على أفضل العروض في سوق XTOX المحلي';
-    const image = (ad.media && ad.media[0]) || DEFAULT_OG_IMAGE;
-    const url = SITE_URL + '/ads/' + id;
-
+    const title = `${ad.title || 'إعلان'} | ${ad.category || ''} في ${ad.city || ad.location || ''} | XTOX`;
+    const desc = `${(ad.description || '').slice(0, 155)} — السعر: ${ad.price || ''} | XTOX سوق محلي`;
+    const img = ad.images?.[0] || ad.media?.[0] || 'https://fox-kohl-eight.vercel.app/icon-512.png';
+    const url = `https://fox-kohl-eight.vercel.app/ads/${id}`;
     return {
       title,
-      description,
-      alternates: { canonical: url },
-      openGraph: {
-        title,
-        description,
-        url,
-        siteName: 'XTOX',
-        locale: 'ar_EG',
-        type: 'website',
-        images: [{ url: image, width: 1200, height: 630, alt: ad.title || 'XTOX' }],
+      description: desc,
+      openGraph: { title, description: desc, images: [img], type: 'website',
+        url, siteName: 'XTOX - سوق محلي عربي', locale: 'ar_EG' },
+      twitter: { card: 'summary_large_image', title, description: desc, images: [img] },
+      alternates: {
+        canonical: url,
+        languages: {
+          'ar': url,
+          'ar-EG': url,
+        }
       },
-      twitter: {
-        card: 'summary_large_image',
-        title,
-        description,
-        images: [image],
-      },
+      keywords: [ad.title, ad.category, ad.city, ad.location, 'XTOX', 'إعلانات مبوبة', 'بيع وشراء', 'سوق محلي'].filter(Boolean).join(', '),
+      robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
     };
   } catch {
     return {
-      title: 'XTOX Marketplace',
+      title: 'XTOX - سوق محلي عربي',
       description: 'اعثر على أفضل العروض في سوق XTOX المحلي',
       openGraph: {
-        title: 'XTOX Marketplace',
+        title: 'XTOX - سوق محلي عربي',
         description: 'اعثر على أفضل العروض في سوق XTOX المحلي',
         siteName: 'XTOX',
         locale: 'ar_EG',
@@ -56,7 +48,7 @@ export async function generateMetadata({ params }) {
       },
       twitter: {
         card: 'summary_large_image',
-        title: 'XTOX Marketplace',
+        title: 'XTOX - سوق محلي عربي',
         description: 'اعثر على أفضل العروض في سوق XTOX المحلي',
         images: [DEFAULT_OG_IMAGE],
       },
@@ -105,12 +97,36 @@ async function getAdJsonLd(id) {
 export default async function AdPage({ params }) {
   const { id } = await params;
   const jsonLd = await getAdJsonLd(id);
+  
+  // Fetch ad for breadcrumb schema
+  let ad = null;
+  try {
+    const adRes = await fetch(API + '/api/ads/' + id, { next: { revalidate: 3600 } });
+    if (adRes.ok) ad = await adRes.json();
+  } catch {}
+  
+  const breadcrumbLd = ad ? {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "XTOX", "item": "https://fox-kohl-eight.vercel.app" },
+      { "@type": "ListItem", "position": 2, "name": ad.category || 'إعلانات', "item": `https://fox-kohl-eight.vercel.app/?category=${encodeURIComponent(ad.category || '')}` },
+      { "@type": "ListItem", "position": 3, "name": ad.title || 'إعلان', "item": `https://fox-kohl-eight.vercel.app/ads/${id}` }
+    ]
+  } : null;
+
   return (
     <>
       {jsonLd && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      {breadcrumbLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
         />
       )}
       <AdPageClient params={{ id }} />

@@ -11,6 +11,7 @@ import { detectLang } from '../lib/lang';
 import SeasonalBanner from './components/SeasonalBanner';
 import WinnerBanner from './components/WinnerBanner';
 import Leaderboard from './components/Leaderboard';
+import CountryTabs from './components/CountryTabs';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -64,6 +65,7 @@ export default function Home() {
   const [savedCount, setSavedCount] = useState(0);
   const [toast, setToast] = useState(null);
   const [scrollY, setScrollY] = useState(0);
+  const [activeCountry, setActiveCountry] = useState('');
   const catScrollRef = useRef(null);
 
   const showToast = useCallback((msg, type = 'info') => {
@@ -114,6 +116,10 @@ export default function Home() {
       // Country detection is only used for locale/UI, not for the ads query.
       const params = new URLSearchParams();
       if (category) params.append('category', category);
+      if (typeof window !== 'undefined') {
+        const _ac = document.querySelector('[data-active-country]')?.dataset?.activeCountry || '';
+        if (_ac) params.append('country', _ac);
+      }
       const res = await fetch(API + '/api/ads?' + params, { signal: controller.signal });
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -142,6 +148,36 @@ export default function Home() {
     fetchAds(CAT_VALS[idx], locale.country);
     const el = catScrollRef.current?.children[idx];
     if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+
+  function handleCountrySelect(code) {
+    setActiveCountry(code);
+    // Re-fetch ads with new country filter
+    const params = new URLSearchParams();
+    const cat = CAT_VALS[catIdx] || '';
+    if (cat) params.append('category', cat);
+    if (code) params.append('country', code);
+    setLoading(true);
+    setError(null);
+    fetch(API + '/api/ads?' + params)
+      .then(r => r.json())
+      .then(data => {
+        const rawList = Array.isArray(data) ? data : (data.ads || data.data || data.results || []);
+        const seen = new Set();
+        const uniqueList = rawList.filter(ad => {
+          const id = String(ad._id);
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+        setAds(uniqueList);
+        setError(null);
+      })
+      .catch(() => {
+        setAds([]);
+        setError('تعذّر تحميل الإعلانات');
+      })
+      .finally(() => setLoading(false));
   }
 
   async function showPopup(country) {
@@ -554,6 +590,11 @@ export default function Home() {
           ))}
         </div>
       </nav>
+
+      {/* ── Country Filter Tabs ── */}
+      <div data-active-country={activeCountry}>
+        <CountryTabs activeCountry={activeCountry} onCountrySelect={handleCountrySelect} />
+      </div>
 
       {/* ── Ads Count Bar ── */}
       {!loading && !error && (
