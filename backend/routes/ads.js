@@ -628,14 +628,27 @@ router.post('/', auth, multerUpload, async (req, res) => {
       todayCount = 0; // If count fails, allow the ad (non-fatal)
     }
 
-    if (todayCount >= 2) {
-      return res.status(429).json({
-        error: 'لقد وصلت للحد اليومي للإعلانات',
-        message: 'Daily limit reached. Maximum 2 ads per day.',
-        todayCount,
-        limit: 2,
-        resetsAt: endOfDay
-      });
+    const DAILY_LIMIT = 5;
+    if (todayCount >= DAILY_LIMIT) {
+      // Check if user wants to spend 100 reputation points to bypass
+      const usePoints = req.body.useReputationPoints === true || req.body.useReputationPoints === 'true';
+      if (!usePoints) {
+        return res.status(429).json({
+          error: 'لقد وصلت إلى الحد الأقصى للإعلانات اليومي',
+          canUsePoints: true,
+          reputationRequired: 100,
+          currentPoints: req.user.reputationPoints || 0
+        });
+      }
+      // Use reputation points path
+      const _bypassUser = await User.findById(req.user.id);
+      if (!_bypassUser || _bypassUser.reputationPoints < 100) {
+        return res.status(400).json({
+          error: 'لا تملك نقاط سمعة كافية. تحتاج 100 نقطة.',
+          currentPoints: _bypassUser?.reputationPoints || 0
+        });
+      }
+      await addPointsToUser(_bypassUser, -100, 'نشر إعلان إضافي (تجاوز الحد اليومي)');
     }
     // ─────────────────────────────────────────────────────────────────────────
 

@@ -31,6 +31,7 @@ function getReportModel() {
 import { createBackup } from '../server/backup.js';
 import { sendWeeklyBroadcast } from '../server/broadcast.js';
 import { requestRepair, approveRepair, executeRepair } from '../server/aiRepair.js';
+import { addPointsToUser } from '../utils/points.js';
 import { detectCategoryOffline } from '../server/offlineDict.js';
 
 const router = express.Router();
@@ -767,6 +768,36 @@ router.post('/payments/:id/reject', adminAuth, async (req, res) => {
     );
     if (!payment) return res.status(404).json({ error: 'Order not found' });
     res.json({ success: true, message: 'Payment rejected' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// GET /api/admin/users/reputation — all users sorted by points (admin-only)
+// ─────────────────────────────────────────────────────────
+router.get('/users/reputation', adminAuth, async (req, res) => {
+  try {
+    const users = await User.find({})
+      .select('name email xtoxId reputationPoints monthlyPoints role createdAt pointsHistory')
+      .sort({ reputationPoints: -1 });
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// PATCH /api/admin/users/:id/reputation — add/deduct points (admin-only)
+// ─────────────────────────────────────────────────────────
+router.patch('/users/:id/reputation', adminAuth, async (req, res) => {
+  try {
+    const { amount, reason } = req.body;
+    if (typeof amount !== 'number') return res.status(400).json({ error: 'amount must be a number' });
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    await addPointsToUser(user, amount, reason || `تعديل يدوي من الأدمن (${amount > 0 ? '+' : ''}${amount})`);
+    res.json({ success: true, reputationPoints: user.reputationPoints, monthlyPoints: user.monthlyPoints });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

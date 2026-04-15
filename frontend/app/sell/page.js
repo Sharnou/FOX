@@ -354,6 +354,7 @@ export default function SellPage() {
   const [editAdId, setEditAdId] = useState(null);
   const [verificationError, setVerificationError] = useState(false);
   const [backendDupError, setBackendDupError] = useState(null);
+  const [repBypassModal, setRepBypassModal] = useState(null); // { currentPoints, reputationRequired }
   const [gpsLoading, setGpsLoading] = useState(false);
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
@@ -634,7 +635,11 @@ export default function SellPage() {
         if (res.status === 403 && err.code === 'UNVERIFIED_USER') { setVerificationError(true); setLoading(false); return; }
         if (res.status === 409 && err.code === 'DUPLICATE_AD') { setBackendDupError({ existingAdId: err.existingAdId }); setLoading(false); return; }
         if (res.status === 429) {
-          setErrors({ submit: 'لقد وصلت للحد اليومي: يمكنك نشر إعلانين فقط في اليوم الواحد' });
+          if (err.canUsePoints) {
+            setRepBypassModal({ currentPoints: err.currentPoints || 0, reputationRequired: err.reputationRequired || 100 });
+          } else {
+            setErrors({ submit: err.error || 'لقد وصلت للحد اليومي للإعلانات' });
+          }
         } else {
           setErrors({ submit: 'حدث خطأ أثناء نشر الإعلان، يرجى المحاولة مجدداً' });
         }
@@ -669,6 +674,48 @@ export default function SellPage() {
   const selectStyle = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: "'Cairo', 'Tajawal', system-ui", direction: 'rtl', background: '#fff', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' };
 
   const stepCount = step === 'start' ? 1 : 2;
+
+  async function resubmitWithPoints() {
+    setRepBypassModal(null);
+    setLoading(true);
+    try {
+      const subsub = level4 || form.subsub || '';
+      const formData = new FormData();
+      formData.append('title', form.title || '');
+      formData.append('description', form.description || '');
+      formData.append('category', form.category || '');
+      formData.append('subcategory', form.subcategory || '');
+      formData.append('subsub', subsub || 'أخرى');
+      formData.append('price', String(form.price || ''));
+      formData.append('city', form.city || '');
+      formData.append('currency', form.currency || 'EGP');
+      formData.append('condition', form.condition || '');
+      formData.append('useReputationPoints', 'true');
+      if (mediaType === 'images' && mediaFiles.length > 0) {
+        mediaFiles.forEach((file) => formData.append('images', file));
+      } else if (mediaType === 'video' && videoFile) {
+        formData.append('video', videoFile);
+      }
+      const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
+      const res = await fetch(API + '/api/ads', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + t },
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setErrors({ submit: err.error || 'حدث خطأ أثناء نشر الإعلان' });
+        setLoading(false);
+        return;
+      }
+      const resData = await res.json().catch(() => ({}));
+      const newAdId = (resData && resData._id) || (resData && resData.ad && resData.ad._id) || (resData && resData.id);
+      window.location.href = newAdId ? ('/ads/' + newAdId + '?published=1') : '/?published=1';
+    } catch (e) {
+      setErrors({ submit: 'حدث خطأ في الاتصال، يرجى المحاولة مجدداً' });
+      setLoading(false);
+    }
+  }
 
   return (
     <div dir="rtl" lang="ar" style={{
@@ -1034,6 +1081,63 @@ export default function SellPage() {
           </div>
         )}
       </div>
+
+      {/* ── Reputation bypass modal ── */}
+      {repBypassModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }}>
+          <div style={{
+            background: '#1a1a2e', border: '1.5px solid rgba(139,92,246,0.4)',
+            borderRadius: 18, padding: '28px 22px', maxWidth: 380, width: '100%',
+            direction: 'rtl', fontFamily: "'Cairo', 'Tajawal', system-ui",
+            boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+          }}>
+            <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>⚠️</div>
+            <h2 style={{ color: '#f8fafc', fontSize: 18, fontWeight: 800, textAlign: 'center', margin: '0 0 10px' }}>
+              لقد وصلت إلى الحد اليومي للإعلانات
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', margin: '0 0 16px', lineHeight: 1.6 }}>
+              يمكنك نشر إعلان إضافي مقابل <strong style={{ color: '#a78bfa' }}>100 نقطة سمعة</strong>
+            </p>
+            <div style={{
+              background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)',
+              borderRadius: 10, padding: '12px 16px', textAlign: 'center', marginBottom: 20,
+            }}>
+              <span style={{ color: '#94a3b8', fontSize: 13 }}>نقاطك الحالية: </span>
+              <strong style={{ color: repBypassModal.currentPoints >= 100 ? '#4ade80' : '#f87171', fontSize: 18 }}>
+                {repBypassModal.currentPoints} نقطة
+              </strong>
+            </div>
+            {repBypassModal.currentPoints >= 100 ? (
+              <button
+                onClick={() => resubmitWithPoints()}
+                style={{
+                  width: '100%', padding: '13px', background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                  color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 16,
+                  cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}>
+                ✅ استخدم 100 نقطة وانشر الإعلان
+              </button>
+            ) : (
+              <div style={{ color: '#f87171', textAlign: 'center', fontSize: 13, marginBottom: 14 }}>
+                نقاطك غير كافية. تحتاج {repBypassModal.reputationRequired} نقطة على الأقل.
+              </div>
+            )}
+            <button
+              onClick={() => setRepBypassModal(null)}
+              style={{
+                width: '100%', padding: '11px', background: 'rgba(255,255,255,0.06)',
+                color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+                fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+              إلغاء
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

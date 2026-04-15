@@ -120,6 +120,11 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(null); // { type, adId, title }
   const [toast, setToast] = useState('');
+  // ── Reputation tab state ────────────────────────────────
+  const [repUsers, setRepUsers] = useState([]);
+  const [repSearch, setRepSearch] = useState('');
+  const [repLoading, setRepLoading] = useState(false);
+  const [repEditing, setRepEditing] = useState({}); // { [userId]: { mode: 'add'|'sub', amount: '', reason: '', loading: false } }
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -300,12 +305,13 @@ export default function AdminPage() {
 
   // ── TABS ───────────────────────────────────────────────
   const TABS = [
-    { id: 'stats',    icon: '📊', ar: 'الإحصائيات' },
-    { id: 'users',    icon: '👥', ar: 'المستخدمون' },
-    { id: 'ads',      icon: '📋', ar: 'الإعلانات' },
-    { id: 'featured', icon: '⭐', ar: 'المميزة' },
-    { id: 'reports',  icon: '🚨', ar: 'التقارير' },
-    { id: 'system',   icon: '⚙️', ar: 'النظام' },
+    { id: 'stats',      icon: '📊', ar: 'الإحصائيات' },
+    { id: 'users',      icon: '👥', ar: 'المستخدمون' },
+    { id: 'ads',        icon: '📋', ar: 'الإعلانات' },
+    { id: 'featured',   icon: '⭐', ar: 'المميزة' },
+    { id: 'reports',    icon: '🚨', ar: 'التقارير' },
+    { id: 'reputation', icon: '🏆', ar: 'نقاط السمعة' },
+    { id: 'system',     icon: '⚙️', ar: 'النظام' },
   ];
 
   const S = { // style shortcuts
@@ -688,6 +694,141 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ══ TAB: نقاط السمعة ══ */}
+        {tab === 'reputation' && (
+          <div>
+            <h2 style={{ color: '#a78bfa', marginBottom: 20, fontSize: 18 }}>🏆 إدارة نقاط السمعة</h2>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
+              <input
+                value={repSearch}
+                onChange={e => setRepSearch(e.target.value)}
+                placeholder="🔍 ابحث باسم أو بريد..."
+                style={{ flex: 1, background: '#0d1117', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px', color: '#f0f6fc', fontSize: 13, fontFamily: 'Cairo, monospace', direction: 'rtl' }}
+              />
+              <button
+                onClick={async () => {
+                  setRepLoading(true);
+                  const { ok, data } = await apiFetch('/api/admin/users/reputation', {}, token);
+                  if (ok) setRepUsers(Array.isArray(data) ? data : []);
+                  setRepLoading(false);
+                }}
+                style={{ background: '#21262d', color: '#a78bfa', border: '1px solid #a78bfa', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace', whiteSpace: 'nowrap' }}
+              >
+                {repLoading ? '⏳' : '🔄 تحميل'}
+              </button>
+            </div>
+            {repUsers.length === 0 && !repLoading && (
+              <div style={{ color: '#8b949e', textAlign: 'center', padding: 40, fontSize: 14 }}>
+                اضغط على "تحميل" لعرض المستخدمين
+              </div>
+            )}
+            {repUsers.length > 0 && (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#161b22' }}>
+                      {['#', 'الاسم', 'البريد', 'XTOX ID', 'النقاط', 'الشهرية', 'الدور', 'الإجراء'].map(h => (
+                        <th key={h} style={S.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {repUsers
+                      .filter(u => {
+                        if (!repSearch) return true;
+                        const q = repSearch.toLowerCase();
+                        return (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q);
+                      })
+                      .map((u, idx) => {
+                        const edit = repEditing[u._id];
+                        const tier = u.reputationPoints >= 1000 ? '💎 Platinum' : u.reputationPoints >= 500 ? '🥇 Gold' : u.reputationPoints >= 200 ? '🥈 Silver' : '🥉 Bronze';
+                        return (
+                          <tr key={u._id} style={{ borderBottom: '1px solid #21262d' }}>
+                            <td style={S.td}>{idx + 1}</td>
+                            <td style={S.td}><span style={{ color: '#f0f6fc', fontWeight: 600 }}>{u.name || '—'}</span></td>
+                            <td style={S.td}><span style={{ color: '#8b949e' }}>{u.email || '—'}</span></td>
+                            <td style={S.td}><code style={{ color: '#79c0ff', fontSize: 11 }}>{u.xtoxId || '—'}</code></td>
+                            <td style={S.td}>
+                              <span style={{ color: '#a78bfa', fontWeight: 700 }}>{u.reputationPoints ?? 0}</span>
+                              <span style={{ color: '#475569', marginRight: 4, fontSize: 10 }}>{tier}</span>
+                            </td>
+                            <td style={S.td}><span style={{ color: '#fcd34d' }}>{u.monthlyPoints ?? 0}</span></td>
+                            <td style={S.td}><span style={{ color: u.role === 'admin' ? '#00ff41' : '#8b949e' }}>{u.role || 'user'}</span></td>
+                            <td style={S.td}>
+                              {!edit ? (
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <button
+                                    onClick={() => setRepEditing(p => ({ ...p, [u._id]: { mode: 'add', amount: '', reason: '', loading: false } }))}
+                                    style={{ background: 'rgba(22,163,74,0.15)', border: '1px solid #16a34a', color: '#4ade80', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 12 }}
+                                  >➕</button>
+                                  <button
+                                    onClick={() => setRepEditing(p => ({ ...p, [u._id]: { mode: 'sub', amount: '', reason: '', loading: false } }))}
+                                    style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid #dc2626', color: '#f87171', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 12 }}
+                                  >➖</button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 180 }}>
+                                  <div style={{ color: edit.mode === 'add' ? '#4ade80' : '#f87171', fontSize: 11, fontWeight: 700, marginBottom: 2 }}>
+                                    {edit.mode === 'add' ? '➕ أضف نقاط' : '➖ اخصم نقاط'}
+                                  </div>
+                                  <input
+                                    type="number" min="1" placeholder="الكمية"
+                                    value={edit.amount}
+                                    onChange={e => setRepEditing(p => ({ ...p, [u._id]: { ...p[u._id], amount: e.target.value } }))}
+                                    style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '4px 8px', color: '#f0f6fc', fontSize: 12, width: '100%', boxSizing: 'border-box' }}
+                                  />
+                                  <input
+                                    type="text" placeholder="السبب (اختياري)"
+                                    value={edit.reason}
+                                    onChange={e => setRepEditing(p => ({ ...p, [u._id]: { ...p[u._id], reason: e.target.value } }))}
+                                    style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '4px 8px', color: '#f0f6fc', fontSize: 12, width: '100%', boxSizing: 'border-box', direction: 'rtl' }}
+                                  />
+                                  <div style={{ display: 'flex', gap: 4 }}>
+                                    <button
+                                      disabled={edit.loading || !edit.amount}
+                                      onClick={async () => {
+                                        const amt = parseInt(edit.amount);
+                                        if (!amt || isNaN(amt)) return;
+                                        const finalAmt = edit.mode === 'sub' ? -Math.abs(amt) : Math.abs(amt);
+                                        setRepEditing(p => ({ ...p, [u._id]: { ...p[u._id], loading: true } }));
+                                        const { ok, data } = await apiFetch(`/api/admin/users/${u._id}/reputation`, {
+                                          method: 'PATCH',
+                                          body: JSON.stringify({ amount: finalAmt, reason: edit.reason || undefined })
+                                        }, token);
+                                        if (ok) {
+                                          setRepUsers(prev => prev.map(ru => ru._id === u._id
+                                            ? { ...ru, reputationPoints: data.reputationPoints, monthlyPoints: data.monthlyPoints }
+                                            : ru
+                                          ));
+                                          showToast('✅ تم تعديل النقاط');
+                                          setRepEditing(p => { const n = { ...p }; delete n[u._id]; return n; });
+                                        } else {
+                                          showToast('❌ ' + (data.error || 'فشل التعديل'));
+                                          setRepEditing(p => ({ ...p, [u._id]: { ...p[u._id], loading: false } }));
+                                        }
+                                      }}
+                                      style={{ flex: 1, background: edit.mode === 'add' ? '#16a34a' : '#dc2626', color: 'white', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: edit.loading ? 'not-allowed' : 'pointer', fontSize: 11, opacity: edit.loading ? 0.6 : 1 }}
+                                    >
+                                      {edit.loading ? '⏳' : '✅ تأكيد'}
+                                    </button>
+                                    <button
+                                      onClick={() => setRepEditing(p => { const n = { ...p }; delete n[u._id]; return n; })}
+                                      style={{ background: '#21262d', color: '#8b949e', border: '1px solid #30363d', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}
+                                    >❌</button>
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 

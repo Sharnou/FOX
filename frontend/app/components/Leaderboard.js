@@ -67,8 +67,8 @@ export default function Leaderboard() {
 
   useEffect(() => {
     load();
-    // Refresh every 5 minutes
-    const interval = setInterval(load, 5 * 60 * 1000);
+    // Refresh every 3 hours
+    const interval = setInterval(load, 3 * 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [load]);
 
@@ -208,7 +208,7 @@ export default function Leaderboard() {
         justifyContent: 'center',
       }}>
         <span style={{ fontSize: 11, color: '#475569' }}>
-          يتجدد الترتيب كل 5 دقائق • النقاط تُصفَّر كل أول شهر
+          يتجدد الترتيب كل 3 ساعات • النقاط تُصفَّر كل أول شهر
         </span>
       </div>
     </div>
