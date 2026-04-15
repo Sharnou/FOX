@@ -449,6 +449,14 @@ export default function ProfilePage() {
                       >
                         عرض
                       </a>
+                      {!ad.isDeleted && ad.status !== 'sold' && (
+                        <a
+                          href={'/edit-ad/' + ad._id}
+                          style={{ flex: 1, textAlign: 'center', padding: '4px', background: '#f0fdf4', borderRadius: 8, fontSize: 11, textDecoration: 'none', color: '#16a34a', fontWeight: 'bold' }}
+                        >
+                          ✏️ تعديل
+                        </a>
+                      )}
                       {ad.status !== 'sold' && !ad.isDeleted && (
                         <button
                           onClick={() => markAdAsSold(ad._id)}

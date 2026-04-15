@@ -1127,6 +1127,92 @@ router.post('/ai-generate', auth, async (req, res) => {
   }
 });
 
+
+// ── PATCH /:id — edit own ad with 10 reputation point cost ──────────────────
+router.patch('/:id', auth, async (req, res) => {
+  try {
+    // 1. Find the ad
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ error: 'الإعلان غير موجود' });
+    }
+    const ad = await getAdModel().findById(req.params.id);
+    if (!ad || ad.isDeleted) return res.status(404).json({ error: 'الإعلان غير موجود' });
+
+    // 2. Ownership check
+    const sellerId = (ad.seller || ad.userId)?.toString();
+    if (sellerId !== req.user.id) {
+      return res.status(403).json({ error: 'لا يمكنك تعديل هذا الإعلان' });
+    }
+
+    // 3. Reputation check
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(401).json({ error: 'المستخدم غير موجود' });
+    if ((user.reputationPoints || 0) < 10) {
+      return res.status(400).json({ error: 'تحتاج 10 نقاط سمعة على الأقل لتعديل الإعلان' });
+    }
+
+    // 4. Deduct 10 reputation points (floor at 0)
+    user.reputationPoints = Math.max(0, (user.reputationPoints || 0) - 10);
+    user.monthlyPoints = Math.max(0, (user.monthlyPoints || 0) - 10);
+    await user.save();
+
+    // 5. Update allowed fields
+    const { title, description, price, location, subCategory, subSubCategory, images, phoneNumber } = req.body;
+    if (title !== undefined) ad.title = String(title).slice(0, 120).trim();
+    if (description !== undefined) ad.description = String(description).slice(0, 1500).trim();
+    if (price !== undefined) ad.price = Math.max(0, Number(price) || 0);
+    if (location !== undefined) ad.city = String(location).slice(0, 60).trim();
+    if (subCategory !== undefined) ad.subcategory = String(subCategory).slice(0, 60).trim();
+    if (subSubCategory !== undefined) ad.subsub = String(subSubCategory).slice(0, 60).trim();
+    if (Array.isArray(images)) {
+      const cleanImages = images.slice(0, 10).map(u => String(u || '').trim()).filter(u => u.startsWith('http') || u.startsWith('data:'));
+      if (cleanImages.length > 0) { ad.images = cleanImages; ad.media = cleanImages; }
+    }
+    if (phoneNumber !== undefined) ad.phone = String(phoneNumber).replace(/[^+\d\s\-()]/g, '').slice(0, 20);
+    ad.updatedAt = new Date();
+    ad.editedAt = new Date();
+
+    // 6. Content moderation on new title+description
+    try {
+      const modResult = await moderateAdContent(ad.title, ad.description);
+      if (!modResult.approved) {
+        ad.status = 'rejected';
+        await ad.save();
+        return res.status(400).json({ error: 'المحتوى لا يتوافق مع سياسة النشر' });
+      }
+    } catch (_modErr) { /* fail open */ }
+
+    await ad.save();
+
+    // 7. WordPress sync (non-blocking)
+    if (ad.wpPostId) {
+      setImmediate(async () => {
+        try {
+          const { updateWPPost } = await import('../utils/wordpress.js');
+          await updateWPPost(ad.wpPostId, ad.toObject ? ad.toObject() : ad);
+        } catch (_wpErr) {
+          console.warn('[PATCH /:id] WP sync failed (non-fatal):', _wpErr.message);
+        }
+      });
+    }
+
+    // 8. Return updated ad
+    const adObj = ad.toObject ? ad.toObject() : ad;
+    return res.json({
+      success: true,
+      ad: {
+        ...adObj,
+        images: adObj.images?.length ? adObj.images : (adObj.media || []),
+        media: adObj.media?.length ? adObj.media : (adObj.images || []),
+      },
+      reputationPoints: user.reputationPoints,
+    });
+  } catch (e) {
+    console.error('[PATCH /api/ads/:id] error:', e.message);
+    res.status(500).json({ error: 'حدث خطأ أثناء تعديل الإعلان' });
+  }
+});
+
 // ── PUT update ad (owner only, full field-level sanitization) ──
 router.put('/:id', auth, async (req, res) => {
   try {

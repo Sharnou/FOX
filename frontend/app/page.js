@@ -866,6 +866,22 @@ export default function Home() {
                       </span>
                     )}
                   </div>
+                  {user && (user._id || user.id) && (
+                    (ad.seller?._id || ad.seller || ad.userId?._id || ad.userId)?.toString() === (user._id || user.id)?.toString()
+                  ) && ad.status !== 'sold' && (
+                    <a
+                      href={'/edit-ad/' + ad._id}
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        display: 'block', marginTop: 8, padding: '6px',
+                        background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                        color: 'white', borderRadius: 8, fontSize: 11,
+                        textAlign: 'center', textDecoration: 'none', fontWeight: 700,
+                      }}
+                    >
+                      ✏️ تعديل
+                    </a>
+                  )}
                 </div>
               </a>
             ))}
