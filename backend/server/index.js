@@ -77,7 +77,6 @@ import whatsappRouter from '../routes/whatsapp.js';
 import notificationRoutes from '../routes/notifications.js';
 import pushRoutes from '../routes/push.js';
 import winnerRouter from '../routes/winner.js';
-import bloggerRouter from '../routes/blogger.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 import jwt from 'jsonwebtoken';
 import { initMemoryStore, dbState } from './memoryStore.js';
@@ -241,7 +240,6 @@ app.use('/api/whatsapp', whatsappRouter); // WhatsApp chatbot webhook (no auth â
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/winner', winnerRouter);
-app.use('/api/blogger', bloggerRouter); // Blogger OAuth endpoints
 
 // GET /api/metrics â€” admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {

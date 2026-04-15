@@ -56,8 +56,8 @@ const AdSchema = new mongoose.Schema({
   tags: [String], // searchable tags array
   // ──────────────────────────────────────────────────────────────────────────
   createdAt: { type: Date, default: Date.now },
-  bloggerPostId: { type: String, default: null },
-  bloggerPostUrl: { type: String, default: null },
+  wpPostId: { type: String, default: null },
+  wpPostUrl: { type: String, default: null },
 });
 
 // Compound indexes for fast queries — free performance boost

@@ -22,7 +22,7 @@ import mongoose from 'mongoose';
 import multer from 'multer';
 import { CLOUDINARY_ENABLED } from '../server/cloudinary.js';
 import { moderateAdContent } from '../utils/adModeration.js';
-import { createBloggerPost, deleteBloggerPost } from '../utils/blogger.js';
+import { createWPPost, deleteWPPost } from '../utils/wordpress.js';
 
 // Smart model selector: MongoDB → Couchbase → in-memory
 function getAdModel() {
@@ -1010,19 +1010,19 @@ router.post('/', auth, multerUpload, async (req, res) => {
     console.log('[ADS POST] 8: responding 201, ad._id=', _normalizedAd._id?.toString());
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
 
-    // BLOGGER AUTO-SYNC: create post async after response (non-blocking)
+    // WORDPRESS AUTO-SYNC: create post async after response (non-blocking)
     setImmediate(async () => {
       try {
-        const result = await createBloggerPost(ad.toObject ? ad.toObject() : ad);
+        const result = await createWPPost(ad.toObject ? ad.toObject() : ad);
         if (result) {
           await getAdModel().findByIdAndUpdate(ad._id, {
-            bloggerPostId: result.postId,
-            bloggerPostUrl: result.postUrl,
+            wpPostId: result.wpPostId,
+            wpPostUrl: result.wpPostUrl,
           });
-          console.log('[Blogger] Synced ad', ad._id.toString(), '→', result.postUrl);
+          console.log('[WordPress] Synced ad', ad._id.toString(), '→', result.wpPostUrl);
         }
       } catch (e) {
-        console.error('[Blogger] Async post creation failed:', e.message);
+        console.error('[WordPress] Async post creation failed:', e.message);
       }
     });
   } catch (fatalErr) {
@@ -1222,11 +1222,10 @@ router.patch('/:id/sold', auth, async (req, res) => {
     ad.expiredAt = new Date();
     await ad.save();
 
-    // BLOGGER: delete post when ad is sold (async, non-blocking)
-    if (ad.bloggerPostId) {
-      const bPostId = ad.bloggerPostId;
-      setImmediate(() => deleteBloggerPost(bPostId));
-      await getAdModel().findByIdAndUpdate(ad._id, { bloggerPostId: null, bloggerPostUrl: null });
+    // WORDPRESS: delete post when ad is sold (async, non-blocking)
+    if (ad.wpPostId) {
+      setImmediate(() => deleteWPPost(ad.wpPostId));
+      await getAdModel().findByIdAndUpdate(ad._id, { wpPostId: null, wpPostUrl: null });
     }
 
     // Archive all chats linked to this ad — no new messages can be sent
@@ -1270,9 +1269,9 @@ router.delete('/:id', auth, async (req, res) => {
     const ad = await getAdModel().findOne(query);
     if (!ad) return res.status(404).json({ error: 'Not found' });
 
-    // BLOGGER: delete post before soft-deleting ad
-    if (ad.bloggerPostId) {
-      setImmediate(() => deleteBloggerPost(ad.bloggerPostId));
+    // WORDPRESS: delete post before soft-deleting ad
+    if (ad.wpPostId) {
+      setImmediate(() => deleteWPPost(ad.wpPostId));
     }
 
     // Soft-delete the ad
