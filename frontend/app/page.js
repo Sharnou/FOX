@@ -701,7 +701,7 @@ export default function Home() {
                 )}
                 <div style={{ position: 'relative', overflow: 'hidden' }}>
                   {(ad.media?.[0] || ad.images?.[0])
-                    ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '12px 12px 0 0', display: 'block' }} alt={ad.title || ''} loading="eager" />
+                    ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '12px 12px 0 0', display: 'block' }} alt={ad.title || ''} loading="lazy" width="200" height="200" />
                     : <div style={{ width: '100%', height: '200px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}><span aria-hidden="true">📦</span></div>}
                   <span style={{
                     position: 'absolute', bottom: 6, right: 6,

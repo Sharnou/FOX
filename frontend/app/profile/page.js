@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import VerifiedBadge from '../components/VerifiedBadge';
 import MicPermissionCard from '../components/MicPermissionCard';
+import { COUNTRIES, detectCountry } from '../utils/geoDetect';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -90,7 +91,8 @@ export default function ProfilePage() {
           email: cached.email || '',
           phone: cached.phone || '',
           city: cached.city || '',
-          bio: cached.bio || ''
+          bio: cached.bio || '',
+          country: cached.country || '',
         });
         setChatEnabled(cached.chatEnabled !== false);
         setLoading(false); // show cached data immediately — no blank screen
@@ -403,7 +405,9 @@ export default function ProfilePage() {
               ['📧 البريد', user.email],
               ['📱 الواتساب', user.phone || '—'],
               ['🏙️ المدينة', user.city || '—'],
-              ['🌍 البلد', user.country || '—'],
+              ['🌍 البلد', user.country && COUNTRIES[user.country] 
+                ? `${COUNTRIES[user.country].flag} ${COUNTRIES[user.country].name}` 
+                : user.country || '—'],
               ['📝 نبذة', user.bio || '—'],
             ].map(([label, value]) => (
               <div key={label} style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
@@ -445,6 +449,22 @@ export default function ProfilePage() {
                 />
               </div>
             ))}
+            {/* Country selector */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: '#555' }}>🌍 البلد</label>
+              <select
+                value={form.country || ''}
+                onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', background: 'white', direction: 'rtl' }}
+              >
+                <option value="">— اختر البلد —</option>
+                {Object.entries(COUNTRIES).map(([code, info]) => (
+                  <option key={code} value={code}>
+                    {info.flag} {info.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button onClick={save} disabled={saving}
                 style={{ flex: 1, padding: 12, background: '#10b981', color: 'white', border: 'none', borderRadius: 12, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 'bold', opacity: saving ? 0.7 : 1 }}>
@@ -456,6 +476,63 @@ export default function ProfilePage() {
               </button>
             </div>
           </>
+        )}
+      </div>
+
+
+      {/* ── Points History Section ────────────────────────────────────────────── */}
+      <div style={{ marginTop: 24, background: 'white', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+        <button
+          onClick={async () => {
+            setPointsHistoryOpen(o => !o);
+            if (!pointsHistoryLoaded && !pointsHistoryOpen) {
+              setPointsHistoryLoading(true);
+              try {
+                const token = getToken();
+                const res = await fetch(API + '/api/users/me/points-history', {
+                  headers: { Authorization: 'Bearer ' + token }
+                });
+                const data = await res.json();
+                setPointsHistory(data.pointsHistory || []);
+                setPointsHistoryLoaded(true);
+              } catch (err) {
+                console.error(err);
+                setPointsHistory([]);
+              } finally {
+                setPointsHistoryLoading(false);
+              }
+            }
+          }}
+          style={{ width: '100%', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'inherit' }}
+        >
+          <span style={{ fontWeight: 'bold', fontSize: 16, color: '#1a1a2e' }}>📜 سجل النقاط</span>
+          <span style={{ color: '#888' }}>{pointsHistoryOpen ? '▲' : '▼'}</span>
+        </button>
+        {pointsHistoryOpen && (
+          <div style={{ borderTop: '1px solid #f0f0f0', padding: '12px 16px' }}>
+            {pointsHistoryLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}>
+                <div style={{ width: 28, height: 28, border: '3px solid #e2e8f0', borderTop: '3px solid #6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+              </div>
+            ) : pointsHistory.length === 0 ? (
+              <p style={{ color: '#888', textAlign: 'center', padding: 12 }}>لا يوجد سجل بعد</p>
+            ) : (
+              <div>
+                {pointsHistory.map((entry, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < pointsHistory.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                    <div>
+                      <div style={{ fontSize: 14, color: '#333' }}>{entry.reason}</div>
+                      <div style={{ fontSize: 11, color: '#999' }}>{entry.date ? new Date(entry.date).toLocaleDateString('ar-EG') : ''}</div>
+                    </div>
+                    <div style={{ fontWeight: 'bold', fontSize: 15, color: entry.points >= 0 ? '#16a34a' : '#dc2626' }}>
+                      {entry.points >= 0 ? '+' : ''}{entry.points}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

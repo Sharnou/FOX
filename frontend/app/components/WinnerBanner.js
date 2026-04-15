@@ -180,6 +180,22 @@ export default function WinnerBanner() {
         </div>
       )}
 
+      {/* Winner History Link */}
+      <a
+        href="/winner-history"
+        style={{
+          display: 'block',
+          textAlign: 'center',
+          marginBottom: 8,
+          color: '#92400e',
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: 'none',
+        }}
+      >
+        📜 قائمة الفائزين السابقين
+      </a>
+
       {/* Congratulate Button */}
       <button
         onClick={handleCongratulate}

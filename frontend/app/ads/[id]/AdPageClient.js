@@ -699,6 +699,20 @@ export default function AdPageClient({ params }) {
       <SellerMiniCard sellerId={String((ad.userId && (ad.userId._id || ad.userId.id)) || (ad.seller && (ad.seller._id || ad.seller.id)) || ad.sellerId || '').replace('[object Object]', '').trim()} sellerName={(ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || ''} lang={lang} />
 
       {/* ── Rate Seller Section ── */}
+      {/* Guest prompt — not logged in */}
+      {reviewChecked && !userId && (
+        <div style={{ marginTop: 12, padding: '12px 16px', background: '#f8f4ff', borderRadius: 14, border: '1px solid #e8f0fe', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 20 }}>⭐</span>
+          <div>
+            <a
+              href={typeof window !== 'undefined' ? `/login?redirect=${encodeURIComponent(window.location.pathname)}` : '/login'}
+              style={{ color: '#7c3aed', fontWeight: 'bold', fontSize: 14, textDecoration: 'none' }}
+            >
+              سجّل دخولك لتقييم البائع
+            </a>
+          </div>
+        </div>
+      )}
       {reviewChecked && userId && userId !== String(sellerId) && (
         <div style={{ marginTop: 12, border: '1px solid #e8f0fe', borderRadius: 14, overflow: 'hidden' }}>
           {existingReview ? (

@@ -82,6 +82,17 @@ import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 // Pre-register WinnerHistory model so it is available before first query
 import('../models/WinnerHistory.js').catch(e => console.warn('[WinnerHistory] model load failed:', e.message));
 import('../models/Review.js').catch(e => console.warn('[Review] model load failed:', e.message));
+
+// Ensure Review unique index {ad, reviewer} exists after DB connects
+mongoose.connection.once('open', async () => {
+  try {
+    const ReviewModel = (await import('../models/Review.js')).default;
+    await ReviewModel.collection.createIndex({ ad: 1, reviewer: 1 }, { unique: true, background: true });
+    console.log('[DB] Review unique index ensured');
+  } catch(e) {
+    console.log('[DB] Review index:', e.message);
+  }
+});
 import jwt from 'jsonwebtoken';
 import { initMemoryStore, dbState } from './memoryStore.js';
 import { connectDatabases, getActiveDB, getCouchbaseError } from './dbManager.js';

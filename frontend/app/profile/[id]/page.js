@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import MicPermissionCard from '../../components/MicPermissionCard';
 import { useRouter } from 'next/navigation';
+import { COUNTRIES } from '../../utils/geoDetect';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -335,7 +336,17 @@ export default function ProfilePage({ params }) {
 
           <div style={{ flex: 1 }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 'bold' }}>{user.name}</h1>
-            <p style={{ color: '#666', margin: '4px 0', fontSize: 14 }}>📍 {user.city} · {user.country}</p>
+            <p style={{ color: '#666', margin: '4px 0', fontSize: 14 }}>
+              📍 {user.city}
+              {user.country && (
+                <>
+                  {' · '}
+                  {COUNTRIES[user.country]
+                    ? `${COUNTRIES[user.country].flag} ${COUNTRIES[user.country].name}`
+                    : user.country}
+                </>
+              )}
+            </p>
             <p style={{ color: '#999', margin: '4px 0', fontSize: 13 }}>عضو منذ {new Date(user.createdAt).toLocaleDateString('ar-EG')}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
               {sellerAvgRating > 0 ? (<><Stars rating={sellerAvgRating} /><span style={{ fontWeight: 'bold' }}>{sellerAvgRating}</span><span style={{ color: '#999', fontSize: 13 }}>({sellerReviewCount})</span></>) : <span style={{ color: '#999', fontSize: 13 }}>لا توجد تقييمات</span>}

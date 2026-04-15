@@ -703,7 +703,23 @@ export default function AdminPage() {
         {/* ══ TAB: نقاط السمعة ══ */}
         {tab === 'reputation' && (
           <div>
-            <h2 style={{ color: '#a78bfa', marginBottom: 20, fontSize: 18 }}>🏆 إدارة نقاط السمعة</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ color: '#a78bfa', margin: 0, fontSize: 18 }}>🏆 إدارة نقاط السمعة</h2>
+              <button
+                onClick={async () => {
+                  showToast('🌍 جار تحديث بيانات الدول...');
+                  const { ok, data } = await apiFetch('/api/admin/backfill-countries', { method: 'POST' }, token);
+                  if (ok) {
+                    showToast(`✅ تم تحديث ${data.updated || 0} إعلان من إجمالي ${data.total || 0}`);
+                  } else {
+                    showToast('❌ خطأ: ' + (data?.error || 'فشل التحديث'));
+                  }
+                }}
+                style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 'bold', cursor: 'pointer', fontSize: 12, fontFamily: 'Cairo, monospace', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                🌍 Backfill Countries
+              </button>
+            </div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
               <input
                 value={repSearch}

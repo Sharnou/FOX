@@ -29,6 +29,7 @@ import { classifyProduct, saveAICorrection, formatDescription } from '../../lib/
 import { getStatusOptions } from '../../lib/categoryStatus';
 import { fetchWithRetry } from '../../lib/fetchWithRetry';
 import { detectLang, detectCurrency } from '../../lib/lang';
+import { COUNTRIES } from '../utils/geoDetect';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -1054,6 +1055,11 @@ export default function SellPage() {
                 style={inputStyle('city')} />
               {gpsLoading && <p style={{ color: '#6366f1', fontSize: 12, margin: '4px 0 0', fontFamily: "'Cairo','Tajawal',system-ui" }}>📍 جارٍ تحديد موقعك...</p>}
               {errors.city && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.city}</p>}
+              {country && COUNTRIES[country] && (
+                <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6366f1', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  📍 إعلانك سيظهر في: <span style={{ fontWeight: 700 }}>{COUNTRIES[country].flag} {COUNTRIES[country].name}</span>
+                </p>
+              )}
               {lat && <input type="hidden" id="sell-lat" name="lat" value={lat} />}
               {lng && <input type="hidden" id="sell-lng" name="lng" value={lng} />}
             </div>

@@ -44,8 +44,19 @@ function getBanners(country, year) {
   const isArab = ARAB_COUNTRIES.includes(country);
 
   if (isArab || country === 'WORLD') {
+    // Ramadan 2026: approximately Feb 18 – Mar 19
     // Eid al-Fitr 2026: Mar 30 – Apr 1
     if (year === 2026) {
+      banners.push({
+        key: 'ramadan_2026',
+        start: d(2026, 2, 18),
+        end: d(2026, 3, 19),
+        emoji: '🌙',
+        title: 'رمضان كريم!',
+        subtitle: 'رمضان مبارك — شهر الرحمة والمغفرة 🤲',
+        gradient: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
+        textColor: '#f5c518',
+      });
       banners.push({
         key: 'eid_fitr_2026',
         start: d(2026, 3, 29),
