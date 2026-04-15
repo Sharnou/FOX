@@ -1,28 +1,31 @@
-# WordPress Auto-Sync Setup — No OAuth, No Google Cloud!
+# WordPress.com Auto-Sync — Setup Guide
 
-## Step 1: Create free WordPress.com site (2 min)
-1. Go to https://wordpress.com/start
-2. Sign up with any email
-3. Choose site name: xt0x (URL will be https://xt0x.wordpress.com)
-4. Choose free plan
+## One-time setup (2 minutes)
 
-## Step 2: Generate Application Password (1 min)
-1. Go to https://wordpress.com/me/security/two-step
-   Enable 2-factor auth first (required for app passwords)
-2. Go to https://wordpress.com/me/security/application-passwords
-3. Click "Add New Application Password"
-4. Name it: "XTOX Backend"
-5. Copy the 24-character password shown (e.g. "AbCd EfGh IjKl MnOp QrSt UvWx")
+### Step 1: Authorize (already done — app created)
+Visit this URL while logged into wordpress.com as the xt0x.wordpress.com owner:
 
-## Step 3: Add 3 Railway env vars
+https://xtox-production.up.railway.app/api/wp/auth
+
+→ WordPress will ask you to authorize XTOX
+→ Click "Approve"
+→ You'll see a page with your WP_ACCESS_TOKEN
+
+### Step 2: Add to Railway
+Add ONE env var to Railway:
 ```
-WP_SITE_URL=https://xt0x.wordpress.com
-WP_USERNAME=your_wordpress_username
-WP_APP_PASSWORD=AbCd EfGh IjKl MnOp QrSt UvWx
+WP_ACCESS_TOKEN=<token from step 1>
 ```
 
-## Step 4: Test
-Publish any ad on XTOX → check https://xt0x.wordpress.com within 10 seconds.
-The post will appear automatically with full SEO, images, and CTA buttons.
+### Step 3: Verify connection
+Visit: https://xtox-production.up.railway.app/api/wp/status
+Should return: { "connected": true, "wpUser": "..." }
 
-## That's it! No Google Cloud. No OAuth. Just 3 env vars.
+## That's it!
+Every new ad → WordPress post published automatically
+Ad deleted or sold → WordPress post deleted automatically
+
+## Credentials (already in code, no need to add to Railway)
+- Client ID: 137369
+- Client Secret: dpPAaW4LFZIGd9j7Q8ElnIdLge7yfaSvlQhaioDxG080kgR3Dy3QLALLR5AAcxUb
+- Site: xt0x.wordpress.com

@@ -1,58 +1,61 @@
 import nodeFetch from 'node-fetch';
 
-const WP_URL = process.env.WP_SITE_URL; // e.g. https://xt0x.wordpress.com
-const WP_USER = process.env.WP_USERNAME;
-const WP_PASS = process.env.WP_APP_PASSWORD; // Application Password from WP profile
+const SITE = 'xt0x.wordpress.com';
+const WP_API = `https://public-api.wordpress.com/rest/v1.1/sites/${SITE}`;
 
-function getAuthHeader() {
-  const creds = Buffer.from(`${WP_USER}:${WP_PASS}`).toString('base64');
-  return `Basic ${creds}`;
+function getToken() {
+  return process.env.WP_ACCESS_TOKEN;
 }
 
 function isConfigured() {
-  return WP_URL && WP_USER && WP_PASS;
+  return !!getToken();
+}
+
+function authHeaders() {
+  return {
+    'Authorization': `Bearer ${getToken()}`,
+    'Content-Type': 'application/json',
+  };
 }
 
 // ─── Smart keyword generator ───────────────────────────────────────────────
 function generateKeywords(ad) {
   const base = ['XTOX', 'سوق XTOX', 'إعلانات مبوبة', 'بيع وشراء', 'سوق عربي', 'مستعمل', 'للبيع'];
-  
+
   const catMap = {
-    'car': ['سيارات للبيع', 'car for sale', 'سيارة مستعملة', 'أوتو'],
-    'real': ['عقارات', 'شقق للبيع', 'real estate', 'إيجار', 'apartment'],
-    'electron': ['إلكترونيات', 'electronics', 'موبايل', 'لاب توب', 'phone'],
+    'car': ['سيارات للبيع', 'car for sale', 'سيارة مستعملة'],
+    'real': ['عقارات', 'شقق للبيع', 'real estate', 'إيجار'],
+    'electron': ['إلكترونيات', 'electronics', 'موبايل', 'لاب توب'],
     'furn': ['أثاث', 'furniture', 'ديكور', 'منزل'],
-    'job': ['وظائف', 'jobs', 'فرص عمل', 'توظيف', 'عمل'],
+    'job': ['وظائف', 'jobs', 'فرص عمل', 'توظيف'],
     'fashion': ['ملابس', 'fashion', 'موضة', 'أزياء'],
-    'animal': ['حيوانات', 'pets', 'كلاب', 'قطط', 'animals'],
-    'service': ['خدمات', 'services', 'صيانة', 'تركيب'],
+    'animal': ['حيوانات', 'pets', 'كلاب', 'قطط'],
+    'service': ['خدمات', 'services', 'صيانة'],
   };
-  
+
   const cat = (ad.category || '').toLowerCase();
   const catKeys = Object.entries(catMap).find(([k]) => cat.includes(k))?.[1] || [];
-  
+
   const cityKeys = ad.city ? [
-    ad.city, `${ad.city} للبيع`, `إعلانات ${ad.city}`, `بيع وشراء ${ad.city}`
+    ad.city, `${ad.city} للبيع`, `إعلانات ${ad.city}`,
   ] : [];
-  
+
   const priceKeys = ad.price ? [
-    `${ad.price.toLocaleString()} جنيه`,
-    ad.price < 500 ? 'رخيص جداً' : ad.price < 2000 ? 'سعر معقول' : ad.price < 10000 ? 'جودة عالية' : 'فاخر'
+    `${Number(ad.price).toLocaleString()} جنيه`,
+    ad.price < 500 ? 'رخيص جداً' : ad.price < 5000 ? 'سعر معقول' : 'فاخر',
   ] : [];
-  
+
   const titleWords = (ad.title || '').split(/\s+/).filter(w => w.length > 2);
-  
+
   return [...new Set([...base, ...catKeys, ...cityKeys, ...priceKeys, ...titleWords])];
 }
 
-// ─── Build SEO post title ──────────────────────────────────────────────────
 function buildTitle(ad) {
   const price = ad.price ? ` — ${Number(ad.price).toLocaleString()} ج.م` : '';
   const city = ad.city ? ` | ${ad.city}` : '';
   return `${ad.title}${price}${city} | سوق XTOX`;
 }
 
-// ─── Build rich HTML post content ─────────────────────────────────────────
 function buildContent(ad) {
   const appUrl = 'https://fox-kohl-eight.vercel.app';
   const adLink = `${appUrl}/redirect?adId=${ad._id}`;
@@ -60,191 +63,124 @@ function buildContent(ad) {
   const keywords = generateKeywords(ad).join(', ');
 
   const imagesHtml = (ad.images || []).slice(0, 6).map((src, i) =>
-    `<figure class="wp-block-image"><img src="${src}" alt="${ad.title} صورة ${i + 1}" style="max-width:100%;border-radius:12px;" loading="lazy"/></figure>`
+    `<img src="${src}" alt="${ad.title} صورة ${i + 1}" style="max-width:100%;border-radius:12px;margin:8px 0;" loading="lazy"/>`
   ).join('\n');
 
   const videoHtml = ad.video
-    ? `<figure class="wp-block-video"><video controls preload="metadata" style="max-width:100%;border-radius:12px;"><source src="${ad.video}" type="video/mp4"></video></figure>`
+    ? `<video controls preload="metadata" style="max-width:100%;border-radius:12px;margin:12px 0;"><source src="${ad.video}" type="video/mp4"></video>`
     : '';
 
   const priceBlock = ad.price
-    ? `<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:16px 24px;border-radius:16px;font-size:26px;font-weight:bold;text-align:center;margin:20px 0;">💰 ${Number(ad.price).toLocaleString()} ${ad.currency || 'ج.م'}</div>`
+    ? `<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:16px;border-radius:12px;font-size:24px;font-weight:bold;text-align:center;margin:16px 0;">💰 ${Number(ad.price).toLocaleString()} ${ad.currency || 'ج.م'}</div>`
     : '';
 
-  return `<!-- wp:html -->
-<div dir="rtl" style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#0f0f1a;color:#e2e8f0;padding:20px;border-radius:16px;">
+  return `<div dir="rtl" style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;">
 
-  <!-- Ad header -->
-  <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:20px;margin-bottom:20px;border:1px solid rgba(99,102,241,0.3);">
-    <h1 style="color:#fff;font-size:22px;margin:0 0 8px;">${ad.title}</h1>
-    <div style="color:#a5b4fc;font-size:13px;">
-      ${ad.city ? `📍 ${ad.city} &nbsp;|&nbsp;` : ''}
-      ${ad.category ? `🏷️ ${ad.category} &nbsp;|&nbsp;` : ''}
-      👁️ ${ad.views || 0} مشاهدة
-    </div>
-    ${priceBlock}
-  </div>
-
-  <!-- Images -->
-  ${imagesHtml}
-
-  <!-- Video -->
-  ${videoHtml}
-
-  <!-- Description -->
-  ${ad.description ? `
-  <div style="background:#1a1a2e;border-radius:12px;padding:16px;margin:16px 0;border:1px solid rgba(99,102,241,0.2);">
-    <h2 style="color:#a5b4fc;font-size:16px;margin:0 0 10px;">📝 تفاصيل الإعلان</h2>
-    <p style="color:#e2e8f0;line-height:1.8;margin:0;">${ad.description}</p>
-  </div>` : ''}
-
-  <!-- Seller info -->
-  <div style="background:#1a1a2e;border-radius:12px;padding:14px;margin:14px 0;border:1px solid rgba(99,102,241,0.2);">
-    <h2 style="color:#a5b4fc;font-size:15px;margin:0 0 8px;">👤 البائع</h2>
-    <div style="color:#e2e8f0;">${ad.sellerName || 'بائع موثوق على XTOX'}${ad.city ? `<br>📍 ${ad.city}` : ''}</div>
-  </div>
-
-  <!-- CTA -->
-  <div style="text-align:center;margin:28px 0;">
-    <a href="${adLink}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;text-decoration:none;padding:16px 36px;border-radius:50px;font-size:17px;font-weight:bold;margin:6px;box-shadow:0 6px 24px rgba(99,102,241,0.4);">
-      🔍 عرض الإعلان في التطبيق
-    </a>
-    <br>
-    <a href="${installLink}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;text-decoration:none;padding:12px 28px;border-radius:50px;font-size:15px;font-weight:bold;margin:6px;">
-      📲 تحميل XTOX مجاناً
-    </a>
-  </div>
-
-  <!-- Why XTOX -->
-  <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:12px;padding:16px;border:1px solid rgba(99,102,241,0.3);">
-    <h2 style="color:#fbbf24;font-size:15px;margin:0 0 10px;">⭐ لماذا XTOX؟</h2>
-    <ul style="color:#e2e8f0;line-height:2.2;padding-right:20px;margin:0;font-size:14px;">
-      <li>🆓 نشر مجاني بدون عمولة</li>
-      <li>📞 مكالمات صوتية مع البائع مباشرة</li>
-      <li>💬 دردشة آمنة ومشفرة</li>
-      <li>🔔 إشعارات فورية</li>
-      <li>🏆 مسابقة بائع الشهر بجوائز حقيقية</li>
-      <li>🌍 جميع الدول العربية</li>
-    </ul>
-  </div>
-
-  <!-- SEO keywords (invisible) -->
-  <p style="font-size:1px;color:#0f0f1a;line-height:1;">${keywords}</p>
-
-  <div style="text-align:center;margin-top:20px;color:#4b5563;font-size:12px;">
-    نُشر تلقائياً من <a href="${appUrl}" style="color:#6366f1;">تطبيق XTOX</a>
-  </div>
+<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:20px;margin-bottom:20px;border:2px solid rgba(99,102,241,0.4);">
+<h2 style="color:#fff;margin:0 0 8px;">${ad.title}</h2>
+<p style="color:#a5b4fc;margin:0;font-size:14px;">${ad.city ? `📍 ${ad.city} &nbsp;|&nbsp;` : ''}${ad.category ? `🏷️ ${ad.category} &nbsp;|&nbsp;` : ''}👁️ ${ad.views || 0} مشاهدة</p>
+${priceBlock}
 </div>
-<!-- /wp:html -->`;
+
+${imagesHtml}
+${videoHtml}
+
+${ad.description ? `<div style="background:#f8f9ff;border-radius:12px;padding:16px;margin:16px 0;border-right:4px solid #6366f1;"><h3 style="color:#6366f1;margin:0 0 8px;">📝 تفاصيل الإعلان</h3><p style="line-height:1.8;margin:0;">${ad.description}</p></div>` : ''}
+
+<div style="text-align:center;margin:28px 0;">
+<a href="${adLink}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;text-decoration:none;padding:16px 36px;border-radius:50px;font-size:17px;font-weight:bold;margin:6px;">🔍 عرض الإعلان في التطبيق</a>
+<br><br>
+<a href="${installLink}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;text-decoration:none;padding:12px 28px;border-radius:50px;font-size:15px;font-weight:bold;">📲 تحميل XTOX مجاناً</a>
+</div>
+
+<div style="background:#fffbeb;border-radius:12px;padding:16px;border:1px solid #fbbf24;">
+<h3 style="color:#b45309;margin:0 0 10px;">⭐ لماذا XTOX؟</h3>
+<ul style="line-height:2.2;padding-right:20px;margin:0;font-size:14px;">
+<li>🆓 نشر مجاني بدون عمولة</li>
+<li>📞 مكالمات صوتية مع البائع</li>
+<li>💬 دردشة آمنة ومشفرة</li>
+<li>🏆 مسابقة بائع الشهر بجوائز حقيقية</li>
+<li>🌍 جميع الدول العربية</li>
+</ul>
+</div>
+
+<p style="font-size:1px;color:#fff;line-height:1;">${keywords}</p>
+<p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px;">نُشر تلقائياً من <a href="${appUrl}">تطبيق XTOX</a></p>
+</div>`;
 }
 
-// ─── Ensure tags exist and return their IDs ────────────────────────────────
-async function ensureTags(keywords) {
-  if (!isConfigured()) return [];
-  const tagIds = [];
-  for (const kw of keywords.slice(0, 10)) {
-    try {
-      // Try to create — if exists, WP returns the existing one
-      const res = await nodeFetch(`${WP_URL}/wp-json/wp/v2/tags`, {
-        method: 'POST',
-        headers: {
-          'Authorization': getAuthHeader(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: kw }),
-      });
-      const tag = await res.json();
-      if (tag.id) tagIds.push(tag.id);
-      else if (tag.code === 'term_exists') tagIds.push(tag.data?.term_id);
-    } catch {}
-  }
-  return tagIds.filter(Boolean);
-}
-
-// ─── Create WordPress post ─────────────────────────────────────────────────
-async function createWPPost(ad) {
+// ─── Create WordPress.com post ─────────────────────────────────────────────
+export async function createWPPost(ad) {
   if (!isConfigured()) {
-    console.log('[WordPress] Not configured — skipping post creation');
+    console.log('[WordPress.com] WP_ACCESS_TOKEN not set — skipping');
     return null;
   }
   try {
-    const tags = await ensureTags(generateKeywords(ad).slice(0, 10));
-    
-    const res = await nodeFetch(`${WP_URL}/wp-json/wp/v2/posts`, {
+    const tags = generateKeywords(ad).slice(0, 10).join(',');
+    const res = await nodeFetch(`${WP_API}/posts/new`, {
       method: 'POST',
-      headers: {
-        'Authorization': getAuthHeader(),
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders(),
       body: JSON.stringify({
         title: buildTitle(ad),
         content: buildContent(ad),
         status: 'publish',
         tags,
         excerpt: (ad.description || ad.title || '').slice(0, 200),
-        featured_media: 0,
         format: 'standard',
-        meta: {
-          _yoast_wpseo_title: buildTitle(ad),
-          _yoast_wpseo_metadesc: (ad.description || ad.title || '').slice(0, 160),
-        },
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      console.error('[WordPress] Create failed:', res.status, err.slice(0, 200));
+      console.error('[WordPress.com] Create failed:', res.status, err.slice(0, 300));
       return null;
     }
 
     const post = await res.json();
-    console.log('[WordPress] Post created:', post.link);
-    return { wpPostId: String(post.id), wpPostUrl: post.link };
+    console.log('[WordPress.com] ✅ Post created:', post.URL);
+    return { wpPostId: String(post.ID), wpPostUrl: post.URL };
   } catch (e) {
-    console.error('[WordPress] Create error:', e.message);
+    console.error('[WordPress.com] Create error:', e.message);
     return null;
   }
 }
 
-// ─── Delete WordPress post ─────────────────────────────────────────────────
-async function deleteWPPost(wpPostId) {
+// ─── Delete WordPress.com post ─────────────────────────────────────────────
+export async function deleteWPPost(wpPostId) {
   if (!isConfigured() || !wpPostId) return;
   try {
-    const res = await nodeFetch(`${WP_URL}/wp-json/wp/v2/posts/${wpPostId}?force=true`, {
-      method: 'DELETE',
-      headers: { 'Authorization': getAuthHeader() },
+    const res = await nodeFetch(`${WP_API}/posts/${wpPostId}/delete`, {
+      method: 'POST',
+      headers: authHeaders(),
     });
     if (res.ok) {
-      console.log('[WordPress] Post deleted:', wpPostId);
+      console.log('[WordPress.com] ✅ Post deleted:', wpPostId);
     } else {
-      console.error('[WordPress] Delete failed:', res.status);
+      console.error('[WordPress.com] Delete failed:', res.status);
     }
   } catch (e) {
-    console.error('[WordPress] Delete error:', e.message);
+    console.error('[WordPress.com] Delete error:', e.message);
   }
 }
 
-// ─── Update WordPress post ─────────────────────────────────────────────────
-async function updateWPPost(wpPostId, ad) {
+// ─── Update WordPress.com post ─────────────────────────────────────────────
+export async function updateWPPost(wpPostId, ad) {
   if (!isConfigured() || !wpPostId) return;
   try {
-    const res = await nodeFetch(`${WP_URL}/wp-json/wp/v2/posts/${wpPostId}`, {
+    const res = await nodeFetch(`${WP_API}/posts/${wpPostId}`, {
       method: 'POST',
-      headers: {
-        'Authorization': getAuthHeader(),
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders(),
       body: JSON.stringify({
         title: buildTitle(ad),
         content: buildContent(ad),
         excerpt: (ad.description || ad.title || '').slice(0, 200),
       }),
     });
-    if (res.ok) console.log('[WordPress] Post updated:', wpPostId);
-    else console.error('[WordPress] Update failed:', res.status);
+    if (res.ok) console.log('[WordPress.com] ✅ Post updated:', wpPostId);
+    else console.error('[WordPress.com] Update failed:', res.status);
   } catch (e) {
-    console.error('[WordPress] Update error:', e.message);
+    console.error('[WordPress.com] Update error:', e.message);
   }
 }
 
-export { createWPPost, deleteWPPost, updateWPPost, generateKeywords, buildTitle };
+export { generateKeywords, buildTitle };
