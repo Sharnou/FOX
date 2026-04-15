@@ -355,7 +355,52 @@ export default function AdPageClient({ params }) {
   }, [userId]);
 
 
-  useEffect(() => {
+  // ── Check existing review for this ad ─────────────────────────────
+  React.useEffect(() => {
+    if (!ad || !ad._id) return;
+    const tok = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!tok) { setReviewChecked(true); return; }
+    fetch(API + '/api/reviews/check/' + ad._id, {
+      headers: { Authorization: 'Bearer ' + tok },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d && d.reviewed) setExistingReview(d.review);
+        setReviewChecked(true);
+      })
+      .catch(() => setReviewChecked(true));
+  }, [ad && ad._id]);
+
+  async function submitReview() {
+    const tok = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!tok) return alert('يجب تسجيل الدخول أولاً');
+    if (!reviewRating) return alert('اختر عدد النجوم');
+    if (!reviewComment.trim() || reviewComment.trim().length < 5) {
+      return alert('التعليق مطلوب (5 أحرف على الأقل)');
+    }
+    setReviewSubmitting(true);
+    try {
+      const res = await fetch(API + '/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+        body: JSON.stringify({ adId: ad._id, rating: reviewRating, comment: reviewComment.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'خطأ في الإرسال');
+      } else {
+        setExistingReview(data);
+        setReviewSubmitted(true);
+        setShowReviewForm(false);
+        alert('✅ تم إرسال تقييمك بنجاح!');
+      }
+    } catch (e) {
+      alert('خطأ في الاتصال');
+    }
+    setReviewSubmitting(false);
+  }
+
+    useEffect(() => {
     if (!ad) return;
     setRelatedLoading(true);
     const qs = new URLSearchParams({ limit: '6', exclude: ad._id || '' });
@@ -652,6 +697,82 @@ export default function AdPageClient({ params }) {
         </div>
       )}
       <SellerMiniCard sellerId={String((ad.userId && (ad.userId._id || ad.userId.id)) || (ad.seller && (ad.seller._id || ad.seller.id)) || ad.sellerId || '').replace('[object Object]', '').trim()} sellerName={(ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || ''} lang={lang} />
+
+      {/* ── Rate Seller Section ── */}
+      {reviewChecked && userId && userId !== String(sellerId) && (
+        <div style={{ marginTop: 12, border: '1px solid #e8f0fe', borderRadius: 14, overflow: 'hidden' }}>
+          {existingReview ? (
+            <div style={{ padding: '12px 16px', background: '#f0fdf4', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontSize: 20 }}>✅</span>
+              <div>
+                <p style={{ margin: 0, fontWeight: 'bold', fontSize: 13, color: '#15803d' }}>لقد قيّمت هذا الإعلان مسبقاً</p>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: '#555' }}>
+                  {'★'.repeat(existingReview.rating)}{'☆'.repeat(5 - existingReview.rating)} — {existingReview.comment}
+                </p>
+              </div>
+            </div>
+          ) : !showReviewForm ? (
+            <button
+              onClick={() => setShowReviewForm(true)}
+              style={{ width: '100%', padding: '12px 16px', background: '#f8f4ff', border: 'none', cursor: 'pointer', textAlign: 'right', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", fontSize: 14, fontWeight: 'bold', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <span style={{ fontSize: 20 }}>⭐</span>
+              <span>قيّم البائع</span>
+            </button>
+          ) : (
+            <div style={{ padding: '14px 16px', background: 'white' }} dir="rtl">
+              <p style={{ fontWeight: 'bold', margin: '0 0 10px', fontSize: 15, color: '#002f34' }}>⭐ تقييم البائع</p>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                {[1,2,3,4,5].map(i => (
+                  <button key={i}
+                    onMouseEnter={() => setReviewHover(i)}
+                    onMouseLeave={() => setReviewHover(0)}
+                    onClick={() => setReviewRating(i)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 30, color: i <= (reviewHover || reviewRating) ? '#ffd700' : '#ddd', padding: '0 2px', lineHeight: 1 }}
+                  >★</button>
+                ))}
+                {reviewRating > 0 && (
+                  <span style={{ alignSelf: 'center', color: '#666', fontSize: 13, marginRight: 6 }}>
+                    {['','⛔ سيء','😐 مقبول','👍 جيد','😊 ممتاز','🌟 رائع'][reviewRating]}
+                  </span>
+                )}
+              </div>
+              {reviewRating === 1 && (
+                <div style={{ marginBottom: 10, padding: '8px 12px', background: '#fff3cd', borderRadius: 8, fontSize: 12, color: '#856404' }}>
+                  ⚠️ التقييم بنجمة واحدة سيخصم 5 نقاط من سمعة البائع
+                </div>
+              )}
+              <textarea
+                value={reviewComment}
+                onChange={e => setReviewComment(e.target.value)}
+                placeholder="اكتب تعليقاً عن تجربتك مع البائع..."
+                maxLength={500}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: reviewComment.trim().length > 0 && reviewComment.trim().length < 5 ? '2px solid #ef4444' : '1px solid #ddd', fontSize: 14, resize: 'vertical', minHeight: 80, boxSizing: 'border-box', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", direction: 'rtl' }}
+              />
+              {reviewComment.trim().length > 0 && reviewComment.trim().length < 5 && (
+                <p style={{ color: '#ef4444', fontSize: 12, margin: '4px 0 0' }}>التعليق يجب أن يكون 5 أحرف على الأقل</p>
+              )}
+              <p style={{ color: '#999', fontSize: 11, margin: '4px 0 10px' }}>{reviewComment.length}/500</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={submitReview}
+                  disabled={reviewSubmitting || !reviewRating || reviewComment.trim().length < 5}
+                  style={{ flex: 1, background: (reviewRating && reviewComment.trim().length >= 5) ? '#002f34' : '#ccc', color: 'white', border: 'none', padding: '11px', borderRadius: 10, fontWeight: 'bold', cursor: (reviewRating && reviewComment.trim().length >= 5) ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}
+                >
+                  {reviewSubmitting ? 'جار الإرسال...' : 'إرسال التقييم'}
+                </button>
+                <button
+                  onClick={() => setShowReviewForm(false)}
+                  style={{ padding: '11px 16px', background: '#f0f0f0', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, color: '#555', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <button
         onClick={() => setShowReportSeller(true)}
         style={{ marginTop: 8, fontSize: 12, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 4 }}

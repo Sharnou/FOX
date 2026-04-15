@@ -1,6 +1,6 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -107,6 +107,8 @@ export default function AdminPage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [tab, setTab] = useState('stats');
+  const [adminReviews, setAdminReviews] = React.useState([]);
+  const [reviewsLoading, setReviewsLoading] = React.useState(false);
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [ads, setAds] = useState([]);
@@ -312,6 +314,7 @@ export default function AdminPage() {
     { id: 'reports',    icon: '🚨', ar: 'التقارير' },
     { id: 'reputation', icon: '🏆', ar: 'نقاط السمعة' },
     { id: 'system',     icon: '⚙️', ar: 'النظام' },
+    { id: 'reviews_tab', icon: '🌟', ar: 'التقييمات' },
   ];
 
   const S = { // style shortcuts
@@ -869,6 +872,84 @@ export default function AdminPage() {
                 }} color="#ffd700">📢 إرسال</Btn>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ══ TAB: التقييمات ══ */}
+        {tab === 'reviews_tab' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ color: '#00d4ff', fontSize: 18, margin: 0 }}>🌟 إدارة التقييمات</h2>
+              <button
+                onClick={async () => {
+                  setReviewsLoading(true);
+                  const r = await apiFetch('/api/admin/reviews', {}, token);
+                  if (r.ok) setAdminReviews(r.data || []);
+                  setReviewsLoading(false);
+                }}
+                style={{ background: '#00d4ff', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 'bold', cursor: 'pointer', fontSize: 13, fontFamily: 'Cairo, monospace' }}
+              >
+                {reviewsLoading ? '⏳ جار التحميل...' : '🔄 تحميل التقييمات'}
+              </button>
+            </div>
+            {adminReviews.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#8b949e', padding: 40 }}>
+                <div style={{ fontSize: 48 }}>⭐</div>
+                <p>انقر على "تحميل التقييمات" لعرضها</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      {['المُقيِّم','البائع','عنوان الإعلان','التقييم','التعليق','التاريخ','الحالة','إجراء'].map(h => (
+                        <th key={h} style={S.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminReviews.map(rv => (
+                      <tr key={rv._id} style={{ borderBottom: '1px solid #21262d', background: rv.deletedByAdmin ? 'rgba(255,0,0,0.05)' : 'transparent' }}>
+                        <td style={S.td}>{rv.reviewer?.name || '—'}</td>
+                        <td style={S.td}>{rv.seller?.name || '—'}</td>
+                        <td style={S.td}>{rv.ad?.title || rv.adSnapshot?.title || '—'}</td>
+                        <td style={S.td}>
+                          <span style={{ color: '#ffd700' }}>{'★'.repeat(rv.rating)}{'☆'.repeat(5 - rv.rating)}</span>
+                          <span style={{ color: '#8b949e', marginRight: 4 }}>{rv.rating}/5</span>
+                        </td>
+                        <td style={{ ...S.td, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rv.comment}>{rv.comment}</td>
+                        <td style={S.td}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString('ar') : '—'}</td>
+                        <td style={S.td}>
+                          <span style={{ color: rv.deletedByAdmin ? '#ff4444' : '#00ff41', fontWeight: 'bold' }}>
+                            {rv.deletedByAdmin ? '🗑️ محذوف' : '✅ نشط'}
+                          </span>
+                        </td>
+                        <td style={S.td}>
+                          {!rv.deletedByAdmin && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm('حذف هذا التقييم؟ سيتم عكس النقاط.')) return;
+                                const r = await apiFetch('/api/reviews/' + rv._id, { method: 'DELETE' }, token);
+                                if (r.ok) {
+                                  setAdminReviews(prev => prev.map(x => x._id === rv._id ? { ...x, deletedByAdmin: true } : x));
+                                  showToast('تم حذف التقييم وعكس النقاط');
+                                } else {
+                                  showToast('خطأ: ' + (r.data?.error || 'فشل'));
+                                }
+                              }}
+                              style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'Cairo, monospace' }}
+                            >
+                              🗑️ حذف
+                            </button>
+                          )}
+                          {rv.deletedByAdmin && <span style={{ color: '#555' }}>—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -11,8 +11,9 @@
  * @param {string} reason    - Human-readable description logged in pointsHistory
  */
 export async function addPointsToUser(user, points, reason) {
-  // Clamp to 0 so points never go negative
-  user.reputationPoints = Math.max(0, (user.reputationPoints || 0) + points);
+  // reputationPoints CAN go negative — clamp at -999 to prevent runaway
+  user.reputationPoints = Math.max(-999, (user.reputationPoints || 0) + points);
+  // monthlyPoints never goes negative (used for leaderboard)
   user.monthlyPoints    = Math.max(0, (user.monthlyPoints    || 0) + points);
 
   // Append to pointsHistory, keep only last 20 entries

@@ -167,23 +167,25 @@ export default function ProfilePage({ params }) {
     setCallActive(false); setCallStatus('');
   }
 
+  // Load seller reviews from new endpoint
+  React.useEffect(() => {
+    const id = params?.id;
+    if (!id || id === 'undefined' || id === 'null') return;
+    fetch(API + '/api/reviews/seller/' + id)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d) {
+          setSellerReviews(d.reviews || []);
+          setSellerAvgRating(d.avgRating || 0);
+          setSellerReviewCount(d.totalCount || 0);
+        }
+        setReviewsLoaded(true);
+      })
+      .catch(() => setReviewsLoaded(true));
+  }, [params?.id]);
+
   async function submitReview() {
-    if (!params?.id || params.id === 'undefined' || params.id === 'null') return;
-    if (!myRating) return alert('اختر تقييم أولاً');
-    setSubmitting(true);
-    try {
-      await fetch(API + '/api/profile/' + params.id + '/review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ rating: myRating, comment: myComment })
-      });
-      const reloadRes = await fetch(API + '/api/profile/' + params.id);
-      const reloadData = reloadRes.ok ? await reloadRes.json() : null;
-      if (reloadData) setData(reloadData);
-      setMyRating(0); setMyComment('');
-      alert('✅ تم إرسال تقييمك!');
-    } catch (e) { alert(e.response?.data?.error || 'خطأ'); }
-    setSubmitting(false);
+    // Reviews are now per-ad — handled in ad detail page
   }
 
 
@@ -233,12 +235,17 @@ export default function ProfilePage({ params }) {
 
   if (!data) return null;
 
-  const { user, ads, reviews, avgRating, reviewCount } = data;
+  const { user, ads } = data;
+  // Reviews loaded separately from new endpoint
+  const [sellerReviews, setSellerReviews] = React.useState([]);
+  const [sellerAvgRating, setSellerAvgRating] = React.useState(0);
+  const [sellerReviewCount, setSellerReviewCount] = React.useState(0);
+  const [reviewsLoaded, setReviewsLoaded] = React.useState(false);
   const isOwnProfile = myUserId === params?.id;
 
   const TABS = [
     { key: 'ads',     labelAr: 'الإعلانات', icon: '📋', count: ads.length },
-    { key: 'reviews', labelAr: 'التقييمات', icon: '⭐', count: reviewCount },
+    { key: 'reviews', labelAr: 'التقييمات', icon: '⭐', count: sellerReviewCount },
   ];
 
   return (
@@ -331,12 +338,12 @@ export default function ProfilePage({ params }) {
             <p style={{ color: '#666', margin: '4px 0', fontSize: 14 }}>📍 {user.city} · {user.country}</p>
             <p style={{ color: '#999', margin: '4px 0', fontSize: 13 }}>عضو منذ {new Date(user.createdAt).toLocaleDateString('ar-EG')}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-              {avgRating ? (<><Stars rating={avgRating} /><span style={{ fontWeight: 'bold' }}>{avgRating}</span><span style={{ color: '#999', fontSize: 13 }}>({reviewCount})</span></>) : <span style={{ color: '#999', fontSize: 13 }}>لا توجد تقييمات</span>}
+              {sellerAvgRating > 0 ? (<><Stars rating={sellerAvgRating} /><span style={{ fontWeight: 'bold' }}>{sellerAvgRating}</span><span style={{ color: '#999', fontSize: 13 }}>({sellerReviewCount})</span></>) : <span style={{ color: '#999', fontSize: 13 }}>لا توجد تقييمات</span>}
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
               <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 'bold', fontSize: 18, color: '#002f34' }}>{ads.length}</div><div style={{ color: '#999', fontSize: 11 }}>إعلان</div></div>
               <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 'bold', fontSize: 18, color: '#002f34' }}>{user.reputationPoints || user.reputation || 0}</div><div style={{ color: '#999', fontSize: 11 }}>نقاط سمعة</div></div>
-              <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 'bold', fontSize: 18, color: '#002f34' }}>{reviewCount}</div><div style={{ color: '#999', fontSize: 11 }}>تقييم</div></div>
+              <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 'bold', fontSize: 18, color: '#002f34' }}>{sellerReviewCount}</div><div style={{ color: '#999', fontSize: 11 }}>تقييم</div></div>
             </div>
 
             {/* Winner Crown Badge */}
@@ -522,38 +529,29 @@ export default function ProfilePage({ params }) {
       {/* ── Tab: Reviews ── */}
       {activeTab === 'reviews' && (
         <div>
-          {/* Review Form */}
+          {/* Info banner: rate via ad page */}
           {token && !isOwnProfile && (
-            <div style={{ background: 'white', borderRadius: 16, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 16 }}>
-              <h2 style={{ fontWeight: 'bold', marginBottom: 16, color: '#002f34', fontSize: 18, marginTop: 0 }}>⭐ اترك تقييمك</h2>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-                {[1,2,3,4,5].map(i => (
-                  <button key={i} onMouseEnter={() => setHoverStar(i)} onMouseLeave={() => setHoverStar(0)} onClick={() => setMyRating(i)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 32, color: i <= (hoverStar || myRating) ? '#ffd700' : '#ddd', padding: '0 2px' }}>★</button>
-                ))}
-                {myRating > 0 && <span style={{ alignSelf: 'center', color: '#666', fontSize: 14, marginRight: 8 }}>{['','سيء','مقبول','جيد','ممتاز','رائع'][myRating]}</span>}
+            <div style={{ background: 'linear-gradient(135deg, #002f34 0%, #0f4c54 100%)', borderRadius: 14, padding: '14px 18px', marginBottom: 14, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 24 }}>💡</span>
+              <div>
+                <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>كيف تقيّم البائع؟</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, opacity: 0.85 }}>افتح إعلان البائع ثم اضغط "قيّم البائع" — التقييم مرتبط بإعلان محدد</p>
               </div>
-              <textarea value={myComment} onChange={e => setMyComment(e.target.value)} placeholder="اكتب تعليقك..."
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, resize: 'vertical', minHeight: 80, boxSizing: 'border-box', fontFamily: 'inherit' }} />
-              <button onClick={submitReview} disabled={submitting || !myRating}
-                style={{ marginTop: 12, background: myRating ? '#002f34' : '#ccc', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 10, fontWeight: 'bold', cursor: myRating ? 'pointer' : 'not-allowed', fontSize: 15, fontFamily: 'inherit' }}>
-                {submitting ? 'جار الإرسال...' : 'إرسال التقييم'}
-              </button>
             </div>
           )}
 
           {/* Reviews Summary Bar */}
-          {reviewCount > 0 && (
+          {sellerReviewCount > 0 && (
             <div style={{ background: 'white', borderRadius: 16, padding: '14px 18px', marginBottom: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 36, fontWeight: 'bold', color: '#002f34', lineHeight: 1 }}>{avgRating}</div>
-                <Stars rating={avgRating} />
-                <div style={{ color: '#999', fontSize: 12, marginTop: 2 }}>{reviewCount} تقييم</div>
+                <div style={{ fontSize: 36, fontWeight: 'bold', color: '#002f34', lineHeight: 1 }}>{sellerAvgRating}</div>
+                <Stars rating={sellerAvgRating} />
+                <div style={{ color: '#999', fontSize: 12, marginTop: 2 }}>{sellerReviewCount} تقييم</div>
               </div>
               <div style={{ flex: 1 }}>
                 {[5,4,3,2,1].map(star => {
-                  const cnt = reviews.filter(r => Math.round(r.rating) === star).length;
-                  const pct = reviewCount > 0 ? Math.round((cnt / reviewCount) * 100) : 0;
+                  const cnt = sellerReviews.filter(r => Math.round(r.rating) === star).length;
+                  const pct = sellerReviewCount > 0 ? Math.round((cnt / sellerReviewCount) * 100) : 0;
                   return (
                     <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                       <span style={{ fontSize: 11, color: '#666', width: 10, textAlign: 'center' }}>{star}</span>
@@ -571,31 +569,47 @@ export default function ProfilePage({ params }) {
 
           {/* Reviews List */}
           <div>
-            <h2 style={{ fontWeight: 'bold', marginBottom: 12, color: '#002f34', fontSize: 16, marginTop: 0 }}>💬 جميع التقييمات ({reviewCount})</h2>
-            {reviews.length === 0 ? (
+            <h2 style={{ fontWeight: 'bold', marginBottom: 12, color: '#002f34', fontSize: 16, marginTop: 0 }}>💬 جميع التقييمات ({sellerReviewCount})</h2>
+            {!reviewsLoaded ? (
+              <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>جار تحميل التقييمات...</div>
+            ) : sellerReviews.length === 0 ? (
               <div style={{ background: 'white', borderRadius: 12, padding: 40, textAlign: 'center', color: '#999', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>💬</div>
                 <p style={{ margin: 0, fontWeight: 'bold', color: '#002f34' }}>لا توجد تقييمات بعد</p>
-                <p style={{ margin: '6px 0 0', fontSize: 13 }}>كن أول من يقيّم هذا البائع</p>
+                <p style={{ margin: '6px 0 0', fontSize: 13 }}>افتح أحد إعلانات البائع لتقييمه</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {reviews.map(r => (
+                {sellerReviews.map(r => (
                   <div key={r._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 16, flexShrink: 0 }}>
-                        {r.buyerId?.avatar
-                          ? <img src={r.buyerId.avatar} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} alt="" />
-                          : r.buyerId?.name?.[0]?.toUpperCase()}
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 16, flexShrink: 0, overflow: 'hidden' }}>
+                        {r.reviewer?.avatar
+                          ? <img src={r.reviewer.avatar} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} alt="" />
+                          : (r.reviewer?.name?.[0]?.toUpperCase() || '?')}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{r.buyerId?.name}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14 }}>{r.reviewer?.name || 'مستخدم'}</p>
+                          {r.reviewer?.reputationPoints >= 500 && <span style={{ fontSize: 11, background: '#1e40af', color: 'white', borderRadius: 6, padding: '1px 6px' }}>💎 Platinum</span>}
+                          {r.reviewer?.reputationPoints >= 200 && r.reviewer?.reputationPoints < 500 && <span style={{ fontSize: 11, background: '#a16207', color: 'white', borderRadius: 6, padding: '1px 6px' }}>🥇 Gold</span>}
+                          {r.reviewer?.reputationPoints >= 50 && r.reviewer?.reputationPoints < 200 && <span style={{ fontSize: 11, background: '#475569', color: 'white', borderRadius: 6, padding: '1px 6px' }}>🥈 Silver</span>}
+                        </div>
                         <Stars rating={r.rating} />
                       </div>
                       <span style={{ color: '#bbb', fontSize: 11, flexShrink: 0 }}>{new Date(r.createdAt).toLocaleDateString('ar-EG')}</span>
                     </div>
                     {r.comment && (
                       <p style={{ margin: 0, color: '#444', fontSize: 14, lineHeight: 1.65, borderTop: '1px solid #f5f5f5', paddingTop: 8 }} dir="auto">{r.comment}</p>
+                    )}
+                    {r.adSnapshot?.title && (
+                      <div style={{ marginTop: 10, padding: '8px 12px', background: '#f8f8f8', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {r.adSnapshot.image && <img src={r.adSnapshot.image} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} alt="" />}
+                        <div>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 'bold', color: '#002f34' }}>{r.adSnapshot.title}</p>
+                          <p style={{ margin: 0, fontSize: 11, color: '#666' }}>{r.adSnapshot.price ? r.adSnapshot.price.toLocaleString('ar-EG') + ' ج.م' : ''} {r.adSnapshot.category ? '• ' + r.adSnapshot.category : ''}</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}

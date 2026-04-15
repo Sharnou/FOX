@@ -1,6 +1,6 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -36,6 +36,11 @@ export default function ProfilePage() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  // Received reviews state
+  const [myReviews, setMyReviews] = React.useState([]);
+  const [myAvgRating, setMyAvgRating] = React.useState(0);
+  const [myReviewCount, setMyReviewCount] = React.useState(0);
+  const [myReviewsLoaded, setMyReviewsLoaded] = React.useState(false);
 
   // ── FIX 4: Chat toggle state ──────────────────────────────────────────
   const [chatEnabled, setChatEnabled] = useState(true);
@@ -133,6 +138,22 @@ export default function ProfilePage() {
   }, []);
 
   // ── Fetch My Ads when user is loaded ─────────────────────────────────
+  // Load received reviews
+  React.useEffect(() => {
+    if (!user || !user._id) return;
+    fetch(`${API}/api/reviews/seller/${user._id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d) {
+          setMyReviews(d.reviews || []);
+          setMyAvgRating(d.avgRating || 0);
+          setMyReviewCount(d.totalCount || 0);
+        }
+        setMyReviewsLoaded(true);
+      })
+      .catch(() => setMyReviewsLoaded(true));
+  }, [user && user._id]);
+
   // FIX Bug 2: use stable primitive userId string as dep, not the whole user object
   const userId = (user?._id || user?.id) ?? null;
   useEffect(() => {
@@ -521,6 +542,52 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* ── Received Reviews Section ──────────────────────────────────── */}
+      {myReviewsLoaded && (
+        <div style={{ marginTop: 24 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: 8 }}>
+            ⭐ تقييماتي المستلمة ({myReviewCount})
+            {myAvgRating > 0 && (
+              <span style={{ fontSize: 14, color: '#fbbf24', fontWeight: 'normal' }}>
+                {'★'.repeat(Math.round(myAvgRating))} {myAvgRating}/5
+              </span>
+            )}
+          </h3>
+          {myReviews.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 32, background: 'white', borderRadius: 16, color: '#888', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>⭐</div>
+              <p style={{ margin: 0 }}>لا توجد تقييمات بعد</p>
+              <p style={{ margin: '6px 0 0', fontSize: 13 }}>ستظهر التقييمات هنا عندما يقيّمك المشترون</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {myReviews.map(r => (
+                <div key={r._id} style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.07)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 16, flexShrink: 0, overflow: 'hidden' }}>
+                      {r.reviewer?.avatar
+                        ? <img src={r.reviewer.avatar} style={{ width: 38, height: 38, objectFit: 'cover', borderRadius: '50%' }} alt="" />
+                        : (r.reviewer?.name?.[0]?.toUpperCase() || '?')}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14, color: '#1a1a2e' }}>{r.reviewer?.name || 'مستخدم'}</p>
+                      <span style={{ color: '#fbbf24', fontSize: 16 }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
+                    </div>
+                    <span style={{ color: '#999', fontSize: 11 }}>{new Date(r.createdAt).toLocaleDateString('ar-EG')}</span>
+                  </div>
+                  {r.comment && <p style={{ margin: 0, color: '#444', fontSize: 14, lineHeight: 1.6 }} dir="auto">{r.comment}</p>}
+                  {r.adSnapshot?.title && (
+                    <div style={{ marginTop: 8, padding: '6px 10px', background: '#f8f8f8', borderRadius: 8, fontSize: 12, color: '#666' }}>
+                      📦 {r.adSnapshot.title}{r.adSnapshot.price ? ` — ${r.adSnapshot.price.toLocaleString('ar-EG')} ج.م` : ''}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import Review from '../models/Review.js';
 import express from 'express';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
@@ -802,5 +803,23 @@ router.patch('/users/:id/reputation', adminAuth, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/reviews — All reviews (including deleted) for admin panel
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/reviews", adminAuth, async (req, res) => {
+  try {
+    const reviews = await Review.find({})
+      .populate("reviewer", "name email avatar")
+      .populate("seller", "name email")
+      .populate("ad", "title")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(reviews);
+  } catch (err) {
+    console.error("[Admin reviews] Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 export default router;
