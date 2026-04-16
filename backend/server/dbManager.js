@@ -36,7 +36,12 @@ async function tryMongoDB() {
 
 // ── Attempt Couchbase connection (5s timeout — reduced, fire-and-forget) ─────
 async function tryCouchbase() {
-  const url = process.env.COUCHBASE_URL || 'couchbases://cb.zkadm7xwemjcjht4.cloud.couchbase.com';
+  // Skip entirely if COUCHBASE_URL is not explicitly set — prevents noisy timeouts on Railway
+  if (!process.env.COUCHBASE_URL && !process.env.COUCHBASE_HOST) {
+    console.log('[DB] Couchbase skipped — not configured (COUCHBASE_URL not set)');
+    throw new Error('Couchbase not configured');
+  }
+  const url = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST;
   const username = process.env.COUCHBASE_USERNAME || 'xtox';
   const password = process.env.COUCHBASE_PASSWORD  || '#N^wx+uO^70G';
   const bucketName = process.env.COUCHBASE_BUCKET || 'XTOX';

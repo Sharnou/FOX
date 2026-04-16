@@ -24,7 +24,7 @@ router.post('/subscribe', auth, async (req, res) => {
         subscription,
         userAgent: req.headers['user-agent'] || '',
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.json({ ok: true });

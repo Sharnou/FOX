@@ -55,7 +55,7 @@ router.post('/:id/review', auth, async (req, res) => {
     const review = await Review.findOneAndUpdate(
       { ad: adId, reviewer: req.user.id },
       { ad: adId, seller: req.params.id, reviewer: req.user.id, rating: ratingNum, comment: cleanComment || '' },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: 'after', runValidators: true }
     );
 
     // Update seller reputation
@@ -110,7 +110,7 @@ router.put('/me', auth, async (req, res) => {
     }
     // ──────────────────────────────────────────────────────────────────────
 
-    const updatedUser = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password');
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, update, { returnDocument: 'after' }).select('-password');
 
     // ── PROFILE COMPLETION BONUS: +10 points (one-time) ────────────────────
     // Awarded once when user has name + phone + avatar all set
@@ -181,7 +181,7 @@ router.patch('/avatar', auth, (req, res) => {
       const user = await User.findByIdAndUpdate(
         req.user.id,
         { avatar: avatarUrl },
-        { new: true }
+        { returnDocument: 'after' }
       ).select('-password');
       res.json({ avatar: user.avatar, user });
     } catch (e) {

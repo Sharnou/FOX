@@ -38,7 +38,7 @@ const ChatSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'archived', 'blocked'], default: 'active' },
   closeAt: { type: Date, default: null, index: true }, // set when ad is sold/deleted; cron job deletes chat after this date
 
-  createdAt: { type: Date, default: Date.now, index: true },
+  createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now, index: true },
 
   adTitle:    { type: String, default: '' },

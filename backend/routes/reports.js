@@ -94,7 +94,7 @@ router.patch('/:id/resolve', adminAuth, async (req, res) => {
     const report = await Report.findByIdAndUpdate(
       req.params.id,
       { resolved: true },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!report) return res.status(404).json({ error: 'Report not found' });
     res.json({ message: 'تم حل البلاغ / Report resolved', report });

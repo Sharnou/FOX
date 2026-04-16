@@ -1519,7 +1519,7 @@ router.patch('/:id/view', async (req, res) => {
     const ad = await getAdModel().findByIdAndUpdate(
       req.params.id,
       { $inc: { views: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
     // Award 1 reputation point to ad seller — throttled via viewThrottle map (anti-gaming)

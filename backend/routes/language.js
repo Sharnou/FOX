@@ -31,7 +31,7 @@ router.post('/teach', adminAuth, async (req, res) => {
     const result = await LocalWord.findOneAndUpdate(
       { word, country },
       { word, meaning, english: meaning, category, subcategory, country, dialect: dialect || 'Egyptian', confidence: 1.0, aiConfidence: 1.0, aiLearned: false, confirmed: true, approved: true },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -80,7 +80,7 @@ router.get('/pending', adminAuth, async (req, res) => {
 // Approve word (admin)
 router.patch('/:id/approve', adminAuth, async (req, res) => {
   try {
-    const word = await LocalWord.findByIdAndUpdate(req.params.id, { confirmedByAdmin: true, approved: req.body.approved !== false }, { new: true });
+    const word = await LocalWord.findByIdAndUpdate(req.params.id, { confirmedByAdmin: true, approved: req.body.approved !== false }, { returnDocument: 'after' });
     res.json(word);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -89,7 +89,7 @@ router.patch('/:id/approve', adminAuth, async (req, res) => {
 router.patch('/:id', adminAuth, async (req, res) => {
   try {
     const { meaning, category, subcategory, confidence } = req.body;
-    const word = await LocalWord.findByIdAndUpdate(req.params.id, { meaning, english: meaning, category, subcategory, confidence, aiConfidence: confidence, updatedAt: new Date() }, { new: true });
+    const word = await LocalWord.findByIdAndUpdate(req.params.id, { meaning, english: meaning, category, subcategory, confidence, aiConfidence: confidence, updatedAt: new Date() }, { returnDocument: 'after' });
     res.json(word);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

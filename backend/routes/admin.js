@@ -228,7 +228,7 @@ router.patch('/ads/:id/status', adminAuth, async (req, res) => {
     const ad = await Ad.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
     res.json({ success: true, ad });
@@ -267,7 +267,7 @@ router.patch('/ads/:id/feature', adminAuth, async (req, res) => {
       const ad = await Ad.findByIdAndUpdate(
         req.params.id,
         { isFeatured: false, featuredUntil: null, visibilityScore: 10 },
-        { new: true }
+        { returnDocument: 'after' }
       );
       if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
       return res.json({ success: true, ad });
@@ -287,7 +287,7 @@ router.patch('/ads/:id/feature', adminAuth, async (req, res) => {
         featuredAt: new Date(),
         visibilityScore: 100,
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
     res.json({ success: true, ad, featuredUntil });
@@ -310,7 +310,7 @@ router.patch('/ads/:id/bubble', adminAuth, async (req, res) => {
       const ad = await Ad.findByIdAndUpdate(
         req.params.id,
         { bubble: false, bubbleUntil: null },
-        { new: true }
+        { returnDocument: 'after' }
       );
       if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
       return res.json({ success: true, ad });
@@ -320,7 +320,7 @@ router.patch('/ads/:id/bubble', adminAuth, async (req, res) => {
     const ad = await Ad.findByIdAndUpdate(
       req.params.id,
       { bubble: true, bubbleUntil },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
     res.json({ success: true, ad });
@@ -570,7 +570,7 @@ router.post('/resolve-report', adminAuth, async (req, res) => {
   try {
     const { reportId } = req.body;
     if (!reportId) return res.status(400).json({ error: 'معرف التقرير مطلوب' });
-    const report = await Report.findByIdAndUpdate(reportId, { resolved: true, resolvedAt: new Date() }, { new: true });
+    const report = await Report.findByIdAndUpdate(reportId, { resolved: true, resolvedAt: new Date() }, { returnDocument: 'after' });
     if (!report) return res.status(404).json({ error: 'التقرير غير موجود' });
     res.json({ ok: true, report });
   } catch (e) {
@@ -596,7 +596,7 @@ router.patch('/users/:id/role', adminAuth, async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('name email role');
 
     if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
@@ -619,7 +619,7 @@ router.post('/users/:id/role', adminAuth, async (req, res) => {
     if (String(req.params.id) === String(req.user._id || req.user.id) && role !== 'admin') {
       return res.status(400).json({ error: 'لا يمكنك تغيير دورك بنفسك' });
     }
-    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select('name email role');
+    const user = await User.findByIdAndUpdate(req.params.id, { role }, { returnDocument: 'after' }).select('name email role');
     if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
     console.log(`[Admin] ${req.user.email || req.user.id} set role="${role}" for ${user.email}`);
     res.json({ success: true, ok: true, user });
@@ -765,7 +765,7 @@ router.post('/payments/:id/reject', adminAuth, async (req, res) => {
     const PendingPayment = (await import('../models/PendingPayment.js')).default;
     const payment = await PendingPayment.findByIdAndUpdate(req.params.id,
       { status: 'rejected', adminNote: req.body.reason || 'Payment not received' },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!payment) return res.status(404).json({ error: 'Order not found' });
     res.json({ success: true, message: 'Payment rejected' });

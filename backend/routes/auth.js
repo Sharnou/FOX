@@ -58,7 +58,7 @@ async function generateXtoxId() {
   var counter = await Counter.findByIdAndUpdate(
     'xtoxId',
     { $inc: { seq: 1 } },
-    { new: true, upsert: true }
+    { returnDocument: 'after', upsert: true }
   );
   var num = String(counter.seq).padStart(6, '0');
   return 'XTOX-' + num;
@@ -142,7 +142,7 @@ router.post('/whatsapp/send-otp', async (req, res) => {
     var userUpdate = { whatsappOtp: otp, whatsappOtpExpiry: expiry, whatsappOtpAttempts: 0, country: 'unknown' };
     if (phone) userUpdate.whatsappPhone = phone;
     if (email) userUpdate.email = email;
-    var existingUser = await User.findOneAndUpdate(userQuery, userUpdate, { upsert: true, setDefaultsOnInsert: true, new: true });
+    var existingUser = await User.findOneAndUpdate(userQuery, userUpdate, { upsert: true, setDefaultsOnInsert: true, returnDocument: 'after' });
     // Use the email from the user record if not provided in request
     if (!email && existingUser && existingUser.email) email = existingUser.email;
 
@@ -292,7 +292,7 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
       updateData.name = user.name || phoneName;
     }
 
-    var updatedUser = await User.findByIdAndUpdate(user._id, updateData, { new: true });
+    var updatedUser = await User.findByIdAndUpdate(user._id, updateData, { returnDocument: 'after' });
     var token = issueToken(updatedUser);
 
     res.json({
@@ -455,7 +455,7 @@ router.get('/google/callback', async (req, res) => {
         cbUpd.xtoxEmail = await assignUniqueXtoxEmail(User, cbBn);
       }
       if (avatar && !user.avatar) cbUpd.avatar = avatar;
-      user = await User.findByIdAndUpdate(user._id, cbUpd, { new: true });
+      user = await User.findByIdAndUpdate(user._id, cbUpd, { returnDocument: 'after' });
     }
   } catch (dbErr) {
     // Duplicate key race condition — another request just created the same user
@@ -615,7 +615,7 @@ router.post('/google', async (req, res) => {
         upd.xtoxEmail = await assignUniqueXtoxEmail(User, bn);
       }
       if (avatar && !user.avatar) upd.avatar = avatar;
-      user = await User.findByIdAndUpdate(user._id, upd, { new: true });
+      user = await User.findByIdAndUpdate(user._id, upd, { returnDocument: 'after' });
     }
   } catch (dbErr) {
     // Duplicate key: another request just created the same user — retry findOne
@@ -732,7 +732,7 @@ router.post('/apple', async (req, res) => {
         upd.xtoxEmail = await assignUniqueXtoxEmail(User, bn);
       }
       if (name && name !== 'Apple User' && !user.name) upd.name = name;
-      user = await User.findByIdAndUpdate(user._id, upd, { new: true });
+      user = await User.findByIdAndUpdate(user._id, upd, { returnDocument: 'after' });
     }
 
     if (user.blocked) {

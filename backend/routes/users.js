@@ -74,7 +74,7 @@ export async function seedSuperAdmin() {
       role: 'admin',
       reputation: 100
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
   console.log('✅ Super admin ready: ahmed_sharnou@yahoo.com / Aa123123');
 }
@@ -523,7 +523,7 @@ router.put('/me', auth, async (req, res) => {
     }
     // ──────────────────────────────────────────────────────────────────────
 
-    const user = await getUserModel().findByIdAndUpdate(req.user.id, update, { new: true });
+    const user = await getUserModel().findByIdAndUpdate(req.user.id, update, { returnDocument: 'after' });
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -576,7 +576,7 @@ router.patch('/me', auth, async (req, res) => {
     const updated = await UserModel.findByIdAndUpdate(
       uid,
       { $set: updates },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updated) return res.status(404).json({ message: 'المستخدم غير موجود' });

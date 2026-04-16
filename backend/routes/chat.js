@@ -113,7 +113,7 @@ router.post('/start', auth, async (req, res) => {
               ...(validAdId ? { ad: validAdId } : {}),
             },
           },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
       } catch (createErr) {
         // Last resort: find any existing chat between these two users
@@ -475,7 +475,7 @@ router.post('/:chatId/messages', auth, async (req, res) => {
         $set:  { updatedAt: new Date() },
         $inc:  { messageCount: 1 },
       },
-      { new: true, select: { messages: { $slice: -1 } } }
+      { returnDocument: 'after', select: { messages: { $slice: -1 } } }
     );
     const savedMessage = updateResult?.messages?.[0] || message;
     res.json({ success: true, message: savedMessage });

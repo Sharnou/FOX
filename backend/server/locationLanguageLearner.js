@@ -207,7 +207,7 @@ async function learnLocationLanguages() {
             updatedAt: new Date()
           }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
 
       // ── Update SubcategoryExample with high-frequency local terms ─────────
@@ -306,7 +306,7 @@ async function recordDetectedLanguage(langCode, context) {
         $set: { language: lang, updatedAt: new Date() },
         $setOnInsert: { country, terms: [], topWords: [], sampleAds: [] }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     await LocationVocab.findOneAndUpdate(
@@ -315,7 +315,7 @@ async function recordDetectedLanguage(langCode, context) {
         $addToSet: { topWords: lang },
         $set: { updatedAt: new Date() }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     if (context.sampleText && context.sampleText.length > 5) {

@@ -501,7 +501,7 @@ connectDatabases().then(async (db) => {
               role: 'user', // role must be granted via Admin Dashboard only
             }
           },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
         console.log('[Setup] xtox@xtox.com ready. _id:', result._id, '| role:', result.role);
       } catch(e) {

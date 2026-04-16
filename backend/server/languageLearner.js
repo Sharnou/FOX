@@ -47,7 +47,7 @@ export async function seedCoreDictionary() {
       await LocalWord.findOneAndUpdate(
         { word, country: data.country },
         { word, meaning: data.meaning, english: data.meaning, category: data.category, dialect: data.dialect, country: data.country, confirmedByAdmin: true, approved: true, aiLearned: false },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
       seeded++;
     } catch {}
@@ -59,7 +59,7 @@ export async function translateWord(word, country = 'EG') {
   const dbResult = await LocalWord.findOneAndUpdate(
     { word: word.toLowerCase(), country },
     { $inc: { frequency: 1, count: 1 }, updatedAt: new Date() },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (dbResult) return dbResult.meaning || dbResult.english || word;
   const coreResult = CORE_DICT[word];
@@ -89,7 +89,7 @@ export async function learnWord(word, meaning, category, country, dialect) {
   return LocalWord.findOneAndUpdate(
     { word: word.toLowerCase(), country: country || 'EG' },
     { word: word.toLowerCase(), meaning, english: meaning, category: category || 'General', country: country || 'EG', dialect: dialect || 'Egyptian', $inc: { frequency: 1, count: 1 }, updatedAt: new Date() },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 }
 
