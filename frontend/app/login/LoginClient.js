@@ -26,7 +26,7 @@ function storeSession(data) {
 }
 
 export default function LoginClient() {
-  var tabState = useState('email');
+  var tabState = useState('whatsapp');
   var tab = tabState[0];
   var setTab = tabState[1];
 
@@ -257,7 +257,7 @@ export default function LoginClient() {
         React.createElement('div', {
           style: { display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 12, padding: 4, marginBottom: 24 }
         },
-          React.createElement('button', { style: tabStyle(tab === 'whatsapp'), onClick: function() { setTab('email'); setError(''); } }, '✉️ بريد إلكتروني'),
+          React.createElement('button', { style: tabStyle(tab === 'whatsapp'), onClick: function() { setTab('whatsapp'); setError(''); } }, '✉️ بريد إلكتروني'),
           React.createElement('button', { style: tabStyle(tab === 'google'), onClick: function() { setTab('google'); setError(''); } }, '🔵 Google'),
         ),
 
