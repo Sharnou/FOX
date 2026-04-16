@@ -10,7 +10,6 @@ import BannerAds from './components/BannerAds';
 import { detectLang } from '../lib/lang';
 import SeasonalBanner from './components/SeasonalBanner';
 import WinnerBanner from './components/WinnerBanner';
-import Leaderboard from './components/Leaderboard';
 import CountryTabs from './components/CountryTabs';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -466,7 +465,6 @@ export default function Home() {
       ══════════════════════════════════════════ */}
       <SeasonalBanner />
       <WinnerBanner />
-      <Leaderboard />
 
       {/* ══════════════════════════════════════════
           ANIMATED GRADIENT HERO
@@ -996,6 +994,7 @@ export default function Home() {
             ['/about', t.about || (lang === 'ar' ? 'من نحن' : 'About')],
             ['/privacy', t.privacy || (lang === 'ar' ? 'الخصوصية' : 'Privacy')],
             ['/terms', t.terms || (lang === 'ar' ? 'الشروط' : 'Terms')],
+            ['/winner-history', lang === 'ar' ? 'لوحة الشرف' : 'Honor Roll'],
           ].map(([href, label]) => (
             <a key={href} href={href} style={{ color: PRIMARY, margin: '0 10px', fontWeight: 600, textDecoration: 'none' }}>{label}</a>
           ))}
