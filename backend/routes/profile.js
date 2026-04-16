@@ -22,7 +22,7 @@ router.get('/:id', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const ads = await Ad.find({ userId: id, isDeleted: { $ne: true }, isExpired: { $ne: true } }).sort({ createdAt: -1 }).limit(20).lean();
-    const reviews = await Review.find({ sellerId: id }).populate('buyerId', 'name avatar').sort({ createdAt: -1 }).limit(20);
+    const reviews = await Review.find({ seller: id }).populate('reviewer', 'name avatar').sort({ createdAt: -1 }).limit(20);
 
     const avgRating = reviews.length > 0
       ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
@@ -49,14 +49,17 @@ router.post('/:id/review', auth, async (req, res) => {
     const cleanComment = comment !== undefined ? comment.trim() : undefined;
     // ─────────────────────────────────────────────────────────────────────
 
+    // Use the correct Review schema fields: seller, reviewer, ad (NOT sellerId, buyerId, adId)
+    // Require adId for the review (needed for unique index {ad, reviewer})
+    if (!adId) return res.status(400).json({ error: 'adId required for review' });
     const review = await Review.findOneAndUpdate(
-      { sellerId: req.params.id, buyerId: req.user.id },
-      { sellerId: req.params.id, buyerId: req.user.id, adId, rating: ratingNum, comment: cleanComment },
-      { upsert: true, new: true }
+      { ad: adId, reviewer: req.user.id },
+      { ad: adId, seller: req.params.id, reviewer: req.user.id, rating: ratingNum, comment: cleanComment || '' },
+      { upsert: true, new: true, runValidators: true }
     );
 
     // Update seller reputation
-    const all = await Review.find({ sellerId: req.params.id });
+    const all = await Review.find({ seller: req.params.id });
     const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
     await User.findByIdAndUpdate(req.params.id, { reputation: Math.round(avg * 20) }); // 5 stars = 100 rep
 

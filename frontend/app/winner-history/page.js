@@ -11,10 +11,16 @@ const MONTH_NAMES = {
   '09': 'سبتمبر', '10': 'أكتوبر', '11': 'نوفمبر', '12': 'ديسمبر',
 };
 
-function getMonthLabel(month) {
+function getMonthLabel(month, year) {
   if (!month) return '';
-  const [yr, mo] = month.split('-');
-  return `${MONTH_NAMES[mo] || mo} ${yr}`.trim();
+  // Handle "YYYY-MM" string format
+  if (typeof month === 'string' && month.includes('-')) {
+    const [yr, mo] = month.split('-');
+    return `${MONTH_NAMES[mo] || mo} ${yr}`.trim();
+  }
+  // Handle numeric month (1-12) + separate year from WinnerHistory model
+  const mo = String(month).padStart(2, '0');
+  return `${MONTH_NAMES[mo] || mo} ${year || ''}`.trim();
 }
 
 export default function WinnerHistoryPage() {
@@ -89,7 +95,7 @@ export default function WinnerHistoryPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {winners.map((winner, idx) => {
             const rank = idx + 1;
-            const monthLabel = getMonthLabel(winner.month);
+            const monthLabel = getMonthLabel(winner.month, winner.year);
             return (
               <div
                 key={winner._id || winner.month || idx}
