@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import translations, { CATEGORY_KEY_MAP, CITY_KEY_MAP, CONDITION_KEY_MAP } from '../translations/index';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-const GEO_CACHE_VERSION = '2';
+const GEO_CACHE_VERSION = '3';  // bumped from '2' — forces nuclear clear for stale FR detection
 const TRANS_CACHE_VERSION = '1'; // bump to force re-fetch of dynamic translations
 
 // Languages served from the static bundle (no API fetch needed)
@@ -94,15 +94,28 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     async function init() {
       const cacheVersion = localStorage.getItem('xtox_geo_version');
-      const storedCountry = cacheVersion === GEO_CACHE_VERSION
-        ? localStorage.getItem('xtox_detected_country')
-        : null;
 
-      const storedToggle = storedCountry ? localStorage.getItem('xtox_show_toggle') : null;
-      const storedNative = storedCountry ? localStorage.getItem('xtox_native_lang') : null;
-      const storedName   = storedCountry ? localStorage.getItem('xtox_native_name') : null;
-      const storedRTL    = storedCountry ? localStorage.getItem('xtox_native_rtl') : null;
-      const savedLang    = localStorage.getItem('xtox_language');
+      // Nuclear clear: if version doesn't match, wipe ALL stale geo + lang data.
+      // This fixes Egyptian users who got version '2' cached WITH wrong 'fr' data
+      // from the Railway-IP detection bug (before the geo fix was live).
+      if (cacheVersion !== GEO_CACHE_VERSION) {
+        [
+          'xtox_detected_country', 'xtox_show_toggle', 'xtox_native_lang',
+          'xtox_native_name', 'xtox_native_rtl', 'xtox_geo_version',
+          // Also clear stale language preference — re-derive from fresh detection
+          'xtox_language',
+          // Clear any stale French translations wrongly cached for Egyptian users
+          'xtox_trans_fr', 'xtox_trans_v_fr',
+        ].forEach(k => localStorage.removeItem(k));
+      }
+
+      // After possible clear, read from localStorage (null if we just cleared)
+      const storedCountry = localStorage.getItem('xtox_detected_country');
+      const storedToggle  = storedCountry ? localStorage.getItem('xtox_show_toggle') : null;
+      const storedNative  = storedCountry ? localStorage.getItem('xtox_native_lang') : null;
+      const storedName    = storedCountry ? localStorage.getItem('xtox_native_name') : null;
+      const storedRTL     = storedCountry ? localStorage.getItem('xtox_native_rtl') : null;
+      const savedLang     = localStorage.getItem('xtox_language');
 
       let country, toggle, native, name, nativeRtl;
 

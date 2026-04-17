@@ -15,8 +15,16 @@ export default function LanguageToggle({ className = '' }) {
   // Hide for English-native countries
   if (!showToggle) return null;
 
+  // Safety guard: if nativeLang is 'ar' but nativeName is not Arabic script
+  // (e.g. stale 'Fr' from Railway-IP detection bug), fall back to 'عر'.
+  // This prevents Egyptian users from ever seeing 'Fr' on the toggle button.
+  const isArabicText = (s) => s && /[\u0600-\u06FF]/.test(s);
+  const safeNativeName = (nativeLang === 'ar' && !isArabicText(nativeName))
+    ? 'عر'
+    : (nativeName || nativeLang.toUpperCase().slice(0, 2));
+
   // Label: currently in native → show "En"; currently in English → show native name
-  const label = language === nativeLang ? 'En' : nativeName;
+  const label = language === nativeLang ? 'En' : safeNativeName;
 
   return (
     <button
