@@ -160,10 +160,14 @@ router.post('/whatsapp/send-otp', async (req, res) => {
           // fake API unreachable — fall through to debug OTP below
         }
       }
-      // Always return debug OTP in fake mode (even without FAKE_API_URL)
+      // Still try to send a real email if possible (Resend/Nodemailer)
+      if (email) {
+        try { await sendOTPEmail(email, otp); } catch (emailErr) { /* handled inside sendOTPEmail */ }
+      }
+      // Always return debug OTP in fake mode
       return res.json({
         success: true,
-        message: 'OTP generated (FAKE_API mode — no real message sent)',
+        message: 'OTP generated (FAKE_API mode — bypass: 000000)',
         debug_otp: otp,
         phone: phone || undefined,
         email: email || undefined
@@ -847,7 +851,9 @@ router.post('/email/send-otp', async (req, res) => {
     var blocked = await User.findOne({ blocked: true, email });
     if (blocked) return res.status(403).json({ error: 'This account has been permanently suspended.' });
 
-    var otp = String(Math.floor(100000 + Math.random() * 900000));
+    // In FAKE_API mode keep OTP as '000000' so admin bypass always works
+    // In production: generate a real random 6-digit OTP
+    var otp = USE_FAKE_API ? '000000' : String(Math.floor(100000 + Math.random() * 900000));
     var expiry = new Date(Date.now() + 10 * 60 * 1000);
 
     await User.findOneAndUpdate(
@@ -856,18 +862,23 @@ router.post('/email/send-otp', async (req, res) => {
       { upsert: true, setDefaultsOnInsert: true, returnDocument: 'after' }
     );
 
-    if (USE_FAKE_API) {
-      return res.json({ success: true, message: 'OTP generated (FAKE_API mode)', debug_otp: otp, email });
-    }
-
+    // Always attempt real email delivery (Resend → Nodemailer → console fallback)
+    // sendOTPEmail never throws — it falls back to console log on failure
     try {
       await sendOTPEmail(email, otp);
-      return res.json({ success: true, message: 'OTP sent to email', email });
     } catch (emailErr) {
-      console.error('[AUTH email/send-otp] Email send failed:', emailErr.message);
-      return res.status(500).json({ error: 'Failed to send OTP. Check EMAIL_USER and EMAIL_PASS.' });
+      // Should not reach here — mailer has internal fallback, but guard anyway
+      console.error('[AUTH email/send-otp] sendOTPEmail threw unexpectedly:', emailErr.message);
     }
+
+    // In FAKE_API mode: include debug_otp so testers can see it without checking logs
+    if (USE_FAKE_API) {
+      return res.json({ success: true, message: 'OTP generated (FAKE_API mode — bypass: 000000)', debug_otp: otp, email });
+    }
+
+    return res.json({ success: true, message: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني', email });
   } catch (e) {
+    console.error('[AUTH email/send-otp] Unexpected error:', e.message);
     res.status(500).json({ error: 'Failed to send OTP' });
   }
 });

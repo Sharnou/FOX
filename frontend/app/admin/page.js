@@ -145,6 +145,10 @@ export default function AdminPage() {
   const [repSearch, setRepSearch] = useState('');
   const [repLoading, setRepLoading] = useState(false);
   const [repEditing, setRepEditing] = useState({}); // { [userId]: { mode: 'add'|'sub', amount: '', reason: '', loading: false } }
+  // WordPress sync state
+  const [wpSyncing, setWpSyncing] = useState(false);
+  const [wpResult, setWpResult] = useState(null);
+  const [wpStatus, setWpStatus] = useState(null); // null | { connected, site, user } | { error }
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -890,6 +894,63 @@ export default function AdminPage() {
                     .then(r => { if (r.ok) showToast('تم الإرسال!'); else showToast('خطأ: ' + (r.data.error || 'فشل')); });
                 }} color="#ffd700">📢 إرسال</Btn>
               </div>
+            </div>
+
+            {/* ── WordPress Sync Card ── */}
+            <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 10, padding: 18, marginTop: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <h3 style={{ color: '#bf5fff', fontSize: 14, margin: 0 }}>🌐 مزامنة WordPress</h3>
+                  <p style={{ color: '#8b949e', fontSize: 12, margin: '4px 0 0' }}>xt0x.wordpress.com — نشر الإعلانات تلقائياً</p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    onClick={async () => {
+                      setWpStatus(null);
+                      try {
+                        const r = await apiFetch('/api/wp/status', {}, token);
+                        setWpStatus(r.data);
+                      } catch (e) {
+                        setWpStatus({ error: e.message });
+                      }
+                    }}
+                    style={{ background: '#21262d', color: '#8b949e', border: '1px solid #30363d', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'Cairo, monospace' }}
+                  >🔌 فحص الاتصال</button>
+                  <button
+                    onClick={async () => {
+                      setWpSyncing(true); setWpResult(null);
+                      try {
+                        const r = await apiFetch('/api/wp/sync-all', { method: 'POST', body: '{}' }, token);
+                        setWpResult(r.data);
+                      } catch (e) {
+                        setWpResult({ error: e.message });
+                      } finally {
+                        setWpSyncing(false);
+                      }
+                    }}
+                    disabled={wpSyncing}
+                    style={{ background: wpSyncing ? '#21262d' : '#2d1a2d', color: wpSyncing ? '#8b949e' : '#bf5fff', border: '1px solid ' + (wpSyncing ? '#30363d' : '#bf5fff'), padding: '5px 14px', borderRadius: 6, cursor: wpSyncing ? 'not-allowed' : 'pointer', fontSize: 12, fontFamily: 'Cairo, monospace', fontWeight: 600 }}
+                  >{wpSyncing ? '⏳ جارٍ المزامنة...' : '🔄 مزامنة الكل'}</button>
+                </div>
+              </div>
+              {wpStatus && (
+                <div style={{ background: '#0d1117', borderRadius: 6, padding: '8px 12px', fontSize: 12, marginBottom: wpResult ? 8 : 0 }}>
+                  {wpStatus.error
+                    ? <span style={{ color: '#f85149' }}>❌ {wpStatus.error}</span>
+                    : wpStatus.connected
+                      ? <span style={{ color: '#3fb950' }}>✅ متصل — {wpStatus.site || wpStatus.url || 'xt0x.wordpress.com'}{wpStatus.user ? ' · ' + wpStatus.user : ''}</span>
+                      : <span style={{ color: '#f85149' }}>❌ غير متصل — {wpStatus.reason || 'تحقق من WP_APP_PASSWORD'}</span>
+                  }
+                </div>
+              )}
+              {wpResult && (
+                <div style={{ background: '#0d1117', borderRadius: 6, padding: '8px 12px', fontSize: 12 }}>
+                  {wpResult.error
+                    ? <span style={{ color: '#f85149' }}>❌ {wpResult.error}</span>
+                    : <span style={{ color: '#3fb950' }}>✅ تمت المزامنة: {wpResult.synced ?? 0} إعلان منشور{wpResult.failed ? ' | فشل: ' + wpResult.failed : ''}</span>
+                  }
+                </div>
+              )}
             </div>
           </div>
         )}
