@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import LocalWord from '../models/LocalWord.js';
 import { translateWord, learnWord, getLocalDictionary, seedCoreDictionary } from '../server/languageLearner.js';
 import { adminAuth } from '../middleware/auth.js';
@@ -80,6 +81,9 @@ router.get('/pending', adminAuth, async (req, res) => {
 // Approve word (admin)
 router.patch('/:id/approve', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid word ID' });
+    }
     const word = await LocalWord.findByIdAndUpdate(req.params.id, { confirmedByAdmin: true, approved: req.body.approved !== false }, { returnDocument: 'after' });
     res.json(word);
   } catch (e) { res.status(500).json({ error: e.message }); }
