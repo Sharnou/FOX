@@ -1,6 +1,6 @@
 import express from 'express'
 import Ad from '../models/Ad.js'
-import { auth as verifyToken, adminAuth as requireAdmin } from '../middleware/auth.js'
+import { auth as verifyToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -86,51 +86,15 @@ function adToWpPost(ad) {
   return { title, content, excerpt, slug, status: 'publish', language: 'ar', tags: tags.join(','), categories_by_name: [category || 'إعلانات'].join(',') }
 }
 
-// POST /api/wp/sync/:adId — sync one ad (admin or called internally)
-router.post('/sync/:adId', verifyToken, async (req, res) => {
-  const { adId } = req.params
-  // ObjectId validation
-  if (!/^[a-f\d]{24}$/i.test(adId)) return res.status(400).json({ error: 'Invalid adId' })
-  try {
-    const token = getWpToken()
-    const ad = await Ad.findById(adId)
-    if (!ad) return res.status(404).json({ error: 'Ad not found' })
-
-    const postData = adToWpPost(ad)
-
-    // Try update by slug first (upsert pattern)
-    const searchRes = await fetch(`${WP_API}/posts?slug=${postData.slug}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    const searchData = await searchRes.json()
-    const existing = searchData.posts?.[0]
-
-    let result
-    if (existing) {
-      const r = await fetch(`${WP_API}/posts/${existing.ID}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(postData)
-      })
-      result = await r.json()
-    } else {
-      const r = await fetch(`${WP_API}/posts/new`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(postData)
-      })
-      result = await r.json()
-    }
-
-    if (result.error) return res.status(400).json({ error: result.error, message: result.message })
-    res.json({ success: true, wpPostId: result.ID, wpUrl: result.URL, action: existing ? 'updated' : 'created' })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
 // POST /api/wp/sync-all — sync ALL ads (admin only)
-router.post('/sync-all', verifyToken, requireAdmin, async (req, res) => {
+// Fix C: inline admin check — no double-middleware, no requireAdmin import needed
+router.post('/sync-all', verifyToken, async (req, res) => {
+  // Inline admin guard — supports admin, sub_admin, superadmin roles
+  const role = req.user?.role
+  if (!role || !['admin', 'sub_admin', 'superadmin'].includes(role)) {
+    return res.status(403).json({ success: false, error: 'Admin access required' })
+  }
+
   try {
     const token = getWpToken()
     const ads = await Ad.find({ status: { $ne: 'deleted' } }).limit(500)
@@ -186,6 +150,49 @@ router.post('/sync-all', verifyToken, requireAdmin, async (req, res) => {
     } catch {}
 
     res.json({ success: true, total: ads.length, synced, failed, errors: errors.slice(0, 10) })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/wp/sync/:adId — sync one ad (admin or called internally)
+router.post('/sync/:adId', verifyToken, async (req, res) => {
+  const { adId } = req.params
+  // ObjectId validation
+  if (!/^[a-f\d]{24}$/i.test(adId)) return res.status(400).json({ error: 'Invalid adId' })
+  try {
+    const token = getWpToken()
+    const ad = await Ad.findById(adId)
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+
+    const postData = adToWpPost(ad)
+
+    // Try update by slug first (upsert pattern)
+    const searchRes = await fetch(`${WP_API}/posts?slug=${postData.slug}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const searchData = await searchRes.json()
+    const existing = searchData.posts?.[0]
+
+    let result
+    if (existing) {
+      const r = await fetch(`${WP_API}/posts/${existing.ID}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(postData)
+      })
+      result = await r.json()
+    } else {
+      const r = await fetch(`${WP_API}/posts/new`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(postData)
+      })
+      result = await r.json()
+    }
+
+    if (result.error) return res.status(400).json({ error: result.error, message: result.message })
+    res.json({ success: true, wpPostId: result.ID, wpUrl: result.URL, action: existing ? 'updated' : 'created' })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
