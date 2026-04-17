@@ -484,11 +484,11 @@ export default function AdminPage() {
                   {filteredUsers.map(u => (
                     <tr key={u._id} style={{ borderBottom: '1px solid #1a1f27' }}>
                       <td style={ADMIN_S.td}><code style={{ color: '#8b949e', fontSize: 10 }}>{u.xtoxId || u._id?.slice(-6)}</code></td>
-                      <td style={{ ...S.td, color: '#e6edf3', fontWeight: 600 }}>
+                      <td style={{ ...ADMIN_S.td, color: '#e6edf3', fontWeight: 600 }}>
                         {u.name || '—'}
                         {['admin', 'sub_admin'].includes(u.role) && <span style={{ marginRight: 4 }}><Badge color="#ffd700" bg="#2d2a1a">👑 {u.role}</Badge></span>}
                       </td>
-                      <td style={{ ...S.td, color: '#8b949e' }}>
+                      <td style={{ ...ADMIN_S.td, color: '#8b949e' }}>
                         <div>{u.email || '—'}</div>
                         {u.whatsappPhone && <div style={{ color: '#00ff41', fontSize: 10 }}>📱 {u.whatsappPhone}</div>}
                       </td>
@@ -504,7 +504,7 @@ export default function AdminPage() {
                           ? <Badge color="#ff4444" bg="#3d1a1a">🚫 محظور</Badge>
                           : <Badge color="#00ff41" bg="#1f3a1f">✅ نشط</Badge>}
                       </td>
-                      <td style={{ ...S.td, color: '#8b949e', fontSize: 11 }}>
+                      <td style={{ ...ADMIN_S.td, color: '#8b949e', fontSize: 11 }}>
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-EG') : '—'}
                       </td>
                       <td style={ADMIN_S.td}>
@@ -575,16 +575,16 @@ export default function AdminPage() {
                             ? <img src={img} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
                             : <div style={{ width: 48, height: 48, background: '#21262d', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📦</div>}
                         </td>
-                        <td style={{ ...S.td, maxWidth: 160 }}>
+                        <td style={{ ...ADMIN_S.td, maxWidth: 160 }}>
                           <a href={'/ads/' + ad._id} target="_blank" rel="noreferrer" style={{ color: '#e6edf3', textDecoration: 'none', fontWeight: 600 }}>
                             {(ad.title || '—').slice(0, 35)}
                           </a>
                         </td>
-                        <td style={{ ...S.td, color: '#8b949e' }}>
+                        <td style={{ ...ADMIN_S.td, color: '#8b949e' }}>
                           {seller?.name || '—'}
                           {seller?.xtoxId && <div style={{ fontSize: 10, color: '#30363d' }}>#{seller.xtoxId}</div>}
                         </td>
-                        <td style={{ ...S.td, color: '#8b949e' }}>
+                        <td style={{ ...ADMIN_S.td, color: '#8b949e' }}>
                           <div>{ad.category || '—'}</div>
                           {ad.subsub && ad.subsub !== 'Other' && <div style={{ fontSize: 10, color: '#30363d' }}>{ad.subsub}</div>}
                         </td>
@@ -603,7 +603,7 @@ export default function AdminPage() {
                             ? <Badge color="#bf5fff" bg="#2d1a2d">🫧 فقاعة</Badge>
                             : <Badge color="#30363d" bg="#0d1117">—</Badge>}
                         </td>
-                        <td style={{ ...S.td, color: '#8b949e', fontSize: 11 }}>
+                        <td style={{ ...ADMIN_S.td, color: '#8b949e', fontSize: 11 }}>
                           {ad.createdAt ? new Date(ad.createdAt).toLocaleDateString('ar-EG') : '—'}
                         </td>
                         <td style={ADMIN_S.td}>
@@ -936,7 +936,7 @@ export default function AdminPage() {
                           <span style={{ color: '#ffd700' }}>{'★'.repeat(rv.rating)}{'☆'.repeat(5 - rv.rating)}</span>
                           <span style={{ color: '#8b949e', marginRight: 4 }}>{rv.rating}/5</span>
                         </td>
-                        <td style={{ ...S.td, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rv.comment}>{rv.comment}</td>
+                        <td style={{ ...ADMIN_S.td, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rv.comment}>{rv.comment}</td>
                         <td style={ADMIN_S.td}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString('ar') : '—'}</td>
                         <td style={ADMIN_S.td}>
                           <span style={{ color: rv.deletedByAdmin ? '#ff4444' : '#00ff41', fontWeight: 'bold' }}>
