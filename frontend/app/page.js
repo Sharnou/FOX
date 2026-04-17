@@ -12,6 +12,7 @@ import { detectLang } from '../lib/lang';
 import SeasonalBanner from './components/SeasonalBanner';
 import WinnerBanner from './components/WinnerBanner';
 import CountryTabs from './components/CountryTabs';
+import LanguageToggle from './components/LanguageToggle';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -416,6 +417,8 @@ export default function Home() {
           )}
         </Link>
 
+        {/* Language Toggle — only shown for non-English-native countries */}
+        <LanguageToggle />
         {/* User / Login */}
         {user ? (
           <a
