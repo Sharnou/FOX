@@ -328,10 +328,12 @@ router.patch('/:chatId/read', auth, async (req, res) => {
       });
     }
 
-    // FIX: query by buyer/seller, not users[]
+    const userId = req.user.id.toString();
+
+    // Verify user is a participant
     const chat = await getChat().findOne({
       _id: chatId,
-      ...userInChatQuery(req.user.id),
+      ...userInChatQuery(userId),
     });
     if (!chat) {
       return res.status(404).json({
@@ -340,27 +342,46 @@ router.patch('/:chatId/read', auth, async (req, res) => {
       });
     }
 
-    const userId = req.user.id.toString();
-    let markedCount = 0;
+    // Count unread messages before update
+    const messages = Array.isArray(chat.messages) ? chat.messages : [];
+    let markedCount = messages.filter(m =>
+      m.sender?.toString() !== userId &&
+      !(m.readBy || []).some(id => id?.toString() === userId)
+    ).length;
 
-    chat.messages = chat.messages.map((msg) => {
-      const readByList = msg.readBy || [];
-      const alreadyRead = readByList.some(id => id?.toString() === userId);
-      if (!alreadyRead && msg.sender?.toString() !== userId) {
-        msg.readBy = [...readByList, req.user.id];
-        markedCount++;
-      }
-      return msg;
-    });
-
-    // Also reset unread counter for this user
-    if (String(chat.buyer) === userId) {
-      chat.unreadBuyer = 0;
-    } else if (String(chat.seller) === userId) {
-      chat.unreadSeller = 0;
+    const db = getActiveDB();
+    if (db === 'mongodb' && mongoose.Types.ObjectId.isValid(userId)) {
+      // Atomic update: bypasses Mongoose validators (avoids ValidationError on old/voice messages)
+      const userOid = new mongoose.Types.ObjectId(userId);
+      const unreadKey = String(chat.buyer) === userId ? 'unreadBuyer' : 'unreadSeller';
+      await Chat.updateOne(
+        { _id: chatId },
+        {
+          $set: { [unreadKey]: 0, 'messages.$[elem].status': 'read' },
+          $addToSet: { 'messages.$[elem].readBy': userOid },
+        },
+        {
+          arrayFilters: [{
+            'elem.sender': { $ne: userOid },
+            'elem.readBy': { $ne: userOid },
+          }]
+        }
+      );
+    } else {
+      // In-memory fallback: modify in place then save (skip validation to avoid text:required errors)
+      messages.forEach((msg) => {
+        const readByList = msg.readBy || [];
+        const alreadyRead = readByList.some(id => id?.toString() === userId);
+        if (!alreadyRead && msg.sender?.toString() !== userId) {
+          msg.readBy = [...readByList, req.user.id];
+          msg.status = 'read';
+        }
+      });
+      if (String(chat.buyer) === userId) chat.unreadBuyer = 0;
+      else if (String(chat.seller) === userId) chat.unreadSeller = 0;
+      if (chat.markModified) chat.markModified('messages');
+      await chat.save({ validateBeforeSave: false });
     }
-
-    await chat.save();
 
     res.json({
       success: true,
@@ -368,6 +389,7 @@ router.patch('/:chatId/read', auth, async (req, res) => {
       message: `تم تحديد ${markedCount} رسالة كمقروءة | Marked ${markedCount} messages as read`,
     });
   } catch (e) {
+    console.error('[PATCH /:chatId/read] error:', e.message);
     res.status(500).json({
       error: e.message,
       message: 'حدث خطأ أثناء تحديث حالة القراءة | Error marking messages as read',
@@ -516,32 +538,58 @@ router.post('/:chatId/read', auth, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(chatId)) {
       return res.status(400).json({ error: 'Invalid chatId' });
     }
-    const chat = await getChat().findOne({ _id: chatId, ...userInChatQuery(req.user.id) });
-    if (!chat) return res.status(404).json({ error: 'Chat not found' });
 
     const userId = req.user.id.toString();
-    let markedCount = 0;
 
-    chat.messages = chat.messages.map((msg) => {
-      const readByList2 = msg.readBy || [];
-      const alreadyRead = readByList2.some(id => id?.toString() === userId);
-      if (!alreadyRead && msg.sender?.toString() !== userId) {
-        msg.readBy = [...readByList2, req.user.id];
-        msg.status = 'read';
-        markedCount++;
-      }
-      return msg;
-    });
+    // Verify user is a participant
+    const chat = await getChat().findOne({ _id: chatId, ...userInChatQuery(userId) });
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
 
-    if (String(chat.buyer) === userId) {
-      chat.unreadBuyer = 0;
-    } else if (String(chat.seller) === userId) {
-      chat.unreadSeller = 0;
+    // Count unread messages before update
+    const messages = Array.isArray(chat.messages) ? chat.messages : [];
+    let markedCount = messages.filter(m =>
+      m.sender?.toString() !== userId &&
+      !(m.readBy || []).some(id => id?.toString() === userId)
+    ).length;
+
+    const db = getActiveDB();
+    if (db === 'mongodb' && mongoose.Types.ObjectId.isValid(userId)) {
+      // Atomic update: bypasses Mongoose validators (avoids ValidationError on old/voice messages)
+      // Root cause of 500: chat.save() ran validators on ALL messages including voice msgs with empty text
+      const userOid = new mongoose.Types.ObjectId(userId);
+      const unreadKey = String(chat.buyer) === userId ? 'unreadBuyer' : 'unreadSeller';
+      await Chat.updateOne(
+        { _id: chatId },
+        {
+          $set: { [unreadKey]: 0, 'messages.$[elem].status': 'read' },
+          $addToSet: { 'messages.$[elem].readBy': userOid },
+        },
+        {
+          arrayFilters: [{
+            'elem.sender': { $ne: userOid },
+            'elem.readBy': { $ne: userOid },
+          }]
+        }
+      );
+    } else {
+      // In-memory fallback: modify in place then save (skip validation to avoid text:required errors)
+      messages.forEach((msg) => {
+        const readByList = msg.readBy || [];
+        const alreadyRead = readByList.some(id => id?.toString() === userId);
+        if (!alreadyRead && msg.sender?.toString() !== userId) {
+          msg.readBy = [...readByList, req.user.id];
+          msg.status = 'read';
+        }
+      });
+      if (String(chat.buyer) === userId) chat.unreadBuyer = 0;
+      else if (String(chat.seller) === userId) chat.unreadSeller = 0;
+      if (chat.markModified) chat.markModified('messages');
+      await chat.save({ validateBeforeSave: false });
     }
 
-    await chat.save();
     res.json({ ok: true, success: true, markedAsRead: markedCount });
   } catch (e) {
+    console.error('[POST /:chatId/read] error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
