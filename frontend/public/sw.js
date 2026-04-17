@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v20';
+const _XTOX_CACHE = 'xtox-v21';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -90,9 +90,9 @@ self.addEventListener('periodicsync', function(event) {
   }
 });
 
-// ─── XTOX Service Worker v11 ────────────────────────────────────────────────
+// ─── XTOX Service Worker v21 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v20';
+const CACHE_VERSION = 'v21';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -120,19 +120,21 @@ self.addEventListener('install', (event) => {
 // ── ACTIVATE: delete any remaining old caches, then claim all clients ────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => {
-            console.log('[XTOX SW] Deleting old cache:', name);
-            return caches.delete(name);
-          })
-      );
-    }).then(() => {
-      // Claim all open clients so new SW controls them immediately
-      return self.clients.claim();
-    })
+    Promise.all([
+      // Take control of all open pages immediately — no need to wait for reload
+      clients.claim(),
+      // Delete ALL old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames
+            .filter((name) => name !== CACHE_NAME)
+            .map((name) => {
+              console.log('[XTOX SW] Deleting old cache:', name);
+              return caches.delete(name);
+            })
+        );
+      })
+    ])
   );
 });
 
@@ -140,7 +142,7 @@ self.addEventListener('activate', (event) => {
 // When the registration script detects a new waiting SW, it sends this message
 // to force the new SW to activate immediately without waiting for tabs to close.
 self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (event.data === 'SKIP_WAITING' || (event.data && event.data.type === 'SKIP_WAITING')) {
     self.skipWaiting();
   }
 });
@@ -432,24 +434,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 8. HTML NAVIGATION — network-first with offline fallback
-  if (request.mode === 'navigate') {
+  // 8. HTML NAVIGATION — CRITICAL: NEVER cache HTML pages.
+  //    HTML pages contain content-hashed bundle references (e.g. page-abc123.js).
+  //    If the SW caches HTML, it will serve stale bundle hashes forever even after
+  //    a new deployment generates new hashes — causing 404s for old chunk files
+  //    and the infamous "let eg" TDZ crash from stale cached bundles.
+  //    Always fetch from network; on failure, serve a plain offline fallback (no cached HTML).
+  if (request.mode === 'navigate' ||
+      request.headers.get('accept')?.includes('text/html') ||
+      url.pathname === '/' ||
+      !url.pathname.includes('.')) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful navigation responses for offline fallback
-          if (response && response.status === 200) {
-            const cloned = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
-          }
-          return response;
-        })
-        .catch(() => {
-          // Serve offline page when network fails
-          return caches.open(CACHE_NAME).then((cache) => {
-            return cache.match(OFFLINE_URL);
-          });
-        })
+      fetch(request).catch(() => {
+        // Network failed — serve offline page (from cache) or minimal fallback
+        return caches.match(OFFLINE_URL) || new Response(
+          '<html><body><h1>Offline</h1><p>Please check your connection.</p></body></html>',
+          { headers: { 'Content-Type': 'text/html' } }
+        );
+      })
     );
     return;
   }
