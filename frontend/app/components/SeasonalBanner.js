@@ -1,6 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 
+// Module-level constant — avoids TDZ in minified output
+const ARAB_COUNTRIES = ['EG','SA','AE','KW','QA','BH','OM','JO','LB','SY','IQ','LY','TN','DZ','MA','YE'];
+
 function getCountryFromTimezone(tz) {
   const map = {
     'Africa/Cairo': 'EG',
@@ -40,7 +43,6 @@ function getBanners(country, year) {
   const banners = [];
 
   // ─── Universal Islamic holidays (all Arab countries) ──────────────────────
-  const ARAB_COUNTRIES = ['EG','SA','AE','KW','QA','BH','OM','JO','LB','SY','IQ','LY','TN','DZ','MA','YE'];
   const isArab = ARAB_COUNTRIES.includes(country);
 
   if (isArab || country === 'WORLD') {

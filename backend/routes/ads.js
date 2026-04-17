@@ -162,8 +162,8 @@ router.get('/', async (req, res) => {
   try {
     const { category, city, page = 0, q, search, limit, userId, subcategory: querySubcategory, subsub: querySubsub } = req.query;
     const searchQuery = q || search; // accept both ?q= and ?search=
-    // FIX: Do NOT use req.user.country — logged-in users from different countries would see 0 ads
-    const countryParam = req.query.country || req.headers['x-country'] || req.user?.country || null;
+    // COUNTRY LOCK: logged-in users are locked to their registered country; guests can filter by query param
+    const countryParam = req.user?.country || req.query.country || req.headers['x-country'] || null;
 
     const filter = {
       isExpired: { $ne: true },   // matches false, null, undefined — new ads have no isExpired set

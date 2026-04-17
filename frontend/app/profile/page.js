@@ -471,17 +471,19 @@ export default function ProfilePage() {
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: '#555' }}>🌍 البلد</label>
               <select
-                value={form.country || ''}
-                onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', background: 'white', direction: 'rtl' }}
+                value={form.country || 'EG'}
+                disabled
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', background: '#f9fafb', direction: 'rtl', cursor: 'not-allowed', color: '#6b7280' }}
               >
-                <option value="">— اختر البلد —</option>
                 {Object.entries(COUNTRIES).map(([code, info]) => (
                   <option key={code} value={code}>
                     {info.flag} {info.name}
                   </option>
                 ))}
               </select>
+              <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0', textAlign: 'right' }}>
+                🔒 البلد مقفل — المنصة مخصصة لمصر فقط
+              </p>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button onClick={save} disabled={saving}

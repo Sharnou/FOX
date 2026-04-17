@@ -25,6 +25,7 @@ const otpStore = new Map();
 
 // ── JWT secret with fallback so sign() never hangs/throws on missing secret ──
 const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
+const PLATFORM_COUNTRY = process.env.PLATFORM_COUNTRY || 'EG';
 
 // ── Rate Limiters ──────────────────────────────────────────────────────────
 const registerLimiter = rateLimit({
@@ -163,7 +164,7 @@ async function findOrCreateOAuthUser(provider, profile, ip, country) {
     if (country) await getOrCreateCountry(country, country);
     user = await getUserModel().create({
       email, name, avatar,
-      country: country || 'EG',
+      country: PLATFORM_COUNTRY, // Platform locked — always use PLATFORM_COUNTRY
       registrationIp: ip,
       isVerified: true,
       [`${provider}Id`]: profile[`${provider}Id`]
@@ -338,7 +339,7 @@ router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
     if (!user) {
       const _seq = Date.now().toString(36).toUpperCase().slice(-5);
       const newId = 'XTOX-' + _seq + Math.random().toString(36).toUpperCase().slice(-2);
-      user = await getUserModel().create({ phone, name: name || phone, country: countryCode, city, registrationIp: ip, isVerified: true, xtoxId: newId });
+      user = await getUserModel().create({ phone, name: name || phone, country: PLATFORM_COUNTRY, city, registrationIp: ip, isVerified: true, xtoxId: newId }); // Platform locked
     }
     if (!user.xtoxId) {
       const _seq = Date.now().toString(36).toUpperCase().slice(-5);
@@ -394,10 +395,8 @@ router.post('/register', registerLimiter, async (req, res) => {
     let existing = await getUserModel().findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already registered' });
     const hash = await bcrypt.hash(password, 10);
-    let finalCountry = countryCode;
-    if (!finalCountry || finalCountry === 'unknown') {
-      try { const g = await (await fetch(`http://ip-api.com/json/${ip}?fields=countryCode`)).json(); finalCountry = g.countryCode || 'EG'; } catch { finalCountry = 'EG'; }
-    }
+    let finalCountry = PLATFORM_COUNTRY; // Platform locked to PLATFORM_COUNTRY; ignore user-supplied country
+    if (!finalCountry || finalCountry === 'unknown') finalCountry = 'EG';
     // Generate a unique xtoxId for this email-registered user so they can post ads
     const _regSeq = Date.now().toString(36).toUpperCase().slice(-5);
     const newXtoxId = 'XTOX-' + _regSeq + Math.random().toString(36).toUpperCase().slice(-2);
