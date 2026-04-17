@@ -444,7 +444,7 @@ router.delete('/:chatId/messages/:messageId', auth, async (req, res) => {
     }
 
     chat.messages.splice(msgIndex, 1);
-    await chat.save();
+    await chat.save({ validateBeforeSave: false });
 
     res.json({
       success: true,
