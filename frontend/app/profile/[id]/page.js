@@ -244,7 +244,8 @@ export default function ProfilePage({ params }) {
   const [reviewsLoaded, setReviewsLoaded] = React.useState(false);
   const isOwnProfile = myUserId === params?.id;
 
-  const TABS = [
+  // Renamed to lowercase to avoid TDZ risk after minification (depends on state)
+  const tabs = [
     { key: 'ads',     labelAr: 'الإعلانات', icon: '📋', count: ads.length },
     { key: 'reviews', labelAr: 'التقييمات', icon: '⭐', count: sellerReviewCount },
   ];
@@ -451,7 +452,7 @@ export default function ProfilePage({ params }) {
         gap: 6,
         boxShadow: '0 2px 10px rgba(0,47,52,0.18)',
       }}>
-        {TABS.map(tab => {
+        {tabs.map(tab => {
           const isActive = activeTab === tab.key;
           return (
             <button

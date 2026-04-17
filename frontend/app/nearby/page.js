@@ -4,6 +4,16 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
+// Module-level to avoid TDZ after SWC minification
+// Previously inside plotAds useCallback — moved here for safety
+const CAT_SUBSUB_MAP = {
+  cars: ['Cars','Motorcycles','SpareParts','Trucks','Boats','Sedan','SUV','Pickup','Coupe','Electric','Sport','Scooter','OffRoad','Cruiser','Engine','Tires','BodyParts','LightTruck','HeavyTruck','FishingBoat','Yacht'],
+  real_estate: ['Apartments','Villas','Land','Commercial','Offices','Rooms','Studio','1BR','2BR','3BR','4BR','Duplex','Penthouse','Independent','Compound','TwinHouse','TownHouse','Residential','Agricultural','Shop','Warehouse','Restaurant','Private','Shared','Single','Double'],
+  electronics: ['MobilePhones','Laptops','Tablets','TVs','Cameras','Gaming','Audio','Accessories','iPhone','Samsung','Huawei','Xiaomi','Oppo','MacBook','GamingLaptop','Business','iPad','SamsungTab','SmartTV','OLED','LED','DSLR','Mirrorless','Security','PlayStation','Xbox','Nintendo','PCGaming','Headphones','Earbuds','Speakers','Chargers','Cases','PowerBanks'],
+  jobs: ['FullTime','PartTime','Freelance','Internship','Remote','IT','Engineering','Medical','Marketing','Finance','Education','Sales','Delivery','Tutoring','CustomerService','Design','Development','Writing','Translation','Technical','Content'],
+  services: ['HomeServices','Cleaning','Repairs','Education','Health','Transport','Design','Plumber','Electrician','Carpenter','Painter','ACRepair','PestControl','HomeCleaning','OfficeCleaning','CarWash','SofaCleaning','Electronics','Appliances','Furniture','Math','Science','Languages','Quran','Music','Fitness','Nutrition','Salon','Spa','FurnitureMoving','AirportTransfer','LogoDesign','Print','WebDesign','Video','Photography'],
+};
+
 // ─── Arabic constants & labels ───────────────────────────────────────────────
 const LABELS = {
   title: '🗺️ إعلانات قريبة',
@@ -256,14 +266,7 @@ export default function NearbyPage() {
     const L = window.L;
     clusterGroup.current.clearLayers();
 
-    // Map chip keys to known subsub values for each top-level category
-    const CAT_SUBSUB_MAP = {
-      cars: ['Cars','Motorcycles','SpareParts','Trucks','Boats','Sedan','SUV','Pickup','Coupe','Electric','Sport','Scooter','OffRoad','Cruiser','Engine','Tires','BodyParts','LightTruck','HeavyTruck','FishingBoat','Yacht'],
-      real_estate: ['Apartments','Villas','Land','Commercial','Offices','Rooms','Studio','1BR','2BR','3BR','4BR','Duplex','Penthouse','Independent','Compound','TwinHouse','TownHouse','Residential','Agricultural','Shop','Warehouse','Restaurant','Private','Shared','Single','Double'],
-      electronics: ['MobilePhones','Laptops','Tablets','TVs','Cameras','Gaming','Audio','Accessories','iPhone','Samsung','Huawei','Xiaomi','Oppo','MacBook','GamingLaptop','Business','iPad','SamsungTab','SmartTV','OLED','LED','DSLR','Mirrorless','Security','PlayStation','Xbox','Nintendo','PCGaming','Headphones','Earbuds','Speakers','Chargers','Cases','PowerBanks'],
-      jobs: ['FullTime','PartTime','Freelance','Internship','Remote','IT','Engineering','Medical','Marketing','Finance','Education','Sales','Delivery','Tutoring','CustomerService','Design','Development','Writing','Translation','Technical','Content'],
-      services: ['HomeServices','Cleaning','Repairs','Education','Health','Transport','Design','Plumber','Electrician','Carpenter','Painter','ACRepair','PestControl','HomeCleaning','OfficeCleaning','CarWash','SofaCleaning','Electronics','Appliances','Furniture','Math','Science','Languages','Quran','Music','Fitness','Nutrition','Salon','Spa','FurnitureMoving','AirportTransfer','LogoDesign','Print','WebDesign','Video','Photography'],
-    };
+    // CAT_SUBSUB_MAP moved to module level to avoid TDZ
     const filtered = categoryFilter
       ? adList.filter(ad => {
           const subsubList = CAT_SUBSUB_MAP[categoryFilter] || [];

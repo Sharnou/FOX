@@ -2,6 +2,24 @@
 export const dynamic = 'force-dynamic';
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 
+// Module-level constants — avoid TDZ after SWC minification
+// TABS and S were previously inside AdminPage() which caused "Cannot access before initialization"
+const ADMIN_TABS = [
+  { id: 'stats',      icon: '📊', ar: 'الإحصائيات' },
+  { id: 'users',      icon: '👥', ar: 'المستخدمون' },
+  { id: 'ads',        icon: '📋', ar: 'الإعلانات' },
+  { id: 'featured',   icon: '⭐', ar: 'المميزة' },
+  { id: 'reports',    icon: '🚨', ar: 'التقارير' },
+  { id: 'reputation', icon: '🏆', ar: 'نقاط السمعة' },
+  { id: 'system',     icon: '⚙️', ar: 'النظام' },
+  { id: 'reviews_tab', icon: '🌟', ar: 'التقييمات' },
+];
+const ADMIN_S = { // style shortcuts
+  th: { padding: '10px 12px', textAlign: 'right', color: '#8b949e', fontWeight: 'normal', fontSize: 12, borderBottom: '1px solid #21262d' },
+  td: { padding: '9px 12px', fontSize: 12, borderBottom: '1px solid #1a1f27', verticalAlign: 'middle' },
+};
+
+
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 // ─── helpers ──────────────────────────────────────────────
@@ -305,22 +323,7 @@ export default function AdminPage() {
     return Math.max(0, Math.ceil((new Date(until) - new Date()) / 86400000));
   };
 
-  // ── TABS ───────────────────────────────────────────────
-  const TABS = [
-    { id: 'stats',      icon: '📊', ar: 'الإحصائيات' },
-    { id: 'users',      icon: '👥', ar: 'المستخدمون' },
-    { id: 'ads',        icon: '📋', ar: 'الإعلانات' },
-    { id: 'featured',   icon: '⭐', ar: 'المميزة' },
-    { id: 'reports',    icon: '🚨', ar: 'التقارير' },
-    { id: 'reputation', icon: '🏆', ar: 'نقاط السمعة' },
-    { id: 'system',     icon: '⚙️', ar: 'النظام' },
-    { id: 'reviews_tab', icon: '🌟', ar: 'التقييمات' },
-  ];
-
-  const S = { // style shortcuts
-    th: { padding: '10px 12px', textAlign: 'right', color: '#8b949e', fontWeight: 'normal', fontSize: 12, borderBottom: '1px solid #21262d' },
-    td: { padding: '9px 12px', fontSize: 12, borderBottom: '1px solid #1a1f27', verticalAlign: 'middle' },
-  };
+  // ── TABS and S moved to module level to avoid TDZ ──
 
   // ══════════════════════════════════════════════════════
   // LOGIN SCREEN
@@ -405,7 +408,7 @@ export default function AdminPage() {
 
       {/* Tab bar */}
       <div style={{ background: '#161b22', borderBottom: '1px solid #21262d', display: 'flex', gap: 0, overflowX: 'auto', padding: '0 8px' }}>
-        {TABS.map(t => (
+        {ADMIN_TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{
               padding: '10px 18px', background: 'transparent', border: 'none',
@@ -468,19 +471,19 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr>
-                    <th style={S.th}>المعرف</th>
-                    <th style={S.th}>الاسم</th>
-                    <th style={S.th}>البريد / الهاتف</th>
-                    <th style={S.th}>الإعلانات (إجمالي / نشط / مميز)</th>
-                    <th style={S.th}>الحالة</th>
-                    <th style={S.th}>تاريخ الانضمام</th>
-                    <th style={S.th}>إجراءات</th>
+                    <th style={ADMIN_S.th}>المعرف</th>
+                    <th style={ADMIN_S.th}>الاسم</th>
+                    <th style={ADMIN_S.th}>البريد / الهاتف</th>
+                    <th style={ADMIN_S.th}>الإعلانات (إجمالي / نشط / مميز)</th>
+                    <th style={ADMIN_S.th}>الحالة</th>
+                    <th style={ADMIN_S.th}>تاريخ الانضمام</th>
+                    <th style={ADMIN_S.th}>إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredUsers.map(u => (
                     <tr key={u._id} style={{ borderBottom: '1px solid #1a1f27' }}>
-                      <td style={S.td}><code style={{ color: '#8b949e', fontSize: 10 }}>{u.xtoxId || u._id?.slice(-6)}</code></td>
+                      <td style={ADMIN_S.td}><code style={{ color: '#8b949e', fontSize: 10 }}>{u.xtoxId || u._id?.slice(-6)}</code></td>
                       <td style={{ ...S.td, color: '#e6edf3', fontWeight: 600 }}>
                         {u.name || '—'}
                         {['admin', 'sub_admin'].includes(u.role) && <span style={{ marginRight: 4 }}><Badge color="#ffd700" bg="#2d2a1a">👑 {u.role}</Badge></span>}
@@ -489,14 +492,14 @@ export default function AdminPage() {
                         <div>{u.email || '—'}</div>
                         {u.whatsappPhone && <div style={{ color: '#00ff41', fontSize: 10 }}>📱 {u.whatsappPhone}</div>}
                       </td>
-                      <td style={S.td}>
+                      <td style={ADMIN_S.td}>
                         <span style={{ color: '#00d4ff' }}>{u.adStats?.total || 0}</span>
                         {' / '}
                         <span style={{ color: '#00ff41' }}>{u.adStats?.active || 0}</span>
                         {' / '}
                         <span style={{ color: '#ffd700' }}>{u.adStats?.featured || 0}</span>
                       </td>
-                      <td style={S.td}>
+                      <td style={ADMIN_S.td}>
                         {u.isBanned
                           ? <Badge color="#ff4444" bg="#3d1a1a">🚫 محظور</Badge>
                           : <Badge color="#00ff41" bg="#1f3a1f">✅ نشط</Badge>}
@@ -504,7 +507,7 @@ export default function AdminPage() {
                       <td style={{ ...S.td, color: '#8b949e', fontSize: 11 }}>
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-EG') : '—'}
                       </td>
-                      <td style={S.td}>
+                      <td style={ADMIN_S.td}>
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                           <Btn small onClick={() => handleDeleteUser(u)} color="#ff4444">🗑️ حذف</Btn>
                           <Btn small onClick={() => handleToggleBan(u)} color={u.isBanned ? '#00ff41' : '#ff4444'}>
@@ -548,15 +551,15 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr>
-                    <th style={S.th}>صورة</th>
-                    <th style={S.th}>العنوان</th>
-                    <th style={S.th}>البائع</th>
-                    <th style={S.th}>التصنيف</th>
-                    <th style={S.th}>الحالة</th>
-                    <th style={S.th}>مميز</th>
-                    <th style={S.th}>فقاعة</th>
-                    <th style={S.th}>تاريخ النشر</th>
-                    <th style={S.th}>إجراءات</th>
+                    <th style={ADMIN_S.th}>صورة</th>
+                    <th style={ADMIN_S.th}>العنوان</th>
+                    <th style={ADMIN_S.th}>البائع</th>
+                    <th style={ADMIN_S.th}>التصنيف</th>
+                    <th style={ADMIN_S.th}>الحالة</th>
+                    <th style={ADMIN_S.th}>مميز</th>
+                    <th style={ADMIN_S.th}>فقاعة</th>
+                    <th style={ADMIN_S.th}>تاريخ النشر</th>
+                    <th style={ADMIN_S.th}>إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -567,7 +570,7 @@ export default function AdminPage() {
                     const isBubbleNow = ad.bubble && (!ad.bubbleUntil || new Date(ad.bubbleUntil) > new Date());
                     return (
                       <tr key={ad._id} style={{ borderBottom: '1px solid #1a1f27' }}>
-                        <td style={S.td}>
+                        <td style={ADMIN_S.td}>
                           {img
                             ? <img src={img} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
                             : <div style={{ width: 48, height: 48, background: '#21262d', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📦</div>}
@@ -585,17 +588,17 @@ export default function AdminPage() {
                           <div>{ad.category || '—'}</div>
                           {ad.subsub && ad.subsub !== 'Other' && <div style={{ fontSize: 10, color: '#30363d' }}>{ad.subsub}</div>}
                         </td>
-                        <td style={S.td}>
+                        <td style={ADMIN_S.td}>
                           {ad.status === 'active'
                             ? <Badge color="#00ff41" bg="#1f3a1f">نشط</Badge>
                             : <Badge color="#8b949e" bg="#21262d">غير نشط</Badge>}
                         </td>
-                        <td style={S.td}>
+                        <td style={ADMIN_S.td}>
                           {isFeaturedNow
                             ? <div><Badge color="#ffd700" bg="#2d2a1a">⭐ مميز</Badge><div style={{ color: '#8b949e', fontSize: 10 }}>ينتهي: {daysRemaining(ad.featuredUntil)}ي</div></div>
                             : <Badge color="#30363d" bg="#0d1117">—</Badge>}
                         </td>
-                        <td style={S.td}>
+                        <td style={ADMIN_S.td}>
                           {isBubbleNow
                             ? <Badge color="#bf5fff" bg="#2d1a2d">🫧 فقاعة</Badge>
                             : <Badge color="#30363d" bg="#0d1117">—</Badge>}
@@ -603,7 +606,7 @@ export default function AdminPage() {
                         <td style={{ ...S.td, color: '#8b949e', fontSize: 11 }}>
                           {ad.createdAt ? new Date(ad.createdAt).toLocaleDateString('ar-EG') : '—'}
                         </td>
-                        <td style={S.td}>
+                        <td style={ADMIN_S.td}>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             <Btn small onClick={() => handleToggleStatus(ad)} color={ad.status === 'active' ? '#ff4444' : '#00ff41'}>
                               {ad.status === 'active' ? '❌ تعطيل' : '✅ تفعيل'}
@@ -750,7 +753,7 @@ export default function AdminPage() {
                   <thead>
                     <tr style={{ background: '#161b22' }}>
                       {['#', 'الاسم', 'البريد', 'XTOX ID', 'النقاط', 'الشهرية', 'الدور', 'الإجراء'].map(h => (
-                        <th key={h} style={S.th}>{h}</th>
+                        <th key={h} style={ADMIN_S.th}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -766,17 +769,17 @@ export default function AdminPage() {
                         const tier = u.reputationPoints >= 1000 ? '💎 Platinum' : u.reputationPoints >= 500 ? '🥇 Gold' : u.reputationPoints >= 200 ? '🥈 Silver' : '🥉 Bronze';
                         return (
                           <tr key={u._id} style={{ borderBottom: '1px solid #21262d' }}>
-                            <td style={S.td}>{idx + 1}</td>
-                            <td style={S.td}><span style={{ color: '#f0f6fc', fontWeight: 600 }}>{u.name || '—'}</span></td>
-                            <td style={S.td}><span style={{ color: '#8b949e' }}>{u.email || '—'}</span></td>
-                            <td style={S.td}><code style={{ color: '#79c0ff', fontSize: 11 }}>{u.xtoxId || '—'}</code></td>
-                            <td style={S.td}>
+                            <td style={ADMIN_S.td}>{idx + 1}</td>
+                            <td style={ADMIN_S.td}><span style={{ color: '#f0f6fc', fontWeight: 600 }}>{u.name || '—'}</span></td>
+                            <td style={ADMIN_S.td}><span style={{ color: '#8b949e' }}>{u.email || '—'}</span></td>
+                            <td style={ADMIN_S.td}><code style={{ color: '#79c0ff', fontSize: 11 }}>{u.xtoxId || '—'}</code></td>
+                            <td style={ADMIN_S.td}>
                               <span style={{ color: '#a78bfa', fontWeight: 700 }}>{u.reputationPoints ?? 0}</span>
                               <span style={{ color: '#475569', marginRight: 4, fontSize: 10 }}>{tier}</span>
                             </td>
-                            <td style={S.td}><span style={{ color: '#fcd34d' }}>{u.monthlyPoints ?? 0}</span></td>
-                            <td style={S.td}><span style={{ color: u.role === 'admin' ? '#00ff41' : '#8b949e' }}>{u.role || 'user'}</span></td>
-                            <td style={S.td}>
+                            <td style={ADMIN_S.td}><span style={{ color: '#fcd34d' }}>{u.monthlyPoints ?? 0}</span></td>
+                            <td style={ADMIN_S.td}><span style={{ color: u.role === 'admin' ? '#00ff41' : '#8b949e' }}>{u.role || 'user'}</span></td>
+                            <td style={ADMIN_S.td}>
                               {!edit ? (
                                 <div style={{ display: 'flex', gap: 4 }}>
                                   <button
@@ -919,28 +922,28 @@ export default function AdminPage() {
                   <thead>
                     <tr>
                       {['المُقيِّم','البائع','عنوان الإعلان','التقييم','التعليق','التاريخ','الحالة','إجراء'].map(h => (
-                        <th key={h} style={S.th}>{h}</th>
+                        <th key={h} style={ADMIN_S.th}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {adminReviews.map(rv => (
                       <tr key={rv._id} style={{ borderBottom: '1px solid #21262d', background: rv.deletedByAdmin ? 'rgba(255,0,0,0.05)' : 'transparent' }}>
-                        <td style={S.td}>{rv.reviewer?.name || '—'}</td>
-                        <td style={S.td}>{rv.seller?.name || '—'}</td>
-                        <td style={S.td}>{rv.ad?.title || rv.adSnapshot?.title || '—'}</td>
-                        <td style={S.td}>
+                        <td style={ADMIN_S.td}>{rv.reviewer?.name || '—'}</td>
+                        <td style={ADMIN_S.td}>{rv.seller?.name || '—'}</td>
+                        <td style={ADMIN_S.td}>{rv.ad?.title || rv.adSnapshot?.title || '—'}</td>
+                        <td style={ADMIN_S.td}>
                           <span style={{ color: '#ffd700' }}>{'★'.repeat(rv.rating)}{'☆'.repeat(5 - rv.rating)}</span>
                           <span style={{ color: '#8b949e', marginRight: 4 }}>{rv.rating}/5</span>
                         </td>
                         <td style={{ ...S.td, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rv.comment}>{rv.comment}</td>
-                        <td style={S.td}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString('ar') : '—'}</td>
-                        <td style={S.td}>
+                        <td style={ADMIN_S.td}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString('ar') : '—'}</td>
+                        <td style={ADMIN_S.td}>
                           <span style={{ color: rv.deletedByAdmin ? '#ff4444' : '#00ff41', fontWeight: 'bold' }}>
                             {rv.deletedByAdmin ? '🗑️ محذوف' : '✅ نشط'}
                           </span>
                         </td>
-                        <td style={S.td}>
+                        <td style={ADMIN_S.td}>
                           {!rv.deletedByAdmin && (
                             <button
                               onClick={async () => {

@@ -1,6 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 
+// Module-level constants to avoid TDZ (Temporal Dead Zone) crash after minification
+const WHATSAPP_NUMBER = '213555000000'; // country code + number, no '+' or spaces
+const WA_MESSAGE = encodeURIComponent('مرحبا، أحتاج مساعدة في XTOX 👋');
+const WA_URL = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + WA_MESSAGE;
+
 /**
  * WhatsAppFloat — Floating WhatsApp support button for XTOX Arab marketplace.
  * Shows a pulsing green WhatsApp icon in the bottom-left corner.
@@ -11,10 +16,7 @@ export default function WhatsAppFloat() {
   const [visible, setVisible] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
 
-  // WhatsApp number for XTOX support (format: country code + number, no '+' or spaces)
-  const WHATSAPP_NUMBER = '213555000000';
-  const MESSAGE = encodeURIComponent('مرحبا، أحتاج مساعدة في XTOX 👋');
-  const WA_URL = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + MESSAGE;
+  // WA_URL, WHATSAPP_NUMBER, MESSAGE moved to module level to avoid TDZ
 
   useEffect(() => {
     // Don't show if user dismissed this session

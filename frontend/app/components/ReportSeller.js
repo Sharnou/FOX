@@ -1,6 +1,10 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
+// Module-level to avoid TDZ after SWC minification
+const MAX_CHARS = 500;
+
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 const REPORT_REASONS = [
@@ -57,7 +61,7 @@ export default function ReportSeller({ sellerId, sellerName, onClose, lang = "ar
   const firstFocusRef = useRef(null);
   const isRTL = lang === "ar";
   const t = i18n[lang] || i18n.ar;
-  const MAX_CHARS = 500;
+  // MAX_CHARS moved to module level to avoid TDZ
 
   // Focus trap + ESC handler
   useEffect(() => {

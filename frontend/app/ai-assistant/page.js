@@ -6,6 +6,15 @@ import { Zap, Send, Mic, Loader2, Bot } from 'lucide-react';
 import { FOX } from '@/lib/XTOXClient';
 import Link from 'next/link';
 
+// Module-level to avoid TDZ after SWC minification
+const QUICK_PROMPTS = [
+  'كيف أنشر إعلاناً؟ / How to post an ad?',
+  'نصائح الأمان / Safety tips',
+  'كيف أحسّن إعلاني؟ / How to improve my ad?',
+  'ما هي الفئات المتاحة؟ / What categories are available?',
+];
+
+
 export default function AIAssistantPage() {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: 'مرحباً! أنا FOX AI، مساعدك الذكي في سوق FOX للإعلانات. 👋\nHello! I\'m FOX AI, your smart assistant. How can I help you today?' }
@@ -56,12 +65,7 @@ export default function AIAssistantPage() {
     recognition.onend = () => setListening(false);
   };
 
-  const QUICK = [
-    'كيف أنشر إعلاناً؟ / How to post an ad?',
-    'نصائح الأمان / Safety tips',
-    'كيف أحسّن إعلاني؟ / How to improve my ad?',
-    'ما هي الفئات المتاحة؟ / What categories are available?',
-  ];
+  // QUICK moved to module level to avoid TDZ
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', direction: 'rtl', fontFamily: 'inherit' }}>
@@ -117,7 +121,7 @@ export default function AIAssistantPage() {
         {messages.length <= 1 && !loading && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
             <p style={{ width: '100%', fontSize: 12, color: '#6b7280', margin: 0 }}>اقتراحات سريعة:</p>
-            {QUICK.map(q => (
+            {QUICK_PROMPTS.map(q => (
               <button key={q} onClick={() => sendMessage(q)} style={{
                 fontSize: 13, background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
                 padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit', color: '#374151',

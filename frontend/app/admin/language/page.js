@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+// Module-level to avoid TDZ after minification
+const CATS = ['Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion', 'General'];
 
 export default function LanguagePage() {
   const [words, setWords] = useState([]);
@@ -17,7 +19,7 @@ export default function LanguagePage() {
   const [loading, setLoading] = useState(false);
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
   const headers = { Authorization: 'Bearer ' + token };
-  const CATS = ['Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion', 'General'];
+  // CATS moved to module level to avoid TDZ
 
   useEffect(() => { fetchAll(); }, [search]);
 

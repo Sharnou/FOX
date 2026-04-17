@@ -39,12 +39,13 @@ function PromotePageInner() {
   const isRTL = lang === 'ar';
   const t = (ar, en) => isRTL ? ar : en;
 
-  // Build PLANS dynamically based on free plan status
+  // Build plans dynamically based on free plan status
   const freePlanPrice = freePlanStatus.canUseFree ? '$0' : '$1';
   const freePlanLabel = freePlanStatus.canUseFree ? '🆓 مجاني' : '⚠ مجاني (مستخدم)';
   const freePlanLabelEn = freePlanStatus.canUseFree ? 'Free' : 'Free (Used)';
 
-  const PLANS = [
+  // Renamed to lowercase to avoid TDZ risk (depends on state freePlanStatus)
+  const plans = [
     {
       id: 'free',
       labelAr: freePlanLabel,
@@ -117,7 +118,7 @@ function PromotePageInner() {
     },
   ];
 
-  const selectedPlan = PLANS.find(p => p.id === selected);
+  const selectedPlan = plans.find(p => p.id === selected);
 
   // Fetch free plan status and featured slots on mount
   useEffect(() => {
@@ -339,7 +340,7 @@ function PromotePageInner() {
                       <th style={{ padding: '10px 8px', textAlign: isRTL ? 'right' : 'left', color: '#F59E0B' }}>
                         {t('المميزة', 'Feature')}
                       </th>
-                      {PLANS.filter(p => p.id !== 'free').map(p => (
+                      {plans.filter(p => p.id !== 'free').map(p => (
                         <th key={p.id} style={{ padding: '10px 6px', textAlign: 'center', color: p.color }}>
                           {isRTL ? p.labelAr : p.labelEn}
                         </th>
@@ -372,7 +373,7 @@ function PromotePageInner() {
                 {t('جارٍ التحميل...', 'Loading...')}
               </div>
             ) : (
-              PLANS.map(plan => (
+              plans.map(plan => (
                 <div
                   key={plan.id}
                   onClick={() => setSelected(plan.id)}
