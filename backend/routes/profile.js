@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import path from 'path';
 import User from '../models/User.js';
@@ -36,6 +37,9 @@ router.get('/:id', async (req, res) => {
 router.post('/:id/review', auth, async (req, res) => {
   try {
     const { rating, comment, adId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid seller ID format' });
+    }
     if (req.params.id === req.user.id) return res.status(400).json({ error: 'Cannot review yourself' });
 
     // ── Input Validation ──────────────────────────────────────────────────
