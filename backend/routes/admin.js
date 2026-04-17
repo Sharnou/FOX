@@ -237,6 +237,17 @@ router.patch('/ads/:id/status', adminAuth, async (req, res) => {
   }
 });
 
+
+router.delete('/ads/all', adminAuth, async (req, res) => {
+  try {
+    const result = await Ad.deleteMany({});
+    const deleted = (result && typeof result.deletedCount === 'number') ? result.deletedCount : 0;
+    res.json({ success: true, deleted, message: `تم حذف ${deleted} إعلاناً` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─────────────────────────────────────────────────────────
 // DELETE /api/admin/ads/:id — permanently delete one ad
 // ─────────────────────────────────────────────────────────
@@ -623,16 +634,6 @@ router.post('/users/:id/role', adminAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
     console.log(`[Admin] ${req.user.email || req.user.id} set role="${role}" for ${user.email}`);
     res.json({ success: true, ok: true, user });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.delete('/ads/all', adminAuth, async (req, res) => {
-  try {
-    const result = await Ad.deleteMany({});
-    const deleted = (result && typeof result.deletedCount === 'number') ? result.deletedCount : 0;
-    res.json({ success: true, deleted, message: `تم حذف ${deleted} إعلاناً` });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

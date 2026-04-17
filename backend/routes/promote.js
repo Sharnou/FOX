@@ -19,6 +19,20 @@ const MAX_NORMAL_FEATURED = 16;
 
 const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000; // 60 days in ms
 
+// GET /api/promote/plans — list all available promotion plans
+router.get('/plans', async (req, res) => {
+  try {
+    res.json({
+      plans: Object.entries(PLANS).map(([key, val]) => ({
+        id: key,
+        ...val,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/promote/free-plan-status
 router.get('/free-plan-status', auth, async (req, res) => {
   try {

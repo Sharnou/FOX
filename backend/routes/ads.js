@@ -160,7 +160,8 @@ router.get("/countries", async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { category, city, page = 0, q, userId, subcategory: querySubcategory, subsub: querySubsub } = req.query;
+    const { category, city, page = 0, q, search, limit, userId, subcategory: querySubcategory, subsub: querySubsub } = req.query;
+    const searchQuery = q || search; // accept both ?q= and ?search=
     // FIX: Do NOT use req.user.country — logged-in users from different countries would see 0 ads
     const countryParam = req.query.country || req.headers['x-country'] || req.user?.country || null;
 
@@ -185,10 +186,10 @@ router.get('/', async (req, res) => {
     if (querySubcategory) filter.subcategory = querySubcategory;
     if (querySubsub) filter.subsub = querySubsub;
     // Full-text search using $or regex (works even without text index)
-    if (q && q.trim()) {
+    if (searchQuery && searchQuery.trim()) {
       filter.$or = [
-        { title: { $regex: q.trim(), $options: 'i' } },
-        { description: { $regex: q.trim(), $options: 'i' } }
+        { title: { $regex: searchQuery.trim(), $options: 'i' } },
+        { description: { $regex: searchQuery.trim(), $options: 'i' } }
       ];
     }
 
@@ -237,8 +238,8 @@ router.get('/', async (req, res) => {
     try {
       regularAds = await getAdModel().find(regularFilter)
         .sort({ isFeatured: -1, featuredUntil: -1, subsub: 1, visibilityScore: -1, createdAt: -1 })
-        .skip(Number(page) * 20)
-        .limit(20)
+        .skip(Number(page) * (Number(limit) || 20))
+        .limit(Number(limit) > 0 ? Math.min(Number(limit), 100) : 20)
         .lean();
     } catch (_queryErr) {
       console.warn('[GET /api/ads] Main query failed (non-fatal):', _queryErr.message);
@@ -371,6 +372,51 @@ router.get('/price-suggest', async (req, res) => {
   }
 });
 
+
+
+// ── GET /api/ads/categories — list all top-level categories with ad counts ──
+// Must be placed BEFORE router.get('/:id', ...) to avoid ID capture.
+router.get('/categories', async (req, res) => {
+  try {
+    const { country } = req.query;
+    const TOP_CATEGORIES = [
+      'Electronics', 'Vehicles', 'Real Estate', 'Jobs', 'Services',
+      'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion', 'General'
+    ];
+
+    const matchFilter = {
+      isDeleted: { $ne: true },
+      isExpired: { $ne: true },
+    };
+    if (country) matchFilter.country = country;
+
+    const results = await getAdModel().aggregate([
+      { $match: matchFilter },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+
+    // Merge DB counts into the ordered category list
+    const countMap = Object.fromEntries(results.map(r => [r._id, r.count]));
+    const categories = TOP_CATEGORIES.map(name => ({
+      name,
+      count: countMap[name] || 0,
+    }));
+
+    // Also include any categories from DB not in the TOP_CATEGORIES list
+    results.forEach(r => {
+      if (r._id && !TOP_CATEGORIES.includes(r._id)) {
+        categories.push({ name: r._id, count: r.count });
+      }
+    });
+
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ success: true, categories });
+  } catch (err) {
+    console.error('[categories] error:', err.message);
+    res.status(500).json({ success: false, categories: [], error: err.message });
+  }
+});
 
 // ── GET /api/ads/subsub-options?category=X&subcategory=Y ──────────────────────
 // Returns dynamic sub-sub-category options, complementing the static frontend list.
@@ -1298,24 +1344,47 @@ router.put('/:id', auth, async (req, res) => {
     delete req.body.userId;
     delete req.body.seller;
     delete req.body.createdAt;
-    // ── FIELD-LEVEL SANITIZATION (mirrors POST validation) ──
-    const { errors, sanitized } = sanitizeAdFields(req.body);
-    if (errors.length) return res.status(400).json({ error: errors.join('; ') });
-    const { title, description, category, price, city, currency, media, video, featuredStyle } = sanitized;
-    const updateWhatsapp = req.body.whatsapp ? String(req.body.whatsapp).replace(/[^+\d\s\-()]/g, '').slice(0, 20) : undefined;
-    const updateLevel4 = req.body.level4 ? String(req.body.level4).trim().slice(0, 100) : undefined;
-    const updateTags = req.body.tags ? (Array.isArray(req.body.tags) ? req.body.tags.slice(0,20).map(t=>String(t).trim()) : String(req.body.tags).split(',').map(t=>t.trim()).slice(0,20)) : undefined;
 
-    // Ownership check — only the original owner may edit
+    // FIX: For partial PUT updates, fetch existing ad first so we can fill in missing required fields
+    // (sanitizeAdFields requires title; a partial update like {price:2} should not wipe the title)
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'معرف الإعلان غير صالح' });
     }
+    // Load existing ad for ownership check + field defaults
     const ad = await getAdModel().findOne({
       _id: req.params.id,
       $or: [{ userId: req.user.id }, { seller: req.user.id }],
       isDeleted: { $ne: true }
     });
     if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود أو لا يخصك' });
+
+    // Merge: use existing ad values as defaults for any omitted field
+    const mergedBody = {
+      title:        req.body.title        !== undefined ? req.body.title        : ad.title,
+      description:  req.body.description  !== undefined ? req.body.description  : ad.description,
+      category:     req.body.category     !== undefined ? req.body.category     : ad.category,
+      price:        req.body.price        !== undefined ? req.body.price        : ad.price,
+      city:         req.body.city         !== undefined ? req.body.city         : ad.city,
+      currency:     req.body.currency     !== undefined ? req.body.currency     : ad.currency,
+      media:        req.body.media        !== undefined ? req.body.media        : ad.media,
+      video:        req.body.video        !== undefined ? req.body.video        : ad.video,
+      featuredStyle:req.body.featuredStyle!== undefined ? req.body.featuredStyle: ad.featuredStyle,
+      condition:    req.body.condition    !== undefined ? req.body.condition    : ad.condition,
+      subcategory:  req.body.subcategory  !== undefined ? req.body.subcategory  : ad.subcategory,
+      phone:        req.body.phone        !== undefined ? req.body.phone        : ad.phone,
+      whatsapp:     req.body.whatsapp     !== undefined ? req.body.whatsapp     : ad.whatsapp,
+      tags:         req.body.tags         !== undefined ? req.body.tags         : ad.tags,
+      level4:       req.body.level4       !== undefined ? req.body.level4       : ad.level4,
+    };
+
+    // ── FIELD-LEVEL SANITIZATION (mirrors POST validation) ──
+    const { errors, sanitized } = sanitizeAdFields(mergedBody);
+    if (errors.length) return res.status(400).json({ error: errors.join('; ') });
+    const { title, description, category, price, city, currency, media, video, featuredStyle } = sanitized;
+    const updateWhatsapp = sanitized.whatsapp || undefined;
+    const updateLevel4 = sanitized.level4 || undefined;
+    const updateTags = sanitized.tags || undefined;
+
 
     // TEXT MODERATION on updated content
     const textCheck = moderateText(title + ' ' + (description || ''));

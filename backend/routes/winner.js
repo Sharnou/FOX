@@ -144,8 +144,6 @@ router.post('/congratulate', auth, async (req, res) => {
   }
 });
 
-export default router;
-
 // ── GET /api/winner/leaderboard — top 10 by monthlyPoints ──────────────────
 router.get('/leaderboard', async (req, res) => {
   try {
@@ -234,3 +232,5 @@ router.get('/history', async (req, res) => {
     res.status(500).json({ error: e.message, history: [] });
   }
 });
+
+export default router;

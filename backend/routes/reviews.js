@@ -96,6 +96,38 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/reviews/ad/:adId — All reviews for a specific ad (public)
+// Returns: { reviews, avgRating, totalCount }
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/ad/:adId', async (req, res) => {
+  try {
+    const { adId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(adId)) {
+      return res.status(400).json({ error: 'معرّف الإعلان غير صالح' });
+    }
+
+    const reviews = await Review.find({
+      ad: adId,
+      deletedByAdmin: false,
+    })
+      .populate('reviewer', 'name avatar reputationPoints')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const totalCount = reviews.length;
+    const avgRating = totalCount > 0
+      ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / totalCount) * 10) / 10
+      : 0;
+
+    res.json({ reviews, avgRating, totalCount });
+  } catch (err) {
+    console.error('[Reviews GET ad] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/reviews/seller/:sellerId — All reviews for a seller (public)
 // Returns: { reviews, avgRating, totalCount }
