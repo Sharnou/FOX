@@ -1,8 +1,8 @@
+"use client";
 // PriceDropBadge.js — شارة انخفاض السعر
 // Displays a badge when an ad's price has dropped from the original price.
 // Supports RTL + Arabic. [run-120]
 
-"use client";
 
 import React from "react";
 
