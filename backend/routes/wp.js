@@ -123,6 +123,10 @@ router.get('/status', async (req, res) => {
 // POST /api/wp/sync-ad/:id — manually sync a specific ad to WordPress (for testing)
 router.post('/sync-ad/:id', async (req, res) => {
   try {
+    const { default: mongoose } = await import('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid ad ID format' });
+    }
     const { default: Ad } = await import('../models/Ad.js');
     const { createWPPost } = await import('../utils/wordpress.js');
 
