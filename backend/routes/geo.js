@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Ad from '../models/Ad.js';
 
 const router = express.Router();
@@ -155,7 +156,7 @@ router.get('/nearby', async (req, res) => {
     const ads = await Ad.find(filter).limit(100);
 
     const R = 6371;
-    const nearby = ads.map(ad => {
+    const nearby = ads.filter(ad => ad.location && ad.location.coordinates).map(ad => {
       const [adLng, adLat] = ad.location.coordinates;
       const dLat = (adLat - parsedLat) * Math.PI / 180;
       const dLng = (adLng - parsedLng) * Math.PI / 180;
@@ -174,6 +175,15 @@ router.get('/nearby', async (req, res) => {
 router.post('/tag-location', async (req, res) => {
   try {
     const { adId, lat, lng, placeName } = req.body;
+    if (!adId) return res.status(400).json({ error: 'adId required' });
+    if (!mongoose.Types.ObjectId.isValid(adId)) {
+      return res.status(400).json({ error: 'Invalid adId format' });
+    }
+    const parsedLat2 = parseFloat(lat);
+    const parsedLng2 = parseFloat(lng);
+    if (isNaN(parsedLat2) || isNaN(parsedLng2)) {
+      return res.status(400).json({ error: 'lat and lng must be valid numbers' });
+    }
     await Ad.findByIdAndUpdate(adId, {
       location: {
         type: 'Point',
