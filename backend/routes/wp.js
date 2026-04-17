@@ -1,5 +1,6 @@
 import express from 'express';
 // Using global fetch (Node 18+ built-in) — avoids node-fetch ESM import issues
+import { getLastSitemapPing, triggerSitemapPing } from '../utils/wordpress.js';
 
 const router = express.Router();
 
@@ -146,68 +147,65 @@ router.post('/sync-ad/:id', async (req, res) => {
   }
 });
 
-// 2K: POST /api/wp/sync-all — sync all active ads that don't have wpPostId yet
-// Batches of 5, rate limit 1 per second, returns progress
+// Fix 4: POST /api/wp/sync-all — sync last 100 published ads (upsert), 500ms delay
+// Returns { synced: N, failed: N, errors: [...] } — runs synchronously with timeout awareness
 router.post('/sync-all', async (req, res) => {
   try {
     const { default: Ad } = await import('../models/Ad.js');
     const { createWPPost } = await import('../utils/wordpress.js');
 
     if (!process.env.WP_ACCESS_TOKEN) {
-      return res.status(400).json({ error: 'WP_ACCESS_TOKEN not set' });
+      return res.status(400).json({ error: 'WP_ACCESS_TOKEN not set. Visit /api/wp/auth to connect.' });
     }
 
+    // Fetch last 100 published (non-deleted, non-expired) ads
     const ads = await Ad.find({
       isDeleted: { $ne: true },
       isExpired: { $ne: true },
-      $or: [{ wpPostId: null }, { wpPostId: { $exists: false } }],
-    }).limit(200);
+    })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
 
     const total = ads.length;
-    res.json({
-      message: `Syncing ${total} ads in background (batches of 5, 1/sec rate limit)...`,
-      total,
-    });
+    console.log(`[WP sync-all] Starting sync of ${total} ads (upsert mode, 500ms delay)`);
 
-    // Process in background — batches of 5
-    (async () => {
-      let synced = 0, failed = 0;
-      const BATCH_SIZE = 5;
+    let synced = 0;
+    let failed = 0;
+    const errors = [];
 
-      for (let i = 0; i < ads.length; i += BATCH_SIZE) {
-        const batch = ads.slice(i, i + BATCH_SIZE);
-        console.log(`[WP sync-all] Processing batch ${Math.floor(i / BATCH_SIZE) + 1} (ads ${i + 1}-${Math.min(i + BATCH_SIZE, total)} of ${total})`);
-
-        for (const ad of batch) {
-          try {
-            const result = await createWPPost(ad.toObject());
-            if (result) {
-              await Ad.findByIdAndUpdate(ad._id, {
-                wpPostId: result.wpPostId,
-                wpPostUrl: result.wpPostUrl,
-              });
-              synced++;
-              console.log(`[WP sync-all] ✅ [${synced}/${total}] "${ad.title}" → ${result.wpPostUrl}`);
-            } else {
-              failed++;
-              console.warn(`[WP sync-all] ⚠️ null result for ad ${ad._id} "${ad.title}"`);
-            }
-            // Rate limit: 1 per second between posts to avoid WP API throttling
-            await new Promise(r => setTimeout(r, 1000));
-          } catch (e) {
-            failed++;
-            console.error(`[WP sync-all] ❌ Error syncing ad ${ad._id}:`, e.message);
-          }
+    for (let i = 0; i < ads.length; i++) {
+      const ad = ads[i];
+      try {
+        const result = await createWPPost(ad);
+        if (result) {
+          await Ad.findByIdAndUpdate(ad._id, {
+            wpPostId: result.wpPostId,
+            wpPostUrl: result.wpPostUrl,
+          });
+          synced++;
+          console.log(`[WP sync-all] ✅ [${i + 1}/${total}] "${(ad.title || '').slice(0, 40)}" → ${result.wpPostUrl}`);
+        } else {
+          failed++;
+          const errMsg = `Ad ${ad._id}: createWPPost returned null`;
+          errors.push(errMsg);
+          console.warn(`[WP sync-all] ⚠️ ${errMsg}`);
         }
-
-        // Brief pause between batches
-        if (i + BATCH_SIZE < ads.length) {
-          await new Promise(r => setTimeout(r, 2000));
-        }
+      } catch (e) {
+        failed++;
+        const errMsg = `Ad ${ad._id} "${(ad.title || '').slice(0, 30)}": ${e.message}`;
+        errors.push(errMsg);
+        console.error(`[WP sync-all] ❌ ${errMsg}`);
       }
 
-      console.log(`[WP sync-all] ✅ Complete: synced=${synced}, failed=${failed}, total=${total}`);
-    })();
+      // 500ms delay between posts to avoid WP API rate limits
+      if (i < ads.length - 1) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    console.log(`[WP sync-all] ✅ Complete: synced=${synced}, failed=${failed}, total=${total}`);
+    return res.json({ synced, failed, total, errors: errors.slice(0, 20) });
   } catch (e) {
     console.error('[WP sync-all] Fatal error:', e.message);
     res.status(500).json({ error: e.message });
@@ -250,6 +248,35 @@ router.post('/get-token', async (req, res) => {
     console.error('[WP get-token] Error:', e.message);
     res.status(500).json({ error: e.message });
   }
+});
+
+
+// Fix 6: GET /api/wp/sitemap — returns sitemap URLs and last ping status
+router.get('/sitemap', (req, res) => {
+  const lastPinged = getLastSitemapPing();
+  res.json({
+    sitemaps: [
+      'https://xt0x.wordpress.com/sitemap.xml',
+      'https://xt0x.wordpress.com/news-sitemap.xml',
+    ],
+    lastPinged: lastPinged || null,
+    status: 'active',
+    note: 'Sitemaps are pinged to Google and Bing after each WP post create/update',
+  });
+});
+
+// POST /api/wp/sitemap/ping — manually trigger sitemap ping
+router.post('/sitemap/ping', (req, res) => {
+  triggerSitemapPing(null);
+  res.json({
+    ok: true,
+    message: 'Sitemap pinged to Google and Bing',
+    sitemaps: [
+      'https://xt0x.wordpress.com/sitemap.xml',
+      'https://xt0x.wordpress.com/news-sitemap.xml',
+    ],
+    pingedAt: new Date().toISOString(),
+  });
 });
 
 // ─── 2J: Comprehensive WordPress site setup ────────────────────────────────
