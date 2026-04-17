@@ -251,7 +251,7 @@ export function buildTitle(ad) {
 
 // ─── 2B: Rich Meta Description (excerpt) ────────────────────────────────────
 function buildExcerpt(ad) {
-  const desc = (ad.description || ad.title || '').slice(0, 120);
+  const desc = (ad.description || ad.title || '').slice(0, 150);
   const price = ad.price ? `${Number(ad.price).toLocaleString()} ${ad.currency || 'جنيه'}` : '';
   const city = ad.city || ad.location || '';
   let excerpt = desc;
@@ -278,14 +278,34 @@ async function pingIndexNow(postUrl) {
 }
 
 // ─── 2G: Google sitemap ping ─────────────────────────────────────────────────
-function pingGoogle(postUrl) {
+function pingSitemaps(postUrl) {
   try {
-    // Google sitemap notification
-    fetch(`https://www.google.com/ping?sitemap=${encodeURIComponent('https://xt0x.wordpress.com/sitemap.xml')}`, { method: 'GET' }).catch(() => {});
-    console.log('[Google] Pinged sitemap for:', postUrl);
+    const SITEMAP_URL = 'https://xt0x.wordpress.com/sitemap.xml';
+    // Google sitemap notification — fire and forget with 5s timeout
+    fetch(
+      `https://www.google.com/ping?sitemap=${encodeURIComponent(SITEMAP_URL)}`,
+      { signal: AbortSignal.timeout(5000) }
+    ).catch(() => {});
+    // Bing sitemap notification — fire and forget with 5s timeout
+    fetch(
+      `https://www.bing.com/ping?sitemap=${encodeURIComponent(SITEMAP_URL)}`,
+      { signal: AbortSignal.timeout(5000) }
+    ).catch(() => {});
+    console.log('[Sitemap] Pinged Google + Bing for:', postUrl || 'sitemap update');
   } catch (e) {
-    console.log('[Google] Ping failed (non-critical):', e.message);
+    console.log('[Sitemap] Ping failed (non-critical):', e.message);
   }
+}
+// Keep backward compat alias
+const pingGoogle = pingSitemaps;
+
+// Track last ping time for the sitemap endpoint
+let _lastSitemapPing = null;
+
+export function getLastSitemapPing() { return _lastSitemapPing; }
+export function triggerSitemapPing(postUrl) {
+  _lastSitemapPing = new Date().toISOString();
+  pingSitemaps(postUrl);
 }
 
 function buildPWAWidget(adId) {
@@ -714,7 +734,7 @@ function buildOGMetadata(ad, title, excerpt) {
   };
 }
 
-// ─── Create WordPress.com post ─────────────────────────────────────────────
+// ─── Create WordPress.com post (with upsert: update if slug exists) ──────────
 export async function createWPPost(ad) {
   console.log('[WordPress] createWPPost called, token configured:', !!getToken());
   if (!isConfigured()) {
@@ -723,35 +743,71 @@ export async function createWPPost(ad) {
   }
 
   try {
+    const adId = (ad._id || ad.id || '').toString();
+    const slug = `xtox-ad-${adId}`;
     const tags = generateKeywords(ad).slice(0, 15).join(',');
     const title = buildTitle(ad);
     const excerpt = buildExcerpt(ad);
     const content = buildContent(ad);
     const metadata = buildOGMetadata(ad, title, excerpt);
 
-    console.log('[WordPress] Posting title:', title);
-    console.log('[WordPress] API URL:', `${WP_API}/posts/new`);
-    console.log('[WordPress] Tags:', tags.slice(0, 80));
+    const postBody = {
+      title,
+      content,
+      status: 'publish',
+      slug,
+      language: 'ar',
+      tags,
+      excerpt,
+      format: 'standard',
+      metadata,
+    };
 
-    const res = await fetch(`${WP_API}/posts/new`, {
-      method: 'POST',
+    // ── Fix 2: Upsert logic — check if slug already exists ─────────────────
+    let existingPostId = ad.wpPostId || null;
+    if (!existingPostId && adId) {
+      try {
+        const slugCheckRes = await fetch(`${WP_API}/posts/slug:${slug}`, {
+          headers: authHeaders(),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (slugCheckRes.ok) {
+          const existing = await slugCheckRes.json();
+          if (existing && existing.ID) {
+            existingPostId = String(existing.ID);
+            console.log('[WordPress] Found existing post by slug, will UPDATE:', existingPostId);
+          }
+        }
+      } catch (slugErr) {
+        console.log('[WordPress] Slug check failed (non-fatal, will create):', slugErr.message);
+      }
+    }
+
+    let res, endpoint, method;
+    if (existingPostId) {
+      // UPDATE existing post (PUT via WordPress.com POST to /posts/:id)
+      endpoint = `${WP_API}/posts/${existingPostId}`;
+      method = 'POST'; // WordPress.com REST uses POST for updates too
+      console.log('[WordPress] UPDATE existing post:', existingPostId, '| title:', title.slice(0, 60));
+    } else {
+      // CREATE new post
+      endpoint = `${WP_API}/posts/new`;
+      method = 'POST';
+      console.log('[WordPress] CREATE new post | title:', title.slice(0, 60));
+    }
+
+    res = await fetch(endpoint, {
+      method,
       headers: authHeaders(),
-      body: JSON.stringify({
-        title,
-        content,
-        status: 'publish',
-        tags,
-        excerpt,
-        format: 'standard',
-        metadata,
-      }),
+      body: JSON.stringify(postBody),
+      signal: AbortSignal.timeout(15000),
     });
 
     const responseText = await res.text();
     console.log('[WordPress] Response status:', res.status);
 
     if (!res.ok) {
-      console.error('[WordPress.com] Create failed:', res.status, responseText.slice(0, 500));
+      console.error('[WordPress.com] Create/Update failed:', res.status, responseText.slice(0, 500));
       return null;
     }
 
@@ -763,18 +819,19 @@ export async function createWPPost(ad) {
       return null;
     }
 
-    console.log('[WordPress.com] ✅ Post created:', post.URL, 'ID:', post.ID);
+    const action = existingPostId ? 'Updated' : 'Created';
+    console.log(`[WordPress.com] ✅ Post ${action}:`, post.URL, 'ID:', post.ID);
 
-    // 2F: Ping IndexNow (Bing + Yandex) for instant indexing — non-blocking
+    // Ping IndexNow (Bing + Yandex) for instant indexing — non-blocking
     if (post.URL) {
       pingIndexNow(post.URL).catch(() => {});
-      // 2G: Ping Google sitemap
-      pingGoogle(post.URL);
+      // Ping Google + Bing sitemap — non-blocking with 5s timeout
+      triggerSitemapPing(post.URL);
     }
 
     return { wpPostId: String(post.ID), wpPostUrl: post.URL };
   } catch (e) {
-    console.error('[WordPress.com] Create error:', e.message);
+    console.error('[WordPress.com] Create/Upsert error:', e.message);
     console.error('[WordPress.com] Stack:', e.stack);
     return null;
   }
@@ -803,6 +860,8 @@ export async function deleteWPPost(wpPostId) {
 export async function updateWPPost(wpPostId, ad) {
   if (!isConfigured() || !wpPostId) return;
   try {
+    const adId = (ad._id || ad.id || '').toString();
+    const slug = `xtox-ad-${adId}`;
     const title = buildTitle(ad);
     const excerpt = buildExcerpt(ad);
     const metadata = buildOGMetadata(ad, title, excerpt);
@@ -813,12 +872,23 @@ export async function updateWPPost(wpPostId, ad) {
         title,
         content: buildContent(ad),
         excerpt,
+        slug,
+        language: 'ar',
         metadata,
         tags: generateKeywords(ad).slice(0, 15).join(','),
+        status: 'publish',
       }),
+      signal: AbortSignal.timeout(15000),
     });
-    if (res.ok) console.log('[WordPress.com] ✅ Post updated:', wpPostId);
-    else console.error('[WordPress.com] Update failed:', res.status);
+    if (res.ok) {
+      console.log('[WordPress.com] ✅ Post updated:', wpPostId);
+      // Ping sitemaps after successful update
+      const updated = await res.json().catch(() => ({}));
+      if (updated.URL) triggerSitemapPing(updated.URL);
+    } else {
+      const errText = await res.text().catch(() => '');
+      console.error('[WordPress.com] Update failed:', res.status, errText.slice(0, 200));
+    }
   } catch (e) {
     console.error('[WordPress.com] Update error:', e.message);
   }
