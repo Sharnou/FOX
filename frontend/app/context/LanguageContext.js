@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import translations, { CATEGORY_KEY_MAP, CITY_KEY_MAP, CONDITION_KEY_MAP } from '../translations/index';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-const GEO_CACHE_VERSION = '3';  // bumped from '2' — forces nuclear clear for stale FR detection
+const GEO_CACHE_VERSION = '4';  // bumped from '2' — forces nuclear clear for stale FR detection
 const TRANS_CACHE_VERSION = '1'; // bump to force re-fetch of dynamic translations
 
 // Languages served from the static bundle (no API fetch needed)
@@ -99,12 +99,12 @@ export function LanguageProvider({ children }) {
       // This fixes Egyptian users who got version '2' cached WITH wrong 'fr' data
       // from the Railway-IP detection bug (before the geo fix was live).
       if (cacheVersion !== GEO_CACHE_VERSION) {
+        // Only clear geo detection cache — never the user's explicit language choice.
+        // Bumping GEO_CACHE_VERSION forces fresh geo detection but PRESERVES user language pref.
         [
           'xtox_detected_country', 'xtox_show_toggle', 'xtox_native_lang',
           'xtox_native_name', 'xtox_native_rtl', 'xtox_geo_version',
-          // Also clear stale language preference — re-derive from fresh detection
-          'xtox_language',
-          // Clear any stale French translations wrongly cached for Egyptian users
+          // 'xtox_language' intentionally excluded — user choice is never auto-reset
           'xtox_trans_fr', 'xtox_trans_v_fr',
         ].forEach(k => localStorage.removeItem(k));
       }
@@ -156,9 +156,14 @@ export function LanguageProvider({ children }) {
 
       let currentLang;
       if (!toggle) {
-        currentLang = 'en';
+        currentLang = 'en'; // English-native country → always English
+      } else if (!savedLang) {
+        currentLang = native; // No preference saved → use detected native lang
+      } else if (savedLang === 'en' || savedLang === native) {
+        currentLang = savedLang; // Valid user preference → keep it
       } else {
-        currentLang = (savedLang === 'en' || savedLang === native) ? savedLang : native;
+        currentLang = native; // Stale/invalid preference → reset to native
+        localStorage.removeItem('xtox_language');
       }
 
       localStorage.setItem('xtox_language', currentLang);
