@@ -57,6 +57,12 @@ export default function ProfilePage() {
   // ── Winner state ──────────────────────────────────────────────────────
   const [isCurrentWinner, setIsCurrentWinner] = useState(false);
 
+  // ── Points History state ───────────────────────────────────────────────
+  const [pointsHistoryOpen, setPointsHistoryOpen] = useState(false);
+  const [pointsHistoryLoaded, setPointsHistoryLoaded] = useState(false);
+  const [pointsHistoryLoading, setPointsHistoryLoading] = useState(false);
+  const [pointsHistory, setPointsHistory] = useState([]);
+
 
   const getToken = () =>
     localStorage.getItem('token') ||
