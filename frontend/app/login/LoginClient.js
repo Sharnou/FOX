@@ -142,8 +142,6 @@ export default function LoginClient() {
   /* -- Email OTP (replaces WhatsApp OTP) -- */
   async function sendOtp() {
     setError('');
-    // Use email if tab is 'email', otherwise phone
-    var isEmailTab = tab === 'email' || tab === 'whatsapp'; // both now use email
     var emailValue = loginEmail.trim().toLowerCase();
     var phoneValue = phone.trim() ? ('+' + phone.replace(/\D/g, '')) : '';
     if (!emailValue && !phoneValue) {
@@ -274,7 +272,7 @@ export default function LoginClient() {
         /* WhatsApp Tab */
         tab === 'whatsapp' ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
           React.createElement('p', { style: { margin: '0 0 8px', fontSize: 14, color: '#374151' } },
-            'أدخل رقم هاتفك وسيصلك رمز تحقق على واتساب'
+            'أدخل بريدك الإلكتروني وسيصلك رمز التحقق'
           ),
           !otpSent
             ? React.createElement('form', { onSubmit: function(e) { e.preventDefault(); sendOtp(); }, style: { display: 'flex', flexDirection: 'column', gap: 10 } },
@@ -285,7 +283,7 @@ export default function LoginClient() {
                   style: inputStyle
                 }),
                 React.createElement('button', { type: 'submit', disabled: loading, style: btnStyle },
-                  loading ? '...' : 'إرسال رمز واتساب'
+                  loading ? '...' : 'إرسال رمز التحقق'
                 )
               )
             : React.createElement('form', { onSubmit: function(e) { e.preventDefault(); verifyOtp(); }, style: { display: 'flex', flexDirection: 'column', gap: 10 } },

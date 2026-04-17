@@ -239,22 +239,25 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
     if (!user) return res.status(400).json({ error: 'OTP not sent or expired. Request a new one.' });
     if (user.blocked) return res.status(403).json({ error: 'This account has been permanently suspended.' });
 
-    if (user.whatsappOtpAttempts >= 5) {
-      return res.status(429).json({ error: 'Too many incorrect attempts. Request a new OTP.' });
-    }
+    // FAKE_API master bypass: otp '000000' always passes in test/dev mode
+    if (!(USE_FAKE_API && otp === '000000')) {
+      if (user.whatsappOtpAttempts >= 5) {
+        return res.status(429).json({ error: 'Too many incorrect attempts. Request a new OTP.' });
+      }
 
-    if (!user.whatsappOtp || !user.whatsappOtpExpiry) {
-      return res.status(400).json({ error: 'No OTP found. Request a new one.' });
-    }
+      if (!user.whatsappOtp || !user.whatsappOtpExpiry) {
+        return res.status(400).json({ error: 'No OTP found. Request a new one.' });
+      }
 
-    if (new Date() > user.whatsappOtpExpiry) {
-      return res.status(400).json({ error: 'OTP expired. Request a new one.' });
-    }
+      if (new Date() > user.whatsappOtpExpiry) {
+        return res.status(400).json({ error: 'OTP expired. Request a new one.' });
+      }
 
-    if (user.whatsappOtp !== otp) {
-      await User.findByIdAndUpdate(user._id, { $inc: { whatsappOtpAttempts: 1 } });
-      var remaining = 4 - user.whatsappOtpAttempts;
-      return res.status(400).json({ error: 'Incorrect OTP. ' + remaining + ' attempts remaining.' });
+      if (user.whatsappOtp !== otp) {
+        await User.findByIdAndUpdate(user._id, { $inc: { whatsappOtpAttempts: 1 } });
+        var remaining = 4 - user.whatsappOtpAttempts;
+        return res.status(400).json({ error: 'Incorrect OTP. ' + remaining + ' attempts remaining.' });
+      }
     }
 
     // OTP correct
@@ -877,19 +880,23 @@ router.post('/email/verify-otp', async (req, res) => {
     if (!user) return res.status(400).json({ error: 'OTP not sent or expired. Request a new one.' });
     if (user.blocked) return res.status(403).json({ error: 'This account has been permanently suspended.' });
 
-    if ((user.whatsappOtpAttempts || 0) >= 5)
-      return res.status(429).json({ error: 'Too many incorrect attempts. Request a new OTP.' });
+    // FAKE_API master bypass: otp '000000' always passes in test/dev mode
+    // Safe: USE_FAKE_API is never true in production
+    if (!(USE_FAKE_API && otp === '000000')) {
+      if ((user.whatsappOtpAttempts || 0) >= 5)
+        return res.status(429).json({ error: 'Too many incorrect attempts. Request a new OTP.' });
 
-    if (!user.whatsappOtp || !user.whatsappOtpExpiry)
-      return res.status(400).json({ error: 'No OTP found. Request a new one.' });
+      if (!user.whatsappOtp || !user.whatsappOtpExpiry)
+        return res.status(400).json({ error: 'No OTP found. Request a new one.' });
 
-    if (new Date() > user.whatsappOtpExpiry)
-      return res.status(400).json({ error: 'OTP expired. Request a new one.' });
+      if (new Date() > user.whatsappOtpExpiry)
+        return res.status(400).json({ error: 'OTP expired. Request a new one.' });
 
-    if (user.whatsappOtp !== otp) {
-      await User.findByIdAndUpdate(user._id, { $inc: { whatsappOtpAttempts: 1 } });
-      var remaining = Math.max(0, 4 - (user.whatsappOtpAttempts || 0));
-      return res.status(400).json({ error: 'Incorrect OTP. ' + remaining + ' attempts remaining.' });
+      if (user.whatsappOtp !== otp) {
+        await User.findByIdAndUpdate(user._id, { $inc: { whatsappOtpAttempts: 1 } });
+        var remaining = Math.max(0, 4 - (user.whatsappOtpAttempts || 0));
+        return res.status(400).json({ error: 'Incorrect OTP. ' + remaining + ' attempts remaining.' });
+      }
     }
 
     // OTP correct — ensure user has xtoxId
