@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { detectLang } from '../../lib/lang';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -63,6 +64,7 @@ function SkeletonCard() {
 
 /* ── Main page ─────────────────────────────────────────────────────────── */
 export default function WishlistPage() {
+  const { language } = useLanguage();
   const [lang, setLang]       = useState('ar');
   const [token, setToken]     = useState('');
   const [ads, setAds]         = useState([]);

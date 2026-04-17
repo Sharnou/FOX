@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -92,6 +93,7 @@ function RedirectContent() {
 }
 
 export default function RedirectPage() {
+  const { t: tr, language, isRTL } = useLanguage();
   return (
     <Suspense fallback={
       <div dir="rtl" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0f0f1a', color: '#e2e8f0' }}>

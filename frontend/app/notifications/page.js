@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 import { detectLang } from '../../lib/lang';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -11,21 +12,21 @@ function arabicRelTime(isoString) {
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
-  if (mins  < 1)  return 'الآن';
-  if (mins  < 60) return 'منذ ' + mins + ' دقيقة';
-  if (hours < 24) return 'منذ ' + hours + ' ساعة';
-  if (days  < 7)  return 'منذ ' + days + ' يوم';
+  if (mins  < 1)  return 'time_now';
+  if (mins < 60) return 'time_ago' + ' ' + mins + ' ' + 'time_minutes';
+  if (hours < 24) return 'time_ago' + ' ' + hours + ' ' + 'time_hours';
+  if (days < 7) return 'time_ago' + ' ' + days + ' ' + 'time_days';
   return new Date(isoString).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
 }
 
 /* ─── Notification type config ─────────────────────────────────── */
 const TYPE_CONFIG = {
-  chat:      { icon: '💬', label: 'رسالة',    color: '#3b82f6' },
-  ad:        { icon: '📋', label: 'إعلان',    color: '#f59e0b' },
-  system:    { icon: '🔔', label: 'نظام',     color: '#6366f1' },
-  review:    { icon: '⭐', label: 'تقييم',    color: '#eab308' },
-  featured:  { icon: '🌟', label: 'مميز',     color: '#f97316' },
-  broadcast: { icon: '📢', label: 'إعلان عام', color: '#10b981' },
+  chat:      { icon: '💬', label: 'notif_chat',    color: '#3b82f6' },
+  ad:        { icon: '📋', label: 'notif_featured',    color: '#f59e0b' },
+  system:    { icon: '🔔', label: 'notif_system',     color: '#6366f1' },
+  review:    { icon: '⭐', label: 'notif_view',    color: '#eab308' },
+  featured:  { icon: '🌟', label: 'notif_featured',     color: '#f97316' },
+  broadcast: { icon: '📢', label: 'notif_broadcast', color: '#10b981' },
 };
 
 /* ─── Skeleton loader ──────────────────────────────────────────── */
@@ -55,6 +56,7 @@ function NotifSkeleton() {
 
 /* ─── Main Component ───────────────────────────────────────────── */
 export default function NotificationsPage() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading]             = useState(true);
   const [filter, setFilter]               = useState('all');   // 'all' | 'unread'

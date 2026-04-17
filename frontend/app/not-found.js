@@ -1,4 +1,8 @@
+'use client';
+import { useLanguage } from './context/LanguageContext';
+
 export default function NotFound() {
+  const { t: tr, isRTL, language } = useLanguage();
   return (
     <div
       style={{
@@ -14,7 +18,6 @@ export default function NotFound() {
         paddingBottom: '60px',
       }}
     >
-      {/* Full-screen background image */}
       <img
         src="https://www.thehandbook.com/cdn-cgi/image/width=600,height=600,fit=cover,q=80,format=webp/https://files.thehandbook.com/uploads/2021/04/aauvwnjolbx8fc5d79anvd-6q19de17tl2u3cnpwy1npzas800-c-k-c0x00ffffff-no-rj.jpg"
         alt="404"
@@ -28,7 +31,6 @@ export default function NotFound() {
           zIndex: 0,
         }}
       />
-      {/* Dark overlay for text readability */}
       <div
         style={{
           position: 'absolute',
@@ -37,7 +39,6 @@ export default function NotFound() {
           zIndex: 1,
         }}
       />
-      {/* Text + button overlay */}
       <div
         style={{
           position: 'relative',
@@ -46,7 +47,7 @@ export default function NotFound() {
           flexDirection: 'column',
           alignItems: 'center',
           fontFamily: 'Cairo, sans-serif',
-          direction: 'rtl',
+          direction: isRTL ? 'rtl' : 'ltr',
           textAlign: 'center',
         }}
       >
@@ -70,7 +71,7 @@ export default function NotFound() {
             textShadow: '0 1px 8px rgba(0,0,0,0.5)',
           }}
         >
-          الصفحة غير موجودة
+          {tr('not_found_title')}
         </p>
         <a
           href="/"
@@ -85,7 +86,7 @@ export default function NotFound() {
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
           }}
         >
-          العودة للرئيسية
+          {tr('not_found_btn')}
         </a>
       </div>
     </div>

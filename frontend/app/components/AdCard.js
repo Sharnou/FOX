@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AIQualityBadge from './AIQualityBadge';
+import { useLanguage } from '../context/LanguageContext';
 
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality, w_400=resize)
 // Fix D: Added null guard — prevents src={undefined} when url is falsy
@@ -61,10 +62,10 @@ function StarRating({ rating, count }) {
 }
 
 const CONDITION_MAP = {
-  new:       { ar: 'جديد',     bg: '#dcfce7', color: '#15803d', icon: '✨' },
-  excellent: { ar: 'ممتاز',    bg: '#dbeafe', color: '#1d4ed8', icon: '⭐' },
-  used:      { ar: 'مستعمل',   bg: '#fef9c3', color: '#92400e', icon: '🔄' },
-  rent:      { ar: 'للإيجار',  bg: '#ede9fe', color: '#6d28d9', icon: '🔑' },
+  new:       { ar: 'جديد', bg: '#dcfce7', color: '#15803d', icon: '✨' },
+  excellent: { ar: 'ممتاز', bg: '#dbeafe', color: '#1d4ed8', icon: '⭐' },
+  used:      { ar: 'مستعمل', bg: '#fef9c3', color: '#92400e', icon: '🔄' },
+  rent:      { ar: 'للإيجار', bg: '#ede9fe', color: '#6d28d9', icon: '🔑' },
 };
 
 function ConditionBadge({ condition }) {
@@ -91,7 +92,9 @@ function ConditionBadge({ condition }) {
   );
 }
 
-export default function AdCard({ ad, eager = false }) {
+export default function AdCard({
+  ad, eager = false }) {
+  const { t: tr, language, isRTL } = useLanguage();
   const router = useRouter();
   const [shared, setShared] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -299,7 +302,7 @@ export default function AdCard({ ad, eager = false }) {
       {/* Share button */}
       <button
         onClick={handleShare}
-        aria-label="مشاركة"
+        aria-label={tr('ad_share')}
         className={'absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors duration-200 ' + (shared ? 'bg-green-500 text-white' : 'bg-black/40 hover:bg-black/60 text-white')}
       >
         {shared ? '✓' : '📤'}
@@ -370,7 +373,7 @@ export default function AdCard({ ad, eager = false }) {
           const daysLeft = getDaysLeft(ad.createdAt);
           if (daysLeft === null) return null;
           const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
-          const label = daysLeft <= 0 ? 'منتهي' : daysLeft + ' يوم متبق';
+          const label = daysLeft <= 0 ? tr('ad_expired') : daysLeft + ' ' + tr('ad_days_left');
           return (
             <span style={{
               position: 'absolute', bottom: '8px', left: '8px',

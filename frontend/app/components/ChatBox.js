@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox-production.up.railway.app';
@@ -152,7 +153,9 @@ function VoiceMessage({ url, duration }) {
   );
 }
 
-export default function ChatBox({ targetId, adId, otherName, otherAvatar }) {
+export default function ChatBox({
+  targetId, adId, otherName, otherAvatar }) {
+  const { t: tr, language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');

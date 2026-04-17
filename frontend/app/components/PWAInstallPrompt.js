@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function PWAInstallPrompt() {
+  const { t: tr, language, isRTL } = useLanguage();
   const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [visible, setVisible] = useState(false);

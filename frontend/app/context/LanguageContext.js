@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { makeT } from '../translations/index';
+import { makeT, CATEGORY_KEY_MAP, CITY_KEY_MAP, CONDITION_KEY_MAP } from '../translations/index';
 
 const GEO_CACHE_VERSION = '2'; // bump this if detection logic changes
 
@@ -17,6 +17,9 @@ const LanguageContext = createContext({
   toggleLanguage: () => {},
   detectedCountry: 'EG',
   t: defaultT,
+  tCat: (v) => v,
+  tCity: (v) => v,
+  tCond: (v) => v,
 });
 
 export function LanguageProvider({ children }) {
@@ -31,6 +34,33 @@ export function LanguageProvider({ children }) {
   const t = useCallback((key) => {
     const dict = makeT(language);
     return dict(key);
+  }, [language]);
+
+  // Translate category/subcategory from Arabic DB value
+  const tCat = useCallback((arabicName) => {
+    if (!arabicName) return arabicName;
+    const key = CATEGORY_KEY_MAP[arabicName] || CATEGORY_KEY_MAP[arabicName?.trim()];
+    if (!key) return arabicName;
+    const dict = makeT(language);
+    return dict(key) || arabicName;
+  }, [language]);
+
+  // Translate city from Arabic DB value
+  const tCity = useCallback((arabicCity) => {
+    if (!arabicCity) return arabicCity;
+    const key = CITY_KEY_MAP[arabicCity] || CITY_KEY_MAP[arabicCity?.trim()];
+    if (!key) return arabicCity;
+    const dict = makeT(language);
+    return dict(key) || arabicCity;
+  }, [language]);
+
+  // Translate condition from Arabic/English value
+  const tCond = useCallback((condition) => {
+    if (!condition) return condition;
+    const key = CONDITION_KEY_MAP[condition] || CONDITION_KEY_MAP[condition?.trim()];
+    if (!key) return condition;
+    const dict = makeT(language);
+    return dict(key) || condition;
   }, [language]);
 
   function applyLangToDOM(lang, rtl) {
@@ -130,7 +160,7 @@ export function LanguageProvider({ children }) {
 
   return (
     <LanguageContext.Provider
-      value={{ language, isRTL, showToggle, nativeName, nativeLang, toggleLanguage, detectedCountry, t }}
+      value={{ language, isRTL, showToggle, nativeName, nativeLang, toggleLanguage, detectedCountry, t, tCat, tCity, tCond }}
     >
       {children}
     </LanguageContext.Provider>

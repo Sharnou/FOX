@@ -1,8 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import QRCode from 'react-qr-code';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function InstallPage() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
 
@@ -135,7 +137,7 @@ export default function InstallPage() {
         }}
       >
         <span>📲</span>
-        <span>{deferredPrompt ? 'تثبيت التطبيق' : 'افتح من Chrome أو Safari'}</span>
+        <span>{deferredPrompt ? tr('install_btn2') : tr('install_open_browser')}</span>
       </button>
 
       {/* App link */}

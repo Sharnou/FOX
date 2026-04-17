@@ -5,6 +5,7 @@ import Link from 'next/link';
 import nextDynamic from 'next/dynamic';
 import AdCardSkeleton from '../components/AdCardSkeleton';
 import { detectLang } from '../../lib/lang';
+import { useLanguage } from '../context/LanguageContext';
 
 const AdCard = nextDynamic(() => import('../components/AdCard'), { ssr: false });
 
@@ -56,6 +57,7 @@ const TRANSLATIONS = {
 const SORT_OPTIONS = ['newest', 'oldest', 'priceLow', 'priceHigh'];
 
 export default function SavedPage() {
+  const { language } = useLanguage();
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lang, setLang] = useState('ar');
@@ -63,7 +65,7 @@ export default function SavedPage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [toast, setToast] = useState('');
 
-  const t = TRANSLATIONS[lang];
+  const t = TRANSLATIONS[language] || TRANSLATIONS.ar || TRANSLATIONS.en;
   const isRtl = lang === 'ar';
 
   useEffect(() => { setLang(detectLang()); }, []);

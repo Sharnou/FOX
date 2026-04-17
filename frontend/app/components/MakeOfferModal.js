@@ -1,7 +1,10 @@
 'use client';
 import { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
-export default function MakeOfferModal({ ad, user, onClose }) {
+export default function MakeOfferModal({
+  ad, user, onClose }) {
+  const { t: tr, language, isRTL } = useLanguage();
   const [amount, setAmount]   = useState('');
   const [message, setMessage] = useState('');
   const [sent, setSent]       = useState(false);
@@ -10,7 +13,7 @@ export default function MakeOfferModal({ ad, user, onClose }) {
 
   const submit = async () => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
-      setError('يرجى إدخال سعر صحيح');
+      setError(tr('offer_invalid_price'));
       return;
     }
     setLoading(true);
@@ -30,7 +33,7 @@ export default function MakeOfferModal({ ad, user, onClose }) {
       );
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'فشل إرسال العرض');
+        throw new Error(data.error || tr('err_generic'));
       }
       setSent(true);
     } catch (e) {

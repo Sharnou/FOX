@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 /**
  * PhoneRevealButton — زر إظهار رقم الهاتف
@@ -7,7 +8,8 @@ import { useState } from 'react';
  * Supports Arabic RTL + English LTR
  * Run 118 — XTOX Auto-Upgrade
  */
-export default function PhoneRevealButton({ phone, lang = 'ar' }) {
+export default function PhoneRevealButton({
+  const { t: tr, language, isRTL } = useLanguage(); phone, lang = 'ar' }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -15,10 +17,10 @@ export default function PhoneRevealButton({ phone, lang = 'ar' }) {
 
   const labels = {
     ar: {
-      show: '📞 عرض رقم الهاتف',
-      copy: 'نسخ',
-      copied: '✓ تم النسخ',
-      call: 'اتصال',
+      show: tr('phone_show'),
+      copy: tr('phone_copy'),
+      copied: tr('phone_copied'),
+      call: tr('phone_call'),
     },
     de: {
       show: '📞 Telefonnummer anzeigen',

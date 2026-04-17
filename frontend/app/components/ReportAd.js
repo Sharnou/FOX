@@ -10,43 +10,43 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.
 const REPORT_REASONS = [
   {
     id: "spam",
-    ar: "إعلان مكرر أو بريد عشوائي",
+    ar: 'report_reason_duplicate',
     en: "Spam or duplicate listing",
     icon: "🚫",
   },
   {
     id: "fraud",
-    ar: "احتيال أو نصب",
+    ar: 'report_reason_fraud',
     en: "Fraud or scam",
     icon: "⚠️",
   },
   {
     id: "wrong_category",
-    ar: "تصنيف خاطئ",
+    ar: 'report_reason_wrong_cat',
     en: "Wrong category",
     icon: "📂",
   },
   {
     id: "inappropriate",
-    ar: "محتوى غير لائق أو مسيء",
+    ar: 'report_reason_inappropriate',
     en: "Inappropriate or offensive content",
     icon: "🔞",
   },
   {
     id: "fake_price",
-    ar: "سعر مضلل أو مزيف",
+    ar: 'report_reason_misleading',
     en: "Misleading or fake price",
     icon: "💰",
   },
   {
     id: "already_sold",
-    ar: "المنتج تم بيعه بالفعل",
+    ar: 'report_reason_sold',
     en: "Item already sold",
     icon: "✅",
   },
   {
     id: "other",
-    ar: "سبب آخر",
+    ar: 'report_reason_other',
     en: "Other reason",
     icon: "📝",
   },
@@ -54,14 +54,14 @@ const REPORT_REASONS = [
 
 const i18n = {
   ar: {
-    title: "الإبلاغ عن الإعلان",
-    subtitle: "ساعدنا في الحفاظ على جودة المنصة",
-    selectReason: "اختر سبب الإبلاغ *",
-    additionalDetails: "تفاصيل إضافية (اختياري)",
-    placeholder: "اكتب تفاصيل إضافية هنا...",
-    submit: "إرسال البلاغ",
-    cancel: "إلغاء",
-    submitting: "جاري الإرسال...",
+    title: 'report_ad_title',
+    subtitle: 'report_ad_subtitle',
+    selectReason: 'report_select_reason',
+    additionalDetails: 'report_details',
+    placeholder: 'report_placeholder',
+    submit: 'report_submit',
+    cancel: 'report_cancel',
+    submitting: 'report_submitting',
     successTitle: "تم إرسال البلاغ",
     successMsg: "شكراً! سيراجع فريقنا هذا الإعلان قريباً.",
     errorMsg: "حدث خطأ. يرجى المحاولة مرة أخرى.",
@@ -89,7 +89,10 @@ const i18n = {
   },
 };
 
-export default function ReportAd({ adId, adTitle, onClose, lang = "ar" }) {
+export default function ReportAd({
+  adId, adTitle, onClose, lang = "ar" }) {
+  const { language } = useLanguage();
+  const effectiveLang = language || lang;
   const [selectedReason, setSelectedReason] = useState("");
   const [details, setDetails] = useState("");
   const [status, setStatus] = useState("idle"); // idle | submitting | success | error
@@ -97,8 +100,8 @@ export default function ReportAd({ adId, adTitle, onClose, lang = "ar" }) {
   const [touched, setTouched] = useState(false);
   const modalRef = useRef(null);
   const firstFocusRef = useRef(null);
-  const isRTL = lang === "ar";
-  const t = i18n[lang] || i18n.ar;
+  const isRTL = effectiveLang === "ar";
+  const t = i18n[effectiveLang] || i18n.ar || i18n.ar;
   // MAX_CHARS moved to module level to avoid TDZ
 
   // Trap focus inside modal
@@ -273,7 +276,7 @@ export default function ReportAd({ adId, adTitle, onClose, lang = "ar" }) {
                       >
                         <span style={{ fontSize: 18, minWidth: 24 }}>{reason.icon}</span>
                         <span className="flex-1 text-sm font-medium">
-                          {lang === "ar" ? reason.ar : reason.en}
+                          {effectiveLang === "ar" ? reason.ar : reason.en}
                         </span>
                         {isSelected && (
                           <span style={{ color: "#ff5722" }}>

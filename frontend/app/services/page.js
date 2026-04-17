@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import AdCardSkeleton from '../components/AdCardSkeleton';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -18,15 +19,15 @@ const WORKER_ICONS = {
 };
 
 const ARABIC_TYPES = {
-  All:          'الكل',
-  Plumber:      'سبّاك',
-  Electrician:  'كهربائي',
-  Carpenter:    'نجّار',
-  Cleaner:      'عامل نظافة',
-  Painter:      'دهّان',
-  Delivery:     'توصيل',
-  Gardener:     'حدّاد',
-  Driver:       'سائق',
+  All: 'services_all',
+  Plumber: 'services_plumber',
+  Electrician: 'services_electrician',
+  Carpenter: 'services_carpenter',
+  Cleaner: 'services_cleaner',
+  Painter: 'services_painter',
+  Delivery: 'services_delivery',
+  Gardener: 'services_gardener',
+  Driver: 'services_driver',
 };
 
 function timeAgo(dateStr) {
@@ -39,6 +40,7 @@ function timeAgo(dateStr) {
 }
 
 export default function ServicesPage() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [services, setServices]   = useState([]);
   const [filter, setFilter]       = useState('All');
   const [types, setTypes]         = useState([]);

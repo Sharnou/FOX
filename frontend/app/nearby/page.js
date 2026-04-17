@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -206,6 +207,7 @@ function CategoryChips({ selected, onSelect }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function NearbyPage() {
+  const { language } = useLanguage();
   const mapRef      = useRef(null);
   const leafletMap  = useRef(null);
   const clusterGroup= useRef(null);

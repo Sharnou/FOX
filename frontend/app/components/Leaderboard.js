@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -48,6 +49,7 @@ function RankIcon({ rank }) {
 }
 
 export default function Leaderboard() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [data, setData] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -120,7 +122,7 @@ export default function Leaderboard() {
             fontFamily: 'inherit',
           }}
         >
-          {expanded ? 'عرض أقل ▲' : 'عرض الكل ▼'}
+          {expanded ? tr('winner_see_less') : tr('winner_see_all')}
         </button>
       </div>
 

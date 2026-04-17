@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { detectLang } from '../../lib/lang';
+import { useLanguage } from '../context/LanguageContext';
 
 // ── Translations ───────────────────────────────────────────────────────────────
 const TRANSLATIONS = {
@@ -173,7 +174,8 @@ function StatusDot({ color }) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  MAIN VOICECALL COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function VoiceCall({ socket, targetId, userId }) {
+export default function VoiceCall({
+  const { t: tr, language, isRTL } = useLanguage(); socket, targetId, userId }) {
   // ── Language ────────────────────────────────────────────────────────────────
   const [lang, setLang] = useState('ar');
   const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;

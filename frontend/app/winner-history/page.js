@@ -2,13 +2,14 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 const MONTH_NAMES = {
-  '01': 'يناير', '02': 'فبراير', '03': 'مارس', '04': 'أبريل',
-  '05': 'مايو', '06': 'يونيو', '07': 'يوليو', '08': 'أغسطس',
-  '09': 'سبتمبر', '10': 'أكتوبر', '11': 'نوفمبر', '12': 'ديسمبر',
+  '01': 'month_jan', '02': 'month_feb', '03': 'month_mar', '04': 'month_apr',
+  '05': 'month_may', '06': 'month_jun', '07': 'month_jul', '08': 'month_aug',
+  '09': 'month_sep', '10': 'month_oct', '11': 'month_nov', '12': 'month_dec',
 };
 
 function getMonthLabel(month, year) {
@@ -24,6 +25,7 @@ function getMonthLabel(month, year) {
 }
 
 export default function WinnerHistoryPage() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [winners, setWinners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,8 +64,8 @@ export default function WinnerHistoryPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <Link href="/" style={{ color: '#a78bfa', fontSize: 22, textDecoration: 'none' }}>←</Link>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 'bold' }}>🏆 قاعة الشرف</h1>
-          <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>أفضل البائعين عبر التاريخ</p>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 'bold' }}>{tr('winner_hall_of_fame')}</h1>
+          <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>{tr('winner_best_sellers')}</p>
         </div>
       </div>
 
@@ -86,8 +88,8 @@ export default function WinnerHistoryPage() {
       {!loading && !error && winners.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
           <div style={{ fontSize: 60, marginBottom: 12 }}>🏆</div>
-          <p>لا يوجد فائزون سابقون بعد</p>
-          <p style={{ fontSize: 13 }}>سيظهر هنا الفائز بعد نهاية أول شهر</p>
+          <p>{tr('winner_no_prev')}</p>
+          <p style={{ fontSize: 13 }}>{tr('winner_after_first')}</p>
         </div>
       )}
 
@@ -141,7 +143,7 @@ export default function WinnerHistoryPage() {
                       href={winner.userId ? `/profile/${winner.userId}` : '#'}
                       style={{ fontWeight: 'bold', fontSize: 17, color: '#f0f6fc', textDecoration: 'none', display: 'block' }}
                     >
-                      {winner.name || 'مجهول'}
+                      {winner.name || tr('winner_unknown')}
                     </a>
                     {winner.xtoxId && (
                       <div style={{ fontSize: 12, color: '#64748b' }}>🆔 {winner.xtoxId}</div>
@@ -158,7 +160,7 @@ export default function WinnerHistoryPage() {
                 {/* Winner's top ads */}
                 {winner.ads && winner.ads.length > 0 && (
                   <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>أبرز إعلاناته:</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{tr('winner_top_ads')}</div>
                     <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
                       {winner.ads.slice(0, 3).map(ad => (
                         <a

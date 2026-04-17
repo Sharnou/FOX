@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import SwipeAdCard from '../components/SwipeAdCard';
 import { detectLang } from '../../lib/lang';
+import { useLanguage } from '../context/LanguageContext';
 
 const TRANSLATIONS = {
   ar: {
@@ -27,9 +28,10 @@ const TRANSLATIONS = {
 const PAGE_SIZE = 20;
 
 export default function SwipePage() {
+  const { language } = useLanguage();
   const [lang, setLang] = useState('ar');
   const isRtl = lang === 'ar';
-  const t = TRANSLATIONS[lang];
+  const t = TRANSLATIONS[language] || TRANSLATIONS.ar || TRANSLATIONS.en;
 
   const [token, setToken] = useState(null);
   const [ads, setAds] = useState([]);

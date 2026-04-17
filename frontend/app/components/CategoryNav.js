@@ -1,25 +1,27 @@
 'use client';
+import { useLanguage } from '../context/LanguageContext';
 
 // run 43: Arabic category labels + icons + RTL accessibility for Arab marketplace users
 // Replaced English-only category names with bilingual (Arabic-first) labels and emoji icons.
 // Added aria-label, aria-pressed, dir="rtl" and scrollbar-hide for mobile UX.
 const CATEGORIES = [
-  { key: 'All',         label: 'الكل',        icon: '🌐' },
+  { key: 'All',         label: 'جميع الإعلانات',          icon: '🌐' },
   { key: 'Vehicles',    label: 'سيارات',      icon: '🚗' },
-  { key: 'Electronics', label: 'إلكترونيات',  icon: '📱' },
-  { key: 'Real Estate', label: 'عقارات',      icon: '🏠' },
-  { key: 'Jobs',        label: 'وظائف',       icon: '💼' },
-  { key: 'Services',    label: 'خدمات',       icon: '🔧' },
-  { key: 'Supermarket', label: 'سوبرماركت',   icon: '🛒' },
+  { key: 'Electronics', label: 'إلكترونيات',    icon: '📱' },
+  { key: 'Real Estate', label: 'عقارات',     icon: '🏠' },
+  { key: 'Jobs',        label: 'وظائف',          icon: '💼' },
+  { key: 'Services',    label: 'خدمات',      icon: '🔧' },
+  { key: 'Supermarket', label: 'سوبرماركت',    icon: '🛒' },
   { key: 'Pharmacy',    label: 'صيدلية',      icon: '💊' },
-  { key: 'Fast Food',   label: 'طعام سريع',   icon: '🍕' },
-  { key: 'Fashion',     label: 'موضة',        icon: '👗' },
+  { key: 'Fast Food',   label: 'طعام سريع',          icon: '🍕' },
+  { key: 'Fashion',     label: 'موضة وأزياء',       icon: '👗' },
 ];
 
-export default function CategoryNav({ active, onChange }) {
+export default function CategoryNav({
+  const { t: tr, language, isRTL } = useLanguage(); active, onChange }) {
   return (
     <nav
-      aria-label="تصفح الفئات"
+      aria-label={tr("cat_all")}
       dir="rtl"
       className="flex gap-2 p-3 overflow-x-auto bg-white shadow-sm"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}

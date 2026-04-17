@@ -1,10 +1,12 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || API;
 
 export default function ChatFloat() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
@@ -135,8 +137,8 @@ export default function ChatFloat() {
     const sellerId = conv.seller?._id?.toString() || conv.seller?.toString() || '';
     const otherId = buyerId === myId ? sellerId : buyerId;
     const otherName = buyerId === myId
-      ? (conv.seller?.name || conv.seller?.xtoxId || 'بائع')
-      : (conv.buyer?.name || conv.buyer?.xtoxId || 'مشتري');
+      ? (conv.seller?.name || conv.seller?.xtoxId || tr('chat_seller'))
+      : (conv.buyer?.name || conv.buyer?.xtoxId || tr('chat_buyer'));
     const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
     setActiveChat({ chatId: conv._id, targetId: otherId, name: otherName, avatar: otherAvatar });
     setMessages([]);
@@ -205,7 +207,7 @@ export default function ChatFloat() {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{activeChat.name}</span>
               </div>
             ) : (
-              <span style={{ fontWeight: 700, fontSize: 15 }}>&#128172; {'المحادثات'}</span>
+              <span style={{ fontWeight: 700, fontSize: 15 }}>&#128172; {tr('chat_conversations')}</span>
             )}
             <button onClick={() => { setOpen(false); setActiveChat(null); }} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>&#10005;</button>
           </div>
@@ -214,12 +216,12 @@ export default function ChatFloat() {
           {!activeChat && (
             <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
               {loading && <p style={{ textAlign: 'center', color: '#888', padding: 20, fontSize: 13 }}>
-                {'جاري التحميل...'}
+                {tr('loading_short')}
               </p>}
               {!loading && conversations.length === 0 && (
                 <p style={{ textAlign: 'center', color: '#888', padding: 24, fontSize: 13 }}>
-                  {'لا توجد محادثات بعد.'}<br />
-                  {'ابدأ المحادثة من أي إعلان!'}
+                  {tr('chat_no_convs')}<br />
+                  {tr('chat_start_from_ad')}
                 </p>
               )}
               {conversations.map(conv => {
@@ -227,8 +229,8 @@ export default function ChatFloat() {
                 const buyerId = conv.buyer?._id?.toString() || conv.buyer?.toString() || '';
                 const sellerId = conv.seller?._id?.toString() || conv.seller?.toString() || '';
                 const otherName = buyerId === myId
-                  ? (conv.seller?.name || conv.seller?.xtoxId || 'بائع')
-                  : (conv.buyer?.name || conv.buyer?.xtoxId || 'مشتري');
+                  ? (conv.seller?.name || conv.seller?.xtoxId || tr('chat_seller'))
+                  : (conv.buyer?.name || conv.buyer?.xtoxId || tr('chat_buyer'));
                 const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
                 const lastMsg = conv.lastMessage || conv.messages?.[conv.messages.length - 1];
                 const unread = buyerId === myId ? conv.unreadBuyer : conv.unreadSeller;
@@ -275,8 +277,8 @@ export default function ChatFloat() {
                         {menuOpenId === conv._id && (
                           <div style={{ position: 'absolute', left: 0, top: 28, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minWidth: 140, zIndex: 200, overflow: 'hidden', direction: 'rtl' }}>
                             {[
-                              { label: isMuted ? '🔔 إلغاء الكتم' : '🔇 كتم', action: 'mute' },
-                              { label: '🚫 تجاهل', action: 'ignore' },
+                              { label: isMuted ? tr('chat_unmute') : tr('chat_mute'), action: 'mute' },
+                              { label: tr('chat_ignore'), action: 'ignore' },
                               { label: '🚩 إبلاغ', action: 'report' },
                               { label: '🗑️ حذف', action: 'delete' },
                             ].map(({ label, action }) => (
@@ -349,7 +351,7 @@ export default function ChatFloat() {
         }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-        title={'المحادثات'}
+        title={tr('chat_conversations')}
       >
         {open ? '✕' : '💬'}
         {!open && unreadTotal > 0 && (

@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function ScrollToTop() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -15,8 +17,8 @@ export default function ScrollToTop() {
   return (
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      aria-label="العودة للأعلى"
-      title="العودة للأعلى"
+      aria-label={tr("scroll_to_top")}
+      title={tr("scroll_to_top")}
       style={{
         position: 'fixed',
         bottom: 'max(80px, calc(80px + env(safe-area-inset-bottom)))',

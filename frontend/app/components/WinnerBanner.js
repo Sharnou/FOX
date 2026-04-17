@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
@@ -11,6 +12,7 @@ const MONTH_NAMES = {
 };
 
 export default function WinnerBanner() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [winner, setWinner] = useState(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -81,7 +83,7 @@ export default function WinnerBanner() {
           width: 28, height: 28, cursor: 'pointer', fontSize: 16,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
-        aria-label="إغلاق"
+        aria-label={tr('btn_close')}
       >×</button>
 
       {/* Header */}
@@ -165,7 +167,7 @@ export default function WinnerBanner() {
         onClick={() => setRulesOpen(o => !o)}
         style={{ width: '100%', background: 'rgba(255,255,255,0.5)', border: '1px solid #fbbf24', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, color: '#92400e', marginBottom: 8, textAlign: 'center' }}
       >
-        {rulesOpen ? '▲ إخفاء قواعد النقاط' : '▼ كيف أكسب نقاطاً وأفوز؟'}
+        {rulesOpen ? tr('winner_rules_hide') : tr('winner_rules_show')}
       </button>
 
       {/* Rules List */}
@@ -214,7 +216,7 @@ export default function WinnerBanner() {
           fontFamily: 'Cairo, sans-serif',
         }}
       >
-        {sent ? '✅ تم إرسال التهنئة!' : sending ? '...' : '🎉 أرسل تهنئة'}
+        {sent ? tr('winner_congrats_sent') : sending ? '...' : tr('winner_congrats')}
       </button>
     </div>
   );

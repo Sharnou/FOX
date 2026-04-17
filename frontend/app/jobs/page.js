@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
 import AdCardSkeleton from '../components/AdCardSkeleton';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -19,10 +20,10 @@ function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
   if (diff < 60)  return 'منذ لحظات';
-  if (diff < 3600) return 'منذ ' + Math.floor(diff / 60) + ' دقيقة';
-  if (diff < 86400) return 'منذ ' + Math.floor(diff / 3600) + ' ساعة';
-  if (diff < 2592000) return 'منذ ' + Math.floor(diff / 86400) + ' يوم';
-  return 'منذ ' + Math.floor(diff / 2592000) + ' شهر';
+  if (diff < 3600) return 'منذ' + ' ' + Math.floor(diff / 60) + ' ' + 'دقيقة';
+  if (diff < 86400) return 'منذ' + ' ' + Math.floor(diff / 3600) + ' ' + 'ساعة';
+  if (diff < 2592000) return 'منذ' + ' ' + Math.floor(diff / 86400) + ' ' + 'يوم';
+  return 'منذ' + ' ' + Math.floor(diff / 2592000) + ' ' + 'شهر';
 }
 
 function JobCard({ job }) {
@@ -147,6 +148,7 @@ function JobCard({ job }) {
 }
 
 export default function JobsPage() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [jobs, setJobs]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState('all');

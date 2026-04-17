@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { detectLang } from '../../lib/lang';
 
@@ -32,9 +33,9 @@ const strings = {
       'تم تعطيل الإشعارات. يمكنك تفعيلها من إعدادات المتصفح',
     successMsg: 'تم تفعيل الإشعارات بنجاح! 🎉',
     notifBody: 'ستصلك إشعارات عند رد البائع أو وصول إعلانات جديدة!',
-    ariaLabel: 'مطالبة الإشعارات',
-    ariaAllow: 'السماح بالإشعارات',
-    ariaLater: 'تجاهل مطالبة الإشعارات الآن',
+    ariaLabel: 'تفعيل الإشعارات',
+    ariaAllow: 'السماح 🔔',
+    ariaLater: 'ربما لاحقاً',
     ariaClose: 'إغلاق',
   },
   en: {

@@ -3,10 +3,12 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 export default function MyAdsPage() {
+  const { t: tr, language, isRTL } = useLanguage();
   const [data, setData] = useState({ active: [], expired: [] });
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('active');
@@ -50,17 +52,17 @@ export default function MyAdsPage() {
       await axios.post(API + '/api/ads/' + adId + '/republish', {}, {
         headers: { Authorization: 'Bearer ' + token }
       });
-      alert('✅ تم إعادة نشر الإعلان لمدة 45 يوم إضافية!');
+      alert(tr('my_ads_renew'));
       fetchMyAds(token);
-    } catch (e) { alert(e.response?.data?.error || 'فشل إعادة النشر'); }
+    } catch (e) { alert(e.response?.data?.error || tr('my_ads_renew_fail')); }
   }
 
   async function deleteAd(adId) {
-    if (!confirm('هل تريد حذف هذا الإعلان؟')) return;
+    if (!confirm(tr('my_ads_delete_confirm'))) return;
     try {
       await axios.delete(API + '/api/ads/' + adId, { headers: { Authorization: 'Bearer ' + token } });
       fetchMyAds(token);
-    } catch { alert('فشل الحذف'); }
+    } catch { alert(tr('my_ads_delete_fail')); }
   }
 
   // ── Bulk-delete helpers ────────────────────────────────────────────────────

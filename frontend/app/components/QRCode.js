@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { detectLang } from '../../lib/lang';
+import { useLanguage } from '../context/LanguageContext';
 
 const i18n = {
   ar: {
@@ -29,7 +30,8 @@ const i18n = {
   },
 };
 
-export default function QRCode({ adId, adTitle, adUrl, showModal = false, onClose }) {
+export default function QRCode({
+  const { t: tr, language, isRTL } = useLanguage(); adId, adTitle, adUrl, showModal = false, onClose }) {
   const [lang, setLang] = useState('ar');
   const [copyStatus, setCopyStatus] = useState(null); // null | 'copied' | 'failed'
   const [isDownloading, setIsDownloading] = useState(false);
