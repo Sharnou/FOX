@@ -166,6 +166,9 @@ router.get('/seller/:sellerId', async (req, res) => {
 router.get('/check/:adId', requireAuth, async (req, res) => {
   try {
     const { adId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(adId)) {
+      return res.status(400).json({ error: 'معرّف الإعلان غير صالح' });
+    }
     const review = await Review.findOne({
       ad: adId,
       reviewer: req.user.id,
@@ -182,6 +185,9 @@ router.get('/check/:adId', requireAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete('/:id', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'معرّف التقييم غير صالح' });
+    }
     const review = await Review.findById(req.params.id);
     if (!review) return res.status(404).json({ error: 'التقييم غير موجود' });
     if (review.deletedByAdmin) return res.status(400).json({ error: 'محذوف مسبقاً' });
