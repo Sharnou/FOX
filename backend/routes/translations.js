@@ -234,14 +234,15 @@ function getEnglishTranslations() {
     ai_send: 'Send', ai_thinking: 'Thinking...',
 
     // Categories
-    cat_electronics: 'Electronics', cat_mobile_phones: 'Phones & Tablets',
-    cat_computers: 'Computers & Devices', cat_cars: 'Cars',
+    cat_all: 'All Ads', cat_electronics: 'Electronics', cat_mobile_phones: 'Phones & Tablets',
+    cat_computers: 'Computers & Devices', cat_cars: 'Cars', cat_vehicles: 'Vehicles',
     cat_real_estate: 'Real Estate', cat_furniture: 'Furniture & Home',
     cat_clothing: 'Clothing & Fashion', cat_jobs: 'Jobs',
     cat_services: 'Services', cat_animals: 'Animals',
     cat_sports: 'Sports & Hobbies', cat_kids: 'Kids & Toys',
-    cat_tools: 'Tools & Equipment', cat_food: 'Food & Drinks',
+    cat_tools: 'Tools & Equipment', cat_food: 'Fast Food', cat_fast_food: 'Fast Food',
     cat_books: 'Books & Education', cat_beauty: 'Beauty & Care',
+    cat_supermarket: 'Supermarket', cat_pharmacy: 'Pharmacy', cat_fashion: 'Fashion',
     cat_other: 'Other',
 
     // Subcategories
