@@ -5,13 +5,36 @@ const _XTOX_CACHE = 'xtox-v17';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
+// Domains whose requests the SW must NEVER intercept.
+// Intercepting these causes CSP connect-src violations because the SW's
+// fetch() call is subject to the document's CSP, which blocks external origins
+// unless explicitly listed. Letting the browser handle them directly avoids
+// the error and also prevents caching of resources we don't own.
+var _SKIP_DOMAINS = [
+  'fonts.googleapis.com',
+  'fonts.gstatic.com',
+  'lh3.googleusercontent.com',
+  'lh4.googleusercontent.com',
+  'lh5.googleusercontent.com',
+  'lh6.googleusercontent.com',
+  'accounts.google.com',
+  'www.bing.com',
+  'www.google.com',
+  'googletagmanager.com',
+  'ipapi.co',
+];
+
 self.addEventListener('fetch', function(event) {
   // Avoid handling non-GET requests
   if (event.request.method !== 'GET') return;
   
   var url;
   try { url = new URL(event.request.url); } catch(e) { return; }
-  
+
+  // SKIP external domains — let browser handle them directly to avoid CSP violations.
+  // SW fetch() to cross-origin URLs is blocked by connect-src unless explicitly allowed.
+  if (_SKIP_DOMAINS.some(function(d) { return url.hostname === d || url.hostname.endsWith('.' + d); })) return;
+
   // SWR for ads API — already handled above by main SW; this block is a backup
   if (url.origin === _XTOX_API && url.pathname.startsWith('/api/ads')) {
     event.respondWith(
@@ -28,17 +51,25 @@ self.addEventListener('fetch', function(event) {
     return;
   }
   
-  // Cache-first for static assets
+  // Cache-first for static assets — only for same-origin or pre-approved CDNs.
+  // External image/style/script requests (Google Fonts, avatars, etc.) are already
+  // skipped by the _SKIP_DOMAINS check above, so this block is safe.
   if (event.request.destination === 'image' || 
       event.request.destination === 'style' || 
       event.request.destination === 'script') {
+    // Extra guard: only cache same-origin or known CDN assets
+    if (url.origin !== self.location.origin &&
+        !url.hostname.includes('cloudinary.com') &&
+        !url.hostname.includes('jsdelivr.net')) {
+      return; // Let browser handle unknown cross-origin assets
+    }
     event.respondWith(
       caches.open(_XTOX_CACHE).then(function(cache) {
         return cache.match(event.request).then(function(cached) {
           return cached || fetch(event.request).then(function(r) {
             if (r.ok) cache.put(event.request, r.clone());
             return r;
-          });
+          }).catch(function() { return cached; });
         });
       })
     );
@@ -294,15 +325,24 @@ self.addEventListener('fetch', (event) => {
   //    Caching API responses would cause stale data bugs.
   if (url.hostname.includes('railway.app') || url.hostname.includes('up.railway')) return;
 
-  // 3. NEVER intercept cross-origin requests to CDNs we don't own
-  //    (jsdelivr, cartocdn, basemaps, etc.) — let the browser handle them.
+  // 3. NEVER intercept cross-origin requests to external domains we don't own.
+  //    This prevents CSP connect-src violations and avoids caching resources
+  //    we have no authority over (fonts, avatars, analytics, search pings, etc.)
   if (
     url.hostname.includes('jsdelivr.net') ||
     url.hostname.includes('cartocdn.com') ||
     url.hostname.includes('basemaps.cartocdn.com') ||
     url.hostname.includes('cloudinary.com') ||
     url.hostname.includes('googleapis.com') ||
-    url.hostname.includes('gstatic.com')
+    url.hostname.includes('gstatic.com') ||
+    url.hostname.includes('googleusercontent.com') ||
+    url.hostname.includes('googletagmanager.com') ||
+    url.hostname.includes('accounts.google.com') ||
+    url.hostname.includes('bing.com') ||
+    url.hostname.includes('ipapi.co') ||
+    url.hostname.includes('openstreetmap.org') ||
+    url.hostname.includes('unsplash.com') ||
+    url.hostname.includes('qrserver.com')
   ) return;
 
   // 4. NEXT.JS JS CHUNKS — NETWORK-FIRST (critical fix for stale cache bug)

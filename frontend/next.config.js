@@ -26,10 +26,10 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://www.googletagmanager.com https://accounts.google.com https://cdn.jsdelivr.net",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://accounts.google.com",
-              "font-src 'self' https://fonts.gstatic.com data:",
+              "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com data:",
               // 'https:' wildcard covers any new CDN/image host without needing to update CSP.
-              "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com https://api.qrserver.com https://unpkg.com https://images.unsplash.com https://www.gstatic.com https://*.basemaps.cartocdn.com https:",
-              "connect-src 'self' blob: https://xtox-production.up.railway.app wss://xtox-production.up.railway.app https://ipapi.co https://api.cloudinary.com https://res.cloudinary.com https://api.openai.com https://api.groq.com https://generativelanguage.googleapis.com https://accounts.google.com https://*.basemaps.cartocdn.com https://tfhub.dev https://storage.googleapis.com https://www.kaggle.com https://nominatim.openstreetmap.org https://cdn.jsdelivr.net",
+              "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com https://lh4.googleusercontent.com https://lh5.googleusercontent.com https://lh6.googleusercontent.com https://api.qrserver.com https://unpkg.com https://images.unsplash.com https://www.gstatic.com https://*.basemaps.cartocdn.com https://www.bing.com https:",
+              "connect-src 'self' blob: https://xtox-production.up.railway.app wss://xtox-production.up.railway.app https://ipapi.co https://api.cloudinary.com https://res.cloudinary.com https://api.openai.com https://api.groq.com https://generativelanguage.googleapis.com https://accounts.google.com https://*.basemaps.cartocdn.com https://tfhub.dev https://storage.googleapis.com https://www.kaggle.com https://nominatim.openstreetmap.org https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://lh3.googleusercontent.com https://www.bing.com https://www.google.com",
               "media-src 'self' blob: https://res.cloudinary.com https:",
               "worker-src 'self' blob: https://cdn.jsdelivr.net",
               "frame-ancestors 'self'",

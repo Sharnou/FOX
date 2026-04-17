@@ -46,6 +46,16 @@ const EMPTY_STATE_ICONS = {
 const POPUP_INTERVAL = 4 * 60 * 60 * 1000;
 const CARTOONS = ['🦊', '🐨', '🦁', '🐸', '🦝', '🐙', '🦄', '🐼'];
 
+// ─── CSS theme constants — module-level to avoid TDZ (temporal dead zone) ────
+// Previously declared inside Home() which caused "Cannot access before initialization"
+// when the minifier renamed them and they were hoisted to a scope reference before declaration.
+const PRIMARY   = '#6366f1'; // indigo-500
+const PRIMARY_D = '#4f46e5'; // indigo-600
+const PRIMARY_L = '#818cf8'; // indigo-400
+const SURFACE   = 'rgba(255,255,255,0.07)';
+const CARD_BG   = '#ffffff';
+const BG_MAIN   = '#f1f5f9'; // slate-100
+
 function cloudinaryHQ(url) {
   if (!url || !url.includes('cloudinary.com')) return url || '';
   return url.replace('/upload/', '/upload/q_auto,f_auto,w_800/');
@@ -260,13 +270,7 @@ export default function Home() {
   const loginLabel = lang === 'ar' ? 'دخول' : lang === 'de' ? 'Einloggen' : lang === 'fr' ? 'Connexion' : 'Login';
   const savedLabel = lang === 'ar' ? 'المحفوظات' : lang === 'de' ? 'Gespeichert' : lang === 'fr' ? 'Favoris' : 'Saved';
 
-  /* ─── CSS vars ─── */
-  const PRIMARY   = '#6366f1'; // indigo-500
-  const PRIMARY_D = '#4f46e5'; // indigo-600
-  const PRIMARY_L = '#818cf8'; // indigo-400
-  const SURFACE   = 'rgba(255,255,255,0.07)';
-  const CARD_BG   = '#ffffff';
-  const BG_MAIN   = '#f1f5f9'; // slate-100
+
 
   return (
     <div
