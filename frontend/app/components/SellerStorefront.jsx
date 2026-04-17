@@ -146,6 +146,8 @@ function ItemCard({ item, lang, currency, t, isRTL }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+const PAGE_SIZE = 6;
+
 export default function SellerStorefront({
   sellerId = "demo",
   sellerName = "أحمد محمد",
@@ -164,7 +166,6 @@ export default function SellerStorefront({
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(true);
 
-  const PAGE_SIZE = 6;
 
   useEffect(() => {
     const key = `xtox_seller_items_${sellerId}`;

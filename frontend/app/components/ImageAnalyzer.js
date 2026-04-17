@@ -91,8 +91,8 @@ export async function analyzeImageFile(file) {
       let ocrText = '';
       try {
         const TesseractModule = Tesseract.default || Tesseract;
-        const OEM = TesseractModule.OEM || { LSTM_ONLY: 1 };
-        const worker = await TesseractModule.createWorker('eng+ara', OEM.LSTM_ONLY);
+        const oem = TesseractModule.OEM || { LSTM_ONLY: 1 };
+        const worker = await TesseractModule.createWorker('eng+ara', oem.LSTM_ONLY);
         const { data } = await worker.recognize(img);
         ocrText = data.text?.trim() || '';
         await worker.terminate();

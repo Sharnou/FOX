@@ -85,6 +85,8 @@ const TRANSLATIONS = {
 const toArabicIndic = (n) =>
   String(n).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
 
+const MAX_MSG_LENGTH = 200;
+
 export default function SellerChatAutoReply({
   lang = "ar",
   initialEnabled = false,
@@ -98,7 +100,6 @@ export default function SellerChatAutoReply({
     initialMessage || t.defaultMsg
   );
   const [saved, setSaved] = useState(false);
-  const MAX = 200;
 
   const handleSave = () => {
     onSave && onSave({ enabled, message });
@@ -111,7 +112,7 @@ export default function SellerChatAutoReply({
     setSaved(false);
   };
 
-  const charLeft = MAX - message.length;
+  const charLeft = MAX_MSG_LENGTH - message.length;
 
   return (
     <div
@@ -186,7 +187,7 @@ export default function SellerChatAutoReply({
         <textarea
           value={message}
           onChange={(e) => {
-            if (e.target.value.length <= MAX) setMessage(e.target.value);
+            if (e.target.value.length <= MAX_MSG_LENGTH) setMessage(e.target.value);
           }}
           placeholder={t.messagePlaceholder}
           rows={3}
@@ -203,8 +204,8 @@ export default function SellerChatAutoReply({
           className={'text-xs ' + (charLeft < 20 ? "text-red-400" : "text-gray-400")}
         >
           {isRTL
-            ? (toArabicIndic(message.length)) + ' / ' + (toArabicIndic(MAX)) + ' ' + (t.charCount)
-            : (message.length) + ' / ' + (MAX) + ' ' + (t.charCount)}
+            ? (toArabicIndic(message.length)) + ' / ' + (toArabicIndic(MAX_MSG_LENGTH)) + ' ' + (t.charCount)
+            : (message.length) + ' / ' + (MAX_MSG_LENGTH) + ' ' + (t.charCount)}
         </span>
       </div>
 

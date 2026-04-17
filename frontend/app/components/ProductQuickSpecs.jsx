@@ -25,12 +25,13 @@ const LABELS = {
   },
 };
 
+const COLLAPSE_LIMIT = 6;
+
 export default function ProductQuickSpecs({ specs = [], lang = 'ar', className = '' }) {
   const [expanded, setExpanded] = useState(false);
   const [activeLang, setActiveLang] = useState(lang);
   const t = LABELS[activeLang] || LABELS.ar;
   const isRTL = activeLang === 'ar';
-  const COLLAPSE_LIMIT = 6;
 
   const displaySpecs = expanded ? specs : specs.slice(0, COLLAPSE_LIMIT);
 

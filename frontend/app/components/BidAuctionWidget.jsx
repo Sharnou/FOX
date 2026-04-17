@@ -142,7 +142,7 @@ export default function BidAuctionWidget({
 }) {
   const t   = T[lang] || T.ar;
   const rtl = lang === 'ar';
-  const KEY = `xtox_auction_${auctionId}`;
+  const bidStorageKey = `xtox_auction_${auctionId}`;
 
   /* ── end timestamp ── */
   const endMs = useRef(
@@ -152,7 +152,7 @@ export default function BidAuctionWidget({
   /* ── persisted state ── */
   const loadState = () => {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(bidStorageKey);
       if (raw) return JSON.parse(raw);
     } catch {}
     const seedBids = SEED_BIDS.map((b, i) => ({
@@ -178,8 +178,8 @@ export default function BidAuctionWidget({
 
   /* ── persist ── */
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
-  }, [state, KEY]);
+    try { localStorage.setItem(bidStorageKey, JSON.stringify(state)); } catch {}
+  }, [state, bidStorageKey]);
 
   /* ── countdown tick ── */
   useEffect(() => {

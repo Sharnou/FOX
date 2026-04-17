@@ -13,12 +13,13 @@ import { useEffect, useRef, useState } from 'react';
  *   <AdFavoriteCount count={ad.favoriteCount} lang={lang} />
  *   <AdFavoriteCount count={ad.favoriteCount} lang={lang} compact />
  */
+const DURATION = 1000;
+
 export default function AdFavoriteCount({ count = 0, lang = 'ar', compact = false }) {
   const isAr = lang === 'ar';
   const [displayed, setDisplayed] = useState(0);
   const rafRef = useRef(null);
   const startRef = useRef(null);
-  const DURATION = 1000;
 
   useEffect(() => {
     if (count === 0) { setDisplayed(0); return; }

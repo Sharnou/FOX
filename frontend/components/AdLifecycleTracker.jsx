@@ -132,8 +132,6 @@ const AdLifecycleTracker = ({
   const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;
   const isRTL = lang === 'ar';
 
-  const ACTIVE_DAYS = 30;
-  const GRACE_DAYS = 7;
 
   const lifecycle = useMemo(() => {
     const now = new Date();

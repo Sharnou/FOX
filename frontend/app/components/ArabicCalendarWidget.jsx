@@ -106,8 +106,8 @@ function toHijri(gDate) {
   const month = E < 14 ? E - 1 : E - 13;
   const year = month > 2 ? C - 4716 : C - 4715;
   // Hijri
-  const JDH = JD - 1948439.5 + 32167;
-  const n = Math.floor(JDH);
+  const jdh = JD - 1948439.5 + 32167;
+  const n = Math.floor(jdh);
   const q = n - 29;
   const nMod = ((q % 10631) + 10631) % 10631;
   const hYear = Math.floor((30 * n + 10646) / 10631);

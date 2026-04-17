@@ -101,6 +101,8 @@ const LABELS = {
   },
 };
 
+const MONTHS_AR = ['محرم','صفر','ربيع الأول','ربيع الثاني','جمادى الأولى','جمادى الثانية','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'];
+
 function toHijri(date) {
   const jd =
     Math.floor((14 + 12 * date.getMonth() + 365.25 * (date.getFullYear() + Math.floor(date.getMonth() / 12))) / 12) -
@@ -123,7 +125,6 @@ function toHijri(date) {
   const month = Math.floor((24 + 29.5306 * (j - 1)) / 29.5306);
   const year = 30 * n + j - 30;
   const day = lll;
-  const MONTHS_AR = ['محرم','صفر','ربيع الأول','ربيع الثاني','جمادى الأولى','جمادى الثانية','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'];
   return `${day} ${MONTHS_AR[(month - 1) % 12]} ${year}`;
 }
 

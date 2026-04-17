@@ -22,6 +22,13 @@ const PAGE_CONTEXT = {
   "/admin": "The user is on the admin panel managing the platform.",
 };
 
+const QUICK_ACTIONS = [
+  { label: "كيف أنشر إعلاناً؟", icon: "📋" },
+  { label: "نصائح الأمان", icon: "🛡️" },
+  { label: "How to post an ad?", icon: "📋" },
+  { label: "Safety tips", icon: "🛡️" },
+];
+
 export default function AIAssistant({ detectedCountry, user }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -105,12 +112,7 @@ export default function AIAssistant({ detectedCountry, user }) {
     recognition.onend = () => setListening(false);
   };
 
-  const QUICK_ACTIONS = [
-    { label: "كيف أنشر إعلاناً؟", icon: "📋" },
-    { label: "نصائح الأمان", icon: "🛡️" },
-    { label: "How to post an ad?", icon: "📋" },
-    { label: "Safety tips", icon: "🛡️" },
-  ];
+
 
   return (
     <>

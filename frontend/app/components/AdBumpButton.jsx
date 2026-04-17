@@ -38,6 +38,8 @@ function toArabicIndic(n) {
   return String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
 }
 
+const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export default function AdBumpButton({ adId, lang = 'ar', onBump }) {
   const t = i18n[lang] || i18n.ar;
   const isRTL = lang === 'ar';
@@ -48,7 +50,6 @@ export default function AdBumpButton({ adId, lang = 'ar', onBump }) {
   const [bumped, setBumped] = useState(false);
   const [launching, setLaunching] = useState(false);
 
-  const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   useEffect(() => {
     const stored = localStorage.getItem(storageKey);

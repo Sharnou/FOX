@@ -54,6 +54,8 @@ function fmt(val, dec = 2, ai = false) {
   return ai ? toAI(s) : s;
 }
 
+const CURRENCIES = ['EGP', 'SAR', 'AED', 'USD'];
+
 export default function SellerTaxCalculator({
   initialPrice = '',
   initialCountry = 'EG',
@@ -94,7 +96,6 @@ export default function SellerTaxCalculator({
     setResult({ p, vat, pf, hf, tot, net, pct, verdict, color, cd });
   }, [price, country]);
 
-  const CURRENCIES = ['EGP', 'SAR', 'AED', 'USD'];
 
   return (
     <div

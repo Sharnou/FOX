@@ -1,5 +1,5 @@
 'use client';
-// XTOX Homepage v202604171259 — TDZ clean
+// XTOX Homepage v20260418-tdz-final — TDZ fully eliminated
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';

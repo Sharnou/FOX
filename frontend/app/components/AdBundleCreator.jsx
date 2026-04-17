@@ -149,6 +149,10 @@ const DEMO_ADS = [
   { _id: '6', title: 'Laptop Stand', titleAr: 'حامل لابتوب', price: 350, currency: 'EGP', image: null, category: 'electronics' },
 ];
 
+const CATEGORY_ICONS = {
+  electronics: '📱', furniture: '🪑', clothing: '👗', vehicles: '🚗', default: '📦',
+};
+
 export default function AdBundleCreator({ sellerAds = DEMO_ADS, onBundleCreate, lang: initLang = 'ar', className = '' }) {
   const [lang, setLang] = useState(initLang);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -222,9 +226,7 @@ export default function AdBundleCreator({ sellerAds = DEMO_ADS, onBundleCreate, 
 
   const adTitle = (ad) => lang === 'ar' ? (ad.titleAr || ad.title) : ad.title;
 
-  const CATEGORY_ICONS = {
-    electronics: '📱', furniture: '🪑', clothing: '👗', vehicles: '🚗', default: '📦',
-  };
+
   function catIcon(cat) { return CATEGORY_ICONS[cat] || CATEGORY_ICONS.default; }
 
   return (

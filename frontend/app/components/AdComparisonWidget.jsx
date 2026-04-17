@@ -183,7 +183,7 @@ export default function AdComparisonWidget({ ads = [], lang = "ar", onClose }) {
     margin: "0 auto 6px", fontSize: 22,
   };
 
-  const ROWS = [
+  const comparisonRows = [
     {
       label: t.price,
       render: (ad) => {
@@ -250,7 +250,7 @@ export default function AdComparisonWidget({ ads = [], lang = "ar", onClose }) {
                 </tr>
               </thead>
               <tbody>
-                {ROWS.map((row) => (
+                {comparisonRows.map((row) => (
                   <tr key={row.label}>
                     <td style={tdStyle(false, true)}>{row.label}</td>
                     {ads.map((ad) => {

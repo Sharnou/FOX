@@ -231,6 +231,8 @@ const MOCK_EVENTS = [
 ];
 
 // ── main component ────────────────────────────────────────────────────────────
+const EVENT_TYPES = ['all', 'garage', 'bazaar', 'flea', 'community', 'online'];
+
 export default function LocalEventListingWidget({
   events = MOCK_EVENTS,
   lang = 'ar',
@@ -299,7 +301,6 @@ export default function LocalEventListingWidget({
     setShowForm(false);
   };
 
-  const TYPES = ['all', 'garage', 'bazaar', 'flea', 'community', 'online'];
 
   return (
     <div
@@ -359,7 +360,7 @@ export default function LocalEventListingWidget({
 
       {/* Filter pills */}
       <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none">
-        {TYPES.map((tp) => (
+        {EVENT_TYPES.map((tp) => (
           <button
             key={tp}
             onClick={() => setFilterType(tp)}

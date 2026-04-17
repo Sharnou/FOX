@@ -110,6 +110,14 @@ const StatPill = ({ label, value, icon }) => (
 );
 
 // ─── Main component ────────────────────────────────────────────────────────────
+const BAR_COLORS = [
+  'bg-amber-500',
+  'bg-orange-400',
+  'bg-yellow-400',
+  'bg-amber-300',
+  'bg-yellow-300',
+];
+
 export default function SellerGeographicInsights({
   insightsData,
   lang: propLang,
@@ -141,13 +149,7 @@ export default function SellerGeographicInsights({
     return () => clearTimeout(t);
   }, []);
 
-  const BAR_COLORS = [
-    'bg-amber-500',
-    'bg-orange-400',
-    'bg-yellow-400',
-    'bg-amber-300',
-    'bg-yellow-300',
-  ];
+
 
   return (
     <div
