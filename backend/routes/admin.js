@@ -403,6 +403,9 @@ router.get('/deleted', adminAuth, async (req, res) => {
 router.post('/ban', adminAuth, async (req, res) => {
   try {
     const { id, hours } = req.body;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
     await User.findByIdAndUpdate(id, { isBanned: true, banExpiresAt: hours ? new Date(Date.now() + hours * 3600000) : null });
     res.json({ ok: true });
   } catch (e) {
@@ -412,7 +415,11 @@ router.post('/ban', adminAuth, async (req, res) => {
 
 router.post('/mute', adminAuth, async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.body.userId || req.body.id, { isMuted: req.body.mute });
+    const _muteId = req.body.userId || req.body.id;
+    if (!_muteId || !mongoose.Types.ObjectId.isValid(_muteId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    await User.findByIdAndUpdate(_muteId, { isMuted: req.body.mute });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -421,7 +428,11 @@ router.post('/mute', adminAuth, async (req, res) => {
 
 router.post('/hide-user', adminAuth, async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.body.userId || req.body.id, { isHidden: req.body.hide });
+    const _hideId = req.body.userId || req.body.id;
+    if (!_hideId || !mongoose.Types.ObjectId.isValid(_hideId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    await User.findByIdAndUpdate(_hideId, { isHidden: req.body.hide });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -430,6 +441,9 @@ router.post('/hide-user', adminAuth, async (req, res) => {
 
 router.post('/rank-ad', adminAuth, async (req, res) => {
   try {
+    if (!req.body.adId || !mongoose.Types.ObjectId.isValid(req.body.adId)) {
+      return res.status(400).json({ error: 'Invalid adId' });
+    }
     await Ad.findByIdAndUpdate(req.body.adId, { visibilityScore: req.body.score });
     res.json({ ok: true });
   } catch (e) {
@@ -440,6 +454,9 @@ router.post('/rank-ad', adminAuth, async (req, res) => {
 router.post('/feature', adminAuth, async (req, res) => {
   try {
     const { adId, style } = req.body;
+    if (!adId || !mongoose.Types.ObjectId.isValid(adId)) {
+      return res.status(400).json({ error: 'Invalid adId' });
+    }
     let days = parseInt(req.body.days) || 7;
     if (days < 1) days = 1;
     if (days > 90) days = 90;
@@ -463,6 +480,9 @@ router.post('/feature', adminAuth, async (req, res) => {
 
 router.post('/promote-user', superAdminAuth, async (req, res) => {
   try {
+    if (!req.body.id || !mongoose.Types.ObjectId.isValid(req.body.id)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
     await User.findByIdAndUpdate(req.body.id, { role: req.body.role });
     res.json({ ok: true });
   } catch (e) {
@@ -581,6 +601,9 @@ router.post('/resolve-report', adminAuth, async (req, res) => {
   try {
     const { reportId } = req.body;
     if (!reportId) return res.status(400).json({ error: 'معرف التقرير مطلوب' });
+    if (!mongoose.Types.ObjectId.isValid(reportId)) {
+      return res.status(400).json({ error: 'معرف التقرير غير صالح' });
+    }
     const report = await Report.findByIdAndUpdate(reportId, { resolved: true, resolvedAt: new Date() }, { returnDocument: 'after' });
     if (!report) return res.status(404).json({ error: 'التقرير غير موجود' });
     res.json({ ok: true, report });
