@@ -85,6 +85,9 @@ router.post('/congratulate', auth, async (req, res) => {
     const { winnerId } = req.body;
     const senderId = req.user.id;
     if (!winnerId) return res.status(400).json({ error: 'winnerId required' });
+    if (!mongoose.Types.ObjectId.isValid(winnerId)) {
+      return res.status(400).json({ error: 'Invalid winnerId format' });
+    }
     if (senderId === winnerId) return res.status(400).json({ error: 'Cannot congratulate yourself' });
 
     // Lazy import Chat to avoid circular deps
