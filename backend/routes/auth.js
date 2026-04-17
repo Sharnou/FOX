@@ -777,6 +777,9 @@ router.post('/block/:userId', async (req, res) => {
     if (adminSecret !== (process.env.ADMIN_BLOCK_SECRET || 'xtox-admin-block')) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
+    if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ error: 'Invalid userId format' });
+    }
     var User = await getUserModel();
     var user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -812,6 +815,9 @@ router.post('/unblock/:userId', async (req, res) => {
     var adminSecret = req.body.adminSecret || req.headers['x-admin-secret'] || '';
     if (adminSecret !== (process.env.ADMIN_BLOCK_SECRET || 'xtox-admin-block')) {
       return res.status(403).json({ error: 'Unauthorized' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ error: 'Invalid userId format' });
     }
     var User = await getUserModel();
     await User.findByIdAndUpdate(req.params.userId, {
