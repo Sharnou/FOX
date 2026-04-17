@@ -1,26 +1,32 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { makeT, CATEGORY_KEY_MAP, CITY_KEY_MAP, CONDITION_KEY_MAP } from '../translations/index';
+import translations, { CATEGORY_KEY_MAP, CITY_KEY_MAP, CONDITION_KEY_MAP } from '../translations/index';
 
-const GEO_CACHE_VERSION = '2'; // bump this if detection logic changes
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const GEO_CACHE_VERSION = '2';
+const TRANS_CACHE_VERSION = '1'; // bump to force re-fetch of dynamic translations
 
-// Default t() using Arabic
-const defaultT = makeT('ar');
+// Languages served from the static bundle (no API fetch needed)
+const STATIC_LANGS = new Set(['ar', 'en', 'fr', 'de', 'es', 'tr', 'ru', 'zh']);
 
-// Default context value — Egypt/Arabic
 const LanguageContext = createContext({
-  language: 'ar',
-  isRTL: true,
-  showToggle: true,
-  nativeName: 'عر',
-  nativeLang: 'ar',
-  toggleLanguage: () => {},
-  detectedCountry: 'EG',
-  t: defaultT,
-  tCat: (v) => v,
-  tCity: (v) => v,
-  tCond: (v) => v,
+  language: 'ar', isRTL: true, showToggle: true,
+  nativeName: 'عر', toggleLanguage: () => {},
+  detectedCountry: 'EG', nativeLang: 'ar',
+  t: (key) => translations['ar']?.[key] || key,
+  tCat: (name) => name, tCity: (name) => name, tCond: (val) => val,
+  translationsReady: true,
 });
+
+function makeT(lang, dynamicTranslations) {
+  return (key) => {
+    // Check dynamic translations first (for non-static languages)
+    if (dynamicTranslations && dynamicTranslations[key]) return dynamicTranslations[key];
+    // Fall back to static translations
+    const dict = translations[lang] || translations['en'] || translations['ar'];
+    return dict?.[key] ?? translations['en']?.[key] ?? translations['ar']?.[key] ?? key;
+  };
+}
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState('ar');
@@ -29,39 +35,54 @@ export function LanguageProvider({ children }) {
   const [nativeName, setNativeName] = useState('عر');
   const [detectedCountry, setDetectedCountry] = useState('EG');
   const [nativeLang, setNativeLang] = useState('ar');
+  const [dynamicTranslations, setDynamicTranslations] = useState(null);
+  const [translationsReady, setTranslationsReady] = useState(true);
 
-  // Memoised translation function — recreates only when language changes
-  const t = useCallback((key) => {
-    const dict = makeT(language);
-    return dict(key);
-  }, [language]);
+  // Fetch dynamic translations for non-static languages
+  async function fetchDynamicTranslations(lang) {
+    if (STATIC_LANGS.has(lang)) {
+      setDynamicTranslations(null);
+      setTranslationsReady(true);
+      return;
+    }
 
-  // Translate category/subcategory from Arabic DB value
-  const tCat = useCallback((arabicName) => {
-    if (!arabicName) return arabicName;
-    const key = CATEGORY_KEY_MAP[arabicName] || CATEGORY_KEY_MAP[arabicName?.trim()];
-    if (!key) return arabicName;
-    const dict = makeT(language);
-    return dict(key) || arabicName;
-  }, [language]);
+    // Check localStorage cache
+    const cacheKey = `xtox_trans_${lang}`;
+    const cacheVersionKey = `xtox_trans_v_${lang}`;
+    const cached = localStorage.getItem(cacheKey);
+    const cachedVersion = localStorage.getItem(cacheVersionKey);
 
-  // Translate city from Arabic DB value
-  const tCity = useCallback((arabicCity) => {
-    if (!arabicCity) return arabicCity;
-    const key = CITY_KEY_MAP[arabicCity] || CITY_KEY_MAP[arabicCity?.trim()];
-    if (!key) return arabicCity;
-    const dict = makeT(language);
-    return dict(key) || arabicCity;
-  }, [language]);
+    if (cached && cachedVersion === TRANS_CACHE_VERSION) {
+      try {
+        setDynamicTranslations(JSON.parse(cached));
+        setTranslationsReady(true);
+        return;
+      } catch {}
+    }
 
-  // Translate condition from Arabic/English value
-  const tCond = useCallback((condition) => {
-    if (!condition) return condition;
-    const key = CONDITION_KEY_MAP[condition] || CONDITION_KEY_MAP[condition?.trim()];
-    if (!key) return condition;
-    const dict = makeT(language);
-    return dict(key) || condition;
-  }, [language]);
+    // Fetch from backend (will generate via OpenAI if not in MongoDB)
+    setTranslationsReady(false);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/translations/${lang}`, {
+        signal: AbortSignal.timeout(20000), // 20s timeout for OpenAI generation
+      });
+      const data = await res.json();
+
+      if (data.translations) {
+        // Cache in localStorage
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(data.translations));
+          localStorage.setItem(cacheVersionKey, TRANS_CACHE_VERSION);
+        } catch {}
+        setDynamicTranslations(data.translations);
+      }
+    } catch (err) {
+      console.warn('[i18n] Failed to fetch dynamic translations, using fallback:', err.message);
+      // Fail silently — t() will fall back to English
+    } finally {
+      setTranslationsReady(true);
+    }
+  }
 
   function applyLangToDOM(lang, rtl) {
     if (typeof document === 'undefined') return;
@@ -72,29 +93,26 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     async function init() {
-      // Cache-version check: discard stale data from old detection logic
       const cacheVersion = localStorage.getItem('xtox_geo_version');
       const storedCountry = cacheVersion === GEO_CACHE_VERSION
         ? localStorage.getItem('xtox_detected_country')
-        : null; // force re-detect if version mismatch (fixes stale FR cache)
+        : null;
 
-      const storedToggle   = storedCountry ? localStorage.getItem('xtox_show_toggle') : null;
-      const storedNative   = storedCountry ? localStorage.getItem('xtox_native_lang') : null;
-      const storedName     = storedCountry ? localStorage.getItem('xtox_native_name') : null;
-      const storedRTL      = storedCountry ? localStorage.getItem('xtox_native_rtl') : null;
-      const savedLang      = localStorage.getItem('xtox_language');
+      const storedToggle = storedCountry ? localStorage.getItem('xtox_show_toggle') : null;
+      const storedNative = storedCountry ? localStorage.getItem('xtox_native_lang') : null;
+      const storedName   = storedCountry ? localStorage.getItem('xtox_native_name') : null;
+      const storedRTL    = storedCountry ? localStorage.getItem('xtox_native_rtl') : null;
+      const savedLang    = localStorage.getItem('xtox_language');
 
       let country, toggle, native, name, nativeRtl;
 
       if (storedCountry && storedToggle !== null) {
-        // Use cached values — never re-detect
         country   = storedCountry;
         toggle    = storedToggle === 'true';
         native    = storedNative || 'en';
         name      = storedName  || null;
         nativeRtl = storedRTL   === 'true';
       } else {
-        // First visit or stale cache — call Next.js API route (reads Vercel CDN header)
         try {
           const res  = await fetch('/api/geo', { signal: AbortSignal.timeout(4000) });
           const data = await res.json();
@@ -104,14 +122,12 @@ export function LanguageProvider({ children }) {
           name      = data.nativeName || null;
           nativeRtl = !!data.rtl;
         } catch {
-          // Fallback to Egypt/Arabic
           country   = 'EG';
           toggle    = true;
           native    = 'ar';
           name      = 'عر';
           nativeRtl = true;
         }
-        // Cache with version key so future bumps invalidate stale data
         localStorage.setItem('xtox_detected_country', country);
         localStorage.setItem('xtox_show_toggle',      String(toggle));
         localStorage.setItem('xtox_native_lang',      native);
@@ -125,13 +141,10 @@ export function LanguageProvider({ children }) {
       setNativeLang(native);
       setNativeName(name || '');
 
-      // Determine which language to display
       let currentLang;
       if (!toggle) {
-        // English-native country — always English, no toggle
         currentLang = 'en';
       } else {
-        // Non-English country: use saved pref or default to native
         currentLang = (savedLang === 'en' || savedLang === native) ? savedLang : native;
       }
 
@@ -141,12 +154,15 @@ export function LanguageProvider({ children }) {
       const currentRTL = (currentLang === native) ? nativeRtl : false;
       setIsRTL(currentRTL);
       applyLangToDOM(currentLang, currentRTL);
+
+      // Fetch dynamic translations if needed
+      await fetchDynamicTranslations(currentLang);
     }
 
     init();
   }, []);
 
-  function toggleLanguage() {
+  async function toggleLanguage() {
     if (!showToggle) return;
     const nativeRtl = localStorage.getItem('xtox_native_rtl') === 'true';
     const newLang   = language === nativeLang ? 'en' : nativeLang;
@@ -156,12 +172,42 @@ export function LanguageProvider({ children }) {
     setIsRTL(newRTL);
     localStorage.setItem('xtox_language', newLang);
     applyLangToDOM(newLang, newRTL);
+
+    // Fetch dynamic translations for the toggled language if needed
+    await fetchDynamicTranslations(newLang);
   }
 
+  const t = useCallback(
+    (key) => makeT(language, dynamicTranslations)(key),
+    [language, dynamicTranslations]
+  );
+
+  const tCat = useCallback((arabicName) => {
+    if (!arabicName) return arabicName;
+    const key = CATEGORY_KEY_MAP?.[arabicName] || CATEGORY_KEY_MAP?.[arabicName?.trim()];
+    if (!key) return arabicName;
+    return t(key);
+  }, [t]);
+
+  const tCity = useCallback((arabicCity) => {
+    if (!arabicCity) return arabicCity;
+    const key = CITY_KEY_MAP?.[arabicCity] || CITY_KEY_MAP?.[arabicCity?.trim()];
+    if (!key) return arabicCity;
+    return t(key);
+  }, [t]);
+
+  const tCond = useCallback((condition) => {
+    if (!condition) return condition;
+    const key = CONDITION_KEY_MAP?.[condition] || CONDITION_KEY_MAP?.[condition?.trim()];
+    if (!key) return condition;
+    return t(key);
+  }, [t]);
+
   return (
-    <LanguageContext.Provider
-      value={{ language, isRTL, showToggle, nativeName, nativeLang, toggleLanguage, detectedCountry, t, tCat, tCity, tCond }}
-    >
+    <LanguageContext.Provider value={{
+      language, isRTL, showToggle, nativeName, toggleLanguage,
+      detectedCountry, nativeLang, t, tCat, tCity, tCond, translationsReady,
+    }}>
       {children}
     </LanguageContext.Provider>
   );

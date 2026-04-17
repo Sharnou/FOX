@@ -10,6 +10,7 @@ import ErrorCapture from './components/ErrorCapture';
 import MarkPoint from './components/MarkPoint';
 import ChatFloat from './components/ChatFloat';
 import WhatsAppFloat from './components/WhatsAppFloat';
+import TranslationLoader from './components/TranslationLoader';
 import GeoMetaInjector from './components/GeoMetaInjector';
 import HtmlAttributes from './components/HtmlAttributes';
 
@@ -134,6 +135,7 @@ export default function RootLayout({ children }) {
         <BottomNav />
         <ChatFloat />
         <WhatsAppFloat />
+        <TranslationLoader />
       </LanguageProvider>
       </body>
     </html>

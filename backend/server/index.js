@@ -78,6 +78,7 @@ import notificationRoutes from '../routes/notifications.js';
 import pushRoutes from '../routes/push.js';
 import winnerRouter from '../routes/winner.js';
 import wpRouter, { setupWordPressSite } from "../routes/wp.js";
+import translationsRouter from '../routes/translations.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 // Pre-register WinnerHistory model so it is available before first query
 import('../models/WinnerHistory.js').catch(e => console.warn('[WinnerHistory] model load failed:', e.message));
@@ -256,6 +257,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/winner', winnerRouter);
 app.use('/api/wp', wpRouter); // WordPress.com OAuth2 + auto-sync
+app.use('/api/translations', translationsRouter); // Auto-generate translations via OpenAI + MongoDB cache
 
 // GET /api/metrics — admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {
