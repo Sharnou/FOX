@@ -972,4 +972,138 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+
+// -- Shorthand aliases (without /whatsapp/ prefix) --------------------------
+// POST /api/auth/send-otp   → delegates to /api/auth/whatsapp/send-otp logic
+// POST /api/auth/verify-otp → delegates to /api/auth/whatsapp/verify-otp logic
+// These aliases exist so both /api/auth/send-otp and /api/auth/whatsapp/send-otp work.
+
+router.post('/send-otp', async (req, res) => {
+  try {
+    var email = (req.body.email || '').trim().toLowerCase();
+    var phone = (req.body.phone || '').trim().replace(/\s/g, '');
+    if (!phone && !email) {
+      return res.status(400).json({ error: 'Phone or email required' });
+    }
+    if (phone && !phone.startsWith('+')) {
+      return res.status(400).json({ error: 'Phone must start with country code e.g. +201234567890' });
+    }
+    if (phone) phone = '+' + phone.replace(/\D/g, '');
+
+    var User = await getUserModel();
+
+    var blocked = null;
+    if (phone) blocked = await User.findOne({ blocked: true, blockedPhone: phone });
+    if (!blocked && email) blocked = await User.findOne({ blocked: true, email });
+    if (blocked) {
+      return res.status(403).json({ error: 'This account has been permanently suspended.' });
+    }
+
+    var otp = String(Math.floor(100000 + Math.random() * 900000));
+    var expiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    var userQuery = phone ? { whatsappPhone: phone } : { email };
+    var userUpdate = { whatsappOtp: otp, whatsappOtpExpiry: expiry, whatsappOtpAttempts: 0, country: 'unknown' };
+    if (phone) userUpdate.whatsappPhone = phone;
+    if (email) userUpdate.email = email;
+    var existingUser = await User.findOneAndUpdate(userQuery, userUpdate, { upsert: true, setDefaultsOnInsert: true, returnDocument: 'after' });
+    if (!email && existingUser && existingUser.email) email = existingUser.email;
+
+    if (USE_FAKE_API) {
+      return res.json({
+        success: true,
+        message: 'OTP generated (FAKE_API mode — no real message sent)',
+        debug_otp: otp,
+        phone: phone || undefined,
+        email: email || undefined
+      });
+    }
+
+    if (email) {
+      try {
+        await sendOTPEmail(email, otp);
+        return res.json({ success: true, message: 'OTP sent to email', email, phone: phone || undefined });
+      } catch (emailErr) {
+        console.error('[AUTH send-otp] Email send failed:', emailErr.message);
+      }
+    }
+
+    return res.status(500).json({ error: 'Failed to send OTP. Please configure email.' });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+router.post('/verify-otp', async (req, res) => {
+  try {
+    var phone = (req.body.phone || '').trim();
+    if (phone) phone = '+' + phone.replace(/\D/g, '');
+    var otp = (req.body.otp || '').trim();
+    var email = (req.body.email || '').trim().toLowerCase();
+
+    if ((!phone && !email) || !otp) {
+      return res.status(400).json({ error: 'Phone or email, and OTP required' });
+    }
+
+    var User = await getUserModel();
+    var userQuery = phone ? { whatsappPhone: phone } : { email };
+    var user = await User.findOne(userQuery);
+
+    if (!user) return res.status(400).json({ error: 'OTP not sent or expired. Request a new one.' });
+    if (user.blocked) return res.status(403).json({ error: 'This account has been permanently suspended.' });
+
+    if (!(USE_FAKE_API && otp === '000000')) {
+      if ((user.whatsappOtpAttempts || 0) >= 5) {
+        return res.status(429).json({ error: 'Too many incorrect attempts. Request a new OTP.' });
+      }
+      if (!user.whatsappOtp || !user.whatsappOtpExpiry) {
+        return res.status(400).json({ error: 'No OTP found. Request a new one.' });
+      }
+      if (new Date() > user.whatsappOtpExpiry) {
+        return res.status(400).json({ error: 'OTP expired. Request a new one.' });
+      }
+      if (user.whatsappOtp !== otp) {
+        await User.findByIdAndUpdate(user._id, { $inc: { whatsappOtpAttempts: 1 } });
+        var remaining = Math.max(0, 4 - (user.whatsappOtpAttempts || 0));
+        return res.status(400).json({ error: 'Incorrect OTP. ' + remaining + ' attempts remaining.' });
+      }
+    }
+
+    var isNew = !user.xtoxId;
+    var updateData = {
+      whatsappOtp: null, whatsappOtpExpiry: null, whatsappOtpAttempts: 0,
+      authProvider: user.authProvider || (phone ? 'whatsapp' : 'email'),
+      whatsappVerified: !!phone,
+      emailVerified: true,
+      lastSeen: new Date()
+    };
+
+    if (isNew) {
+      updateData.xtoxId = await generateXtoxId();
+      var baseName = phone ? ('user' + phone.slice(-4)) : ((email.split('@')[0] || 'user').replace(/[^a-z0-9]/gi, '').slice(0, 20) || 'user');
+      updateData.xtoxEmail = await assignUniqueXtoxEmail(User, baseName);
+      updateData.name = user.name || baseName;
+    }
+
+    var updatedUser = await User.findByIdAndUpdate(user._id, updateData, { returnDocument: 'after' });
+    var token = issueToken(updatedUser);
+
+    res.json({
+      success: true, token, isNew,
+      user: {
+        id: updatedUser._id,
+        xtoxId: updatedUser.xtoxId,
+        xtoxEmail: updatedUser.xtoxEmail,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.whatsappPhone,
+        authProvider: updatedUser.authProvider,
+        emailVerified: true
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
 export default router;

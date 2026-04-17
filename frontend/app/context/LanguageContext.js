@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect } from 'react';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const GEO_CACHE_VERSION = '2'; // bump this if detection logic changes
 
 // Default context value — Egypt/Arabic
 const LanguageContext = createContext({
@@ -31,12 +31,16 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     async function init() {
-      // Read cached detection
-      const storedCountry  = localStorage.getItem('xtox_detected_country');
-      const storedToggle   = localStorage.getItem('xtox_show_toggle');
-      const storedNative   = localStorage.getItem('xtox_native_lang');
-      const storedName     = localStorage.getItem('xtox_native_name');
-      const storedRTL      = localStorage.getItem('xtox_native_rtl');
+      // Cache-version check: discard stale data from old detection logic
+      const cacheVersion = localStorage.getItem('xtox_geo_version');
+      const storedCountry = cacheVersion === GEO_CACHE_VERSION
+        ? localStorage.getItem('xtox_detected_country')
+        : null; // force re-detect if version mismatch (fixes stale FR cache)
+
+      const storedToggle   = storedCountry ? localStorage.getItem('xtox_show_toggle') : null;
+      const storedNative   = storedCountry ? localStorage.getItem('xtox_native_lang') : null;
+      const storedName     = storedCountry ? localStorage.getItem('xtox_native_name') : null;
+      const storedRTL      = storedCountry ? localStorage.getItem('xtox_native_rtl') : null;
       const savedLang      = localStorage.getItem('xtox_language');
 
       let country, toggle, native, name, nativeRtl;
@@ -49,9 +53,9 @@ export function LanguageProvider({ children }) {
         name      = storedName  || null;
         nativeRtl = storedRTL   === 'true';
       } else {
-        // First visit — call backend /api/geo/detect
+        // First visit or stale cache — call Next.js API route (reads Vercel CDN header)
         try {
-          const res  = await fetch(`${BACKEND_URL}/api/geo/detect`, { signal: AbortSignal.timeout(4000) });
+          const res  = await fetch('/api/geo', { signal: AbortSignal.timeout(4000) });
           const data = await res.json();
           country   = data.country    || 'EG';
           toggle    = !!data.showToggle;
@@ -66,12 +70,13 @@ export function LanguageProvider({ children }) {
           name      = 'عر';
           nativeRtl = true;
         }
-        // Cache permanently in localStorage (country is immutable)
+        // Cache with version key so future bumps invalidate stale data
         localStorage.setItem('xtox_detected_country', country);
         localStorage.setItem('xtox_show_toggle',      String(toggle));
         localStorage.setItem('xtox_native_lang',      native);
         localStorage.setItem('xtox_native_name',      name || '');
         localStorage.setItem('xtox_native_rtl',       String(nativeRtl));
+        localStorage.setItem('xtox_geo_version',      GEO_CACHE_VERSION);
       }
 
       setDetectedCountry(country);
