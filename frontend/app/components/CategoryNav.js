@@ -8,7 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
 export default function CategoryNav({ active, onChange }) {
   const { t } = useLanguage();
 
-  const CATEGORIES = [
+  const categories = [
     { key: 'All',         icon: '🌐', label: t('cat_all') },
     { key: 'Vehicles',    icon: '🚗', label: t('cat_vehicles') },
     { key: 'Electronics', icon: '📱', label: t('cat_electronics') },
@@ -28,7 +28,7 @@ export default function CategoryNav({ active, onChange }) {
       className="flex gap-2 p-3 overflow-x-auto bg-white shadow-sm"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {CATEGORIES.map(({ key, label, icon }) => (
+      {categories.map(({ key, label, icon }) => (
         <button
           key={key}
           onClick={() => onChange(key)}

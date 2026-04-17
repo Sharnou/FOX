@@ -412,7 +412,7 @@ export default function ChatBox({
 
   if (myId && targetId && String(myId) === String(targetId)) return null;
 
-  const handleOpen = async () => {
+  async function handleOpen() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) {
       window.location.href = '/login';
@@ -454,7 +454,7 @@ export default function ChatBox({
     setLoading(false);
   };
 
-  const loadMessages = async (cid, token) => {
+  async function loadMessages(cid, token) {
     try {
       const res = await fetch(API + '/api/chat/' + cid + '/messages', {
         headers: { 'Authorization': 'Bearer ' + token },
@@ -466,7 +466,7 @@ export default function ChatBox({
     } catch {}
   };
 
-  const connectSocket = (cid, token) => {
+  function connectSocket(cid, token) {
     if (typeof window === 'undefined') return;
     import('socket.io-client').then(({ io }) => {
       const s = io(SOCKET_URL, {
@@ -490,7 +490,7 @@ export default function ChatBox({
     }).catch(() => {});
   };
 
-  const handleKeyDown = (e) => {
+  function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
