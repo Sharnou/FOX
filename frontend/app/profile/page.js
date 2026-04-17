@@ -64,7 +64,18 @@ export default function ProfilePage() {
     localStorage.getItem('xtox_admin_token') ||
     localStorage.getItem('authToken') || '';
 
-  function handleLogout() {
+  async function handleLogout() {
+    // Step 1: Notify backend (stateless JWT — backend just acknowledges)
+    try {
+      const tok = getToken();
+      if (tok) {
+        await fetch(API + '/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        }).catch(() => {});
+      }
+    } catch (_) {}
+    // Step 2: Clear all auth state from localStorage
     try {
       const keysToRemove = [
         'token', 'xtox_token', 'xtox_admin_token', 'authToken',
@@ -73,6 +84,7 @@ export default function ProfilePage() {
       ];
       keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
     } catch {}
+    // Step 3: Redirect to login
     router.push('/login');
   }
 
