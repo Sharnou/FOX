@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { auth } from '../middleware/auth.js';
 import Ad from '../models/Ad.js';
 import User from '../models/User.js';
@@ -73,6 +74,9 @@ router.post('/', auth, async (req, res) => {
   try {
     const { adId, plan = 'free', payment, days } = req.body;
     if (!adId) return res.status(400).json({ error: 'adId required' });
+    if (!mongoose.Types.ObjectId.isValid(adId)) {
+      return res.status(400).json({ error: 'Invalid adId format' });
+    }
 
     const ad = await Ad.findById(adId);
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
