@@ -173,3 +173,48 @@ Keys are tried in sequence. On failure, auto-rotates. All AI calls use `callWith
 ## 📜 License
 
 MIT — Built for Egypt 🇪🇬 and the Arab world 🌍
+
+## 🤖 AI Auto-Fix Script
+
+`fix_xtox.py` — AI-powered scan, test, and fix for the XTOX app.
+
+### Prerequisites
+```bash
+pip install openai requests playwright pylint black pytest coverage beautifulsoup4
+playwright install chromium
+npm install -g eslint prettier
+```
+
+### Usage
+```bash
+# Basic static analysis (no network):
+python fix_xtox.py
+
+# Full live test against deployed URLs:
+python fix_xtox.py --live
+
+# With AI fixes (set your key first):
+export OPENAI_API_KEY=sk-...
+python fix_xtox.py --live
+
+# With admin token for deeper API tests:
+export XTOX_ADMIN_TOKEN=$(curl -s -X POST https://xtox-production.up.railway.app/api/auth/email/verify-otp \
+  -H 'Content-Type: application/json' -d '{"email":"xtox@xtox.com","otp":"000000"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+python fix_xtox.py --live
+
+# Custom port for local Next.js dev:
+python fix_xtox.py --port 3001
+```
+
+### What it checks
+- ✅ npm dependencies (backend + frontend)
+- ✅ JS/TS syntax errors (node --check on all files)
+- ✅ Next.js build (npm run build)
+- ✅ 13 live backend API endpoints
+- ✅ CORS headers
+- ✅ Environment variables
+- ✅ npm security audit
+- ✅ Translation completeness (8 languages × 849 keys)
+- ✅ Geo detection (8 countries)
+- ✅ Browser link check + console errors (Playwright)
+- ✅ Auto-commit fixes with AI suggestions
