@@ -147,19 +147,27 @@ router.post('/whatsapp/send-otp', async (req, res) => {
     if (!email && existingUser && existingUser.email) email = existingUser.email;
 
     // 1. FAKE API MODE
-    if (USE_FAKE_API && FAKE_API_URL) {
-      try {
-        var fakeRes = await fetch(`${FAKE_API_URL}/whatsapp/send-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone })
-        });
-        await fakeRes.json(); // call fake API but ignore its OTP
-        var debugPayload = (USE_FAKE_API || process.env.NODE_ENV !== 'production') ? { debug_otp: otp } : {};
-        return res.json({ success: true, message: 'OTP sent (FAKE API - testing mode)', ...debugPayload, phone });
-      } catch (fakeErr) {
-        return res.status(500).json({ success: false, message: 'Fake API unreachable', error: fakeErr.message });
+    if (USE_FAKE_API) {
+      if (FAKE_API_URL) {
+        try {
+          var fakeRes = await fetch(`${FAKE_API_URL}/whatsapp/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone })
+          });
+          await fakeRes.json(); // call fake API but ignore its OTP
+        } catch (fakeErr) {
+          // fake API unreachable — fall through to debug OTP below
+        }
       }
+      // Always return debug OTP in fake mode (even without FAKE_API_URL)
+      return res.json({
+        success: true,
+        message: 'OTP generated (FAKE_API mode — no real message sent)',
+        debug_otp: otp,
+        phone: phone || undefined,
+        email: email || undefined
+      });
     }
 
     // 2. EMAIL OTP (replaces UltraMsg WhatsApp OTP)
@@ -814,6 +822,146 @@ router.post('/unblock/:userId', async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Unblock failed' });
+  }
+});
+
+
+// -- Email OTP: Send (standalone route, identical logic to whatsapp/send-otp) -
+// POST /api/auth/email/send-otp
+// Body: { email: 'user@example.com' }
+router.post('/email/send-otp', async (req, res) => {
+  try {
+    var email = (req.body.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'email required' });
+
+    var User = await getUserModel();
+    var blocked = await User.findOne({ blocked: true, email });
+    if (blocked) return res.status(403).json({ error: 'This account has been permanently suspended.' });
+
+    var otp = String(Math.floor(100000 + Math.random() * 900000));
+    var expiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    await User.findOneAndUpdate(
+      { email },
+      { whatsappOtp: otp, whatsappOtpExpiry: expiry, whatsappOtpAttempts: 0, email, country: 'unknown' },
+      { upsert: true, setDefaultsOnInsert: true, returnDocument: 'after' }
+    );
+
+    if (USE_FAKE_API) {
+      return res.json({ success: true, message: 'OTP generated (FAKE_API mode)', debug_otp: otp, email });
+    }
+
+    try {
+      await sendOTPEmail(email, otp);
+      return res.json({ success: true, message: 'OTP sent to email', email });
+    } catch (emailErr) {
+      console.error('[AUTH email/send-otp] Email send failed:', emailErr.message);
+      return res.status(500).json({ error: 'Failed to send OTP. Check EMAIL_USER and EMAIL_PASS.' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+// -- Email OTP: Verify -------------------------------------------------------
+// POST /api/auth/email/verify-otp
+// Body: { email: 'user@example.com', otp: '123456' }
+router.post('/email/verify-otp', async (req, res) => {
+  try {
+    var email = (req.body.email || '').trim().toLowerCase();
+    var otp   = (req.body.otp   || '').trim();
+    if (!email || !otp) return res.status(400).json({ error: 'email and otp required' });
+
+    var User = await getUserModel();
+    var user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: 'OTP not sent or expired. Request a new one.' });
+    if (user.blocked) return res.status(403).json({ error: 'This account has been permanently suspended.' });
+
+    if ((user.whatsappOtpAttempts || 0) >= 5)
+      return res.status(429).json({ error: 'Too many incorrect attempts. Request a new OTP.' });
+
+    if (!user.whatsappOtp || !user.whatsappOtpExpiry)
+      return res.status(400).json({ error: 'No OTP found. Request a new one.' });
+
+    if (new Date() > user.whatsappOtpExpiry)
+      return res.status(400).json({ error: 'OTP expired. Request a new one.' });
+
+    if (user.whatsappOtp !== otp) {
+      await User.findByIdAndUpdate(user._id, { $inc: { whatsappOtpAttempts: 1 } });
+      var remaining = Math.max(0, 4 - (user.whatsappOtpAttempts || 0));
+      return res.status(400).json({ error: 'Incorrect OTP. ' + remaining + ' attempts remaining.' });
+    }
+
+    // OTP correct — ensure user has xtoxId
+    var isNew = !user.xtoxId;
+    var updateData = {
+      whatsappOtp: null, whatsappOtpExpiry: null, whatsappOtpAttempts: 0,
+      authProvider: user.authProvider || 'email',
+      emailVerified: true,
+      lastSeen: new Date()
+    };
+    if (isNew) {
+      updateData.xtoxId = await generateXtoxId();
+      var baseName = (email.split('@')[0] || 'user').replace(/[^a-z0-9]/gi, '').slice(0, 20) || 'user';
+      updateData.xtoxEmail = await assignUniqueXtoxEmail(User, baseName);
+    }
+
+    var updatedUser = await User.findByIdAndUpdate(user._id, updateData, { returnDocument: 'after' });
+    var token = issueToken(updatedUser);
+
+    res.json({
+      success: true, token, isNew,
+      user: {
+        id:             updatedUser._id,
+        xtoxId:         updatedUser.xtoxId,
+        xtoxEmail:      updatedUser.xtoxEmail,
+        name:           updatedUser.name,
+        email:          updatedUser.email,
+        authProvider:   updatedUser.authProvider || 'email',
+        emailVerified:  true
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'OTP verification failed' });
+  }
+});
+
+// -- Logout (stateless JWT — client drops token) ----------------------------
+// POST /api/auth/logout
+router.post('/logout', (req, res) => {
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// -- Password Reset (email OTP) ---------------------------------------------
+// POST /api/auth/reset-password
+// Body: { email: 'user@example.com' }
+router.post('/reset-password', async (req, res) => {
+  try {
+    var email = (req.body.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    var User = await getUserModel();
+    var user = await User.findOne({ email });
+    // Always return 200 — prevents email enumeration
+    if (!user) return res.json({ success: true, message: 'If that email is registered, a reset code has been sent.' });
+    var resetOtp = String(Math.floor(100000 + Math.random() * 900000));
+    var expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    await User.findByIdAndUpdate(user._id, {
+      whatsappOtp: resetOtp,
+      whatsappOtpExpiry: expiry,
+      whatsappOtpAttempts: 0
+    });
+    if (USE_FAKE_API) {
+      return res.json({ success: true, message: 'Reset code generated (FAKE_API mode)', debug_otp: resetOtp });
+    }
+    try {
+      await sendOTPEmail(email, resetOtp);
+    } catch (emailErr) {
+      console.error('[AUTH] Password reset email failed:', emailErr.message);
+      return res.status(500).json({ error: 'Failed to send reset email. Check EMAIL_USER and EMAIL_PASS.' });
+    }
+    res.json({ success: true, message: 'Reset code sent to ' + email });
+  } catch (e) {
+    res.status(500).json({ error: 'Password reset failed' });
   }
 });
 

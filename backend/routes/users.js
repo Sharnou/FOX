@@ -160,7 +160,7 @@ async function findOrCreateOAuthUser(provider, profile, ip, country) {
   if (fraud.isFraud) throw new Error('Account creation restricted');
   let user = await getUserModel().findOne({ email });
   if (!user) {
-    await getOrCreateCountry(country, country);
+    if (country) await getOrCreateCountry(country, country);
     user = await getUserModel().create({
       email, name, avatar,
       country: country || 'EG',
@@ -315,7 +315,7 @@ router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     otpStore.delete(phone);
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    await getOrCreateCountry(countryCode, countryCode);
+    if (countryCode) await getOrCreateCountry(countryCode, countryCode);
     let user = await getUserModel().findOne({ phone });
     if (!user) {
       // ── Account linking: check if email user exists with this phone ──
@@ -389,7 +389,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
     const fraud = getActiveDB() !== 'mongodb' ? { isFraud: false } : await detectFraud(ip);
     if (fraud.isFraud) return res.status(400).json({ error: 'Account creation restricted' });
-    if (getActiveDB() === 'mongodb') await getOrCreateCountry(countryCode, countryCode);
+    if (getActiveDB() === 'mongodb' && countryCode) await getOrCreateCountry(countryCode, countryCode);
     // Check if email already registered
     let existing = await getUserModel().findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already registered' });
