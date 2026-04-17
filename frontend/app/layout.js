@@ -11,6 +11,7 @@ import MarkPoint from './components/MarkPoint';
 import ChatFloat from './components/ChatFloat';
 import WhatsAppFloat from './components/WhatsAppFloat';
 import GeoMetaInjector from './components/GeoMetaInjector';
+import HtmlAttributes from './components/HtmlAttributes';
 
 // JSON-LD structured data for rich Google search results
 const jsonLd = {
@@ -120,6 +121,7 @@ export default function RootLayout({ children }) {
         overflowX: 'hidden',
       }}>
         <LanguageProvider>
+      <HtmlAttributes />
       <GeoMetaInjector />
       <ErrorCapture />
         <MarkPoint />

@@ -1,7 +1,11 @@
 'use client';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { makeT } from '../translations/index';
 
 const GEO_CACHE_VERSION = '2'; // bump this if detection logic changes
+
+// Default t() using Arabic
+const defaultT = makeT('ar');
 
 // Default context value — Egypt/Arabic
 const LanguageContext = createContext({
@@ -12,6 +16,7 @@ const LanguageContext = createContext({
   nativeLang: 'ar',
   toggleLanguage: () => {},
   detectedCountry: 'EG',
+  t: defaultT,
 });
 
 export function LanguageProvider({ children }) {
@@ -21,6 +26,12 @@ export function LanguageProvider({ children }) {
   const [nativeName, setNativeName] = useState('عر');
   const [detectedCountry, setDetectedCountry] = useState('EG');
   const [nativeLang, setNativeLang] = useState('ar');
+
+  // Memoised translation function — recreates only when language changes
+  const t = useCallback((key) => {
+    const dict = makeT(language);
+    return dict(key);
+  }, [language]);
 
   function applyLangToDOM(lang, rtl) {
     if (typeof document === 'undefined') return;
@@ -119,7 +130,7 @@ export function LanguageProvider({ children }) {
 
   return (
     <LanguageContext.Provider
-      value={{ language, isRTL, showToggle, nativeName, nativeLang, toggleLanguage, detectedCountry }}
+      value={{ language, isRTL, showToggle, nativeName, nativeLang, toggleLanguage, detectedCountry, t }}
     >
       {children}
     </LanguageContext.Provider>

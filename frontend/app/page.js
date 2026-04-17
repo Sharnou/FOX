@@ -3,12 +3,12 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { detectAndSetLocale, getT, COUNTRY_CONFIG } from './lib/locale';
+import { getT } from './lib/locale';
+import { useLanguage } from './context/LanguageContext';
 import AdCardSkeleton from './components/AdCardSkeleton';
 import VerifiedBadge from './components/VerifiedBadge';
 import CartoonMoodPopup from './components/CartoonMoodPopup';
 import BannerAds from './components/BannerAds';
-import { detectLang } from '../lib/lang';
 import SeasonalBanner from './components/SeasonalBanner';
 import WinnerBanner from './components/WinnerBanner';
 import CountryTabs from './components/CountryTabs';
@@ -63,13 +63,26 @@ function cloudinaryHQ(url) {
   return url.replace('/upload/', '/upload/q_auto,f_auto,w_800/');
 }
 
+// Currency lookup by detected country
+function getCurrency(country) {
+  const map = {
+    EG:'EGP',SA:'SAR',AE:'AED',KW:'KWD',QA:'QAR',BH:'BHD',OM:'OMR',JO:'JOD',
+    IQ:'IQD',MA:'MAD',LY:'LYD',TN:'TND',DZ:'DZD',SY:'SYP',YE:'YER',SD:'SDG',
+    FR:'EUR',BE:'EUR',DE:'EUR',CH:'EUR',AT:'EUR',
+    US:'USD',GB:'GBP',CA:'CAD',AU:'AUD',
+  };
+  return map[country] || 'EGP';
+}
+
 export default function Home() {
+  const { language, isRTL: ctxRTL, detectedCountry, t } = useLanguage();
+  const tLoc = getT(language); // dot-notation translations (categories etc.)
+  const lang = language;
+  const currency = getCurrency(detectedCountry);
   const [ads, setAds] = useState([]);
   const [catIdx, setCatIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [locale, setLocale] = useState({ lang: 'ar', dir: 'rtl', country: 'EG', currency: 'EGP' });
-  const [t, setT] = useState(getT('ar'));
   const [user, setUser] = useState(null);
   const [popup, setPopup] = useState(null);
   const [popupMuted, setPopupMuted] = useState(false);
@@ -86,15 +99,7 @@ export default function Home() {
 
   useEffect(() => {
     async function init() {
-      const loc = await detectAndSetLocale();
-      setLocale(loc);
-      setT(getT(loc.lang));
-      document.documentElement.lang = loc.lang;
-      document.documentElement.dir = loc.dir;
-      document.body.style.direction = loc.dir;
-      document.body.style.fontFamily = loc.lang === 'ar'
-        ? "'Cairo', 'Noto Sans Arabic', 'Tajawal', system-ui, sans-serif"
-        : "'Inter', system-ui, sans-serif";
+      // LanguageContext handles geo detection & DOM lang/dir — no need to call detectAndSetLocale
       try {
         const u = localStorage.getItem('user');
         if (u) setUser(JSON.parse(u));
@@ -103,10 +108,10 @@ export default function Home() {
         const saved = JSON.parse(localStorage.getItem('xtox_saved_ads') || '[]');
         setSavedCount(Array.isArray(saved) ? saved.length : 0);
       } catch {}
-      await fetchAds(CAT_VALS[0], loc.country);
+      await fetchAds(CAT_VALS[0], '');
       const lastPopup = localStorage.getItem('lastPopup');
       if (!lastPopup || Date.now() - Number(lastPopup) > POPUP_INTERVAL) {
-        setTimeout(() => showPopup(loc.country), 5000);
+        setTimeout(() => showPopup(), 5000);
       }
     }
     init();
@@ -149,14 +154,14 @@ export default function Home() {
     } catch (e) {
       clearTimeout(timeoutId);
       setAds([]);
-      setError('تعذّر تحميل الإعلانات — تحقّق من اتصالك بالإنترنت وأعد المحاولة');
+      setError(t('err_loading'));
     }
     setLoading(false);
   }
 
   function selectCat(idx) {
     setCatIdx(idx);
-    fetchAds(CAT_VALS[idx], locale.country);
+    fetchAds(CAT_VALS[idx], '');
     const el = catScrollRef.current?.children[idx];
     if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }
@@ -186,12 +191,12 @@ export default function Home() {
       })
       .catch(() => {
         setAds([]);
-        setError('تعذّر تحميل الإعلانات');
+        setError(t('err_loading'));
       })
       .finally(() => setLoading(false));
   }
 
-  async function showPopup(country) {
+  async function showPopup() {
     try {
       // FIX A: No country filter — ensures featured ads always load
       const res = await fetch(API + '/api/ads');
@@ -207,11 +212,10 @@ export default function Home() {
   }
 
   const handleRetry = useCallback(() => {
-    fetchAds(CAT_VALS[catIdx], locale.country);
-  }, [catIdx, locale.country]);
+    fetchAds(CAT_VALS[catIdx], '');
+  }, [catIdx]);
 
-  const isRTL = locale.dir === 'rtl';
-  const lang = locale.lang;
+  const isRTL = ctxRTL;
   const featured = ads.filter(a => a.isFeatured);
   const regular = ads.filter(a => !a.isFeatured);
   const currentCatKey = CAT_KEYS[catIdx];
@@ -230,7 +234,7 @@ export default function Home() {
         offerCount: ads.length,
         lowPrice: Math.min(...prices),
         highPrice: Math.max(...prices),
-        priceCurrency: locale.currency || 'EGP',
+        priceCurrency: currency,
       },
     }),
     itemListElement: ads.slice(0, 10).map((ad, i) => ({
@@ -244,7 +248,7 @@ export default function Home() {
         offers: {
           '@type': 'Offer',
           price: ad.price,
-          priceCurrency: ad.currency || locale.currency || 'EGP',
+          priceCurrency: ad.currency || currency,
           availability: 'https://schema.org/InStock',
           itemCondition: 'https://schema.org/UsedCondition',
         },
@@ -269,22 +273,22 @@ export default function Home() {
     itemListElement: breadcrumbItems,
   };
 
-  const loginLabel = lang === 'ar' ? 'دخول' : lang === 'de' ? 'Einloggen' : lang === 'fr' ? 'Connexion' : 'Login';
-  const savedLabel = lang === 'ar' ? 'المحفوظات' : lang === 'de' ? 'Gespeichert' : lang === 'fr' ? 'Favoris' : 'Saved';
+  const loginLabel = t('nav_login');
+  const savedLabel = t('nav_saved');
 
 
 
   return (
     <div
-      dir={locale.dir}
-      lang={locale.lang}
+      dir={isRTL ? 'rtl' : 'ltr'}
+      lang={language}
       style={{
         minHeight: '100dvh',
         background: BG_MAIN,
-        fontFamily: lang === 'ar'
+        fontFamily: language === 'ar'
           ? "'Cairo', 'Noto Sans Arabic', 'Tajawal', system-ui, sans-serif"
           : "'Inter', system-ui, sans-serif",
-        direction: locale.dir,
+        direction: isRTL ? 'rtl' : 'ltr',
         textAlign: isRTL ? 'right' : 'left',
         overflowX: 'hidden',
       }}
@@ -301,7 +305,7 @@ export default function Home() {
       ══════════════════════════════════════════ */}
       <header
         role="banner"
-        aria-label={lang === 'ar' ? 'رأس الصفحة الرئيسية' : 'Main header'}
+        aria-label={t('home_header_label')}
         className={scrollY > 10 ? 'navbar-scrolled' : ''}
         style={{
           background: scrollY > 10
@@ -328,7 +332,7 @@ export default function Home() {
         <Link
           href="/"
           className="header-brand"
-          aria-label={lang === 'ar' ? 'اكستوكس - الصفحة الرئيسية' : 'XTOX - Home'}
+          aria-label={t('home_hero_link')}
           style={{
             fontSize: 24,
             fontWeight: 900,
@@ -350,7 +354,7 @@ export default function Home() {
         <Link
           href="/sell"
           className="header-sell"
-          aria-label={lang === 'ar' ? 'أضف إعلانك الآن' : 'Post your ad'}
+          aria-label={t('home_sell_link')}
           style={{
             background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
             color: 'white',
@@ -366,14 +370,14 @@ export default function Home() {
             letterSpacing: 0.3,
           }}
         >
-          {t.sell || (lang === 'ar' ? '＋ أعلن' : '＋ Sell')}
+          {tLoc.sell || t('home_sell_cta')}
         </Link>
 
         {/* Saved */}
         <Link
           href="/saved"
           title={savedLabel}
-          aria-label={lang === 'ar' ? 'المحفوظات' + (savedCount > 0 ? ' - ' + savedCount + ' إعلان' + ' إعلان' : '') : 'Saved' + (savedCount > 0 ? ' - ' + savedCount : '')}
+          aria-label={t('nav_saved') + (savedCount > 0 ? ' - ' + savedCount : '')}
           style={{
             position: 'relative',
             width: 38,
@@ -423,7 +427,7 @@ export default function Home() {
         {user ? (
           <a
             href={(user._id || user.id) ? '/profile/' + (user._id || user.id) : '/profile'}
-            aria-label={lang === 'ar' ? 'الملف الشخصي - ' + user.name : 'Profile - ' + user.name}
+            aria-label={t('nav_profile') + ' - ' + user.name}
             style={{
               width: 38,
               height: 38,
@@ -448,7 +452,7 @@ export default function Home() {
         ) : (
           <Link
             href="/login"
-            aria-label={lang === 'ar' ? 'تسجيل الدخول إلى حسابك' : 'Log in to your account'}
+            aria-label={t('home_login_label')}
             style={{
               background: 'rgba(99,102,241,0.18)',
               color: 'white',
@@ -478,7 +482,7 @@ export default function Home() {
           ANIMATED GRADIENT HERO
       ══════════════════════════════════════════ */}
       <section
-        aria-label={lang === 'ar' ? 'الصفحة الرئيسية' : 'Homepage hero'}
+        aria-label={t('home_hero_label')}
         style={{
           background: 'linear-gradient(270deg, #0f0a28, #1e1047, #2d1b69, #1a0f3d, #0d1b4b)',
           backgroundSize: '300% 300%',
@@ -514,7 +518,7 @@ export default function Home() {
             textShadow: '0 2px 12px rgba(99,102,241,0.4)',
           }}
         >
-          {lang === 'ar' ? '🛒 سوق XTOX الذكي' : '🛒 XTOX Smart Market'}
+          {t('home_hero_title')}
         </h1>
         <p
           className="hero-subtitle"
@@ -525,26 +529,26 @@ export default function Home() {
             fontWeight: 500,
           }}
         >
-          {lang === 'ar' ? 'اعثر على أفضل الإعلانات بالقرب منك' : 'Discover the best local ads near you'}
+          {t('home_hero_subtitle')}
         </p>
 
         {/* Quick links in hero */}
         <nav
-          aria-label={lang === 'ar' ? 'روابط سريعة' : 'Quick links'}
+          aria-label={t('home_quick_links')}
           className="quick-scroll"
           style={{ display: 'flex', gap: 8, justifyContent: 'center', overflowX: 'auto', paddingBottom: 4 }}
         >
-          <Link href="/nearby" className="quick-btn" aria-label={lang === 'ar' ? 'الإعلانات القريبة' : 'Nearby ads'} style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>
-            <span aria-hidden="true">📍</span>{t.nearby || (lang === 'ar' ? 'قريب منك' : 'Nearby')}
+          <Link href="/nearby" className="quick-btn" aria-label={t('nav_nearby')} style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>
+            <span aria-hidden="true">📍</span>{tLoc.nearby || t('nav_nearby')}
           </Link>
-          <Link href="/my-ads" className="quick-btn" aria-label={lang === 'ar' ? 'إعلاناتي' : 'My ads'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
-            <span aria-hidden="true">📋</span>{t.myAds || (lang === 'ar' ? 'إعلاناتي' : 'My Ads')}
+          <Link href="/my-ads" className="quick-btn" aria-label={t('nav_my_ads')} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <span aria-hidden="true">📋</span>{tLoc.myAds || t('nav_my_ads')}
           </Link>
-          <Link href="/chat" className="quick-btn" aria-label={lang === 'ar' ? 'المحادثات' : 'Messages'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
-            <span aria-hidden="true">💬</span>{t.messages || (lang === 'ar' ? 'رسائل' : 'Messages')}
+          <Link href="/chat" className="quick-btn" aria-label={t('nav_chat')} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <span aria-hidden="true">💬</span>{tLoc.messages || t('nav_chat')}
           </Link>
-          <Link href="/search" className="quick-btn" aria-label={lang === 'ar' ? 'البحث المتقدم' : 'Advanced search'} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
-            <span aria-hidden="true">🔍</span>{t.advancedSearch || (lang === 'ar' ? 'بحث متقدم' : 'Advanced')}
+          <Link href="/search" className="quick-btn" aria-label={t('nav_swipe')} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <span aria-hidden="true">🔍</span>{tLoc.advancedSearch || t('nav_swipe')}
           </Link>
         </nav>
       </section>
@@ -554,7 +558,7 @@ export default function Home() {
       ══════════════════════════════════════════ */}
       <nav
         role="navigation"
-        aria-label={lang === 'ar' ? 'تصفية حسب الفئة' : 'Filter by category'}
+        aria-label={t('home_categories')}
         style={{
           background: 'white',
           boxShadow: '0 2px 12px rgba(99,102,241,0.07)',
@@ -576,7 +580,7 @@ export default function Home() {
               role="listitem"
               onClick={() => selectCat(i)}
               aria-pressed={catIdx === i}
-              aria-label={lang === 'ar' ? 'تصفية: ' + CAT_NAMES_AR[key] : 'Filter: ' + key}
+              aria-label={t('home_categories') + ': ' + (tLoc[key] || CAT_NAMES_AR[key] || key)}
               className="cat-btn"
               style={{
                 fontWeight: catIdx === i ? 800 : 600,
@@ -617,15 +621,13 @@ export default function Home() {
             textAlign: isRTL ? 'right' : 'left',
           }}
         >
-          {lang === 'ar'
-            ? '✨ ' + regular.length + ' إعلان في ' + currentCatNameAr
-            : '✨ ' + regular.length + ' ads in ' + CAT_NAMES_AR[currentCatKey]}
+          {'✨ ' + regular.length + ' ' + (tLoc[CAT_KEYS[catIdx]] || currentCatNameAr)}
         </div>
       )}
 
       {/* ── Banner Ads Strip ── */}
       <div style={{ padding: '12px 16px 0' }}>
-        <BannerAds ads={ads} lang={locale.lang} />
+        <BannerAds ads={ads} lang={language} />
       </div>
 
       {/* ══════════════════════════════════════════
@@ -633,7 +635,7 @@ export default function Home() {
       ══════════════════════════════════════════ */}
       {featured.length > 0 && (
         <section
-          aria-label={lang === 'ar' ? 'الإعلانات المميزة' : 'Featured ads'}
+          aria-label={t('home_featured_label')}
           style={{
             background: 'linear-gradient(135deg, #0f0a28 0%, #2d1b69 50%, #1e1047 100%)',
             padding: '20px 16px',
@@ -656,10 +658,10 @@ export default function Home() {
               boxShadow: '0 2px 8px rgba(251,191,36,0.4)',
               letterSpacing: 0.3,
             }}>
-              <span aria-hidden="true">⭐</span> {t.featured || (lang === 'ar' ? 'مميز' : 'Featured')}
+              <span aria-hidden="true">⭐</span> {tLoc.featured || t('home_featured')}
             </span>
             <span style={{ color: 'rgba(165,180,252,0.7)', fontSize: 12, fontWeight: 500 }}>
-              {featured.length}/16 {t.perWeek || (lang === 'ar' ? 'أسبوعياً' : 'per week')}
+              {featured.length}/16 {tLoc.perWeek || t('home_per_week')}
             </span>
           </div>
 
@@ -674,7 +676,7 @@ export default function Home() {
                 href={'/ads/' + ad._id}
                 role="listitem"
                 className="feat-card"
-                aria-label={lang === 'ar' ? 'إعلان مميز: ' + ad.title + ' - ' + ad.price + ' ' + (ad.currency || locale.currency) : 'Featured: ' + ad.title}
+                aria-label={t('home_featured') + ': ' + ad.title}
                 style={{
                   border: ad.featuredStyle === 'gold'
                     ? '2px solid #fbbf24'
@@ -720,7 +722,7 @@ export default function Home() {
                 </div>
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ fontWeight: 700, fontSize: 12, margin: '0 0 4px', lineHeight: 1.4, color: '#1e293b' }}>{ad.title?.slice(0, 30)}</p>
-                  <span className="price-badge">{ad.price} {ad.currency || locale.currency}</span>
+                  <span className="price-badge">{ad.price} {ad.currency || currency}</span>
                 </div>
               </a>
             ))}
@@ -733,14 +735,14 @@ export default function Home() {
       ══════════════════════════════════════════ */}
       <main
         role="main"
-        aria-label={lang === 'ar' ? 'قائمة الإعلانات' : 'Ads listing'}
+        aria-label={t('home_ads_listing')}
         style={{ padding: '20px 16px 100px' }}
       >
         {/* Section label */}
         {!loading && !error && regular.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
-              {lang === 'ar' ? '📋 أحدث الإعلانات' : '📋 Latest Ads'}
+              {t('home_latest_ads')}
             </h2>
             <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(99,102,241,0.3), transparent)' }} />
           </div>
@@ -751,14 +753,14 @@ export default function Home() {
           <div
             aria-live="polite"
             aria-busy="true"
-            aria-label={lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+            aria-label={t('home_loading_label')}
           >
             <p
               className="loading-pulse"
               style={{ textAlign: 'center', color: PRIMARY, fontWeight: 700, fontSize: 15, margin: '0 0 20px' }}
             >
               <span aria-hidden="true">⏳</span>{' '}
-              {lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+              {t('home_loading')}
             </p>
             <div className="ads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
@@ -784,7 +786,7 @@ export default function Home() {
             <p style={{ fontSize: 16, fontWeight: 700, color: '#334155', margin: '0 0 8px' }}>{error}</p>
             <button
               onClick={handleRetry}
-              aria-label={lang === 'ar' ? 'إعادة المحاولة لتحميل الإعلانات' : 'Retry loading ads'}
+              aria-label={t('home_retry_label')}
               style={{
                 marginTop: 18,
                 padding: '11px 30px',
@@ -800,7 +802,7 @@ export default function Home() {
                 letterSpacing: 0.3,
               }}
             >
-              {lang === 'ar' ? '↩ إعادة المحاولة' : '↩ Retry'}
+              {t('home_retry')}
             </button>
           </div>
         )}
@@ -819,9 +821,7 @@ export default function Home() {
                 role="listitem"
                 className="ad-card"
                 aria-label={
-                  lang === 'ar'
-                    ? ad.title + ' - ' + ad.price + ' ' + (ad.currency || locale.currency) + ' - ' + (ad.city || '')
-                    : ad.title + ' - ' + ad.price + ' ' + (ad.currency || locale.currency)
+                  ad.title + ' - ' + ad.price + ' ' + (ad.currency || currency) + (ad.city ? ' - ' + ad.city : '')
                 }
               >
                 {/* Image / Video */}
@@ -897,7 +897,7 @@ export default function Home() {
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
                     <span className="price-badge">
-                      {ad.price ? ad.price.toLocaleString() + ' ' + (ad.currency || locale.currency) : (lang === 'ar' ? 'تواصل' : 'Contact')}
+                      {ad.price ? ad.price.toLocaleString() + ' ' + (ad.currency || currency) : t('home_contact')}
                     </span>
                     {ad.city && (
                       <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 500 }}>
@@ -911,7 +911,7 @@ export default function Home() {
                     </span>
                     {ad.expiresAt && (
                       <span style={{ color: '#f87171', fontSize: 11 }}>
-                        ⏰ {new Date(ad.expiresAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')}
+                        ⏰ {new Date(ad.expiresAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang === 'fr' ? 'fr-FR' : 'en-US')}
                       </span>
                     )}
                   </div>
@@ -954,16 +954,14 @@ export default function Home() {
                   {EMPTY_STATE_ICONS[currentCatKey] || '🏪'}
                 </div>
                 <p style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
-                  {lang === 'ar'
-                    ? 'لا توجد إعلانات في ' + currentCatNameAr + ' حتى الآن'
-                    : 'No ads in ' + currentCatNameAr + ' yet'}
+                  {t('home_no_ads_in_cat') + currentCatNameAr + t('home_no_ads_yet')}
                 </p>
                 <p style={{ fontSize: 13, margin: '0 0 24px', color: '#94a3b8' }}>
-                  {lang === 'ar' ? 'كن أول من يضيف إعلاناً!' : 'Be the first to post!'}
+                  {t('home_be_first')}
                 </p>
                 <Link
                   href="/sell"
-                  aria-label={lang === 'ar' ? 'أضف إعلانك الآن' : 'Post your first ad'}
+                  aria-label={t('home_sell_link')}
                   style={{
                     display: 'inline-block',
                     background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
@@ -976,7 +974,7 @@ export default function Home() {
                     boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
                   }}
                 >
-                  {lang === 'ar' ? '＋ أضف إعلاناً' : '＋ Post Ad'}
+                  {t('home_sell_now')}
                 </Link>
               </div>
             )}
@@ -987,7 +985,7 @@ export default function Home() {
       {/* ── Footer ── */}
       <footer
         role="contentinfo"
-        aria-label={lang === 'ar' ? 'معلومات الموقع' : 'Site info'}
+        aria-label={t('home_footer_site_label')}
         style={{
           textAlign: 'center',
           padding: '28px 16px',
@@ -997,24 +995,24 @@ export default function Home() {
           background: 'white',
         }}
       >
-        <nav aria-label={lang === 'ar' ? 'روابط الموقع' : 'Site links'} style={{ marginBottom: 8 }}>
+        <nav aria-label={t('home_footer_nav_label')} style={{ marginBottom: 8 }}>
           {[
-            ['/about', t.about || (lang === 'ar' ? 'من نحن' : 'About')],
-            ['/privacy', t.privacy || (lang === 'ar' ? 'الخصوصية' : 'Privacy')],
-            ['/terms', t.terms || (lang === 'ar' ? 'الشروط' : 'Terms')],
-            ['/winner-history', lang === 'ar' ? 'لوحة الشرف' : 'Honor Roll'],
+            ['/about', t('nav_about')],
+            ['/privacy', t('nav_privacy')],
+            ['/terms', t('nav_terms')],
+            ['/winner-history', t('home_honor_roll')],
           ].map(([href, label]) => (
             <a key={href} href={href} style={{ color: PRIMARY, margin: '0 10px', fontWeight: 600, textDecoration: 'none' }}>{label}</a>
           ))}
         </nav>
-        <span>XTOX © 2026 · {lang === 'ar' ? 'السوق المحلي الذكي' : 'The Smart Local Market'}</span>
+        <span>XTOX © 2026 · {t('home_footer_tagline')}</span>
       </footer>
 
       {/* ── Scroll-to-top FAB ── */}
       {scrollY > 300 && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          aria-label={lang === 'ar' ? 'العودة إلى الأعلى' : 'Back to top'}
+          aria-label={t('home_back_to_top')}
           className="fab-btn"
           style={{
             position: 'fixed',
@@ -1061,7 +1059,7 @@ export default function Home() {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={lang === 'ar' ? 'إعلان مميز' : 'Featured ad'}
+          aria-label={t('home_featured_label')}
           onClick={() => setPopup(null)}
           style={{
             position: 'fixed',
@@ -1090,14 +1088,14 @@ export default function Home() {
             <div style={{ textAlign: 'center', marginBottom: 18 }}>
               <div style={{ fontSize: 68, display: 'inline-block', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))' }} aria-hidden="true">{popup.cartoon}</div>
               <p style={{ color: '#1e293b', fontWeight: 800, margin: '10px 0 0', fontSize: 17 }}>
-                {lang === 'ar' ? '🎉 إعلان مميز خصيصاً لك!' : '🎉 Featured Ad for You!'}
+                {t('home_popup_title')}
               </p>
             </div>
             {popup.ad && (
               <a
                 href={'/ads/' + popup.ad._id}
                 onClick={() => setPopup(null)}
-                aria-label={lang === 'ar' ? 'الإعلان المميز: ' + popup.ad.title : 'Featured ad: ' + popup.ad.title}
+                aria-label={t('home_featured') + ': ' + popup.ad.title}
                 style={{
                   display: 'block',
                   background: '#f8faff',
@@ -1122,7 +1120,7 @@ export default function Home() {
             <div style={{ display: 'flex', gap: 10, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
               <button
                 onClick={() => setPopup(null)}
-                aria-label={lang === 'ar' ? 'متابعة التصفح' : 'Continue browsing'}
+                aria-label={t('home_continue')}
                 style={{
                   flex: 1,
                   padding: '13px',
@@ -1137,13 +1135,13 @@ export default function Home() {
                   boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
                 }}
               >
-                {lang === 'ar' ? 'متابعة التصفح' : 'Continue'}
+                {t('home_continue')}
               </button>
               <button
                 onClick={() => setPopupMuted(m => !m)}
                 aria-label={popupMuted
-                  ? (lang === 'ar' ? 'تشغيل الإشعارات' : 'Unmute')
-                  : (lang === 'ar' ? 'كتم الإشعارات' : 'Mute')}
+                  ? t('home_unmute')
+                  : t('home_mute')}
                 aria-pressed={popupMuted}
                 style={{
                   padding: '13px 18px',

@@ -1,11 +1,13 @@
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { t, isRTL } = useLanguage();
 
   // Detect login state on client only
   useEffect(() => {
@@ -19,12 +21,12 @@ export default function BottomNav() {
   if (pathname?.startsWith('/admin')) return null;
 
   const navItems = [
-    { icon: '🏠', label: 'الرئيسية', href: '/' },
-    { icon: '🔍', label: 'بحث', href: '/search' },
-    { icon: '➕', label: 'بيع', href: '/sell', highlight: true },
-    { icon: '📲', label: 'تحميل', href: '/install' },
+    { icon: '🏠', labelKey: 'nav_home', href: '/' },
+    { icon: '🔍', labelKey: 'nav_search', href: '/search' },
+    { icon: '➕', labelKey: 'nav_sell', href: '/sell', highlight: true },
+    { icon: '📲', labelKey: 'nav_install', href: '/install' },
     // Navigate to /profile if logged in, otherwise /login
-    { icon: '👤', label: 'حسابي', href: isLoggedIn ? '/profile' : '/login' },
+    { icon: '👤', labelKey: 'nav_profile', href: isLoggedIn ? '/profile' : '/login' },
   ];
 
   return (
@@ -47,7 +49,7 @@ export default function BottomNav() {
         boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
         paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
         fontFamily: 'Cairo, sans-serif',
-        direction: 'rtl',
+        direction: isRTL ? 'rtl' : 'ltr',
       }}>
         {navItems.map(item => {
           const isActive = pathname === item.href || 
@@ -77,7 +79,7 @@ export default function BottomNav() {
           );
 
           return (
-            <button key={item.label} onClick={() => router.push(item.href)}
+            <button key={item.labelKey} onClick={() => router.push(item.href)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -90,7 +92,7 @@ export default function BottomNav() {
                 minWidth: 48,
               }}>
               <span style={{ fontSize: 22 }}>{item.icon}</span>
-              <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 400 }}>{item.label}</span>
+              <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 400 }}>{t(item.labelKey)}</span>
             </button>
           );
         })}
