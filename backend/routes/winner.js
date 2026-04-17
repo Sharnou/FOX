@@ -186,7 +186,6 @@ router.get('/leaderboard', async (req, res) => {
       const isInTop10 = leaderboard.some(u => u.userId.toString() === myId);
       if (!isInTop10) {
         // Count users with more monthly points
-        const rank = await User.countDocuments({ monthlyPoints: { $gt: 0 } });
         const me = await User.findById(myId).select('name avatar xtoxId monthlyPoints reputationPoints').lean();
         if (me) {
           const aboveMe = await User.countDocuments({ monthlyPoints: { $gt: me.monthlyPoints || 0 } });

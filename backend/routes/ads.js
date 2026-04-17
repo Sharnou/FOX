@@ -1400,6 +1400,7 @@ router.put('/:id', auth, async (req, res) => {
     ad.media = media.length ? media : ad.media;
     if (video !== undefined) ad.video = video;
     if (featuredStyle && featuredStyle !== 'normal') ad.featuredStyle = featuredStyle;
+    if (sanitized.condition !== undefined) ad.condition = sanitized.condition; // FIX: apply condition from mergedBody
     if (updateWhatsapp !== undefined) ad.whatsapp = updateWhatsapp;
     if (updateLevel4 !== undefined) ad.level4 = updateLevel4;
     if (updateTags !== undefined) ad.tags = updateTags;
