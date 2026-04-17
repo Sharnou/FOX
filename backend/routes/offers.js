@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Offer from '../models/Offer.js';
 import Ad from '../models/Ad.js';
 import { auth } from '../middleware/auth.js';
@@ -11,6 +12,8 @@ router.post('/', auth, async (req, res) => {
     const { adId, amount, message } = req.body;
     if (!adId || !amount || isNaN(amount) || Number(amount) <= 0)
       return res.status(400).json({ error: 'adId and a positive amount are required' });
+    if (!mongoose.Types.ObjectId.isValid(adId))
+      return res.status(400).json({ error: 'Invalid adId format' });
 
     const ad = await Ad.findById(adId).populate('userId', '_id name');
     if (!ad) return res.status(404).json({ error: 'Ad not found | الإعلان غير موجود' });
@@ -49,6 +52,9 @@ router.post('/', auth, async (req, res) => {
 // PATCH /api/offers/:id — seller accepts/rejects/counters
 router.patch('/:id', auth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid offer ID format' });
+    }
     const { status, counterAmount } = req.body;
     const validStatuses = ['accepted', 'rejected', 'countered'];
     if (!validStatuses.includes(status))
