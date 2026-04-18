@@ -943,11 +943,42 @@ export default function AdminPage() {
                   }
                 </div>
               )}
+              {/* Token save section */}
+              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="الصق رمز WordPress هنا..."
+                  id="wp-token-input"
+                  style={{ flex: 1, background: '#0d1117', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px', color: '#e6edf3', fontSize: 12, fontFamily: 'Cairo, monospace' }}
+                />
+                <button
+                  onClick={async () => {
+                    const tokenInput = document.getElementById('wp-token-input');
+                    const tok = tokenInput ? tokenInput.value.trim() : '';
+                    if (!tok) return;
+                    try {
+                      const r = await fetch((process.env.NEXT_PUBLIC_API_URL || '') + '/api/wp/save-token', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: tok })
+                      });
+                      const d = await r.json();
+                      setWpResult(d.success ? { message: `✅ تم حفظ الرمز: ${d.user}` } : { error: d.error });
+                    } catch (e) { setWpResult({ error: e.message }); }
+                  }}
+                  style={{ background: '#1f6feb', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontFamily: 'Cairo, sans-serif', whiteSpace: 'nowrap' }}
+                >💾 حفظ الرمز</button>
+              </div>
+              <p style={{ color: '#8b949e', fontSize: 11, marginTop: 6 }}>
+                للحصول على رمز جديد: <a href="https://xtox-production.up.railway.app/api/wp/auth" target="_blank" style={{ color: '#58a6ff' }}>اضغط هنا للمصادقة</a>
+              </p>
               {wpResult && (
-                <div style={{ background: '#0d1117', borderRadius: 6, padding: '8px 12px', fontSize: 12 }}>
+                <div style={{ background: '#0d1117', borderRadius: 8, padding: 12, fontSize: 13, marginTop: 8 }}>
                   {wpResult.error
                     ? <span style={{ color: '#f85149' }}>❌ {wpResult.error}</span>
-                    : <span style={{ color: '#3fb950' }}>✅ تمت المزامنة: {wpResult.synced ?? 0} إعلان منشور{wpResult.failed ? ' | فشل: ' + wpResult.failed : ''}</span>
+                    : wpResult.message
+                      ? <span style={{ color: '#3fb950' }}>{wpResult.message}</span>
+                      : <span style={{ color: '#3fb950' }}>✅ تمت المزامنة: {wpResult.synced ?? 0} إعلان | فشل: {wpResult.failed || 0}</span>
                   }
                 </div>
               )}
