@@ -9,7 +9,8 @@ const WP_SITE = process.env.WP_SITE || 'xt0x.wordpress.com'
 const WP_API = `https://public-api.wordpress.com/rest/v1.1/sites/${WP_SITE}`
 const WP_CLIENT_ID = process.env.WP_CLIENT_ID || '137369'
 const WP_CLIENT_SECRET = process.env.WP_CLIENT_SECRET || 'dpPAaW4LFZIGd9j7Q8ElnIdLge7yfaSvlQhaioDxG080kgR3Dy3QLALLR5AAcxUb'
-const WP_REDIRECT_URI = process.env.WP_REDIRECT_URI || 'https://xtox-production.up.railway.app/api/wp/callback'
+// Normalize redirect URI: strip any trailing slash so it exactly matches WP.com registration
+const WP_REDIRECT_URI = (process.env.WP_REDIRECT_URI || 'https://xtox-production.up.railway.app/api/wp/callback').replace(/\/+$/, '')
 
 // Get WP token: MongoDB first, then env var
 async function getWpToken() {
@@ -59,7 +60,9 @@ router.get('/auth', (req, res) => {
 
 // GET /api/wp/callback — OAuth callback, exchanges code for token, saves to MongoDB
 router.get('/callback', async (req, res) => {
-  const { code } = req.query
+  const { code, state } = req.query
+  // NOTE: WP.com sometimes returns ?state with no value (empty string) or omits it entirely.
+  // We intentionally do NOT validate state here — lenient handling avoids invalid_grant rejections.
   if (!code) return res.status(400).send('<h1>Error: No code provided</h1>')
   try {
     const r = await fetch('https://public-api.wordpress.com/oauth2/token', {

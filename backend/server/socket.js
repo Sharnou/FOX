@@ -8,12 +8,26 @@ const pendingCalls = new Map();
 
 export function initSocket(io) {
 
-  // ── Auth middleware ───────────────────────────────────────────
-  io.use((socket, next) => {
+  // ── Auth middleware — decode JWT and set socket.data.userId ──────────────────
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('Unauthorized'));
-    // Store userId from token in socket.data — JWT verification is optional
-    // (userId is also set in 'join' event for backward compatibility)
+    try {
+      // Decode JWT to get userId — allows server to identify user without 'join' event
+      const jwt = (await import('jsonwebtoken')).default;
+      const JWT_SECRET = process.env.JWT_SECRET || 'xtox_secret_2024';
+      const payload = jwt.verify(token, JWT_SECRET);
+      const userId = payload.id || payload._id || payload.userId || null;
+      if (userId) {
+        socket.data.userId = String(userId);
+        // Pre-join personal room immediately on connect (don't wait for 'join' event)
+        socket.join('user_' + socket.data.userId);
+      }
+    } catch (jwtErr) {
+      // Token invalid — allow connection but userId will be set via 'join' event
+      // (lenient: don't disconnect, let 'join' event handle identification)
+      console.warn('[Socket] JWT decode failed:', jwtErr.message);
+    }
     next();
   });
 
@@ -269,9 +283,10 @@ export function initSocket(io) {
           // User is OFFLINE — send push notification if available
           try {
             const webpush = (await import('web-push')).default;
-            const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY;
-            const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-            const vapidSubject    = process.env.VAPID_SUBJECT || 'mailto:XTOX@XTOX.com';
+            // Use env vars if set, otherwise use hardcoded defaults (generated VAPID keys)
+            const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY  || 'BCTRfwu1JjM-5_-xGHauSSiVOBd6dkyEJJp3L57_-C6B-oDQW2IAmcnEVpwsGAsvmhBsvWLu9tMHe29zmcOn0UU';
+            const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '324Nf1YsyLKC_Mo0aQcTLqEYO7r1DraMQPLTxY43F3Q';
+            const vapidSubject    = process.env.VAPID_SUBJECT || 'mailto:xtox@xtox.com';
 
             if (vapidPublicKey && vapidPrivateKey) {
               webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
