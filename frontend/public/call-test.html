@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XTOX Voice Call Diagnostic</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 20px; }
+    h1 { color: #4fc; }
+    .test { padding: 8px 12px; margin: 4px 0; border-radius: 6px; display: flex; align-items: center; gap: 10px; }
+    .pass { background: #1a3a1a; border-left: 4px solid #4c4; }
+    .fail { background: #3a1a1a; border-left: 4px solid #c44; }
+    .warn { background: #3a3a1a; border-left: 4px solid #cc4; }
+    .info { background: #1a1a3a; border-left: 4px solid #44c; }
+    .pending { background: #2a2a2a; border-left: 4px solid #888; }
+    .icon { font-size: 20px; }
+    pre { background: #222; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; color: #8f8; }
+    button { background: #4fc; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }
+    button:hover { background: #3db; }
+    #log { background: #222; padding: 10px; border-radius: 4px; height: 200px; overflow-y: auto; font-size: 12px; }
+    .section { margin: 20px 0; padding: 15px; background: #1a1a1a; border-radius: 8px; }
+    input { background: #333; color: #eee; border: 1px solid #555; padding: 8px; border-radius: 4px; width: 300px; }
+    label { display: block; margin: 5px 0; }
+  </style>
+</head>
+<body>
+<h1>🔧 XTOX Voice Call Diagnostic</h1>
+<p style="color:#aaa">Backend: <a href="https://xtox-production.up.railway.app" style="color:#4fc">xtox-production.up.railway.app</a></p>
+
+<div class="section">
+  <h2>⚙️ Tests</h2>
+  <button onclick="runAllTests()">▶ Run All Tests</button>
+  <button onclick="document.getElementById('results').innerHTML=''">🗑 Clear</button>
+  <div id="results"></div>
+</div>
+
+<div class="section">
+  <h2>🔌 Socket Connection Test</h2>
+  <label>JWT Token: <input id="tokenInput" placeholder="Paste your JWT token here" /></label>
+  <button onclick="runSocketTest()">Test Socket</button>
+  <div id="socketResult"></div>
+</div>
+
+<div class="section">
+  <h2>📞 Fake Call Test (loopback)</h2>
+  <label>Callee User ID: <input id="calleeId" placeholder="MongoDB user ID to call" /></label>
+  <button onclick="startFakeCall()">📞 Start Fake Call</button>
+  <button onclick="stopFakeCall()">📴 Hangup</button>
+  <div id="callResult"></div>
+  <audio id="remoteAudio" autoplay playsinline controls style="width:100%;margin-top:10px"></audio>
+</div>
+
+<div class="section">
+  <h2>📋 Console Log</h2>
+  <div id="log"></div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+const BACKEND = 'https://xtox-production.up.railway.app';
+const ICE_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turns:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  ],
+};
+
+// Global state — named carefully to avoid collisions with functions
+let activeSocket = null;
+let fakePC = null;
+let fakeStream = null;
+
+function log(msg, type = 'info') {
+  const d = document.getElementById('log');
+  const t = new Date().toLocaleTimeString();
+  d.innerHTML += `<div style="color:${type==='error'?'#f66':type==='ok'?'#6f6':'#aaa'}">[${t}] ${msg}</div>`;
+  d.scrollTop = d.scrollHeight;
+  console.log(`[DIAG] ${msg}`);
+}
+
+function addResult(id, icon, label, detail, cls) {
+  const el = document.getElementById(id || 'results');
+  el.innerHTML += `<div class="test ${cls}"><span class="icon">${icon}</span><div><b>${label}</b>${detail ? '<br><small style="color:#aaa">'+detail+'</small>' : ''}</div></div>`;
+}
+
+async function runAllTests() {
+  document.getElementById('results').innerHTML = '';
+  log('Starting all tests...');
+
+  // Test 1: HTTPS
+  const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
+  addResult('results', isHttps ? '✅' : '❌', 'HTTPS / localhost',
+    isHttps ? location.origin : 'WebRTC requires HTTPS! Current: '+location.href,
+    isHttps ? 'pass' : 'fail');
+
+  // Test 2: getUserMedia support
+  const hasGUM = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  addResult('results', hasGUM ? '✅' : '❌', 'getUserMedia API', hasGUM ? 'Supported' : 'NOT SUPPORTED — browser too old or insecure context', hasGUM ? 'pass' : 'fail');
+
+  // Test 3: RTCPeerConnection support
+  const hasRTC = !!window.RTCPeerConnection;
+  addResult('results', hasRTC ? '✅' : '❌', 'RTCPeerConnection API', hasRTC ? 'Supported' : 'NOT SUPPORTED', hasRTC ? 'pass' : 'fail');
+
+  // Test 4: Notification API
+  const hasNotif = 'Notification' in window;
+  const notifPerm = hasNotif ? Notification.permission : 'not available';
+  addResult('results', notifPerm === 'granted' ? '✅' : notifPerm === 'denied' ? '❌' : '⚠️',
+    'Notification Permission', `Status: ${notifPerm}`, notifPerm === 'granted' ? 'pass' : notifPerm === 'denied' ? 'fail' : 'warn');
+
+  // Test 5: Service Worker
+  const hasSW = 'serviceWorker' in navigator;
+  let swStatus = 'Not registered';
+  if (hasSW) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/');
+      swStatus = reg ? `Active: ${reg.active?.scriptURL || 'yes'} | State: ${reg.active?.state || 'unknown'}` : 'Not registered';
+    } catch (e) { swStatus = 'Error: ' + e.message; }
+  }
+  addResult('results', hasSW ? '✅' : '❌', 'Service Worker', swStatus, hasSW ? 'pass' : 'fail');
+
+  // Test 6: Microphone access
+  log('Testing microphone...');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    const tracks = stream.getTracks();
+    addResult('results', '✅', 'Microphone Access', `Got ${tracks.length} track(s): ${tracks.map(t=>t.label||t.kind).join(', ')}`, 'pass');
+    log('Microphone OK: ' + tracks.map(t=>t.label).join(', '), 'ok');
+    stream.getTracks().forEach(t => t.stop());
+  } catch (e) {
+    addResult('results', '❌', 'Microphone Access', `${e.name}: ${e.message}`, 'fail');
+    log('Microphone FAILED: ' + e.name + ' — ' + e.message, 'error');
+  }
+
+  // Test 7: Backend reachable
+  log('Testing backend...');
+  try {
+    const r = await fetch(BACKEND + '/api/winner/leaderboard', { signal: AbortSignal.timeout(5000) });
+    addResult('results', r.ok ? '✅' : '⚠️', 'Backend API', `Status: ${r.status} ${r.statusText}`, r.ok ? 'pass' : 'warn');
+    log('Backend ' + (r.ok ? 'OK' : 'returned ' + r.status), r.ok ? 'ok' : 'error');
+  } catch (e) {
+    addResult('results', '❌', 'Backend API', `${e.name}: ${e.message}`, 'fail');
+    log('Backend FAILED: ' + e.message, 'error');
+  }
+
+  // Test 8: TURN server
+  log('Testing TURN server...');
+  try {
+    const turnResult = await testTURN();
+    addResult('results', turnResult.ok ? '✅' : '⚠️', 'TURN Server', turnResult.msg, turnResult.ok ? 'pass' : 'warn');
+  } catch (e) {
+    addResult('results', '⚠️', 'TURN Server', 'Test failed: ' + e.message, 'warn');
+  }
+
+  // Test 9: WebRTC loopback (no TURN needed)
+  log('Testing WebRTC loopback...');
+  try {
+    const loopResult = await testWebRTCLoopback();
+    addResult('results', loopResult.ok ? '✅' : '❌', 'WebRTC Loopback Audio', loopResult.msg, loopResult.ok ? 'pass' : 'fail');
+    log('WebRTC loopback: ' + loopResult.msg, loopResult.ok ? 'ok' : 'error');
+  } catch (e) {
+    addResult('results', '❌', 'WebRTC Loopback Audio', e.message, 'fail');
+    log('WebRTC loopback FAILED: ' + e.message, 'error');
+  }
+
+  // Test 10: cap4kbps SDP function
+  const sdpTest = testCap4kbps();
+  addResult('results', sdpTest.ok ? '✅' : '❌', 'Opus 4kbps SDP Cap', sdpTest.msg, sdpTest.ok ? 'pass' : 'fail');
+
+  log('All tests done.', 'ok');
+}
+
+async function testTURN() {
+  return new Promise((resolve) => {
+    const pc = new RTCPeerConnection(ICE_CONFIG);
+    let hasTURN = false;
+    const t = setTimeout(() => { pc.close(); resolve({ ok: false, msg: 'Timeout — TURN may be unreachable (behind symmetric NAT?)' }); }, 8000);
+    pc.onicecandidate = e => {
+      if (!e.candidate) return;
+      log('ICE candidate: ' + e.candidate.type + ' — ' + e.candidate.candidate.substring(0, 80));
+      if (e.candidate.type === 'relay') {
+        hasTURN = true;
+        clearTimeout(t);
+        pc.close();
+        resolve({ ok: true, msg: 'TURN relay candidate received: ' + e.candidate.candidate.substring(0, 60) });
+      }
+    };
+    pc.createDataChannel('test');
+    pc.createOffer().then(o => pc.setLocalDescription(o));
+  });
+}
+
+async function testWebRTCLoopback() {
+  return new Promise(async (resolve) => {
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); }
+    catch (e) { return resolve({ ok: false, msg: 'getUserMedia failed: ' + e.name }); }
+
+    const pc1 = new RTCPeerConnection({ iceServers: [] });
+    const pc2 = new RTCPeerConnection({ iceServers: [] });
+    const remoteAudio = document.getElementById('remoteAudio');
+
+    stream.getTracks().forEach(t => pc1.addTrack(t, stream));
+
+    pc2.ontrack = e => {
+      log('Loopback ontrack fired! streams: ' + e.streams.length, 'ok');
+      remoteAudio.srcObject = e.streams[0];
+    };
+
+    pc1.onicecandidate = e => { if (e.candidate) pc2.addIceCandidate(e.candidate); };
+    pc2.onicecandidate = e => { if (e.candidate) pc1.addIceCandidate(e.candidate); };
+
+    const offer = await pc1.createOffer();
+    await pc1.setLocalDescription(offer);
+    await pc2.setRemoteDescription(offer);
+    const answer = await pc2.createAnswer();
+    await pc2.setLocalDescription(answer);
+    await pc1.setRemoteDescription(answer);
+
+    const t = setTimeout(() => {
+      stream.getTracks().forEach(t => t.stop());
+      pc1.close(); pc2.close();
+      resolve({ ok: false, msg: 'ICE connected but no ontrack in 5s — check remoteAudio element' });
+    }, 5000);
+
+    pc2.onconnectionstatechange = () => {
+      log('Loopback PC2 state: ' + pc2.connectionState);
+      if (pc2.connectionState === 'connected') {
+        clearTimeout(t);
+        setTimeout(() => {
+          stream.getTracks().forEach(t => t.stop());
+          pc1.close(); pc2.close();
+          resolve({ ok: true, msg: 'Connected! Check the audio element above — you should hear yourself.' });
+        }, 500);
+      }
+    };
+  });
+}
+
+function testCap4kbps() {
+  // Minimal SDP with Opus
+  const testSDP = `v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\nc=IN IP4 0.0.0.0\r\na=rtpmap:111 opus/48000/2\r\na=fmtp:111 minptime=10;useinbandfec=1\r\n`;
+  const capped = cap4kbps(testSDP);
+  const hasMaxRate = capped.includes('maxaveragebitrate=4000');
+  const hasBAS = capped.includes('b=AS:4');
+  // SDP spec: b=AS:4 must come AFTER c= line (not before it)
+  const cIdx = capped.indexOf('c=IN IP4');
+  const bIdx = capped.indexOf('b=AS:4');
+  const orderOk = bIdx > cIdx;
+  const audioSection = capped.substring(capped.indexOf('m=audio'));
+  return {
+    ok: hasMaxRate && hasBAS && orderOk,
+    msg: `maxaveragebitrate=4000: ${hasMaxRate} | b=AS:4: ${hasBAS} | order correct (after c=): ${orderOk}\n${audioSection.substring(0, 300)}`
+  };
+}
+
+// ── Fixed cap4kbps — b=AS:4 inserted AFTER c= line (SDP spec requirement) ──
+function cap4kbps(sdp) {
+  const m = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
+  if (!m) return sdp;
+  const pt = m[1];
+  const fmtp = `a=fmtp:${pt} maxaveragebitrate=4000;minptime=20;useinbandfec=1;usedtx=1;stereo=0;cbr=0`;
+  const lines = sdp.split('\r\n');
+  const result = [];
+  let inAudio = false;
+  let fmtpDone = false;
+  let bwDone = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith('m=')) {
+      inAudio = line.startsWith('m=audio');
+    }
+
+    result.push(line);
+
+    // Insert b=AS:4 immediately AFTER the c= line in the audio section
+    if (inAudio && !bwDone && line.startsWith('c=')) {
+      result.push('b=AS:4');
+      bwDone = true;
+      continue;
+    }
+
+    // Replace existing fmtp line
+    if (inAudio && line.startsWith(`a=fmtp:${pt} `)) {
+      result.pop(); // remove the line we just pushed
+      result.push(fmtp);
+      fmtpDone = true;
+      continue;
+    }
+
+    // Insert fmtp after rtpmap if no existing fmtp
+    if (inAudio && !fmtpDone && line.startsWith(`a=rtpmap:${pt} `)) {
+      result.push(fmtp);
+      fmtpDone = true;
+      // don't continue — no line to skip, we added extra line after
+    }
+  }
+
+  return result.join('\r\n');
+}
+
+// --- Socket test --- (renamed from testSocket to avoid collision with the variable)
+async function runSocketTest() {
+  const token = document.getElementById('tokenInput').value.trim();
+  const div = document.getElementById('socketResult');
+  div.innerHTML = '<div class="test pending"><span class="icon">⏳</span>Connecting...</div>';
+
+  if (!token) { div.innerHTML = '<div class="test fail"><span class="icon">❌</span>Paste your JWT token first</div>'; return; }
+
+  if (activeSocket) { activeSocket.disconnect(); activeSocket = null; }
+
+  const s = io(BACKEND, {
+    auth: { token },
+    transports: ['websocket'],
+    timeout: 10000,
+  });
+
+  s.on('connect', () => {
+    log('Socket connected: ' + s.id, 'ok');
+    div.innerHTML = `<div class="test pass"><span class="icon">✅</span>Socket connected! ID: <b>${s.id}</b></div>`;
+    activeSocket = s;
+  });
+
+  s.on('connect_error', (e) => {
+    log('Socket error: ' + e.message, 'error');
+    div.innerHTML = `<div class="test fail"><span class="icon">❌</span>Socket connect error: ${e.message}</div>`;
+  });
+
+  s.on('disconnect', (reason) => {
+    log('Socket disconnected: ' + reason);
+    div.innerHTML += `<div class="test warn"><span class="icon">⚠️</span>Disconnected: ${reason}</div>`;
+  });
+
+  // Listen for any call events
+  ['call:incoming','call:accepted','call:rejected','call:no_answer','call:push_sent','call:ice','call:ended','call:cancelled'].forEach(ev => {
+    s.on(ev, (data) => {
+      log(`[SOCKET] Event: ${ev} — ${JSON.stringify(data).substring(0,100)}`, 'ok');
+      div.innerHTML += `<div class="test info"><span class="icon">📨</span><b>${ev}</b>: ${JSON.stringify(data).substring(0,100)}</div>`;
+    });
+  });
+}
+
+// --- Fake call ---
+async function startFakeCall() {
+  const token = document.getElementById('tokenInput').value.trim();
+  const calleeId = document.getElementById('calleeId').value.trim();
+  const div = document.getElementById('callResult');
+
+  if (!token || !calleeId) { div.innerHTML = '<div class="test fail">❌ Need JWT token + callee user ID</div>'; return; }
+
+  // Ensure socket is connected for the test
+  if (!activeSocket?.connected) {
+    document.getElementById('tokenInput').value = token;
+    log('Connecting socket for fake call...');
+    await new Promise(resolve => {
+      const s = io(BACKEND, { auth: { token }, transports: ['websocket'] });
+      s.on('connect', () => { activeSocket = s; resolve(); });
+      s.on('connect_error', (e) => { log('Socket error: ' + e.message, 'error'); resolve(); });
+      setTimeout(resolve, 5000);
+    });
+  }
+
+  div.innerHTML = '';
+  log('Starting fake call to: ' + calleeId);
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    fakeStream = stream;
+    log('Got microphone: ' + stream.getTracks().map(t=>t.label).join(', '), 'ok');
+    addResult('callResult', '✅', 'Microphone', stream.getTracks().map(t=>t.label||t.kind).join(', '), 'pass');
+  } catch (e) {
+    addResult('callResult', '❌', 'Microphone FAILED', e.name + ': ' + e.message, 'fail');
+    return;
+  }
+
+  fakePC = new RTCPeerConnection(ICE_CONFIG);
+  fakePC.ontrack = e => {
+    log('Got remote track! kind: ' + e.track.kind, 'ok');
+    document.getElementById('remoteAudio').srcObject = e.streams[0];
+    addResult('callResult', '✅', 'Remote Audio Track', 'Received! Check the audio player.', 'pass');
+  };
+  fakePC.oniceconnectionstatechange = () => log('ICE state: ' + fakePC.iceConnectionState, fakePC.iceConnectionState === 'connected' ? 'ok' : 'info');
+  fakePC.onconnectionstatechange = () => {
+    log('PC state: ' + fakePC.connectionState);
+    if (fakePC.connectionState === 'connected') addResult('callResult', '✅', 'WebRTC Connected!', 'Peer connection established', 'pass');
+  };
+
+  stream.getTracks().forEach(t => { fakePC.addTrack(t, stream); log('Added track: ' + t.kind); });
+
+  const offer = await fakePC.createOffer({ offerToReceiveAudio: true });
+  const cappedSDP = cap4kbps(offer.sdp);
+  const capped = { type: offer.type, sdp: cappedSDP };
+  await fakePC.setLocalDescription(capped);
+  log('Offer created + 4kbps capped', 'ok');
+  addResult('callResult', '✅', 'Offer Created', 'SDP has audio: ' + capped.sdp.includes('m=audio') + ' | 4kbps cap: ' + capped.sdp.includes('maxaveragebitrate=4000'), 'pass');
+
+  const s = io(BACKEND, { auth: { token }, transports: ['websocket'] });
+  s.on('connect', () => {
+    log('Caller socket connected: ' + s.id, 'ok');
+    addResult('callResult', '✅', 'Caller Socket', 'Connected: ' + s.id, 'pass');
+    s.emit('call:initiate', { calleeId, callerName: 'Test Caller (Diagnostic)', callerAvatar: '', offer: fakePC.localDescription });
+    log('Emitted call:initiate to calleeId: ' + calleeId);
+    addResult('callResult', '✅', 'call:initiate Emitted', 'Waiting for response...', 'pass');
+  });
+  s.on('call:push_sent', () => { addResult('callResult', '📱', 'Push Sent', 'Callee offline — notification sent', 'info'); });
+  s.on('call:no_answer', () => { addResult('callResult', '⚠️', 'No Answer', 'Callee did not respond in 30-45s', 'warn'); });
+  s.on('call:accepted', async ({ answer, calleeSocketId }) => {
+    log('call:accepted received! calleeSocketId: ' + calleeSocketId, 'ok');
+    addResult('callResult', '✅', 'call:accepted', 'Answer received from callee! Setting remote description...', 'pass');
+    await fakePC.setRemoteDescription(new RTCSessionDescription(answer));
+    addResult('callResult', '✅', 'Remote Description Set', 'ICE negotiation in progress...', 'pass');
+    fakePC.onicecandidate = e => { if (e.candidate) s.emit('call:ice', { targetSocketId: calleeSocketId, candidate: e.candidate }); };
+  });
+  s.on('call:ice', async ({ candidate }) => {
+    if (fakePC && fakePC.remoteDescription) await fakePC.addIceCandidate(candidate).catch(e => log('ICE err: '+e.message, 'error'));
+  });
+  s.on('connect_error', e => addResult('callResult', '❌', 'Socket Error', e.message, 'fail'));
+  activeSocket = s;
+}
+
+function stopFakeCall() {
+  if (fakePC) { fakePC.close(); fakePC = null; }
+  if (fakeStream) { fakeStream.getTracks().forEach(t => t.stop()); fakeStream = null; }
+  if (activeSocket) { activeSocket.disconnect(); activeSocket = null; }
+  document.getElementById('remoteAudio').srcObject = null;
+  document.getElementById('callResult').innerHTML = '<div class="test info">📴 Hung up</div>';
+  log('Call ended');
+}
+</script>
+</body>
+</html>

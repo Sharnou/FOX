@@ -22,59 +22,55 @@ async function getAudio() {
 }
 
 // ── Opus 4 kbps SDP cap (Egypt low-bandwidth) ──────────────────────────────
+// FIX Bug-B: b=AS:4 must be inserted AFTER the c= line (SDP spec §5.14).
+// The old code inserted it BEFORE c=, which some SDP parsers reject entirely.
+// Correct SDP section order: m=audio → c= → b=AS:4 → a=rtpmap → a=fmtp
 function cap4kbps(sdp) {
-  // 1. Find Opus payload type
   const m = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
   if (!m) return sdp;
   const pt = m[1];
 
-  // 2. Build replacement fmtp line with 4000 bps cap
-  //    useinbandfec=1 — recovers lost packets without retransmit (crucial at low bitrate)
-  //    usedtx=1       — silence suppression (saves bandwidth during pauses)
-  //    cbr=0          — variable bitrate (adapts, never exceeds 4kbps)
-  //    minptime=20    — 20ms packet time (reduces overhead)
+  // 4000 bps cap with FEC, DTX and 20ms packet time for low-bandwidth links
   const fmtp = `a=fmtp:${pt} maxaveragebitrate=4000;minptime=20;useinbandfec=1;usedtx=1;stereo=0;cbr=0`;
 
-  // 3. Add bandwidth limit to audio m= section
-  //    b=AS:4 tells the remote end to send at most 4 kbps
   const lines = sdp.split('\r\n');
   const result = [];
   let inAudio = false;
-  let fmtpInserted = false;
-  let bwInserted = false;
+  let fmtpDone = false;
+  let bwDone = false;
 
-  for (const line of lines) {
-    if (line.startsWith('m=audio')) {
-      inAudio = true;
-      result.push(line);
-      continue;
-    }
-    if (line.startsWith('m=') && !line.startsWith('m=audio')) {
-      inAudio = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith('m=')) {
+      inAudio = line.startsWith('m=audio');
     }
 
-    // Insert b=AS:4 after the first c= or a= line inside the audio section
-    if (inAudio && !bwInserted && (line.startsWith('c=') || line.startsWith('a='))) {
-      result.push('b=AS:4');
-      bwInserted = true;
-    }
-
-    // Replace or insert fmtp line
-    if (line.startsWith(`a=fmtp:${pt} `)) {
-      result.push(fmtp);
-      fmtpInserted = true;
-      continue;
-    }
-
-    // Insert fmtp after rtpmap if there was no existing fmtp
-    if (!fmtpInserted && line.startsWith(`a=rtpmap:${pt} `)) {
-      result.push(line);
-      result.push(fmtp);
-      fmtpInserted = true;
-      continue;
-    }
-
+    // Push the current line first (so c= always appears before b=AS:4)
     result.push(line);
+
+    // Insert b=AS:4 immediately AFTER the c= line in the audio section
+    // SDP §5.14: b= lines MUST follow c= lines within a media block
+    if (inAudio && !bwDone && line.startsWith('c=')) {
+      result.push('b=AS:4');
+      bwDone = true;
+      continue;
+    }
+
+    // Replace existing fmtp line with our 4kbps version
+    if (inAudio && line.startsWith(`a=fmtp:${pt} `)) {
+      result.pop(); // remove the line we just pushed
+      result.push(fmtp);
+      fmtpDone = true;
+      continue;
+    }
+
+    // Insert fmtp after rtpmap when there is no existing fmtp line
+    if (inAudio && !fmtpDone && line.startsWith(`a=rtpmap:${pt} `)) {
+      result.push(fmtp);
+      fmtpDone = true;
+      // NOTE: no continue here — the rtpmap line was already pushed above
+    }
   }
 
   return result.join('\r\n');

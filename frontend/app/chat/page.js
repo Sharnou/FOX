@@ -538,7 +538,7 @@ function ChatPageInner() {
     if (!myId) return;
     var ioModule = await import('socket.io-client');
     var io = ioModule.io || ioModule.default;
-    var token = typeof window !== 'undefined' ? (localStorage.getItem('token') || 'guest') : 'guest';
+    var token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('xtox_token') || '') : '';
     var s = io(SOCKET_URL, { auth: { token: token }, transports: ['websocket', 'polling'], withCredentials: true });
     socketRef.current = s;
     setSocketInstance(s);
