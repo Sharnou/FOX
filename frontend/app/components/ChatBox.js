@@ -73,6 +73,44 @@ function playCartoonSound(type) {
 // ── Quick emoji reactions ─────────────────────────────────────────────────────
 const QUICK_EMOJIS = ['😂', '❤️', '👍', '🔥', '😮', '😢'];
 
+// ── Dubizzle-style ad header constants ───────────────────────────────────────
+const CHAT_AD_HEADER_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '10px 14px',
+  background: '#fff',
+  borderBottom: '1px solid #e8e8e8',
+  position: 'sticky',
+  top: 0,
+  zIndex: 10,
+  flexShrink: 0,
+};
+const CHAT_AD_THUMB_STYLE = {
+  width: 48,
+  height: 48,
+  borderRadius: 8,
+  objectFit: 'cover',
+  flexShrink: 0,
+};
+const CHAT_AD_TITLE_STYLE = {
+  fontSize: 16,
+  fontWeight: 700,
+  color: '#002f34',
+  lineHeight: 1.2,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  maxWidth: 220,
+};
+const CHAT_AD_SELLER_STYLE = {
+  fontSize: 12,
+  color: '#8b8b8b',
+  marginTop: 2,
+};
+
+
+
 // ── Cartoon SVG characters ────────────────────────────────────────────────────
 function MyCharacter({ isTyping }) {
   return (
@@ -154,7 +192,7 @@ function VoiceMessage({ url, duration }) {
 }
 
 export default function ChatBox({
-  targetId, adId, otherName, otherAvatar }) {
+  targetId, adId, otherName, otherAvatar, isAdmin }) {
   const { t: tr, language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -180,8 +218,10 @@ export default function ChatBox({
   const [showMenu, setShowMenu] = useState(false);
   const [chatMuted, setChatMuted] = useState(false);
 
-  // Dubizzle-style header: ad title
+  // Dubizzle-style header: ad title + image
   const [adTitle, setAdTitle] = useState('');
+  const [adImage, setAdImage] = useState(null);
+  const [adHeaderLoading, setAdHeaderLoading] = useState(false);
 
   // Voice recording state
   const mediaRecorderRef = useRef(null);
@@ -201,14 +241,21 @@ export default function ChatBox({
     } catch {}
   }, []);
 
-  // Change 3: Fetch ad details for location display
+  // Fetch ad details for location display + dubizzle header (title + image)
   useEffect(() => {
     if (!adId) return;
+    setAdHeaderLoading(true);
     fetch(API + '/api/ads/' + adId)
       .then(r => r.ok ? r.json() : null)
       .then(ad => {
         if (!ad) return;
         if (ad.city) setAdCity(ad.city);
+        // Dubizzle header: title
+        if (ad.title && !adTitle) setAdTitle(ad.title);
+        // Dubizzle header: first image
+        const imgs = ad.images || ad.media || ad.photos || [];
+        const firstImg = Array.isArray(imgs) ? imgs[0] : imgs;
+        if (firstImg) setAdImage(typeof firstImg === 'string' ? firstImg : (firstImg.url || firstImg.src || null));
         // Get user GPS non-blocking and calculate distance
         if (ad.location?.coordinates && navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
@@ -222,7 +269,8 @@ export default function ChatBox({
           );
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setAdHeaderLoading(false));
   }, [adId]);
 
   // Socket cleanup on unmount
@@ -620,6 +668,34 @@ export default function ChatBox({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>{t.close}</button>
           </div>
+
+          {/* Dubizzle-style ad header */}
+          {!isAdmin && adId && (adTitle || adImage || adHeaderLoading) && (
+            <div style={CHAT_AD_HEADER_STYLE}>
+              {adHeaderLoading && !adImage ? (
+                <div style={{ ...CHAT_AD_THUMB_STYLE, background: '#e8e8e8', borderRadius: 8 }} />
+              ) : adImage ? (
+                <img
+                  src={adImage}
+                  alt=""
+                  style={CHAT_AD_THUMB_STYLE}
+                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                />
+              ) : (
+                <div style={{ ...CHAT_AD_THUMB_STYLE, background: '#e8e8e8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+                  🏠
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {adHeaderLoading && !adTitle ? (
+                  <div style={{ height: 14, background: '#e8e8e8', borderRadius: 4, width: '70%', marginBottom: 6 }} />
+                ) : (
+                  <div style={CHAT_AD_TITLE_STYLE}>{adTitle}</div>
+                )}
+                <div style={CHAT_AD_SELLER_STYLE}>{sellerDisplayName}</div>
+              </div>
+            </div>
+          )}
 
           {/* Messages with cartoon bubbles */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', position: 'relative' }}>
