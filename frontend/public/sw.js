@@ -171,14 +171,15 @@ self.addEventListener('push', (event) => {
       self.registration.showNotification(
         data.title || `مكالمة واردة — XTOX`,
         {
-          body: data.body || 'اضغط للرد أو الرفض',
-          icon: data.icon || '/favicon.ico',
-          badge: data.badge || '/favicon.ico',
+          body: data.body || `${notifData.callerName} يتصل بك`,
+          icon: data.icon || '/icon-192.png',
+          badge: data.badge || '/icon-192.png',
           tag: data.tag || `call-${notifData.roomId}`,
           requireInteraction: true,
-          vibrate: [300, 100, 300, 100, 300],
+          renotify: true,
+          vibrate: [500, 200, 500, 200, 500],
           actions: [
-            { action: 'accept', title: '✅ رد' },
+            { action: 'answer', title: '📞 رد' },
             { action: 'reject', title: '❌ رفض' },
           ],
           data: notifData,
@@ -263,7 +264,7 @@ self.addEventListener('notificationclick', (event) => {
           }
         }
         // No existing window — open with autoAnswer flag so CallManager can auto-answer
-        return clients.openWindow(event.action === 'accept' ? autoAnswerUrl : callUrl);
+        return clients.openWindow(event.action === 'answer' ? autoAnswerUrl : callUrl);
       })
     );
     return;
