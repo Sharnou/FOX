@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v35';
+const _XTOX_CACHE = 'xtox-v36';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -102,9 +102,9 @@ self.addEventListener('periodicsync', function(event) {
               'Content-Type': 'application/json',
             },
           });
-          console.log('[SW v35] Presence ping sent ✓');
+          console.log('[SW v36] Presence ping sent ✓');
         } catch (e) {
-          console.log('[SW v35] Presence ping failed:', e.message);
+          console.log('[SW v36] Presence ping failed:', e.message);
         }
       })()
     );
@@ -132,7 +132,7 @@ function getStoredToken() {
 
 // ─── XTOX Service Worker v34 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v35';
+const CACHE_VERSION = 'v36';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -188,64 +188,83 @@ self.addEventListener('message', event => {
 });
 
 
-// ── PUSH: handle incoming push notifications (e.g. incoming calls) ──────────
+// ── PUSH: handle incoming push notifications ─────────────────────────────────
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-
   let data;
   try { data = event.data.json(); } catch { return; }
 
   if (data.type === 'incoming_call') {
-    // Store offer as JSON string so notificationclick can JSON.parse it safely
-    const notifData = {
-      type: 'incoming_call',
-      callerId: data.callerId || data.fromUserId || '',
-      callerName: data.callerName || data.fromName || 'مستخدم XTOX',
-      callerAvatar: data.callerAvatar || '',
-      callerSocketId: data.callerSocketId || '',
-      offer: data.offer ? JSON.stringify(data.offer) : null,
-      roomId: data.roomId || data.tag || '',
-      url: '/',
+    const notifOptions = {
+      body: data.body || `مكالمة من ${data.callerName || 'مستخدم XTOX'}`,
+      icon: data.icon || '/icon-192.png',
+      badge: data.badge || '/favicon.ico',
+      image: data.callerAvatar || undefined,
+      tag: `call-${data.roomId}`,
+      renotify: true,
+      requireInteraction: true,                    // stays until user acts
+      silent: false,
+      vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500], // WhatsApp-style
+      actions: [
+        { action: 'answer',  title: '📞 رد'   },
+        { action: 'decline', title: '❌ رفض'  },
+      ],
+      data: {
+        type: 'incoming_call',
+        callerId: data.callerId || '',
+        callerName: data.callerName || 'مستخدم XTOX',
+        callerAvatar: data.callerAvatar || '',
+        callerSocketId: data.callerSocketId || '',
+        offer: JSON.stringify(data.offer || null),
+        roomId: data.roomId || '',
+        url: '/',
+      },
     };
-
     event.waitUntil(
-      self.registration.showNotification(
-        data.title || `مكالمة واردة — XTOX`,
-        {
-          body: data.body || `${notifData.callerName} يتصل بك`,
-          icon: data.icon || '/icon-192.png',
-          badge: data.badge || '/icon-192.png',
-          tag: 'incoming-call-' + notifData.roomId,
-          requireInteraction: true,
-          renotify: true,
-          vibrate: [500, 200, 500, 200, 500, 200, 500],
-          actions: [
-            { action: 'answer', title: '📞 رد' },
-            { action: 'decline', title: '❌ رفض' },
-          ],
-          data: notifData,
-        }
-      )
+      self.registration.showNotification(data.title || '📞 مكالمة واردة', notifOptions)
     );
     return;
-  } else if (data.type === 'monthly_winner') {
+  }
+
+  // Regular message notification
+  if (data.type === 'new_message' || data.type === 'chat_message') {
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'رسالة جديدة', {
+        body: data.body || data.message || '',
+        icon: '/icon-192.png',
+        badge: '/favicon.ico',
+        tag: `msg-${data.chatId || Date.now()}`,
+        renotify: true,
+        vibrate: [200, 100, 200],
+        data: { url: data.url || '/chat', chatId: data.chatId },
+      })
+    );
+    return;
+  }
+
+  // monthly_winner notification
+  if (data.type === 'monthly_winner') {
     event.waitUntil(
       self.registration.showNotification(data.title || '🏆 بائع الشهر', {
         body: data.body || '',
-        icon: '/icon-192x192.png',
-        badge: '/icon-72x72.png',
+        icon: '/icon-192.png',
+        badge: '/favicon.ico',
         tag: 'monthly-winner',
         requireInteraction: false,
         vibrate: [200, 100, 200],
         data: { url: data.url || '/', type: 'monthly_winner', winnerId: data.winnerId || '' },
       })
     );
-  } else if (data.type === 'winner_rules_update') {
+    return;
+  }
+
+  // winner_rules_update notification
+  if (data.type === 'winner_rules_update') {
     event.waitUntil(
       self.registration.showNotification(data.title || '🏆 قواعد بائع الشهر', {
-        body: data.body,
-        icon: '/icon-192x192.png',
-        badge: '/icon-72x72.png',
+        body: data.body || '',
+        icon: '/icon-192.png',
+        badge: '/favicon.ico',
         tag: 'winner-rules',
         requireInteraction: false,
         vibrate: [100, 50, 100],
@@ -253,105 +272,93 @@ self.addEventListener('push', (event) => {
       })
     );
     return;
-  } else {
-    // Generic notification
+  }
+
+  // Generic notification
+  if (data.title) {
     event.waitUntil(
-      self.registration.showNotification(data.title || 'XTOX', {
+      self.registration.showNotification(data.title, {
         body: data.body || '',
-        icon: data.icon || '/favicon.ico',
-        tag: data.tag || 'xtox-notification',
-        data: data.data || {},
+        icon: '/icon-192.png',
+        badge: '/favicon.ico',
+        data: { url: data.url || '/' },
+        vibrate: [200],
       })
     );
   }
 });
 
-// ── NOTIFICATION CLICK: handle user tapping notification ────────────────────
+// ── NOTIFICATION CLICK: WhatsApp-style — focus existing window or open new ──
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-
   const notifData = event.notification.data || {};
-  const targetUrl = notifData.url || '/chat';
 
   if (notifData.type === 'incoming_call') {
-    // decline action → just close notification (no socket in background)
     if (event.action === 'decline') {
-      event.waitUntil(Promise.resolve());
+      // Just close — no window needed (server TTL handles cleanup)
       return;
     }
 
-    // answer action OR body click → focus existing window + postMessage, or open new window
-    const autoAnswerUrl = `/?autoAnswer=${notifData.callerId}_${encodeURIComponent(notifData.callerSocketId)}&callerName=${encodeURIComponent(notifData.callerName)}`;
+    // 'answer' action OR tapped body → open/focus app with auto-answer
+    const answerUrl = `/?autoAnswer=${encodeURIComponent(notifData.callerId)}_${encodeURIComponent(notifData.callerSocketId)}&callerName=${encodeURIComponent(notifData.callerName)}`;
+
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        // Build the callData to postMessage
+        let parsedOffer = null;
+        try { parsedOffer = JSON.parse(notifData.offer); } catch {}
+
         const callData = {
           type: 'incoming_call_push',
           callerId: notifData.callerId,
           callerName: notifData.callerName,
           callerAvatar: notifData.callerAvatar,
           callerSocketId: notifData.callerSocketId,
-          // Parse offer back from JSON string
-          offer: notifData.offer ? JSON.parse(notifData.offer) : null,
+          offer: parsedOffer,
           roomId: notifData.roomId,
         };
-        // Focus an existing window and postMessage the call data
+
+        // Focus existing window and postMessage
         for (const client of clientList) {
-          if ('focus' in client) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
             client.focus();
             client.postMessage(callData);
             return;
           }
         }
+
         // No existing window → open app with autoAnswer query param
-        return clients.openWindow(autoAnswerUrl);
+        return clients.openWindow(event.action === 'answer' ? answerUrl : '/');
       })
     );
     return;
   }
 
-  if (event.action === 'accept') {
-    // Generic accept — open or focus app
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        for (const client of clientList) {
-          if ('focus' in client) {
-            client.focus();
-            client.postMessage({ type: 'CALL_ACCEPT', fromUserId: notifData.fromUserId });
-            return;
-          }
+  // Regular notification click — open or focus URL
+  const url = notifData.url || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.focus();
+          return;
         }
-        return clients.openWindow(targetUrl);
-      })
-    );
-  } else if (event.action === 'reject') {
-    // Just close the notification (already done above)
-  } else if (notifData.type === 'monthly_winner') {
-    // Open root or winner page
-    const winnerUrl = notifData.url || '/';
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        for (const client of clientList) {
-          if ('focus' in client) {
-            client.focus();
-            return;
-          }
-        }
-        return clients.openWindow(winnerUrl);
-      })
-    );
-  } else {
-    // Clicked notification body — open or focus app
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        for (const client of clientList) {
-          if ('focus' in client) {
-            client.focus();
-            return;
-          }
-        }
-        return clients.openWindow(targetUrl);
-      })
-    );
+      }
+      return clients.openWindow(url);
+    })
+  );
+});
+
+// ── NOTIFICATION CLOSE: track missed calls ───────────────────────────────────
+self.addEventListener('notificationclose', (event) => {
+  const notifData = event.notification.data || {};
+  if (notifData.type === 'incoming_call') {
+    // Notify backend of missed call (fire and forget)
+    fetch('/api/calls/missed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callerId: notifData.callerId, roomId: notifData.roomId }),
+    }).catch(() => {});
   }
 });
 

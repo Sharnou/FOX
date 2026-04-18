@@ -21,6 +21,65 @@ async function getAudio() {
   });
 }
 
+// ── Opus 4 kbps SDP cap (Egypt low-bandwidth) ──────────────────────────────
+function cap4kbps(sdp) {
+  // 1. Find Opus payload type
+  const m = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
+  if (!m) return sdp;
+  const pt = m[1];
+
+  // 2. Build replacement fmtp line with 4000 bps cap
+  //    useinbandfec=1 — recovers lost packets without retransmit (crucial at low bitrate)
+  //    usedtx=1       — silence suppression (saves bandwidth during pauses)
+  //    cbr=0          — variable bitrate (adapts, never exceeds 4kbps)
+  //    minptime=20    — 20ms packet time (reduces overhead)
+  const fmtp = `a=fmtp:${pt} maxaveragebitrate=4000;minptime=20;useinbandfec=1;usedtx=1;stereo=0;cbr=0`;
+
+  // 3. Add bandwidth limit to audio m= section
+  //    b=AS:4 tells the remote end to send at most 4 kbps
+  const lines = sdp.split('\r\n');
+  const result = [];
+  let inAudio = false;
+  let fmtpInserted = false;
+  let bwInserted = false;
+
+  for (const line of lines) {
+    if (line.startsWith('m=audio')) {
+      inAudio = true;
+      result.push(line);
+      continue;
+    }
+    if (line.startsWith('m=') && !line.startsWith('m=audio')) {
+      inAudio = false;
+    }
+
+    // Insert b=AS:4 after the first c= or a= line inside the audio section
+    if (inAudio && !bwInserted && (line.startsWith('c=') || line.startsWith('a='))) {
+      result.push('b=AS:4');
+      bwInserted = true;
+    }
+
+    // Replace or insert fmtp line
+    if (line.startsWith(`a=fmtp:${pt} `)) {
+      result.push(fmtp);
+      fmtpInserted = true;
+      continue;
+    }
+
+    // Insert fmtp after rtpmap if there was no existing fmtp
+    if (!fmtpInserted && line.startsWith(`a=rtpmap:${pt} `)) {
+      result.push(line);
+      result.push(fmtp);
+      fmtpInserted = true;
+      continue;
+    }
+
+    result.push(line);
+  }
+
+  return result.join('\r\n');
+}
+
 // ─── Web Audio API calling tone ─────────────────────────────────────────────
 let _callingCtx = null;
 let _callingTimer = null;
@@ -68,6 +127,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const [offlineRinging, setOfflineRinging] = useState(null);
   const [callStatus, setCallStatus]     = useState(null); // 'no_answer' | null
   const [statusMessage, setStatusMessage] = useState('');
+  const [pushSent, setPushSent]         = useState(false);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const remoteAudio      = useRef(null);   // <audio> element — always in DOM
@@ -150,6 +210,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     setOfflineRinging(null);
     setDuration(0);
     setMuted(false);
+    setPushSent(false);
   }, [stopRingtone]);
 
   // ── createPC — RTCPeerConnection with ontrack + ICE buffering ────────────
@@ -266,12 +327,13 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         console.log('[CALL] caller addTrack:', t.kind);
       });
 
-      // Step 4-6: createOffer → setLocalDescription
+      // Step 4-6: createOffer → cap4kbps → setLocalDescription
       const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
-      await pc.setLocalDescription(offer);
-      console.log('[CALL] Offer created — SDP has audio:', offer.sdp.includes('m=audio'));
+      const cappedOffer = { type: offer.type, sdp: cap4kbps(offer.sdp) };
+      await pc.setLocalDescription(cappedOffer);
+      console.log('[CALL] Offer created — SDP has audio:', cappedOffer.sdp.includes('m=audio'));
 
-      // Step 7: emit call:initiate
+      // Step 7: emit call:initiate (with capped offer)
       const callerName   = currentUserRef.current?.name || currentUserRef.current?.username || 'مستخدم';
       const callerAvatar = currentUserRef.current?.avatar || '';
       socket.emit('call:initiate', {
@@ -281,10 +343,16 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         offer: pc.localDescription,
       });
 
-      // Step 8: show "Calling..." — use offlineRinging/setCallStatus for outgoing UI
+      // Step 8: show "Calling..." outgoing UI
       setOfflineRinging({ calleeId, calleeName });
       setStatusMessage('جارٍ الاتصال...');
+      setPushSent(false);
       playCallingTone();
+
+      // Listen for push_sent feedback (callee was offline — push sent)
+      socket.once('call:push_sent', () => {
+        setPushSent(true);
+      });
 
       // Step 9: Listen for call:accepted (callee answered)
       socket.once('call:accepted', async ({ answer, calleeSocketId }) => {
@@ -293,6 +361,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         stopCallingTone();
         setOfflineRinging(null);
         setStatusMessage('');
+        setPushSent(false);
 
         // Update ICE target now that we know callee's socket ID
         setICETarget(calleeSocketId);
@@ -315,6 +384,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         console.log('[CALL] call:rejected');
         stopCallingTone();
         setOfflineRinging(null);
+        setPushSent(false);
         setCallStatus('rejected');
         setStatusMessage('رُفضت المكالمة');
         setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
@@ -326,28 +396,24 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         console.log('[CALL] call:no_answer');
         stopCallingTone();
         setOfflineRinging(null);
+        setPushSent(false);
         setCallStatus('no_answer');
         setStatusMessage('لا يوجد رد');
         setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
         cleanup();
       });
 
-      // Ringing offline — callee got push notification
-      socket.once('call:ringing_offline', ({ roomId, to, message }) => {
-        setOfflineRinging({ roomId, to, calleeId, calleeName });
-        setStatusMessage(message || 'تم إرسال إشعار للمستخدم');
-      });
-
-      // 30-second no-answer timer (caller side for online users)
+      // 50-second safety net timer (server sends call:no_answer at 30s/45s, this is backup)
       noAnswerTimer.current = setTimeout(() => {
         socket.emit('call:cancel', { targetUserId: calleeId });
         stopCallingTone();
         setOfflineRinging(null);
+        setPushSent(false);
         setCallStatus('no_answer');
         setStatusMessage('لا يوجد رد');
         setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
         cleanup();
-      }, 30000);
+      }, 50000);
     },
 
     hangup() {
@@ -436,6 +502,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       console.log('[CALL] call:no_answer');
       stopCallingTone();
       setOfflineRinging(null);
+      setPushSent(false);
       setCallStatus('no_answer');
       setStatusMessage('لا يوجد رد');
       setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
@@ -530,7 +597,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     }
 
     // createPC → addTrack → setRemoteDescription → flushBufferedICE
-    // → createAnswer → setLocalDescription → emit call:answer
+    // → createAnswer → cap4kbps → setLocalDescription → emit call:answer
     const pc = createPC();
     stream.getTracks().forEach(t => {
       pc.addTrack(t, stream);
@@ -547,8 +614,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     await flushBufferedICE();
 
     const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    console.log('[CALL] Callee answer created ✓ — SDP has audio:', answer.sdp.includes('m=audio'));
+    const cappedAnswer = { type: answer.type, sdp: cap4kbps(answer.sdp) };
+    await pc.setLocalDescription(cappedAnswer);
+    console.log('[CALL] Callee answer created ✓ — SDP has audio:', cappedAnswer.sdp.includes('m=audio'));
 
     socket.emit('call:answer', { callerSocketId, answer: pc.localDescription });
 
@@ -596,11 +664,12 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     console.log('[CALL] acceptPushCall remote desc set ✓');
 
-    // flushBufferedICE → createAnswer → setLocalDescription
+    // flushBufferedICE → createAnswer → cap4kbps → setLocalDescription
     await flushBufferedICE();
 
     const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+    const cappedAnswer = { type: answer.type, sdp: cap4kbps(answer.sdp) };
+    await pc.setLocalDescription(cappedAnswer);
     console.log('[CALL] acceptPushCall answer created ✓');
 
     // Wait for socket to be connected, then emit
@@ -725,12 +794,16 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         </div>
       )}
 
-      {/* Outgoing call / ringing offline */}
+      {/* Outgoing call — pushSent shows different message */}
       {offlineRinging && !active && !incoming && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{offlineRinging.calleeName || 'جارٍ الاتصال...'}</div>
-          <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>{statusMessage || 'جارٍ الاتصال...'}</div>
+          <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>
+            {pushSent
+              ? '📱 المستخدم خارج التطبيق — تم إرسال إشعار'
+              : (statusMessage || 'جارٍ الاتصال...')}
+          </div>
           <button
             onClick={() => {
               if (offlineRinging?.roomId) socket?.emit('call:reject_from_push', { roomId: offlineRinging.roomId });

@@ -379,7 +379,7 @@ export function initSocket(io) {
                 }
 
                 if (sent > 0) {
-                  // Store pending call with 60s TTL
+                  // Store pending call with 45s TTL
                   const timeout = setTimeout(() => {
                     pendingCalls.delete(roomId);
                     // Notify caller that callee never answered
@@ -387,7 +387,7 @@ export function initSocket(io) {
                       io.to('user_' + actualCallerId).emit('call:no_answer', { calleeId: targetUserId });
                       io.to('user_' + actualCallerId).emit('call:expired', { roomId });
                     } catch {}
-                  }, 60000);
+                  }, 45000);
                   pendingCalls.set(roomId, {
                     offer,
                     callerId: actualCallerId,
@@ -399,7 +399,7 @@ export function initSocket(io) {
                   });
 
                   // Tell caller we're ringing the offline user
-                  socket.emit('call:ringing_offline', { roomId, to: targetUserId });
+                  socket.emit('call:push_sent', { calleeId: targetUserId });
                   console.log('[Push] Sent call notification to', sent, 'subscription(s), roomId:', roomId);
                   return;
                 }
@@ -409,30 +409,9 @@ export function initSocket(io) {
             console.error('[Push] Failed to send call notification:', pushErr.message);
           }
 
-          // No push subscription available — still store pending call (will replay when callee connects)
-          const fallbackRoomId = `call_${actualCallerId}_${targetUserId}_${Date.now()}`;
-          const fallbackTimeout = setTimeout(() => {
-            pendingCalls.delete(fallbackRoomId);
-            try {
-              io.to('user_' + actualCallerId).emit('call:no_answer', { calleeId: targetUserId });
-              io.to('user_' + actualCallerId).emit('call:expired', { roomId: fallbackRoomId });
-            } catch {}
-          }, 60000);
-          pendingCalls.set(fallbackRoomId, {
-            offer,
-            callerId: actualCallerId,
-            callerName: callerName || 'مستخدم XTOX',
-            callerSocketId: socket.id,
-            to: targetUserId,
-            timeout: fallbackTimeout,
-            timestamp: Date.now(),
-          });
-          socket.emit('call:ringing_offline', {
-            roomId: fallbackRoomId,
-            to: targetUserId,
-            message: 'جارٍ الاتصال... المستخدم خارج التطبيق',
-          });
-          console.log('[Socket] call:initiate — stored pending call (no push subs):', targetUserId, '| roomId:', fallbackRoomId);
+          // No push subscription available — notify caller immediately
+          socket.emit('call:no_answer', { calleeId: targetUserId });
+          console.log('[Socket] call:initiate — no push subscriptions for:', targetUserId);
           return;
         }
       } catch (e) { /* fetchSockets failed — proceed anyway */ }
