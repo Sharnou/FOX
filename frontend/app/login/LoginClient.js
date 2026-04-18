@@ -8,9 +8,26 @@ import { useLanguage } from '../context/LanguageContext';
 var API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 /* -- helpers -- */
+// Store JWT in IndexedDB so the Service Worker can read it for background presence pings
+function storeTokenForSW(token) {
+  try {
+    if (typeof indexedDB === 'undefined') return;
+    var req = indexedDB.open('xtox-auth', 1);
+    req.onupgradeneeded = function(e) {
+      e.target.result.createObjectStore('tokens');
+    };
+    req.onsuccess = function(e) {
+      var db = e.target.result;
+      var tx = db.transaction('tokens', 'readwrite');
+      tx.objectStore('tokens').put(token, 'jwt');
+    };
+  } catch (e) {}
+}
+
 function storeSession(data) {
   if (typeof window === 'undefined') return;
   localStorage.setItem('token', data.token);
+  storeTokenForSW(data.token);  // Store in IDB for SW background sync
   localStorage.setItem('xtoxId', (data.user && data.user.xtoxId) ? data.user.xtoxId : '');
   localStorage.setItem('xtoxEmail', (data.user && data.user.xtoxEmail) ? data.user.xtoxEmail : '');
   localStorage.setItem('userName', (data.user && data.user.name) ? data.user.name : '');

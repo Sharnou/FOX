@@ -41,24 +41,24 @@ const AUDIO_CONSTRAINTS = {
   video: false,
 };
 
-// ─── SDP helper: limit Opus codec to 4 kbps (Egypt low-bandwidth fix, Bug #81) ─
-function limitOpusBitrate(sdp) {
-  // Find Opus payload type from rtpmap line, e.g. "a=rtpmap:111 opus/48000/2"
-  const opusMatch = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
-  if (!opusMatch) return sdp; // no Opus found — return unchanged
-  const pt = opusMatch[1];
-  const lines = sdp.split('\r\n');
-  // Remove any existing fmtp line for this payload type
-  const filtered = lines.filter(l => !l.startsWith(`a=fmtp:${pt} `));
-  // Insert new fmtp line immediately after the rtpmap line
-  const rtpmapIdx = filtered.findIndex(l => l.startsWith(`a=rtpmap:${pt} `));
-  const fmtpLine = `a=fmtp:${pt} maxaveragebitrate=4000;cbr=0;useinbandfec=1;usedtx=1`;
-  if (rtpmapIdx >= 0) {
-    filtered.splice(rtpmapIdx + 1, 0, fmtpLine);
-  } else {
-    filtered.push(fmtpLine);
+// ─── RTCRtpSender API bitrate cap (replaces fragile SDP hacking, Bug #84) ────
+// 8kbps is the minimum for intelligible voice — SDP hacking at 4kbps caused silence
+async function applyBitrateCap(pc, maxBitrateBps = 8000) {
+  const senders = pc.getSenders();
+  for (const sender of senders) {
+    if (sender.track?.kind !== 'audio') continue;
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) {
+        params.encodings = [{}];
+      }
+      params.encodings[0].maxBitrate = maxBitrateBps;
+      await sender.setParameters(params);
+      console.log('[CALL] applyBitrateCap — set maxBitrate:', maxBitrateBps, 'bps');
+    } catch (e) {
+      console.warn('[CALL] applyBitrateCap failed (non-fatal):', e.message);
+    }
   }
-  return filtered.join('\r\n');
 }
 
 const NO_ANSWER_TIMEOUT_MS = 30000; // 30 seconds
@@ -268,9 +268,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleSize: 16,
-          channelCount: 1,
-          sampleRate: 8000,
+          channelCount: { ideal: 1, max: 1 },
+          sampleRate: { ideal: 8000 },
           noiseSuppression: true,
           echoCancellation: true,
           autoGainControl: true,
@@ -333,9 +332,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
         // Now create offer (tracks already present → SDP includes audio)
         const offer = await p.createOffer({ offerToReceiveAudio: true });
-        // Fix #81: limit Opus to 4 kbps max average bitrate for low-bandwidth connections
-        const modifiedOfferSdp = limitOpusBitrate(offer.sdp);
-        await p.setLocalDescription(new RTCSessionDescription({ type: offer.type, sdp: modifiedOfferSdp }));
+        await p.setLocalDescription(offer);
+        // Apply bitrate cap via sender API (8kbps min for intelligible voice, replaces SDP hacking)
+        await applyBitrateCap(p, 8000);
         console.log('[CALL] Caller created offer — SDP audio:', offer.sdp.includes('m=audio'), '| SDP excerpt:', offer.sdp.substring(0, 200));
 
         const callerId   = currentUser?._id || currentUser?.id || '';
@@ -465,10 +464,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         receivedICE.current = [];
 
         const answer = await p.createAnswer();
-        // Fix #81: limit Opus to 4 kbps max average bitrate for low-bandwidth connections
-        const modifiedAnswerSdp = limitOpusBitrate(answer.sdp);
-        await p.setLocalDescription(new RTCSessionDescription({ type: answer.type, sdp: modifiedAnswerSdp }));
-        console.log('[CALL] Callee created answer — SDP audio:', answer.sdp.includes('m=audio'), '| Opus bitrate limited ✓');
+        await p.setLocalDescription(answer);
+        // Apply bitrate cap via sender API (8kbps min for intelligible voice)
+        await applyBitrateCap(p, 8000);
+        console.log('[CALL] Callee created answer — SDP audio:', answer.sdp.includes('m=audio'), '| bitrateCap applied ✓');
 
         socket.emit('call:answer', { callerSocketId, answer: p.localDescription });
       } catch (e) {
@@ -641,10 +640,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
       console.log('[CALL] acceptPushCall — creating answer...');
       const answer = await p.createAnswer();
-      // Fix #81: limit Opus to 4 kbps max average bitrate
-      const modifiedAnswerSdp = limitOpusBitrate(answer.sdp);
-      await p.setLocalDescription(new RTCSessionDescription({ type: answer.type, sdp: modifiedAnswerSdp }));
-      console.log('[CALL] acceptPushCall — answer created ✓ SDP audio:', answer.sdp.includes('m=audio'), '| Opus limited ✓');
+      await p.setLocalDescription(answer);
+      // Apply bitrate cap via sender API (8kbps min for intelligible voice)
+      await applyBitrateCap(p, 8000);
+      console.log('[CALL] acceptPushCall — answer created ✓ SDP audio:', answer.sdp.includes('m=audio'), '| bitrateCap applied ✓');
 
       // Fix #82: wait for socket to be connected before emitting call:accept_from_push
       const emitAccept = () => {

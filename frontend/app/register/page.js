@@ -206,6 +206,16 @@ export default function RegisterPage() {
         localStorage.setItem('xtox_token', data.token);
         localStorage.setItem('token', data.token);
         localStorage.setItem('fox_token', data.token);
+        // Store in IDB for SW background presence pings
+        try {
+          var idbReq = indexedDB.open('xtox-auth', 1);
+          idbReq.onupgradeneeded = function(e) { e.target.result.createObjectStore('tokens'); };
+          idbReq.onsuccess = function(e) {
+            var db = e.target.result;
+            var tx = db.transaction('tokens', 'readwrite');
+            tx.objectStore('tokens').put(data.token, 'jwt');
+          };
+        } catch (_) {}
         // Save user object so sell/profile/admin pages can read role, phone, etc.
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(Object.assign({}, data.user, { token: data.token })));

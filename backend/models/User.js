@@ -43,6 +43,7 @@ const UserSchema = new mongoose.Schema(
     username: { type: String, sparse: true },
     bio: { type: String, maxlength: 500 },
     lastSeen: { type: Date, default: null },
+    isOnline: { type: Boolean, default: false },
     lastActive: Date,
 
     // -- Auth provider -------------------------------------------------------
@@ -103,18 +104,20 @@ const UserSchema = new mongoose.Schema(
 
 // ── Virtuals ────────────────────────────────────────────────────────────────
 
-/** True when the user was active in the last 5 minutes */
-UserSchema.virtual('isOnline').get(function () {
+/** True when the user was active in the last 5 minutes (computed from lastSeen) */
+UserSchema.virtual('isOnlineComputed').get(function () {
+  if (this.isOnline) return true;  // Use real DB field first
   if (!this.lastSeen) return false;
   return Date.now() - this.lastSeen.getTime() < 5 * 60 * 1000;
 });
 
 /**
- * 'online'   — active within the last 5 minutes
+ * 'online'   — isOnline=true or active within the last 5 minutes
  * 'recently' — active within the last 24 hours
  * 'offline'  — more than 24 hours ago (or never seen)
  */
 UserSchema.virtual('onlineStatus').get(function () {
+  if (this.isOnline) return 'online';  // Real-time socket status
   if (!this.lastSeen) return 'offline';
   const diffMs = Date.now() - this.lastSeen.getTime();
   if (diffMs < 5 * 60 * 1000) return 'online';

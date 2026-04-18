@@ -363,11 +363,25 @@ function ChatPageInner() {
       setOnlineUsers(function(prev) { var s = new Set(prev); s.delete(String(data.userId)); return s; });
     };
 
+    // Also listen for the structured user:status event (set by socket.js on connect/disconnect)
+    var onUserStatus = function(data) {
+      if (String(data.userId) === String(targetId)) {
+        setPartnerOnline(!!data.isOnline);
+      }
+      if (data.isOnline) {
+        setOnlineUsers(function(prev) { var s = new Set(prev); s.add(String(data.userId)); return s; });
+      } else {
+        setOnlineUsers(function(prev) { var s = new Set(prev); s.delete(String(data.userId)); return s; });
+      }
+    };
+
     socket.on('user_online', onOnline);
     socket.on('user_offline', onOffline);
+    socket.on('user:status', onUserStatus);
     return function() {
       socket.off('user_online', onOnline);
       socket.off('user_offline', onOffline);
+      socket.off('user:status', onUserStatus);
     };
   }, [socketInstance, targetId]);
 

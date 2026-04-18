@@ -34,8 +34,24 @@ export function initSocket(io) {
     next();
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     console.log('[Socket] Connected:', socket.id);
+
+    // ── Mark user online in DB on connect ────────────────────────
+    const connectedUserId = socket.data.userId;
+    if (connectedUserId) {
+      try {
+        const mongoose = await import('mongoose');
+        const User = mongoose.default.models.User;
+        if (User) {
+          await User.updateOne({ _id: connectedUserId }, { isOnline: true, lastSeen: new Date() });
+        }
+        // Broadcast online status to all clients
+        io.emit('user:status', { userId: connectedUserId, isOnline: true, lastSeen: new Date() });
+      } catch (e) {
+        console.warn('[Socket] Failed to update online status on connect:', e.message);
+      }
+    }
 
     // ── Register user → join personal room ──────────────────────
     // Room-per-User pattern: all tabs for same user share the room
@@ -548,13 +564,16 @@ export function initSocket(io) {
         if (room.length === 0) {
           // User is fully offline (all tabs closed)
           console.log('[Socket] User fully offline:', userId);
+          const nowOffline = new Date();
           // Broadcast offline status to all other clients
-          socket.broadcast.emit('user_offline', { userId, timestamp: new Date() });
-          // Update lastSeen in DB
+          socket.broadcast.emit('user_offline', { userId, timestamp: nowOffline });
+          // Broadcast structured user:status event for online indicator UI
+          io.emit('user:status', { userId, isOnline: false, lastSeen: nowOffline });
+          // Update isOnline=false + lastSeen in DB
           try {
             const mongoose = await import('mongoose');
             const User = mongoose.default.models.User;
-            if (User) await User.updateOne({ _id: userId }, { lastSeen: new Date() }).catch(() => {});
+            if (User) await User.updateOne({ _id: userId }, { isOnline: false, lastSeen: nowOffline }).catch(() => {});
           } catch {}
         } else {
           console.log('[Socket] User still has', room.length, 'active tab(s):', userId);

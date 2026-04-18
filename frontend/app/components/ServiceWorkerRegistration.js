@@ -29,6 +29,21 @@ export default function ServiceWorkerRegistration() {
               }
             }, 2000);
 
+            // ── Register periodic background sync for presence (WhatsApp-like) ──
+            // This allows the SW to ping the server every ~15min to keep lastSeen fresh
+            if ('periodicSync' in registration) {
+              navigator.serviceWorker.ready.then(async (reg) => {
+                try {
+                  await reg.periodicSync.register('xtox-presence-ping', {
+                    minInterval: 15 * 60 * 1000, // every 15 minutes
+                  });
+                  console.log('[PWA] Periodic presence sync registered ✓');
+                } catch (e) {
+                  console.log('[PWA] Periodic sync not supported or denied:', e.message);
+                }
+              }).catch(() => {});
+            }
+
             // ── Force immediate SW takeover ────────────────────────────────
             // Listen for a new SW installing. When it reaches 'installed'
             // state (meaning it finished installing but is waiting for old

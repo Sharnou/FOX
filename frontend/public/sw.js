@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v31';
+const _XTOX_CACHE = 'xtox-v32';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -77,7 +77,7 @@ self.addEventListener('fetch', function(event) {
   }
 });
 
-// Background sync — refresh ads every 15 minutes
+// Background sync — refresh ads every 15 minutes + presence ping
 self.addEventListener('periodicsync', function(event) {
   if (event.tag === 'refresh-ads') {
     event.waitUntil(
@@ -88,11 +88,51 @@ self.addEventListener('periodicsync', function(event) {
       }).catch(function() {})
     );
   }
+  // WhatsApp-like background presence ping — keeps lastSeen fresh even when app is closed
+  if (event.tag === 'xtox-presence-ping') {
+    event.waitUntil(
+      (async () => {
+        try {
+          const token = await getStoredToken();
+          if (!token) return;
+          await fetch(_XTOX_API + '/api/push/ping', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json',
+            },
+          });
+          console.log('[SW v32] Presence ping sent ✓');
+        } catch (e) {
+          console.log('[SW v32] Presence ping failed:', e.message);
+        }
+      })()
+    );
+  }
 });
 
-// ─── XTOX Service Worker v31 ────────────────────────────────────────────────
+// ── Helper: read stored JWT from IndexedDB (for background sync auth) ────────
+function getStoredToken() {
+  return new Promise(function(resolve) {
+    try {
+      var req = indexedDB.open('xtox-auth', 1);
+      req.onsuccess = function(e) {
+        var db = e.target.result;
+        if (!db.objectStoreNames.contains('tokens')) return resolve(null);
+        var tx = db.transaction('tokens', 'readonly');
+        var store = tx.objectStore('tokens');
+        var get = store.get('jwt');
+        get.onsuccess = function() { resolve(get.result || null); };
+        get.onerror = function() { resolve(null); };
+      };
+      req.onerror = function() { resolve(null); };
+    } catch (e) { resolve(null); }
+  });
+}
+
+// ─── XTOX Service Worker v32 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v31';
+const CACHE_VERSION = 'v32';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -178,7 +218,7 @@ self.addEventListener('push', (event) => {
           tag: data.tag || `call-${notifData.roomId}`,
           requireInteraction: true,
           renotify: true,
-          vibrate: [500, 200, 500, 200, 500],
+          vibrate: [500, 200, 500, 200, 500, 200, 500],
           actions: [
             { action: 'answer', title: '📞 رد' },
             { action: 'reject', title: '❌ رفض' },
@@ -240,8 +280,9 @@ self.addEventListener('notificationclick', (event) => {
     const rejectUrl = `/chat?reject_call=${notifData.roomId}&callerId=${notifData.callerId}`;
 
     if (event.action === 'reject') {
-      // Open app to reject URL so it can emit call:reject_from_push
-      event.waitUntil(clients.openWindow(rejectUrl));
+      // Just close the notification — socket is not connected in background anyway
+      // The pending call will timeout naturally on the server (60s TTL)
+      event.waitUntil(Promise.resolve());
       return;
     }
 

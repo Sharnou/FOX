@@ -1,6 +1,7 @@
 import express from 'express';
 import { auth } from '../middleware/auth.js';
 import PushSubscription from '../models/PushSubscription.js';
+import User from '../models/User.js';
 import { dbState } from '../server/memoryStore.js';
 
 const router = express.Router();
@@ -54,6 +55,32 @@ router.delete('/unsubscribe', auth, async (req, res) => {
 router.get('/vapid-public-key', (req, res) => {
   const key = process.env.VAPID_PUBLIC_KEY || 'BCTRfwu1JjM-5_-xGHauSSiVOBd6dkyEJJp3L57_-C6B-oDQW2IAmcnEVpwsGAsvmhBsvWLu9tMHe29zmcOn0UU';
   res.json({ key });
+});
+
+// POST /api/push/ping — background sync calls this to keep lastSeen fresh (WhatsApp-like presence)
+router.post('/ping', auth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.id, { lastSeen: new Date(), isOnline: true });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/push/online-status/:userId — get real-time online status of a user
+router.get('/online-status/:userId', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('isOnline lastSeen');
+    if (!user) return res.status(404).json({ error: 'not found' });
+    const onlineThreshold = 5 * 60 * 1000; // 5 minutes
+    const recentlyOnline = user.lastSeen && (Date.now() - user.lastSeen.getTime()) < onlineThreshold;
+    res.json({
+      isOnline: user.isOnline || recentlyOnline,
+      lastSeen: user.lastSeen,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;
