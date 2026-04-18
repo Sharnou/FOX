@@ -12,6 +12,8 @@ let couchbaseCluster = null;
 let couchbaseBucket = null;
 let couchbaseCollection = null;
 let couchbaseError = null;
+let couchbaseRetries = 0;
+const MAX_COUCHBASE_RETRIES = 3;
 
 // ── Attempt MongoDB connection (10s timeout) ─────────────────────────────────
 async function tryMongoDB() {
@@ -36,6 +38,10 @@ async function tryMongoDB() {
 
 // ── Attempt Couchbase connection (5s timeout — reduced, fire-and-forget) ─────
 async function tryCouchbase() {
+  // Stop retrying after cap — prevents log spam
+  if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) {
+    return null;
+  }
   // Skip entirely if COUCHBASE_URL is not explicitly set — prevents noisy timeouts on Railway
   if (!process.env.COUCHBASE_URL && !process.env.COUCHBASE_HOST) {
     console.log('[DB] Couchbase skipped — not configured (COUCHBASE_URL not set)');
@@ -78,9 +84,14 @@ async function tryCouchbase() {
     console.log('[DB] Couchbase connected — available as secondary');
     return 'couchbase';
   } catch (e) {
+    couchbaseRetries++;
     couchbaseError = e.message || String(e);
-    console.error('[DB] Couchbase connection error:', e.message);
-    console.error('[DB] Couchbase error code:', e.code || e.cause?.code || 'N/A');
+    if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) {
+      console.warn('[DB] Couchbase max retries reached — Couchbase disabled. Check COUCHBASE_URL env var and IP whitelist in Couchbase Capella.');
+    } else {
+      console.error('[DB] Couchbase connection error:', e.message);
+      console.error('[DB] Couchbase error code:', e.code || e.cause?.code || 'N/A');
+    }
     throw e;
   }
 }

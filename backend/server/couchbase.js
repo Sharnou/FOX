@@ -11,7 +11,14 @@ const COUCHBASE_USER = process.env.COUCHBASE_USER || 'xtox';
 const COUCHBASE_PASS = process.env.COUCHBASE_PASS || process.env.COUCHBASE_PASSWORD;
 const BUCKET_NAME    = process.env.COUCHBASE_BUCKET || 'XTOX';
 
+// Retry cap — stop after 3 failed attempts to prevent log spam
+let couchbaseRetries = 0;
+const MAX_COUCHBASE_RETRIES = 3;
+
 export async function connectCouchbase() {
+  // Stop retrying if we've hit the cap
+  if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) return false;
+
   // Skip entirely if not configured — prevents noisy 30-second timeout on Railway
   if (!COUCHBASE_URL || !COUCHBASE_PASS) {
     console.warn('[COUCHBASE] Not configured (COUCHBASE_URL/COUCHBASE_PASS missing) — caching disabled');
@@ -39,17 +46,25 @@ export async function connectCouchbase() {
     // Reduced timeout: 5s instead of 30s to fail fast and not block startup
     await bucket.waitUntilReady(5000);
     _connected = true;
+    couchbaseRetries = 0; // reset on success
     console.log('[COUCHBASE] Connected ✅');
     return true;
   } catch (e) {
-    console.warn('[COUCHBASE] Connection failed (non-fatal):', e.message);
+    couchbaseRetries++;
     _cluster = null;
     _collection = null;
     _connected = false;
-    // Retry after 5 minutes to avoid log spam (was 30s)
-    setTimeout(() => {
-      connectCouchbase().catch(() => {});
-    }, 5 * 60 * 1000);
+
+    if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) {
+      console.warn('[COUCHBASE] Max retries reached — Couchbase disabled. Check COUCHBASE_URL env var and IP whitelist in Couchbase Capella.');
+      // No more retries — do NOT schedule another setTimeout
+    } else {
+      console.warn(`[COUCHBASE] Connection failed (${couchbaseRetries}/${MAX_COUCHBASE_RETRIES}):`, e.message);
+      // Retry after 5 minutes
+      setTimeout(() => {
+        connectCouchbase().catch(() => {});
+      }, 5 * 60 * 1000);
+    }
     return false;
   }
 }
