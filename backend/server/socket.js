@@ -73,7 +73,9 @@ export function initSocket(io) {
           socket.emit('call:incoming', {
             callerId: pending.callerId,
             callerName: pending.callerName || 'مستخدم XTOX',
+            callerAvatar: '',
             callerSocketId: pending.callerSocketId,
+            offer: pending.offer || null,  // B1: include stored offer for acceptCall()
           });
           // Notify caller that callee is now online and ringing in-app
           io.to('user_' + pending.callerId).emit('call:callee_connected', { calleeId: userId });
@@ -301,7 +303,9 @@ export function initSocket(io) {
     // Initiate call — notify the target user (offer optional, used for offline push)
     // Guard: prevent duplicate relay of same offer (e.g., due to React effect re-runs)
     const seenOffers = new Set();
-    socket.on('call:initiate', async ({ targetUserId, callerId, callerName, callerAvatar, offer }) => {
+    socket.on('call:initiate', async ({ targetUserId, calleeId, callerId, callerName, callerAvatar, offer }) => {
+      // B1: accept calleeId OR targetUserId from frontend
+      targetUserId = targetUserId || calleeId;
       const actualCallerId = callerId || socket.data.userId;
       // Dedup: same caller→target+offer within 30s is treated as duplicate
       const offerKey = `${actualCallerId}_${targetUserId}_${(offer?.sdp || '').slice(0, 50)}`;
@@ -319,9 +323,9 @@ export function initSocket(io) {
           try {
             const webpush = (await import('web-push')).default;
             // Use env vars if set, otherwise use hardcoded defaults (generated VAPID keys)
-            const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY  || 'BCTRfwu1JjM-5_-xGHauSSiVOBd6dkyEJJp3L57_-C6B-oDQW2IAmcnEVpwsGAsvmhBsvWLu9tMHe29zmcOn0UU';
-            const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '324Nf1YsyLKC_Mo0aQcTLqEYO7r1DraMQPLTxY43F3Q';
-            const vapidSubject    = process.env.VAPID_SUBJECT || 'mailto:xtox@xtox.com';
+            const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY  || 'BF4po3DK_lsqgzuEJ1Su7WSdxXX8xkzjnDQYF3tpe4DftSO6KRh5heBWOSYfef4A76iV1AX4H20hGPiDzo7IIrs';
+            const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || 'K1J41ZhtAIbjZLXukJuRrXaHAz_mDuVEQgV4ocZqW9s';
+            const vapidSubject    = process.env.VAPID_SUBJECT || 'mailto:XTOX@XTOX.com';
 
             if (vapidPublicKey && vapidPrivateKey) {
               webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -432,12 +436,15 @@ export function initSocket(io) {
           return;
         }
       } catch (e) { /* fetchSockets failed — proceed anyway */ }
+      // B1: emit call:incoming WITH offer so callee can do full WebRTC setup in acceptCall()
       io.to('user_' + targetUserId).emit('call:incoming', {
         callerId: actualCallerId,
         callerName: callerName || 'مستخدم',
+        callerAvatar: callerAvatar || '',
         callerSocketId: socket.id,
+        offer: offer || null,  // B1: include offer — callee needs it for acceptCall()
       });
-      console.log('[Socket] call:incoming sent to user_' + targetUserId);
+      console.log('[Socket] call:incoming (with offer) sent to user_' + targetUserId);
     });
 
     // ── Offline push call: callee accepts via push notification ──────────
@@ -488,7 +495,8 @@ export function initSocket(io) {
 
     // Responder sends SDP answer to caller
     socket.on('call:answer', ({ callerSocketId, answer }) => {
-      io.to(callerSocketId).emit('call:answered', { answer, responderSocketId: socket.id });
+      // B2: emit call:accepted (not call:answered) — must match frontend socket.once('call:accepted')
+      io.to(callerSocketId).emit('call:accepted', { answer, calleeSocketId: socket.id });
       // Clean up any pending call for this callee
       const calleeId = socket.data.userId;
       if (calleeId) {

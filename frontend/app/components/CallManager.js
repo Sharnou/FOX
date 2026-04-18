@@ -1,70 +1,28 @@
 'use client';
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 
-// ─── ICE config: STUN + TURN (TURN is critical for NAT traversal / different networks) ───
-const ICE_CONFIG = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    // TURN servers — essential for calls between users on different networks/ISPs
-    {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-  ],
-  iceCandidatePoolSize: 10,
-};
+// ─── A2: ICE config: STUN + TURN + TURNS (critical for NAT traversal) ─────────
+const NO_ANSWER_TIMEOUT_MS = 30000;
 
-// ─── Audio constraints: echo cancellation + noise suppression ───────────────
-const AUDIO_CONSTRAINTS = {
-  audio: {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true,
-    sampleSize: 16,
-    channelCount: 1,
-    sampleRate: 8000,
-  },
-  video: false,
-};
-
-// ─── RTCRtpSender API bitrate cap (replaces fragile SDP hacking, Bug #84) ────
-// 8kbps is the minimum for intelligible voice — SDP hacking at 4kbps caused silence
-async function applyBitrateCap(pc, maxBitrateBps = 8000) {
-  const senders = pc.getSenders();
-  for (const sender of senders) {
-    if (sender.track?.kind !== 'audio') continue;
-    try {
+// ─── A6: applyBitrateCap — uses RTCRtpSender API, 16kbps (safe, no SDP hacking) ─
+async function applyBitrateCap(pc, maxBitrateBps = 16000) {
+  try {
+    const senders = pc.getSenders();
+    for (const sender of senders) {
+      if (!sender.track || sender.track.kind !== 'audio') continue;
       const params = sender.getParameters();
-      if (!params.encodings || params.encodings.length === 0) {
-        params.encodings = [{}];
-      }
+      if (!params.encodings) params.encodings = [{}];
+      if (params.encodings.length === 0) params.encodings.push({});
       params.encodings[0].maxBitrate = maxBitrateBps;
       await sender.setParameters(params);
-      console.log('[CALL] applyBitrateCap — set maxBitrate:', maxBitrateBps, 'bps');
-    } catch (e) {
-      console.warn('[CALL] applyBitrateCap failed (non-fatal):', e.message);
+      console.log('[CALL] applyBitrateCap ✓ — maxBitrate:', maxBitrateBps, 'bps');
     }
+  } catch (e) {
+    console.warn('[CALL] applyBitrateCap failed (non-fatal):', e.message);
   }
 }
 
-const NO_ANSWER_TIMEOUT_MS = 30000; // 30 seconds
-
-// ─── Web Audio API calling tone (no external file needed) ────────────────────
-// Plays a repeating ring-back tone pattern: 1s ring, 2s silence
+// ─── Web Audio API ring-back tone ─────────────────────────────────────────────
 let _callingCtx = null;
 let _callingTimer = null;
 let _callingActive = false;
@@ -81,7 +39,6 @@ function playCallingTone() {
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      // Two-tone ring: 440Hz then 480Hz (classic phone ring-back)
       osc.frequency.setValueAtTime(440, ctx.currentTime);
       osc.frequency.setValueAtTime(480, ctx.currentTime + 0.5);
       gain.gain.setValueAtTime(0.25, ctx.currentTime);
@@ -90,7 +47,6 @@ function playCallingTone() {
       osc.stop(ctx.currentTime + 1.0);
       osc.onended = () => { try { ctx.close(); } catch {} };
     } catch (e) {}
-    // Ring again after 3 seconds (1s ring + 2s silence)
     _callingTimer = setTimeout(beep, 3000);
   };
   beep();
@@ -104,30 +60,29 @@ function stopCallingTone() {
 }
 
 const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref) {
-  const [incoming, setIncoming] = useState(null);   // { callerId, callerName, callerSocketId }
-  const [active, setActive]     = useState(null);   // { peerName, remoteSocketId, startTime }
-  const [duration, setDuration] = useState(0);
-  const [muted, setMuted]       = useState(false);
-  const [offlineRinging, setOfflineRinging] = useState(null);  // { roomId, to } — ringing an offline user via push
-  const [pushIncoming, setPushIncoming]     = useState(null);  // { callerId, callerName, offer, roomId } — received via SW push
-  const [callStatus, setCallStatus]         = useState(null);  // 'ringing_offline' | 'no_answer' | null
-  const [statusMessage, setStatusMessage]   = useState('');   // human-readable status shown in UI
+  const [incoming, setIncoming]           = useState(null);
+  const [active, setActive]               = useState(null);
+  const [duration, setDuration]           = useState(0);
+  const [muted, setMuted]                 = useState(false);
+  const [offlineRinging, setOfflineRinging] = useState(null);
+  const [pushIncoming, setPushIncoming]   = useState(null);
+  const [callStatus, setCallStatus]       = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
 
-  const pc               = useRef(null);
+  const pcRef            = useRef(null);
   const localStream      = useRef(null);
+  // A1: remoteAudio ref — MUST always be in DOM (never conditional)
   const remoteAudio      = useRef(null);
   const ringtoneRef      = useRef(null);
-  const pendingICE       = useRef([]);   // buffer ICE candidates until responder socket ID is known
-  const receivedICE      = useRef([]);   // buffer incoming ICE candidates until remote description is set
-  const noAnswerTimer    = useRef(null); // 30-second auto-hangup timer
-  // Use ref to avoid stale closure — always has latest currentUser without re-registering socket listeners
+  const pendingICE       = useRef([]);   // outgoing ICE buffered until callee socket ID known
+  const receivedICE      = useRef([]);   // incoming ICE buffered until remote description set
+  const noAnswerTimer    = useRef(null);
+  // A9: pendingOfferRef — stores offer+callerSocketId until user taps Accept
+  const pendingOfferRef  = useRef(null);
   const currentUserRef   = useRef(currentUser);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
-  // ─── B4: Detect ?autoAnswer=callerId_socketId in URL — show incoming call UI immediately ─
-  // When callee opens app from push notification, pre-show the incoming call UI.
-  // URL format: ?autoAnswer=<callerId>_<callerSocketId>  (Fix #82)
-  // Both callerId (MongoDB hex) and callerSocketId (Socket.IO ID) are embedded.
+  // ─── URL autoAnswer detection (push notification opened app) ────────────
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -137,39 +92,36 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       let callerSocketId = null;
       let callerName = params.get('callerName') || 'مستخدم XTOX';
       if (autoAnswerParam === 'true') {
-        // Legacy format: ?autoAnswer=true&callerId=X
         callerId = params.get('callerId') || params.get('roomId') || '';
       } else {
-        // New format: ?autoAnswer=callerId_socketId (Fix #82)
-        const underscoreIdx = autoAnswerParam.indexOf('_');
-        if (underscoreIdx > 0) {
-          callerId = autoAnswerParam.slice(0, underscoreIdx);
-          callerSocketId = autoAnswerParam.slice(underscoreIdx + 1) || null;
+        const idx = autoAnswerParam.indexOf('_');
+        if (idx > 0) {
+          callerId = autoAnswerParam.slice(0, idx);
+          callerSocketId = autoAnswerParam.slice(idx + 1) || null;
         } else {
           callerId = autoAnswerParam;
         }
       }
       if (callerId) {
-        console.log('[CALL] autoAnswer URL detected — callerId:', callerId, '| callerSocketId:', callerSocketId);
-        // Pre-show incoming call overlay with callerSocketId if available
+        console.log('[CALL] autoAnswer URL — callerId:', callerId, '| callerSocketId:', callerSocketId);
         setIncoming({ callerId, callerName, callerSocketId });
         startRingtone();
       }
     }
   }, []);
 
-  const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const fmt = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
 
-  // ─── Ringtone helpers ────────────────────────────────────────────────────────
+  // ─── Ringtone ─────────────────────────────────────────────────────────────
   const startRingtone = useCallback(() => {
     try {
-      if (ringtoneRef.current) return; // already playing
+      if (ringtoneRef.current) return;
       const audio = new Audio('/sounds/ringtone.wav');
       audio.loop = true;
       audio.volume = 0.8;
-      audio.play().catch(() => {}); // autoplay may be blocked — OK
+      audio.play().catch(() => {});
       ringtoneRef.current = audio;
-    } catch (e) {}
+    } catch {}
   }, []);
 
   const stopRingtone = useCallback(() => {
@@ -185,8 +137,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     noAnswerTimer.current = null;
     pendingICE.current = [];
     receivedICE.current = [];
-    pc.current?.close();
-    pc.current = null;
+    pendingOfferRef.current = null;
+    pcRef.current?.close();
+    pcRef.current = null;
     localStream.current?.getTracks().forEach(t => t.stop());
     localStream.current = null;
     stopRingtone();
@@ -201,221 +154,223 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     setStatusMessage('');
   }, [stopRingtone]);
 
+  // ─── A2: createPC — robust ICE + ontrack + ICE state logging ─────────────
   function createPC(remoteSocketId) {
-    if (pc.current) { pc.current.close(); pc.current = null; }
-    const p = new RTCPeerConnection(ICE_CONFIG);
+    if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
 
-    p.onicecandidate = e => {
+    const p = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turns:openrelay.metered.ca:443',
+          username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject', credential: 'openrelayproject' },
+      ],
+      iceCandidatePoolSize: 10,
+    });
+
+    // A2: ontrack — set srcObject explicitly, handle autoplay block
+    p.ontrack = (event) => {
+      console.log('[CALL] ontrack fired — kind:', event.track.kind, '| streams:', event.streams.length);
+      if (event.streams && event.streams[0]) {
+        if (remoteAudio.current) {
+          remoteAudio.current.srcObject = event.streams[0];
+          remoteAudio.current.volume = 1.0;
+          remoteAudio.current.muted = false;
+          const playPromise = remoteAudio.current.play();
+          if (playPromise) {
+            playPromise
+              .then(() => console.log('[CALL] remote audio playing ✓'))
+              .catch(e => {
+                console.warn('[CALL] audio.play() blocked:', e.message, '— attaching recovery handler');
+                const resume = () => {
+                  remoteAudio.current?.play().catch(() => {});
+                  document.removeEventListener('click', resume);
+                  document.removeEventListener('touchend', resume);
+                };
+                document.addEventListener('click', resume, { once: true });
+                document.addEventListener('touchend', resume, { once: true });
+              });
+          }
+        } else {
+          console.error('[CALL] remoteAudio.current is NULL — audio element missing from DOM!');
+        }
+      }
+    };
+
+    // A2: onicecandidate — buffer until remoteSocketId is known
+    p.onicecandidate = (e) => {
       if (!e.candidate) return;
       if (remoteSocketId && socket) {
         socket.emit('call:ice', { targetSocketId: remoteSocketId, candidate: e.candidate });
       } else {
-        // Buffer candidates until we know the responder's socket ID
         pendingICE.current.push(e.candidate);
-      }
-    };
-
-    // ─── Fix B: ontrack — set volume/muted explicitly, handle autoplay block ───
-    p.ontrack = e => {
-      console.log('[CALL] ontrack fired — track:', e.track.kind, '| streams:', e.streams.length, '| remoteAudioRef valid:', !!remoteAudio.current);
-      if (remoteAudio.current && e.streams && e.streams[0]) {
-        remoteAudio.current.srcObject = e.streams[0];
-        remoteAudio.current.volume = 1.0;
-        remoteAudio.current.muted = false;
-        console.log('[CALL] Set remoteAudio.srcObject — stream tracks:', e.streams[0].getTracks().length);
-        remoteAudio.current.play()
-          .then(() => console.log('[CALL] Remote audio playing ✓'))
-          .catch(err => {
-            console.warn('[CALL] Audio autoplay blocked:', err.message, '— attaching click/touch handler for recovery');
-            // Recover from autoplay block on first user interaction
-            const resume = () => {
-              remoteAudio.current?.play().catch(() => {});
-              document.removeEventListener('click', resume);
-              document.removeEventListener('touchend', resume);
-            };
-            document.addEventListener('click', resume, { once: true });
-            document.addEventListener('touchend', resume, { once: true });
-          });
-      } else {
-        console.error('[CALL] ontrack fired but remoteAudio ref or streams missing! remoteAudio:', !!remoteAudio.current, 'streams[0]:', !!(e.streams && e.streams[0]));
+        console.log('[CALL] ICE buffered (no remoteSocketId yet) — total:', pendingICE.current.length);
       }
     };
 
     p.oniceconnectionstatechange = () => {
-      const s = p.iceConnectionState;
-      console.log('[CALL] ICE connection state:', s);
-      // 'disconnected' is a temporary state — ICE may recover, so do NOT cleanup immediately
-      // Only cleanup on unrecoverable states: 'failed' or 'closed'
-      if (s === 'failed' || s === 'closed') {
+      console.log('[CALL] ICE state:', p.iceConnectionState);
+      if (p.iceConnectionState === 'failed' || p.iceConnectionState === 'closed') {
+        console.error('[CALL] ICE failed/closed — cleaning up');
         cleanup();
       }
     };
 
     p.onconnectionstatechange = () => {
-      console.log('[CALL] Peer connection state:', p.connectionState);
-    };
-    p.onicegatheringstatechange = () => {
-      console.log('[CALL] ICE gathering state:', p.iceGatheringState);
+      console.log('[CALL] Connection state:', p.connectionState);
+      if (p.connectionState === 'connected') {
+        console.log('[CALL] ✅ Peer connected — audio should be flowing');
+      }
     };
 
-    pc.current = p;
+    p.onicegatheringstatechange = () => {
+      console.log('[CALL] ICE gathering:', p.iceGatheringState);
+    };
+
+    pcRef.current = p;
     return p;
   }
 
+  // ─── A3: getAudio — simple constraints, no exotic sampleRate/channelCount ──
   async function getAudio() {
-    // ─── Robust mic permission + rich audio constraints ───────────────────────
-    let stream;
+    const constraints = {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: false,
+    };
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: { ideal: 1, max: 1 },
-          sampleRate: { ideal: 8000 },
-          noiseSuppression: true,
-          echoCancellation: true,
-          autoGainControl: true,
-        },
-        video: false,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('[CALL] getUserMedia OK — tracks:', stream.getTracks().map(t => t.kind + ':' + t.enabled));
+      localStream.current = stream;
+      return stream;
     } catch (e) {
+      console.error('[CALL] getUserMedia failed:', e.name, e.message);
       if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-        alert('يرجى السماح بالمايكروفون من إعدادات الجهاز أو المتصفح');
-        throw e;
-      }
-      if (e.name === 'NotFoundError') {
+        alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
+      } else if (e.name === 'NotFoundError') {
         alert('لم يتم العثور على مايكروفون في جهازك');
-        throw e;
+      } else {
+        alert('خطأ في الميكروفون: ' + e.message);
       }
-      alert('خطأ في الوصول للمايكروفون: ' + e.message);
       throw e;
     }
-    localStream.current = stream;
-    stream.getTracks().forEach(t => console.log('[WebRTC] Got local track:', t.kind, t.label, 'enabled:', t.enabled));
-    return stream;
   }
 
-  // Flush buffered ICE candidates to the now-known remote socket
+  // Flush buffered outgoing ICE to a now-known remoteSocketId
   function flushPendingICE(remoteSocketId) {
     if (!socket || !remoteSocketId) return;
-    pendingICE.current.forEach(c => {
-      socket.emit('call:ice', { targetSocketId: remoteSocketId, candidate: c });
-    });
+    console.log('[CALL] Flushing', pendingICE.current.length, 'buffered ICE candidates → socket:', remoteSocketId);
+    pendingICE.current.forEach(c => socket.emit('call:ice', { targetSocketId: remoteSocketId, candidate: c }));
     pendingICE.current = [];
   }
 
-  // Expose initiateCall and hangup to parent via ref
+  // ─── Expose initiateCall + hangup via ref ─────────────────────────────────
   useImperativeHandle(ref, () => ({
-    async initiateCall(targetUserId, targetName) {
+    // A4: initiateCall — correct flow: getAudio → addTrack → createOffer → emit
+    async initiateCall(calleeId, calleeName) {
       if (active || incoming) return;
       if (!socket || !socket.connected) {
         alert('جارٍ الاتصال بالخادم... حاول مرة أخرى بعد ثانية');
         return;
       }
+
+      let stream;
       try {
-        // ─── Fix A: Get microphone FIRST before creating PC or offer ─────────
-        console.log('[CALL] initiateCall() — getting microphone first');
-        const stream = await getAudio().catch(err => {
-          if (err.name === 'NotAllowedError') {
-            alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
-          }
-          throw err;
-        });
-        console.log('[CALL] Got microphone ✓ tracks:', stream.getTracks().length);
-
-        // Create PC with null remote socket ID — ICE will be buffered
-        const p = createPC(null);
-
-        // ─── Fix A: Add tracks BEFORE createOffer ────────────────────────────
-        stream.getTracks().forEach(t => {
-          p.addTrack(t, stream);
-          console.log('[CALL] Caller addTrack:', t.kind, '| enabled:', t.enabled);
-        });
-
-        // Now create offer (tracks already present → SDP includes audio)
-        const offer = await p.createOffer({ offerToReceiveAudio: true });
-        await p.setLocalDescription(offer);
-        // Apply bitrate cap via sender API (8kbps min for intelligible voice, replaces SDP hacking)
-        await applyBitrateCap(p, 8000);
-        console.log('[CALL] Caller created offer — SDP audio:', offer.sdp.includes('m=audio'), '| SDP excerpt:', offer.sdp.substring(0, 200));
-
-        const callerId   = currentUser?._id || currentUser?.id || '';
-        const callerName = currentUser?.name || 'مستخدم';
-        const callerAvatar = currentUser?.avatar || '';
-        // Include the offer in call:initiate so offline users can receive it via push
-        socket.emit('call:initiate', {
-          targetUserId,
-          callerId,
-          callerName,
-          callerAvatar,
-          offer: p.localDescription,  // SDP offer for offline push answering
-        });
-
-        // Play outgoing ring-back tone for caller
-        playCallingTone();
-
-        // Start 30-second no-answer timer — cancel call and notify callee to stop ringing
-        noAnswerTimer.current = setTimeout(() => {
-          socket.emit('call:cancel', { targetUserId });  // callee stops ringing
-          stopCallingTone();
-          cleanup();
-        }, NO_ANSWER_TIMEOUT_MS);
-
-        // Wait for responder to be ready, then send offer + flush buffered ICE
-        socket.once('call:answered_ready', async ({ responderSocketId }) => {
-          clearTimeout(noAnswerTimer.current);
-          stopCallingTone();
-          // Update onicecandidate to send directly now we know the socket ID
-          if (pc.current) {
-            pc.current.onicecandidate = e => {
-              if (e.candidate && socket) {
-                socket.emit('call:ice', { targetSocketId: responderSocketId, candidate: e.candidate });
-              }
-            };
-          }
-          // Flush previously buffered ICE candidates
-          flushPendingICE(responderSocketId);
-          // Send the offer to the responder
-          socket.emit('call:offer', { targetSocketId: responderSocketId, offer: p.localDescription });
-          console.log('[WebRTC] Sent offer to responder:', responderSocketId);
-        });
-
-        socket.once('call:answered', async ({ answer, responderSocketId }) => {
-          try {
-            clearTimeout(noAnswerTimer.current);
-            stopCallingTone();
-            if (pc.current) {
-              await pc.current.setRemoteDescription(new RTCSessionDescription(answer));
-              console.log('[CALL] Caller set remote desc (answer) — ICE state:', pc.current.iceConnectionState, '| connection:', pc.current.connectionState);
-              // Flush any ICE candidates received before answer's remote description
-              for (const c of receivedICE.current) {
-                await pc.current.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-              }
-              receivedICE.current = [];
-            }
-            setActive({ peerName: targetName, remoteSocketId: responderSocketId, startTime: Date.now() });
-          } catch (e) {
-            console.error('[CallManager] call:answered error:', e.message);
-            cleanup();
-          }
-        });
-      } catch {
-        cleanup();
+        stream = await getAudio();
+      } catch (e) {
+        stopCallingTone();
+        return;
       }
+
+      const p = createPC(null); // remoteSocketId unknown until call:accepted
+
+      // A4: Add tracks BEFORE createOffer
+      stream.getTracks().forEach(t => {
+        p.addTrack(t, stream);
+        console.log('[CALL] addTrack:', t.kind);
+      });
+
+      const offer = await p.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
+      await p.setLocalDescription(offer);
+      console.log('[CALL] Offer created — SDP has audio:', offer.sdp.includes('m=audio'));
+
+      // A4: Apply bitrate cap AFTER setLocalDescription
+      await applyBitrateCap(p, 16000);
+
+      const callerName   = currentUser?.name || currentUser?.username || 'مستخدم';
+      const callerAvatar = currentUser?.avatar || '';
+
+      socket.emit('call:initiate', {
+        calleeId,
+        callerName,
+        callerAvatar,
+        offer: p.localDescription,
+      });
+
+      playCallingTone();
+
+      // 30-second no-answer timer
+      noAnswerTimer.current = setTimeout(() => {
+        socket.emit('call:cancel', { targetUserId: calleeId });
+        stopCallingTone();
+        cleanup();
+      }, NO_ANSWER_TIMEOUT_MS);
+
+      // A8: Listen for call:accepted (what backend emits when callee answers)
+      socket.once('call:accepted', async ({ calleeSocketId, answer }) => {
+        console.log('[CALL] call:accepted — calleeSocketId:', calleeSocketId);
+        clearTimeout(noAnswerTimer.current);
+        stopCallingTone();
+
+        // Update ICE target now that we know callee socket
+        if (pcRef.current) {
+          pcRef.current.onicecandidate = (e) => {
+            if (e.candidate && socket) {
+              socket.emit('call:ice', { targetSocketId: calleeSocketId, candidate: e.candidate });
+            }
+          };
+        }
+
+        await p.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('[CALL] Remote description set ✓');
+
+        // Flush buffered ICE to callee
+        flushPendingICE(calleeSocketId);
+
+        // Flush any received ICE that arrived before remote desc
+        for (const c of receivedICE.current) {
+          await p.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('[CALL] addIceCandidate err:', e.message));
+        }
+        receivedICE.current = [];
+
+        setActive({ peerName: calleeName, remoteSocketId: calleeSocketId, startTime: Date.now() });
+      });
     },
+
     hangup() {
       if (active?.remoteSocketId) socket.emit('call:end', { otherSocketId: active.remoteSocketId });
       cleanup();
     },
   }), [socket, currentUser, active, incoming]);
 
+  // ─── Socket event handlers ─────────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
-    // Use ref to get fresh currentUser without re-registering (avoids duplicate listeners)
     const getCurrent = () => currentUserRef.current;
     const userId = (getCurrent()?._id || getCurrent()?.id) || '';
-    // Join user room now and re-join on every reconnect
+
     if (userId) {
       socket.emit('join_user_room', { userId });
-      socket.emit('join', userId); // also emit 'join' for backward compatibility
+      socket.emit('join', userId);
     }
 
     const onReconnect = () => {
@@ -423,103 +378,71 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       if (uid) {
         socket.emit('join_user_room', { userId: uid });
         socket.emit('join', uid);
-        console.log('[CallManager] Rejoined user rooms after reconnect:', uid);
+        console.log('[CallManager] Rejoined rooms after reconnect:', uid);
       }
     };
     socket.on('reconnect', onReconnect);
     socket.on('connect', onReconnect);
 
-    const onIncoming = ({ callerId, callerName, callerSocketId }) => {
-      setIncoming({ callerId, callerName, callerSocketId });
-      startRingtone(); // play ringtone when incoming call arrives
+    // A5: onOffer — callee receives call:incoming WITH offer — store and show UI
+    const onOffer = ({ offer, callerSocketId, callerName, callerAvatar, callerId }) => {
+      console.log('[CALL] call:incoming — callerSocketId:', callerSocketId, '| callerName:', callerName);
+      // Store offer for when user taps Accept
+      pendingOfferRef.current = { offer, callerSocketId, callerName: callerName || 'مستخدم XTOX' };
+      setIncoming({ callerId: callerId || callerSocketId, callerName: callerName || 'مستخدم XTOX', callerAvatar: callerAvatar || '', callerSocketId });
+      startRingtone();
     };
 
-    // ─── Fix A (callee side): Get mic → add tracks → setRemoteDesc → createAnswer ───
-    const onOffer = async ({ offer, callerSocketId }) => {
-      try {
-        stopRingtone(); // stop ringing when offer arrives (callee accepted)
-        const stream = await getAudio().catch(err => {
-          if (err.name === 'NotAllowedError') {
-            alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
-          }
-          return null;
-        });
-        if (!stream) return;
-
-        const p = createPC(callerSocketId);
-
-        // ─── Fix A: Add local tracks BEFORE setRemoteDescription ─────────────
-        stream.getTracks().forEach(t => {
-          p.addTrack(t, stream);
-          console.log('[CALL] Callee addTrack:', t.kind, '| enabled:', t.enabled);
-        });
-
-        await p.setRemoteDescription(new RTCSessionDescription(offer));
-        console.log('[CALL] Callee set remote desc (offer) — ICE state:', p.iceConnectionState, '| connection:', p.connectionState);
-
-        // Flush any ICE candidates that arrived before the remote description was set
-        for (const c of receivedICE.current) {
-          await p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-        }
-        receivedICE.current = [];
-
-        const answer = await p.createAnswer();
-        await p.setLocalDescription(answer);
-        // Apply bitrate cap via sender API (8kbps min for intelligible voice)
-        await applyBitrateCap(p, 8000);
-        console.log('[CALL] Callee created answer — SDP audio:', answer.sdp.includes('m=audio'), '| bitrateCap applied ✓');
-
-        socket.emit('call:answer', { callerSocketId, answer: p.localDescription });
-      } catch (e) {
-        console.error('[CallManager] onOffer error:', e.message);
-        cleanup();
-      }
-    };
-
-    const onICE = ({ candidate }) => {
+    // A7: ICE candidate handling — buffer until remoteDescription is set
+    const onICE = async ({ candidate }) => {
       if (!candidate) return;
-      // Buffer if PC not created yet or remote description not set
-      if (!pc.current || !pc.current.remoteDescription) {
+      const p = pcRef.current;
+      if (!p) {
         receivedICE.current.push(candidate);
         return;
       }
-      pc.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+      if (p.remoteDescription && p.remoteDescription.type) {
+        try {
+          await p.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log('[CALL] ICE candidate added ✓');
+        } catch (e) {
+          console.warn('[CALL] addIceCandidate failed:', e.message);
+        }
+      } else {
+        receivedICE.current.push(candidate);
+        console.log('[CALL] ICE buffered (no remoteDesc yet) — total:', receivedICE.current.length);
+      }
     };
 
-    const onRejected    = () => { stopRingtone(); cleanup(); };
+    const onRejected    = () => { stopCallingTone(); stopRingtone(); cleanup(); };
     const onEnded       = () => { stopRingtone(); cleanup(); };
-    const onUnavailable = ({ targetUserId }) => {
-      // Previously showed a blocking alert — now the offline call flow handles this via
-      // call:ringing_offline. This event is kept for backward compat but should not block.
-      // Just silently stop the tone; ringing_offline UI is already shown.
-      stopCallingTone();
+    const onCancelled   = () => {
+      console.log('[CallManager] Call cancelled by caller');
+      stopRingtone();
+      setIncoming(null);
+      pendingOfferRef.current = null;
     };
+    const onUnavailable = () => { stopCallingTone(); };
 
-    // ── Offline push call events ──────────────────────────────────────────────
     const onRingingOffline = ({ roomId, to, message }) => {
-      // Caller: user is offline, we sent a push notification (or pending stored) — show ringing UI
       setOfflineRinging({ roomId, to });
       setCallStatus('ringing_offline');
       setStatusMessage(message || 'جارٍ الاتصال... المستخدم خارج التطبيق');
     };
 
     const onExpired = () => {
-      // Call timed out (no answer from push within 60s)
       stopRingtone();
       cleanup();
     };
 
     const onAcceptedOk = ({ callerSocketId }) => {
-      // Push callee accepted — we're now connected as the callee
-      // (caller will receive call:answered via socket, this is for the callee side)
+      // Push callee accepted — handled in acceptPushCall
     };
 
-    // Callee opened the app while we were waiting (push sent, callee connected)
     const onCalleeConnected = () => {
       setStatusMessage('جارٍ الاتصال...');
     };
 
-    // 60-second timeout expired — callee never answered
     const onNoAnswer = () => {
       stopCallingTone();
       cleanup();
@@ -528,33 +451,24 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       setTimeout(() => setCallStatus(null), 3000);
     };
 
-    // call:cancelled — caller hung up before callee answered (stop ringing)
-    const onCancelled = () => {
-      console.log('[CallManager] Call was cancelled by caller');
-      stopRingtone();
-      setIncoming(null);
-    };
-
-    socket.on('call:incoming',          onIncoming);
-    socket.on('call:offer',             onOffer);
-    socket.on('call:ice',               onICE);
-    socket.on('call:rejected',          onRejected);
-    socket.on('call:ended',             onEnded);
-    socket.on('call:cancelled',         onCancelled);
-    socket.on('call:user_unavailable',  onUnavailable);
-    socket.on('call:ringing_offline',   onRingingOffline);
-    socket.on('call:expired',           onExpired);
-    socket.on('call:accepted_ok',       onAcceptedOk);
-    socket.on('call:callee_connected',  onCalleeConnected);
-    socket.on('call:no_answer',         onNoAnswer);
+    socket.on('call:incoming',         onOffer);
+    socket.on('call:ice',              onICE);
+    socket.on('call:rejected',         onRejected);
+    socket.on('call:ended',            onEnded);
+    socket.on('call:cancelled',        onCancelled);
+    socket.on('call:user_unavailable', onUnavailable);
+    socket.on('call:ringing_offline',  onRingingOffline);
+    socket.on('call:expired',          onExpired);
+    socket.on('call:accepted_ok',      onAcceptedOk);
+    socket.on('call:callee_connected', onCalleeConnected);
+    socket.on('call:no_answer',        onNoAnswer);
 
     // ── Service Worker message: incoming call from push notification ──────
     const onSWMessage = async (event) => {
       if (!event.data) return;
       const { type, callerId, callerName, callerSocketId: swCallerSocketId, offer, roomId } = event.data;
       if (type === 'incoming_call_push' && offer && roomId) {
-        console.log('[CALL] SW message incoming_call_push — callerId:', callerId, '| callerSocketId:', swCallerSocketId, '| roomId:', roomId);
-        // Show incoming call UI (push-based)
+        console.log('[CALL] SW message incoming_call_push — callerId:', callerId, '| callerSocketId:', swCallerSocketId);
         setPushIncoming({ callerId, callerName, callerSocketId: swCallerSocketId, offer, roomId });
         startRingtone();
       }
@@ -565,25 +479,24 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     }
 
     return () => {
-      socket.off('call:incoming',          onIncoming);
-      socket.off('call:offer',             onOffer);
-      socket.off('call:ice',               onICE);
-      socket.off('call:rejected',          onRejected);
-      socket.off('call:ended',             onEnded);
-      socket.off('call:cancelled',         onCancelled);
-      socket.off('call:user_unavailable',  onUnavailable);
-      socket.off('call:ringing_offline',   onRingingOffline);
-      socket.off('call:expired',           onExpired);
-      socket.off('call:accepted_ok',       onAcceptedOk);
-      socket.off('call:callee_connected',  onCalleeConnected);
-      socket.off('call:no_answer',         onNoAnswer);
-      socket.off('reconnect',              onReconnect);
+      socket.off('call:incoming',         onOffer);
+      socket.off('call:ice',              onICE);
+      socket.off('call:rejected',         onRejected);
+      socket.off('call:ended',            onEnded);
+      socket.off('call:cancelled',        onCancelled);
+      socket.off('call:user_unavailable', onUnavailable);
+      socket.off('call:ringing_offline',  onRingingOffline);
+      socket.off('call:expired',          onExpired);
+      socket.off('call:accepted_ok',      onAcceptedOk);
+      socket.off('call:callee_connected', onCalleeConnected);
+      socket.off('call:no_answer',        onNoAnswer);
+      socket.off('reconnect',             onReconnect);
       socket.off('connect',               onReconnect);
       if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
         navigator.serviceWorker.removeEventListener('message', onSWMessage);
       }
     };
-  }, [socket]); // Only [socket] dep: listeners are re-registered only when socket changes (prevents duplicate listeners)
+  }, [socket]);
 
   // Call duration timer
   useEffect(() => {
@@ -594,99 +507,138 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
   function hangup() {
     if (active?.remoteSocketId) socket.emit('call:end', { otherSocketId: active.remoteSocketId });
-    // Also cancel any pending offline ring
-    if (offlineRinging?.roomId) {
-      socket.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
-    }
+    if (offlineRinging?.roomId) socket.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
     stopRingtone();
     cleanup();
   }
 
-  // Accept an incoming push call (callee side — push notification brought us here)
-  // Fix #82: ensure socket is connected before emitting call:accept_from_push
+  // A5: acceptCall — full WebRTC setup (callee side, socket call)
+  async function acceptCall() {
+    const pending = pendingOfferRef.current;
+    if (!pending) {
+      console.error('[CALL] acceptCall — no pending offer! pendingOfferRef is null');
+      // Fallback: if caller socket ID is known from incoming state but offer is missing,
+      // try legacy flow by signaling readiness
+      if (incoming?.callerSocketId) {
+        stopRingtone();
+        setIncoming(null);
+        socket.emit('call:answered_ready', { callerSocketId: incoming.callerSocketId });
+      }
+      return;
+    }
+
+    const { offer, callerSocketId, callerName } = pending;
+    if (!callerSocketId) {
+      console.warn('[CALL] acceptCall — callerSocketId is null — waiting for socket event');
+      return;
+    }
+
+    stopRingtone();
+    setIncoming(null);
+    pendingOfferRef.current = null;
+
+    let stream;
+    try {
+      stream = await getAudio();
+    } catch (e) {
+      return;
+    }
+
+    const p = createPC(callerSocketId);
+    stream.getTracks().forEach(t => {
+      p.addTrack(t, stream);
+      console.log('[CALL] callee addTrack:', t.kind);
+    });
+
+    await p.setRemoteDescription(new RTCSessionDescription(offer));
+    console.log('[CALL] Callee set remote description ✓');
+
+    // Flush ICE candidates that arrived before remote desc was set
+    if (receivedICE.current.length > 0) {
+      console.log('[CALL] Flushing', receivedICE.current.length, 'pre-buffered remote ICE candidates');
+      for (const c of receivedICE.current) {
+        await p.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('[CALL] addIceCandidate err:', e.message));
+      }
+      receivedICE.current = [];
+    }
+
+    const answer = await p.createAnswer();
+    await p.setLocalDescription(answer);
+    console.log('[CALL] Callee answer created ✓ — SDP has audio:', answer.sdp.includes('m=audio'));
+
+    await applyBitrateCap(p, 16000);
+
+    socket.emit('call:answer', { callerSocketId, answer: p.localDescription });
+    setActive({ peerName: callerName, remoteSocketId: callerSocketId, startTime: Date.now() });
+  }
+
+  function rejectCall() {
+    if (incoming?.callerSocketId) socket.emit('call:reject', { callerSocketId: incoming.callerSocketId });
+    pendingOfferRef.current = null;
+    stopRingtone();
+    setIncoming(null);
+  }
+
+  // ── Push call accept/reject ───────────────────────────────────────────────
   async function acceptPushCall() {
     if (!pushIncoming) return;
     const { callerId, callerName, offer, roomId } = pushIncoming;
-    console.log('[CALL] acceptPushCall() started — roomId:', roomId, '| callerId:', callerId, '| socket connected:', socket?.connected);
+    console.log('[CALL] acceptPushCall — roomId:', roomId, '| callerId:', callerId, '| socket connected:', socket?.connected);
     stopRingtone();
     setPushIncoming(null);
+
+    let stream;
     try {
-      console.log('[CALL] acceptPushCall — requesting microphone...');
-      const stream = await getAudio().catch(err => {
-        if (err.name === 'NotAllowedError') alert('يرجى السماح بالوصول للميكروفون');
-        return null;
-      });
-      if (!stream) { console.error('[CALL] acceptPushCall — failed to get audio stream'); return; }
-      console.log('[CALL] acceptPushCall — got microphone ✓ tracks:', stream.getTracks().length);
-
-      const p = createPC(null);  // remote socket ID unknown yet — will learn via call:accepted_ok
-      stream.getTracks().forEach(t => {
-        p.addTrack(t, stream);
-        console.log('[CALL] acceptPushCall — added local track:', t.kind, '| enabled:', t.enabled);
-      });
-
-      console.log('[CALL] acceptPushCall — setting remote description (offer)...');
-      await p.setRemoteDescription(new RTCSessionDescription(offer));
-      console.log('[CALL] acceptPushCall — remote desc set ✓ ICE:', p.iceConnectionState, '| connection:', p.connectionState);
-
-      // Flush ICE candidates that arrived before remote description was set
-      if (receivedICE.current.length > 0) {
-        console.log('[CALL] acceptPushCall — flushing', receivedICE.current.length, 'pre-buffered remote ICE candidates');
-        for (const c of receivedICE.current) {
-          await p.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('[CALL] addIceCandidate error:', e.message));
-        }
-        receivedICE.current = [];
-      }
-
-      console.log('[CALL] acceptPushCall — creating answer...');
-      const answer = await p.createAnswer();
-      await p.setLocalDescription(answer);
-      // Apply bitrate cap via sender API (8kbps min for intelligible voice)
-      await applyBitrateCap(p, 8000);
-      console.log('[CALL] acceptPushCall — answer created ✓ SDP audio:', answer.sdp.includes('m=audio'), '| bitrateCap applied ✓');
-
-      // Fix #82: wait for socket to be connected before emitting call:accept_from_push
-      const emitAccept = () => {
-        console.log('[CALL] acceptPushCall — emitting call:accept_from_push — roomId:', roomId, '| socket:', socket.id);
-        socket.emit('call:accept_from_push', { roomId, answer: p.localDescription });
-      };
-
-      if (socket.connected) {
-        emitAccept();
-      } else {
-        console.log('[CALL] acceptPushCall — socket not connected yet, waiting for connect event...');
-        socket.once('connect', () => {
-          console.log('[CALL] acceptPushCall — socket connected ✓ socket.id:', socket.id);
-          emitAccept();
-        });
-        socket.connect();
-      }
-
-      // Wait for call:accepted_ok to know callerSocketId
-      socket.once('call:accepted_ok', ({ callerSocketId }) => {
-        console.log('[CALL] acceptPushCall — call:accepted_ok received — callerSocketId:', callerSocketId);
-        // Update ICE candidate target to caller's socket
-        if (p) {
-          p.onicecandidate = e => {
-            if (e.candidate && socket) {
-              console.log('[CALL] acceptPushCall — sending ICE to caller:', callerSocketId);
-              socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: e.candidate });
-            }
-          };
-        }
-        // Fix #82: flush all buffered ICE candidates to caller using flushPendingICE
-        const buffered = pendingICE.current.length;
-        if (buffered > 0) {
-          console.log('[CALL] acceptPushCall — flushing', buffered, 'buffered local ICE candidates to caller:', callerSocketId);
-        }
-        flushPendingICE(callerSocketId);
-        console.log('[CALL] acceptPushCall — call active ✓ peer:', callerName, '| callerSocketId:', callerSocketId);
-        setActive({ peerName: callerName || 'مستخدم', remoteSocketId: callerSocketId, startTime: Date.now() });
-      });
+      stream = await getAudio();
     } catch (e) {
-      console.error('[CALL] acceptPushCall error:', e.message, e.stack);
-      cleanup();
+      return;
     }
+
+    const p = createPC(null);
+    stream.getTracks().forEach(t => {
+      p.addTrack(t, stream);
+      console.log('[CALL] acceptPushCall addTrack:', t.kind);
+    });
+
+    await p.setRemoteDescription(new RTCSessionDescription(offer));
+    console.log('[CALL] acceptPushCall remote desc set ✓');
+
+    if (receivedICE.current.length > 0) {
+      for (const c of receivedICE.current) {
+        await p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+      }
+      receivedICE.current = [];
+    }
+
+    const answer = await p.createAnswer();
+    await p.setLocalDescription(answer);
+    await applyBitrateCap(p, 16000);
+    console.log('[CALL] acceptPushCall answer created ✓');
+
+    const emitAccept = () => {
+      console.log('[CALL] acceptPushCall — emitting call:accept_from_push');
+      socket.emit('call:accept_from_push', { roomId, answer: p.localDescription });
+    };
+
+    if (socket.connected) {
+      emitAccept();
+    } else {
+      socket.once('connect', () => { emitAccept(); });
+      socket.connect();
+    }
+
+    socket.once('call:accepted_ok', ({ callerSocketId }) => {
+      console.log('[CALL] acceptPushCall call:accepted_ok — callerSocketId:', callerSocketId);
+      if (p) {
+        p.onicecandidate = e => {
+          if (e.candidate && socket) {
+            socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: e.candidate });
+          }
+        };
+      }
+      flushPendingICE(callerSocketId);
+      setActive({ peerName: callerName || 'مستخدم', remoteSocketId: callerSocketId, startTime: Date.now() });
+    });
   }
 
   function rejectPushCall() {
@@ -694,29 +646,6 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     socket.emit('call:reject_from_push', { roomId: pushIncoming.roomId });
     stopRingtone();
     setPushIncoming(null);
-  }
-
-  async function acceptCall() {
-    const { callerSocketId, callerName } = incoming;
-    // Guard: callerSocketId is null when pre-set by autoAnswer URL param
-    // — wait for socket to replay call:incoming with the real callerSocketId
-    if (!callerSocketId) {
-      console.warn('[CALL] acceptCall() called but callerSocketId is null — waiting for call:incoming socket event');
-      return;
-    }
-    stopRingtone();
-    setIncoming(null);
-    console.log('[CALL] acceptCall() — emitting call:answered_ready to:', callerSocketId);
-    // Signal caller that we're ready to receive the offer
-    socket.emit('call:answered_ready', { callerSocketId });
-    // Set active immediately to show the active call overlay
-    setActive({ peerName: callerName, remoteSocketId: callerSocketId, startTime: Date.now() });
-  }
-
-  function rejectCall() {
-    if (incoming?.callerSocketId) socket.emit('call:reject', { callerSocketId: incoming.callerSocketId });
-    stopRingtone();
-    setIncoming(null);
   }
 
   function toggleMute() {
@@ -742,13 +671,12 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
   return (
     <>
-      {/* ─── Fix C: audio element ALWAYS in DOM — never conditional ─────────── */}
+      {/* A1: audio element ALWAYS in DOM — never conditional */}
       <audio
         ref={remoteAudio}
         id="xtox-remote-audio"
         autoPlay
         playsInline
-        controls={false}
         style={{ display: 'none' }}
       />
 
@@ -776,7 +704,6 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         </div>
       )}
 
-      {/* ── Push incoming call (callee opened app via notification) ── */}
       {pushIncoming && !active && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📲</div>
@@ -801,10 +728,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         </div>
       )}
 
-      {/* ── Offline ringing UI (caller waiting for offline user to accept push) ── */}
       {offlineRinging && !active && !incoming && (
         <div style={overlay}>
-          <div style={{ fontSize: 40, marginBottom: 8, animation: 'pulse 1.5s infinite' }}>📞</div>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>
           <div style={{ fontWeight: 700, fontSize: 16, color: '#aaa' }}>جارٍ الاتصال...</div>
           <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>{statusMessage || 'تم إرسال إشعار للمستخدم'}</div>
           <button
