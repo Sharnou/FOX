@@ -71,8 +71,9 @@ function adToWpPost(ad) {
   const city = ad.city || ''
   const condition = ad.condition || ''
   const category = ad.category || ''
+  const desc = ad.description || ''
   const content = [
-    `<p>${ad.description || ''}</p>`,
+    `<p>${desc}</p>`,
     price ? `<p><strong>${price}</strong></p>` : '',
     city ? `<p>📍 ${city}</p>` : '',
     condition ? `<p>الحالة: ${condition}</p>` : '',
@@ -80,10 +81,17 @@ function adToWpPost(ad) {
     `<p><a href="https://fox-kohl-eight.vercel.app/ads/${ad._id}">عرض الإعلان على XTOX</a></p>`
   ].filter(Boolean).join('\n')
 
-  const excerpt = (ad.description || title).substring(0, 160)
-  const tags = [category, city, condition, 'XTOX', 'مصر'].filter(Boolean)
+  const tagList = [ad.category, ad.city, 'XTOX', 'إعلانات', 'مصر'].filter(Boolean)
 
-  return { title, content, excerpt, slug, status: 'publish', language: 'ar', tags: tags.join(','), categories_by_name: [category || 'إعلانات'].join(',') }
+  return {
+    title,
+    content,
+    excerpt: (desc || title).substring(0, 150),
+    slug,
+    status: 'publish',
+    tags: tagList.join(',')
+    // NO language, NO categories_by_name — they cause unknown_post_field errors
+  }
 }
 
 // POST /api/wp/sync-all — sync ALL ads (admin only)
@@ -106,12 +114,12 @@ router.post('/sync-all', verifyToken, async (req, res) => {
       try {
         const postData = adToWpPost(ad)
 
-        // Find existing by slug
+        // Find existing by slug — guard against non-JSON responses
         const searchRes = await fetch(`${WP_API}/posts?slug=${postData.slug}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
-        const searchData = await searchRes.json()
-        const existing = searchData.posts?.[0]
+        const searchData = await searchRes.json().catch(() => ({}))
+        const existing = Array.isArray(searchData.posts) ? searchData.posts[0] : null
 
         let result
         if (existing) {
@@ -120,24 +128,33 @@ router.post('/sync-all', verifyToken, async (req, res) => {
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(postData)
           })
-          result = await r.json()
+          result = await r.json().catch(() => ({}))
         } else {
           const r = await fetch(`${WP_API}/posts/new`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(postData)
           })
-          result = await r.json()
+          result = await r.json().catch(() => ({}))
         }
 
-        if (result.error) { failed++; errors.push({ adId: ad._id, error: result.error }) }
-        else synced++
+        if (result.error) {
+          failed++
+          errors.push({
+            adId: String(ad._id),
+            title: ad.title,
+            error: result.error,
+            message: result.message || ''
+          })
+        } else {
+          synced++
+        }
 
         // Rate limit: 200ms between posts
         await new Promise(r => setTimeout(r, 200))
       } catch (err) {
         failed++
-        errors.push({ adId: ad._id, error: err.message })
+        errors.push({ adId: String(ad._id), title: ad.title, error: err.message })
       }
     }
 
@@ -171,8 +188,8 @@ router.post('/sync/:adId', verifyToken, async (req, res) => {
     const searchRes = await fetch(`${WP_API}/posts?slug=${postData.slug}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    const searchData = await searchRes.json()
-    const existing = searchData.posts?.[0]
+    const searchData = await searchRes.json().catch(() => ({}))
+    const existing = Array.isArray(searchData.posts) ? searchData.posts[0] : null
 
     let result
     if (existing) {
@@ -181,14 +198,14 @@ router.post('/sync/:adId', verifyToken, async (req, res) => {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(postData)
       })
-      result = await r.json()
+      result = await r.json().catch(() => ({}))
     } else {
       const r = await fetch(`${WP_API}/posts/new`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(postData)
       })
-      result = await r.json()
+      result = await r.json().catch(() => ({}))
     }
 
     if (result.error) return res.status(400).json({ error: result.error, message: result.message })
