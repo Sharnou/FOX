@@ -10,7 +10,10 @@ export function initSocket(io) {
 
   // ── Auth middleware — decode JWT and set socket.data.userId ──────────────────
   io.use(async (socket, next) => {
-    const token = socket.handshake.auth.token;
+    // Bug C fix: accept token from auth.token OR from Authorization header
+    const authHeader = socket.handshake.headers.authorization || '';
+    const headerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    const token = socket.handshake.auth.token || headerToken || null;
     if (!token) return next(new Error('Unauthorized'));
     try {
       // Decode JWT to get userId — allows server to identify user without 'join' event
