@@ -1,28 +1,27 @@
 'use client';
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 
-// ─── A2: ICE config: STUN + TURN + TURNS (critical for NAT traversal) ─────────
-const NO_ANSWER_TIMEOUT_MS = 30000;
+// ─── ICE Configuration (STUN + TURN for NAT traversal) ──────────────────────
+const ICE_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turns:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  ],
+};
 
-// ─── A6: applyBitrateCap — uses RTCRtpSender API, 16kbps (safe, no SDP hacking) ─
-async function applyBitrateCap(pc, maxBitrateBps = 16000) {
-  try {
-    const senders = pc.getSenders();
-    for (const sender of senders) {
-      if (!sender.track || sender.track.kind !== 'audio') continue;
-      const params = sender.getParameters();
-      if (!params.encodings) params.encodings = [{}];
-      if (params.encodings.length === 0) params.encodings.push({});
-      params.encodings[0].maxBitrate = maxBitrateBps;
-      await sender.setParameters(params);
-      console.log('[CALL] applyBitrateCap ✓ — maxBitrate:', maxBitrateBps, 'bps');
-    }
-  } catch (e) {
-    console.warn('[CALL] applyBitrateCap failed (non-fatal):', e.message);
-  }
+// ─── getUserMedia — simple constraints, no exotic params ────────────────────
+async function getAudio() {
+  return navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: false,
+  });
 }
 
-// ─── Web Audio API ring-back tone ─────────────────────────────────────────────
+// ─── Web Audio API calling tone ─────────────────────────────────────────────
 let _callingCtx = null;
 let _callingTimer = null;
 let _callingActive = false;
@@ -46,7 +45,7 @@ function playCallingTone() {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 1.0);
       osc.onended = () => { try { ctx.close(); } catch {} };
-    } catch (e) {}
+    } catch {}
     _callingTimer = setTimeout(beep, 3000);
   };
   beep();
@@ -60,29 +59,29 @@ function stopCallingTone() {
 }
 
 const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref) {
-  const [incoming, setIncoming]           = useState(null);
-  const [active, setActive]               = useState(null);
-  const [duration, setDuration]           = useState(0);
-  const [muted, setMuted]                 = useState(false);
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [incoming, setIncoming]         = useState(null);
+  const [active, setActive]             = useState(null);
+  const [duration, setDuration]         = useState(0);
+  const [muted, setMuted]               = useState(false);
+  const [pushIncoming, setPushIncoming] = useState(null);
   const [offlineRinging, setOfflineRinging] = useState(null);
-  const [pushIncoming, setPushIncoming]   = useState(null);
-  const [callStatus, setCallStatus]       = useState(null);
+  const [callStatus, setCallStatus]     = useState(null); // 'no_answer' | null
   const [statusMessage, setStatusMessage] = useState('');
 
-  const pcRef            = useRef(null);
-  const localStream      = useRef(null);
-  // A1: remoteAudio ref — MUST always be in DOM (never conditional)
-  const remoteAudio      = useRef(null);
+  // ── Refs ──────────────────────────────────────────────────────────────────
+  const remoteAudio      = useRef(null);   // <audio> element — always in DOM
+  const pcRef            = useRef(null);   // RTCPeerConnection
+  const localStream      = useRef(null);   // local mic stream
+  const pendingOffer     = useRef(null);   // { offer, callerSocketId, callerName, callerAvatar }
+  const bufferedICE      = useRef([]);     // remote ICE candidates buffered until remoteDescription set
+  const pendingLocalICE  = useRef([]);     // local ICE candidates buffered until remoteSocketId known
   const ringtoneRef      = useRef(null);
-  const pendingICE       = useRef([]);   // outgoing ICE buffered until callee socket ID known
-  const receivedICE      = useRef([]);   // incoming ICE buffered until remote description set
   const noAnswerTimer    = useRef(null);
-  // A9: pendingOfferRef — stores offer+callerSocketId until user taps Accept
-  const pendingOfferRef  = useRef(null);
   const currentUserRef   = useRef(currentUser);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
-  // ─── URL autoAnswer detection (push notification opened app) ────────────
+  // ── URL autoAnswer detection (push opened app with autoAnswer= param) ─────
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -90,7 +89,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     if (autoAnswerParam) {
       let callerId = '';
       let callerSocketId = null;
-      let callerName = params.get('callerName') || 'مستخدم XTOX';
+      const callerName = params.get('callerName') || 'مستخدم XTOX';
       if (autoAnswerParam === 'true') {
         callerId = params.get('callerId') || params.get('roomId') || '';
       } else {
@@ -104,15 +103,15 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       }
       if (callerId) {
         console.log('[CALL] autoAnswer URL — callerId:', callerId, '| callerSocketId:', callerSocketId);
-        setIncoming({ callerId, callerName, callerSocketId });
+        setIncoming({ callerId, callerName, callerAvatar: '', callerSocketId });
         startRingtone();
       }
     }
   }, []);
 
-  const fmt = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+  const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-  // ─── Ringtone ─────────────────────────────────────────────────────────────
+  // ── Ringtone ──────────────────────────────────────────────────────────────
   const startRingtone = useCallback(() => {
     try {
       if (ringtoneRef.current) return;
@@ -132,12 +131,13 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     }
   }, []);
 
+  // ── cleanup — reset everything ────────────────────────────────────────────
   const cleanup = useCallback(() => {
     clearTimeout(noAnswerTimer.current);
     noAnswerTimer.current = null;
-    pendingICE.current = [];
-    receivedICE.current = [];
-    pendingOfferRef.current = null;
+    bufferedICE.current = [];
+    pendingLocalICE.current = [];
+    pendingOffer.current = null;
     pcRef.current?.close();
     pcRef.current = null;
     localStream.current?.getTracks().forEach(t => t.stop());
@@ -150,284 +150,296 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     setOfflineRinging(null);
     setDuration(0);
     setMuted(false);
-    setCallStatus(null);
-    setStatusMessage('');
   }, [stopRingtone]);
 
-  // ─── A2: createPC — robust ICE + ontrack + ICE state logging ─────────────
-  function createPC(remoteSocketId) {
+  // ── createPC — RTCPeerConnection with ontrack + ICE buffering ────────────
+  function createPC() {
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
 
-    const p = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'turn:openrelay.metered.ca:80',
-          username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443',
-          username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turns:openrelay.metered.ca:443',
-          username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-          username: 'openrelayproject', credential: 'openrelayproject' },
-      ],
-      iceCandidatePoolSize: 10,
-    });
+    const pc = new RTCPeerConnection(ICE_CONFIG);
+    pcRef.current = pc;
 
-    // A2: ontrack — set srcObject explicitly, handle autoplay block
-    p.ontrack = (event) => {
-      console.log('[CALL] ontrack fired — kind:', event.track.kind, '| streams:', event.streams.length);
-      if (event.streams && event.streams[0]) {
-        if (remoteAudio.current) {
-          remoteAudio.current.srcObject = event.streams[0];
-          remoteAudio.current.volume = 1.0;
-          remoteAudio.current.muted = false;
-          const playPromise = remoteAudio.current.play();
-          if (playPromise) {
-            playPromise
-              .then(() => console.log('[CALL] remote audio playing ✓'))
-              .catch(e => {
-                console.warn('[CALL] audio.play() blocked:', e.message, '— attaching recovery handler');
-                const resume = () => {
-                  remoteAudio.current?.play().catch(() => {});
-                  document.removeEventListener('click', resume);
-                  document.removeEventListener('touchend', resume);
-                };
-                document.addEventListener('click', resume, { once: true });
-                document.addEventListener('touchend', resume, { once: true });
-              });
-          }
-        } else {
-          console.error('[CALL] remoteAudio.current is NULL — audio element missing from DOM!');
-        }
+    // Audio output: attach remote stream to <audio> element
+    pc.ontrack = (e) => {
+      console.log('[CALL] ontrack', e.track.kind, e.streams.length);
+      if (remoteAudio.current && e.streams[0]) {
+        remoteAudio.current.srcObject = e.streams[0];
+        remoteAudio.current.play().catch(err => {
+          console.warn('[CALL] play():', err.message);
+          // Recover on next user gesture
+          const resume = () => {
+            remoteAudio.current?.play().catch(() => {});
+            document.removeEventListener('click', resume);
+            document.removeEventListener('touchend', resume);
+          };
+          document.addEventListener('click', resume, { once: true });
+          document.addEventListener('touchend', resume, { once: true });
+        });
       }
     };
 
-    // A2: onicecandidate — buffer until remoteSocketId is known
-    p.onicecandidate = (e) => {
+    // Buffer local ICE until remoteSocketId is known (set via setICETarget)
+    pc.onicecandidate = (e) => {
       if (!e.candidate) return;
-      if (remoteSocketId && socket) {
-        socket.emit('call:ice', { targetSocketId: remoteSocketId, candidate: e.candidate });
-      } else {
-        pendingICE.current.push(e.candidate);
-        console.log('[CALL] ICE buffered (no remoteSocketId yet) — total:', pendingICE.current.length);
-      }
+      pendingLocalICE.current.push(e.candidate);
+      console.log('[CALL] local ICE buffered — total:', pendingLocalICE.current.length);
     };
 
-    p.oniceconnectionstatechange = () => {
-      console.log('[CALL] ICE state:', p.iceConnectionState);
-      if (p.iceConnectionState === 'failed' || p.iceConnectionState === 'closed') {
-        console.error('[CALL] ICE failed/closed — cleaning up');
-        cleanup();
-      }
+    pc.oniceconnectionstatechange = () => {
+      console.log('[CALL] ICE state:', pc.iceConnectionState);
+      if (['failed', 'closed'].includes(pc.iceConnectionState)) cleanup();
     };
 
-    p.onconnectionstatechange = () => {
-      console.log('[CALL] Connection state:', p.connectionState);
-      if (p.connectionState === 'connected') {
-        console.log('[CALL] ✅ Peer connected — audio should be flowing');
-      }
+    pc.onconnectionstatechange = () => {
+      console.log('[CALL] Connection state:', pc.connectionState);
     };
 
-    p.onicegatheringstatechange = () => {
-      console.log('[CALL] ICE gathering:', p.iceGatheringState);
-    };
-
-    pcRef.current = p;
-    return p;
+    return pc;
   }
 
-  // ─── A3: getAudio — simple constraints, no exotic sampleRate/channelCount ──
-  async function getAudio() {
-    const constraints = {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-      video: false,
-    };
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('[CALL] getUserMedia OK — tracks:', stream.getTracks().map(t => t.kind + ':' + t.enabled));
-      localStream.current = stream;
-      return stream;
-    } catch (e) {
-      console.error('[CALL] getUserMedia failed:', e.name, e.message);
-      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-        alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
-      } else if (e.name === 'NotFoundError') {
-        alert('لم يتم العثور على مايكروفون في جهازك');
-      } else {
-        alert('خطأ في الميكروفون: ' + e.message);
-      }
-      throw e;
+  // ── flushBufferedICE — add remote ICE candidates buffered before remoteDesc ─
+  async function flushBufferedICE() {
+    const pc = pcRef.current;
+    if (!pc) return;
+    console.log('[CALL] Flushing', bufferedICE.current.length, 'buffered remote ICE candidates');
+    for (const c of bufferedICE.current) {
+      await pc.addIceCandidate(c).catch(e => console.warn('[CALL] addIceCandidate:', e.message));
     }
+    bufferedICE.current = [];
   }
 
-  // Flush buffered outgoing ICE to a now-known remoteSocketId
-  function flushPendingICE(remoteSocketId) {
-    if (!socket || !remoteSocketId) return;
-    console.log('[CALL] Flushing', pendingICE.current.length, 'buffered ICE candidates → socket:', remoteSocketId);
-    pendingICE.current.forEach(c => socket.emit('call:ice', { targetSocketId: remoteSocketId, candidate: c }));
-    pendingICE.current = [];
+  // ── sendLocalICE — flush buffered local ICE candidates to now-known target ─
+  function sendLocalICE(targetSocketId) {
+    if (!socket || !targetSocketId) return;
+    console.log('[CALL] Sending', pendingLocalICE.current.length, 'local ICE candidates → socket:', targetSocketId);
+    for (const c of pendingLocalICE.current) {
+      socket.emit('call:ice', { targetSocketId, candidate: c });
+    }
+    pendingLocalICE.current = [];
   }
 
-  // ─── Expose initiateCall + hangup via ref ─────────────────────────────────
+  // ── setICETarget — update pc.onicecandidate to now send directly ──────────
+  function setICETarget(targetSocketId) {
+    const pc = pcRef.current;
+    if (!pc) return;
+    pc.onicecandidate = (e) => {
+      if (e.candidate && socket) {
+        socket.emit('call:ice', { targetSocketId, candidate: e.candidate });
+      }
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CALLER SIDE: initiateCall
+  // ─────────────────────────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
-    // A4: initiateCall — correct flow: getAudio → addTrack → createOffer → emit
     async initiateCall(calleeId, calleeName) {
-      if (active || incoming) return;
+      if (active || incoming || pushIncoming) return;
       if (!socket || !socket.connected) {
         alert('جارٍ الاتصال بالخادم... حاول مرة أخرى بعد ثانية');
         return;
       }
 
+      // Step 1: getUserMedia
       let stream;
       try {
         stream = await getAudio();
+        localStream.current = stream;
       } catch (e) {
-        stopCallingTone();
+        console.error('[CALL] getUserMedia failed:', e.name, e.message);
+        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
+        } else if (e.name === 'NotFoundError') {
+          alert('لم يتم العثور على مايكروفون في جهازك');
+        } else {
+          alert('خطأ في الميكروفون: ' + e.message);
+        }
         return;
       }
 
-      const p = createPC(null); // remoteSocketId unknown until call:accepted
+      // Step 2: createPC
+      const pc = createPC();
 
-      // A4: Add tracks BEFORE createOffer
+      // Step 3: addTrack
       stream.getTracks().forEach(t => {
-        p.addTrack(t, stream);
-        console.log('[CALL] addTrack:', t.kind);
+        pc.addTrack(t, stream);
+        console.log('[CALL] caller addTrack:', t.kind);
       });
 
-      const offer = await p.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
-      await p.setLocalDescription(offer);
+      // Step 4-6: createOffer → setLocalDescription
+      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
+      await pc.setLocalDescription(offer);
       console.log('[CALL] Offer created — SDP has audio:', offer.sdp.includes('m=audio'));
 
-      // A4: Apply bitrate cap AFTER setLocalDescription
-      await applyBitrateCap(p, 16000);
-
-      const callerName   = currentUser?.name || currentUser?.username || 'مستخدم';
-      const callerAvatar = currentUser?.avatar || '';
-
+      // Step 7: emit call:initiate
+      const callerName   = currentUserRef.current?.name || currentUserRef.current?.username || 'مستخدم';
+      const callerAvatar = currentUserRef.current?.avatar || '';
       socket.emit('call:initiate', {
         calleeId,
         callerName,
         callerAvatar,
-        offer: p.localDescription,
+        offer: pc.localDescription,
       });
 
+      // Step 8: show "Calling..." — use offlineRinging/setCallStatus for outgoing UI
+      setOfflineRinging({ calleeId, calleeName });
+      setStatusMessage('جارٍ الاتصال...');
       playCallingTone();
 
-      // 30-second no-answer timer
-      noAnswerTimer.current = setTimeout(() => {
-        socket.emit('call:cancel', { targetUserId: calleeId });
-        stopCallingTone();
-        cleanup();
-      }, NO_ANSWER_TIMEOUT_MS);
-
-      // A8: Listen for call:accepted (what backend emits when callee answers)
-      socket.once('call:accepted', async ({ calleeSocketId, answer }) => {
+      // Step 9: Listen for call:accepted (callee answered)
+      socket.once('call:accepted', async ({ answer, calleeSocketId }) => {
         console.log('[CALL] call:accepted — calleeSocketId:', calleeSocketId);
         clearTimeout(noAnswerTimer.current);
         stopCallingTone();
+        setOfflineRinging(null);
+        setStatusMessage('');
 
-        // Update ICE target now that we know callee socket
-        if (pcRef.current) {
-          pcRef.current.onicecandidate = (e) => {
-            if (e.candidate && socket) {
-              socket.emit('call:ice', { targetSocketId: calleeSocketId, candidate: e.candidate });
-            }
-          };
-        }
+        // Update ICE target now that we know callee's socket ID
+        setICETarget(calleeSocketId);
 
-        await p.setRemoteDescription(new RTCSessionDescription(answer));
-        console.log('[CALL] Remote description set ✓');
+        // Set remote description
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('[CALL] Caller set remote description ✓');
 
-        // Flush buffered ICE to callee
-        flushPendingICE(calleeSocketId);
+        // Flush any remote ICE that arrived before remote desc
+        await flushBufferedICE();
 
-        // Flush any received ICE that arrived before remote desc
-        for (const c of receivedICE.current) {
-          await p.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('[CALL] addIceCandidate err:', e.message));
-        }
-        receivedICE.current = [];
+        // Flush local ICE to callee
+        sendLocalICE(calleeSocketId);
 
         setActive({ peerName: calleeName, remoteSocketId: calleeSocketId, startTime: Date.now() });
       });
+
+      // Step 10: call:rejected
+      socket.once('call:rejected', () => {
+        console.log('[CALL] call:rejected');
+        stopCallingTone();
+        setOfflineRinging(null);
+        setCallStatus('rejected');
+        setStatusMessage('رُفضت المكالمة');
+        setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
+        cleanup();
+      });
+
+      // Step 11: call:no_answer
+      socket.once('call:no_answer', () => {
+        console.log('[CALL] call:no_answer');
+        stopCallingTone();
+        setOfflineRinging(null);
+        setCallStatus('no_answer');
+        setStatusMessage('لا يوجد رد');
+        setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
+        cleanup();
+      });
+
+      // Ringing offline — callee got push notification
+      socket.once('call:ringing_offline', ({ roomId, to, message }) => {
+        setOfflineRinging({ roomId, to, calleeId, calleeName });
+        setStatusMessage(message || 'تم إرسال إشعار للمستخدم');
+      });
+
+      // 30-second no-answer timer (caller side for online users)
+      noAnswerTimer.current = setTimeout(() => {
+        socket.emit('call:cancel', { targetUserId: calleeId });
+        stopCallingTone();
+        setOfflineRinging(null);
+        setCallStatus('no_answer');
+        setStatusMessage('لا يوجد رد');
+        setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
+        cleanup();
+      }, 30000);
     },
 
     hangup() {
-      if (active?.remoteSocketId) socket.emit('call:end', { otherSocketId: active.remoteSocketId });
+      if (active?.remoteSocketId) socket?.emit('call:end', { targetSocketId: active.remoteSocketId });
+      stopCallingTone();
       cleanup();
     },
-  }), [socket, currentUser, active, incoming]);
+  }), [socket, active, incoming, pushIncoming]);
 
-  // ─── Socket event handlers ─────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // SOCKET EVENT HANDLERS
+  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
     const getCurrent = () => currentUserRef.current;
-    const userId = (getCurrent()?._id || getCurrent()?.id) || '';
 
-    if (userId) {
-      socket.emit('join_user_room', { userId });
-      socket.emit('join', userId);
-    }
-
-    const onReconnect = () => {
+    // Join personal room on connect/reconnect
+    const joinRooms = () => {
       const uid = (getCurrent()?._id || getCurrent()?.id) || '';
       if (uid) {
         socket.emit('join_user_room', { userId: uid });
         socket.emit('join', uid);
-        console.log('[CallManager] Rejoined rooms after reconnect:', uid);
+        console.log('[CallManager] Joined rooms:', uid);
       }
     };
-    socket.on('reconnect', onReconnect);
-    socket.on('connect', onReconnect);
+    joinRooms();
+    socket.on('connect', joinRooms);
+    socket.on('reconnect', joinRooms);
 
-    // A5: onOffer — callee receives call:incoming WITH offer — store and show UI
-    const onOffer = ({ offer, callerSocketId, callerName, callerAvatar, callerId }) => {
-      console.log('[CALL] call:incoming — callerSocketId:', callerSocketId, '| callerName:', callerName);
-      // Store offer for when user taps Accept
-      pendingOfferRef.current = { offer, callerSocketId, callerName: callerName || 'مستخدم XTOX' };
-      setIncoming({ callerId: callerId || callerSocketId, callerName: callerName || 'مستخدم XTOX', callerAvatar: callerAvatar || '', callerSocketId });
+    // ── CALLEE SIDE: call:incoming ─────────────────────────────────────────
+    // Step 1: store offer + callerSocketId in pendingOffer, show incoming UI
+    const onIncoming = ({ offer, callerSocketId, callerName, callerAvatar, callerId }) => {
+      console.log('[CALL] call:incoming — callerSocketId:', callerSocketId, '| caller:', callerName);
+      pendingOffer.current = {
+        offer,
+        callerSocketId,
+        callerName: callerName || 'مستخدم XTOX',
+        callerAvatar: callerAvatar || '',
+      };
+      setIncoming({
+        callerId: callerId || callerSocketId,
+        callerName: callerName || 'مستخدم XTOX',
+        callerAvatar: callerAvatar || '',
+        callerSocketId,
+      });
       startRingtone();
     };
 
-    // A7: ICE candidate handling — buffer until remoteDescription is set
+    // ── ICE candidate relay (both sides) ──────────────────────────────────
     const onICE = async ({ candidate }) => {
       if (!candidate) return;
-      const p = pcRef.current;
-      if (!p) {
-        receivedICE.current.push(candidate);
+      const pc = pcRef.current;
+      if (!pc) {
+        bufferedICE.current.push(candidate);
         return;
       }
-      if (p.remoteDescription && p.remoteDescription.type) {
-        try {
-          await p.addIceCandidate(new RTCIceCandidate(candidate));
-          console.log('[CALL] ICE candidate added ✓');
-        } catch (e) {
-          console.warn('[CALL] addIceCandidate failed:', e.message);
-        }
+      if (pc.remoteDescription && pc.remoteDescription.type) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate))
+          .catch(e => console.warn('[CALL] addIceCandidate:', e.message));
       } else {
-        receivedICE.current.push(candidate);
-        console.log('[CALL] ICE buffered (no remoteDesc yet) — total:', receivedICE.current.length);
+        bufferedICE.current.push(candidate);
+        console.log('[CALL] remote ICE buffered (no remoteDesc yet) — total:', bufferedICE.current.length);
       }
     };
 
-    const onRejected    = () => { stopCallingTone(); stopRingtone(); cleanup(); };
-    const onEnded       = () => { stopRingtone(); cleanup(); };
-    const onCancelled   = () => {
-      console.log('[CallManager] Call cancelled by caller');
+    const onRejected = () => {
+      console.log('[CALL] call:rejected');
+      stopCallingTone();
+      cleanup();
+    };
+
+    const onEnded = () => {
+      console.log('[CALL] call:ended');
+      stopRingtone();
+      cleanup();
+    };
+
+    const onCancelled = () => {
+      console.log('[CALL] call:cancelled');
       stopRingtone();
       setIncoming(null);
-      pendingOfferRef.current = null;
+      pendingOffer.current = null;
     };
-    const onUnavailable = () => { stopCallingTone(); };
 
-    const onRingingOffline = ({ roomId, to, message }) => {
-      setOfflineRinging({ roomId, to });
-      setCallStatus('ringing_offline');
-      setStatusMessage(message || 'جارٍ الاتصال... المستخدم خارج التطبيق');
+    const onNoAnswer = () => {
+      console.log('[CALL] call:no_answer');
+      stopCallingTone();
+      setOfflineRinging(null);
+      setCallStatus('no_answer');
+      setStatusMessage('لا يوجد رد');
+      setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
+      cleanup();
     };
 
     const onExpired = () => {
@@ -435,63 +447,45 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       cleanup();
     };
 
-    const onAcceptedOk = ({ callerSocketId }) => {
-      // Push callee accepted — handled in acceptPushCall
-    };
-
     const onCalleeConnected = () => {
       setStatusMessage('جارٍ الاتصال...');
     };
 
-    const onNoAnswer = () => {
-      stopCallingTone();
-      cleanup();
-      setCallStatus('no_answer');
-      setStatusMessage('لا يوجد رد');
-      setTimeout(() => setCallStatus(null), 3000);
-    };
-
-    socket.on('call:incoming',         onOffer);
-    socket.on('call:ice',              onICE);
-    socket.on('call:rejected',         onRejected);
-    socket.on('call:ended',            onEnded);
-    socket.on('call:cancelled',        onCancelled);
-    socket.on('call:user_unavailable', onUnavailable);
-    socket.on('call:ringing_offline',  onRingingOffline);
-    socket.on('call:expired',          onExpired);
-    socket.on('call:accepted_ok',      onAcceptedOk);
-    socket.on('call:callee_connected', onCalleeConnected);
-    socket.on('call:no_answer',        onNoAnswer);
-
-    // ── Service Worker message: incoming call from push notification ──────
-    const onSWMessage = async (event) => {
+    // ── SW postMessage: incoming call via push notification ───────────────
+    const onSWMessage = (event) => {
       if (!event.data) return;
-      const { type, callerId, callerName, callerSocketId: swCallerSocketId, offer, roomId } = event.data;
+      const { type, callerId, callerName, callerSocketId, offer, roomId } = event.data;
       if (type === 'incoming_call_push' && offer && roomId) {
-        console.log('[CALL] SW message incoming_call_push — callerId:', callerId, '| callerSocketId:', swCallerSocketId);
-        setPushIncoming({ callerId, callerName, callerSocketId: swCallerSocketId, offer, roomId });
+        console.log('[CALL] SW postMessage — callerId:', callerId, '| callerSocketId:', callerSocketId);
+        setPushIncoming({ callerId, callerName, callerSocketId, offer, roomId });
         startRingtone();
       }
     };
+
+    socket.on('call:incoming',        onIncoming);
+    socket.on('call:ice',             onICE);
+    socket.on('call:rejected',        onRejected);
+    socket.on('call:ended',           onEnded);
+    socket.on('call:cancelled',       onCancelled);
+    socket.on('call:no_answer',       onNoAnswer);
+    socket.on('call:expired',         onExpired);
+    socket.on('call:callee_connected', onCalleeConnected);
 
     if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener('message', onSWMessage);
     }
 
     return () => {
-      socket.off('call:incoming',         onOffer);
-      socket.off('call:ice',              onICE);
-      socket.off('call:rejected',         onRejected);
-      socket.off('call:ended',            onEnded);
-      socket.off('call:cancelled',        onCancelled);
-      socket.off('call:user_unavailable', onUnavailable);
-      socket.off('call:ringing_offline',  onRingingOffline);
-      socket.off('call:expired',          onExpired);
-      socket.off('call:accepted_ok',      onAcceptedOk);
+      socket.off('connect',            joinRooms);
+      socket.off('reconnect',          joinRooms);
+      socket.off('call:incoming',      onIncoming);
+      socket.off('call:ice',           onICE);
+      socket.off('call:rejected',      onRejected);
+      socket.off('call:ended',         onEnded);
+      socket.off('call:cancelled',     onCancelled);
+      socket.off('call:no_answer',     onNoAnswer);
+      socket.off('call:expired',       onExpired);
       socket.off('call:callee_connected', onCalleeConnected);
-      socket.off('call:no_answer',        onNoAnswer);
-      socket.off('reconnect',             onReconnect);
-      socket.off('connect',               onReconnect);
       if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
         navigator.serviceWorker.removeEventListener('message', onSWMessage);
       }
@@ -505,147 +499,146 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     return () => clearInterval(t);
   }, [active]);
 
-  function hangup() {
-    if (active?.remoteSocketId) socket.emit('call:end', { otherSocketId: active.remoteSocketId });
-    if (offlineRinging?.roomId) socket.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
-    stopRingtone();
-    cleanup();
-  }
-
-  // A5: acceptCall — full WebRTC setup (callee side, socket call)
+  // ─────────────────────────────────────────────────────────────────────────
+  // CALLEE SIDE: acceptCall (socket-based incoming)
+  // ─────────────────────────────────────────────────────────────────────────
   async function acceptCall() {
-    const pending = pendingOfferRef.current;
+    const pending = pendingOffer.current;
     if (!pending) {
-      console.error('[CALL] acceptCall — no pending offer! pendingOfferRef is null');
-      // Fallback: if caller socket ID is known from incoming state but offer is missing,
-      // try legacy flow by signaling readiness
-      if (incoming?.callerSocketId) {
-        stopRingtone();
-        setIncoming(null);
-        socket.emit('call:answered_ready', { callerSocketId: incoming.callerSocketId });
-      }
+      console.error('[CALL] acceptCall — no pending offer!');
       return;
     }
-
     const { offer, callerSocketId, callerName } = pending;
     if (!callerSocketId) {
-      console.warn('[CALL] acceptCall — callerSocketId is null — waiting for socket event');
+      console.warn('[CALL] acceptCall — callerSocketId missing');
       return;
     }
 
     stopRingtone();
     setIncoming(null);
-    pendingOfferRef.current = null;
+    pendingOffer.current = null;
 
+    // Step 2 (callee): getUserMedia
     let stream;
     try {
       stream = await getAudio();
+      localStream.current = stream;
     } catch (e) {
+      console.error('[CALL] acceptCall getUserMedia failed:', e.message);
+      alert('خطأ في الميكروفون: ' + e.message);
       return;
     }
 
-    const p = createPC(callerSocketId);
+    // createPC → addTrack → setRemoteDescription → flushBufferedICE
+    // → createAnswer → setLocalDescription → emit call:answer
+    const pc = createPC();
     stream.getTracks().forEach(t => {
-      p.addTrack(t, stream);
+      pc.addTrack(t, stream);
       console.log('[CALL] callee addTrack:', t.kind);
     });
 
-    await p.setRemoteDescription(new RTCSessionDescription(offer));
-    console.log('[CALL] Callee set remote description ✓');
+    // Set ICE target immediately (we know callerSocketId)
+    setICETarget(callerSocketId);
 
-    // Flush ICE candidates that arrived before remote desc was set
-    if (receivedICE.current.length > 0) {
-      console.log('[CALL] Flushing', receivedICE.current.length, 'pre-buffered remote ICE candidates');
-      for (const c of receivedICE.current) {
-        await p.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('[CALL] addIceCandidate err:', e.message));
-      }
-      receivedICE.current = [];
-    }
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    console.log('[CALL] Callee remote description set ✓');
 
-    const answer = await p.createAnswer();
-    await p.setLocalDescription(answer);
+    // Flush remote ICE received before remote desc was set
+    await flushBufferedICE();
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
     console.log('[CALL] Callee answer created ✓ — SDP has audio:', answer.sdp.includes('m=audio'));
 
-    await applyBitrateCap(p, 16000);
+    socket.emit('call:answer', { callerSocketId, answer: pc.localDescription });
 
-    socket.emit('call:answer', { callerSocketId, answer: p.localDescription });
+    // Flush any local ICE already gathered
+    sendLocalICE(callerSocketId);
+
     setActive({ peerName: callerName, remoteSocketId: callerSocketId, startTime: Date.now() });
   }
 
   function rejectCall() {
-    if (incoming?.callerSocketId) socket.emit('call:reject', { callerSocketId: incoming.callerSocketId });
-    pendingOfferRef.current = null;
+    if (incoming?.callerSocketId) socket?.emit('call:reject', { callerSocketId: incoming.callerSocketId });
+    pendingOffer.current = null;
     stopRingtone();
     setIncoming(null);
   }
 
-  // ── Push call accept/reject ───────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // CALLEE SIDE: acceptPushCall (push-based incoming)
+  // ─────────────────────────────────────────────────────────────────────────
   async function acceptPushCall() {
     if (!pushIncoming) return;
-    const { callerId, callerName, offer, roomId } = pushIncoming;
-    console.log('[CALL] acceptPushCall — roomId:', roomId, '| callerId:', callerId, '| socket connected:', socket?.connected);
+    const { callerId, callerName, callerSocketId: swCallerSocketId, offer, roomId } = pushIncoming;
+    console.log('[CALL] acceptPushCall — roomId:', roomId, '| callerId:', callerId);
     stopRingtone();
     setPushIncoming(null);
 
+    // getUserMedia
     let stream;
     try {
       stream = await getAudio();
+      localStream.current = stream;
     } catch (e) {
+      console.error('[CALL] acceptPushCall getUserMedia failed:', e.message);
+      alert('خطأ في الميكروفون: ' + e.message);
       return;
     }
 
-    const p = createPC(null);
+    // createPC → addTrack → setRemoteDescription(offer)
+    const pc = createPC();
     stream.getTracks().forEach(t => {
-      p.addTrack(t, stream);
+      pc.addTrack(t, stream);
       console.log('[CALL] acceptPushCall addTrack:', t.kind);
     });
 
-    await p.setRemoteDescription(new RTCSessionDescription(offer));
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
     console.log('[CALL] acceptPushCall remote desc set ✓');
 
-    if (receivedICE.current.length > 0) {
-      for (const c of receivedICE.current) {
-        await p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-      }
-      receivedICE.current = [];
-    }
+    // flushBufferedICE → createAnswer → setLocalDescription
+    await flushBufferedICE();
 
-    const answer = await p.createAnswer();
-    await p.setLocalDescription(answer);
-    await applyBitrateCap(p, 16000);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
     console.log('[CALL] acceptPushCall answer created ✓');
 
+    // Wait for socket to be connected, then emit
     const emitAccept = () => {
-      console.log('[CALL] acceptPushCall — emitting call:accept_from_push');
-      socket.emit('call:accept_from_push', { roomId, answer: p.localDescription });
+      console.log('[CALL] acceptPushCall → emitting call:accept_from_push');
+      socket.emit('call:accept_from_push', { roomId, answer: pc.localDescription });
     };
 
     if (socket.connected) {
       emitAccept();
     } else {
-      socket.once('connect', () => { emitAccept(); });
+      socket.once('connect', emitAccept);
       socket.connect();
     }
 
+    // Listen for call:accepted_ok → get callerSocketId, send local ICE, set active
     socket.once('call:accepted_ok', ({ callerSocketId }) => {
       console.log('[CALL] acceptPushCall call:accepted_ok — callerSocketId:', callerSocketId);
-      if (p) {
-        p.onicecandidate = e => {
-          if (e.candidate && socket) {
-            socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: e.candidate });
-          }
-        };
-      }
-      flushPendingICE(callerSocketId);
+      setICETarget(callerSocketId);
+      sendLocalICE(callerSocketId);
       setActive({ peerName: callerName || 'مستخدم', remoteSocketId: callerSocketId, startTime: Date.now() });
     });
   }
 
   function rejectPushCall() {
     if (!pushIncoming) return;
-    socket.emit('call:reject_from_push', { roomId: pushIncoming.roomId });
+    socket?.emit('call:reject_from_push', { roomId: pushIncoming.roomId });
     stopRingtone();
     setPushIncoming(null);
+  }
+
+  // ── Hangup ────────────────────────────────────────────────────────────────
+  function hangup() {
+    if (active?.remoteSocketId) socket?.emit('call:end', { targetSocketId: active.remoteSocketId });
+    if (offlineRinging?.roomId) socket?.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
+    stopCallingTone();
+    stopRingtone();
+    cleanup();
   }
 
   function toggleMute() {
@@ -653,6 +646,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     setMuted(m => !m);
   }
 
+  // ── UI Styles ─────────────────────────────────────────────────────────────
   const overlay = {
     position: 'fixed',
     bottom: 80,
@@ -669,9 +663,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     direction: 'rtl',
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* A1: audio element ALWAYS in DOM — never conditional */}
+      {/* audio element ALWAYS in DOM — never conditional */}
       <audio
         ref={remoteAudio}
         id="xtox-remote-audio"
@@ -680,6 +675,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         style={{ display: 'none' }}
       />
 
+      {/* Incoming call (socket-based) */}
       {incoming && !active && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>
@@ -704,6 +700,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         </div>
       )}
 
+      {/* Incoming call (push-based) */}
       {pushIncoming && !active && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📲</div>
@@ -728,14 +725,17 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         </div>
       )}
 
+      {/* Outgoing call / ringing offline */}
       {offlineRinging && !active && !incoming && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: '#aaa' }}>جارٍ الاتصال...</div>
-          <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>{statusMessage || 'تم إرسال إشعار للمستخدم'}</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{offlineRinging.calleeName || 'جارٍ الاتصال...'}</div>
+          <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>{statusMessage || 'جارٍ الاتصال...'}</div>
           <button
             onClick={() => {
-              socket.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
+              if (offlineRinging?.roomId) socket?.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
+              socket?.emit('call:cancel', { targetUserId: offlineRinging?.calleeId });
+              stopCallingTone();
               cleanup();
             }}
             style={{ background: '#e74c3c', border: 'none', borderRadius: 24, padding: '10px 24px', color: '#fff', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>
@@ -744,14 +744,18 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         </div>
       )}
 
-      {callStatus === 'no_answer' && !active && (
+      {/* No answer / rejected status */}
+      {(callStatus === 'no_answer' || callStatus === 'rejected') && !active && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📵</div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: '#e74c3c' }}>لا يوجد رد</div>
-          <div style={{ fontSize: 13, color: '#aaa', marginTop: 6 }}>لم يرد المستخدم على المكالمة</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#e74c3c' }}>
+            {callStatus === 'rejected' ? 'تم رفض المكالمة' : 'لا يوجد رد'}
+          </div>
+          <div style={{ fontSize: 13, color: '#aaa', marginTop: 6 }}>{statusMessage}</div>
         </div>
       )}
 
+      {/* Active call */}
       {active && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>

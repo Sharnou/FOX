@@ -436,15 +436,28 @@ export function initSocket(io) {
           return;
         }
       } catch (e) { /* fetchSockets failed — proceed anyway */ }
-      // B1: emit call:incoming WITH offer so callee can do full WebRTC setup in acceptCall()
+      // Emit call:incoming WITH offer so callee can do full WebRTC setup in acceptCall()
       io.to('user_' + targetUserId).emit('call:incoming', {
         callerId: actualCallerId,
         callerName: callerName || 'مستخدم',
         callerAvatar: callerAvatar || '',
         callerSocketId: socket.id,
-        offer: offer || null,  // B1: include offer — callee needs it for acceptCall()
+        offer: offer || null,
       });
       console.log('[Socket] call:incoming (with offer) sent to user_' + targetUserId);
+      // 30-second no-answer timeout for online callee
+      const onlineNoAnswerKey = `online_${actualCallerId}_${targetUserId}`;
+      const onlineTimeout = setTimeout(() => {
+        pendingCalls.delete(onlineNoAnswerKey);
+        try {
+          io.to('user_' + actualCallerId).emit('call:no_answer', { calleeId: targetUserId });
+          io.to('user_' + targetUserId).emit('call:cancelled', { callerId: actualCallerId });
+        } catch {}
+      }, 30000);
+      pendingCalls.set(onlineNoAnswerKey, {
+        offer: null, callerId: actualCallerId, callerName, callerSocketId: socket.id,
+        to: targetUserId, timeout: onlineTimeout, timestamp: Date.now(),
+      });
     });
 
     // ── Offline push call: callee accepts via push notification ──────────
@@ -456,14 +469,14 @@ export function initSocket(io) {
       }
       clearTimeout(pending.timeout);
       pendingCalls.delete(roomId);
-      // Relay answer to the original caller
-      io.to(pending.callerSocketId).emit('call:answered', {
+      // Relay answer to the original caller — emit call:accepted (matches frontend socket.once)
+      io.to(pending.callerSocketId).emit('call:accepted', {
         answer,
-        responderSocketId: socket.id,
+        calleeSocketId: socket.id,
       });
-      // Tell callee to proceed
+      // Tell callee to proceed with callerSocketId so it can send ICE
       socket.emit('call:accepted_ok', { callerId: pending.callerId, callerSocketId: pending.callerSocketId });
-      console.log('[Socket] call:accept_from_push — roomId:', roomId, 'callee:', socket.id);
+      console.log('[Socket] call:accept_from_push — roomId:', roomId, '| callee:', socket.id, '→ caller:', pending.callerSocketId);
     });
 
     // ── Offline push call: callee rejects via push notification ──────────
@@ -495,16 +508,15 @@ export function initSocket(io) {
 
     // Responder sends SDP answer to caller
     socket.on('call:answer', ({ callerSocketId, answer }) => {
-      // B2: emit call:accepted (not call:answered) — must match frontend socket.once('call:accepted')
+      // Emit call:accepted — matches frontend socket.once('call:accepted')
       io.to(callerSocketId).emit('call:accepted', { answer, calleeSocketId: socket.id });
-      // Clean up any pending call for this callee
+      // Clean up any pending call for this callee (online timeout or push pending)
       const calleeId = socket.data.userId;
       if (calleeId) {
         for (const [roomId, pending] of pendingCalls.entries()) {
           if (String(pending.to) === String(calleeId)) {
             clearTimeout(pending.timeout);
             pendingCalls.delete(roomId);
-            break;
           }
         }
       }
@@ -532,8 +544,9 @@ export function initSocket(io) {
     });
 
     // End call
-    socket.on('call:end', ({ otherSocketId }) => {
-      io.to(otherSocketId).emit('call:ended');
+    socket.on('call:end', ({ targetSocketId, otherSocketId }) => {
+      const dest = targetSocketId || otherSocketId;
+      io.to(dest).emit('call:ended');
       // Clean up any pending call for this user (caller or callee)
       const userId = socket.data.userId;
       if (userId) {

@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v34';
+const _XTOX_CACHE = 'xtox-v35';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -102,9 +102,9 @@ self.addEventListener('periodicsync', function(event) {
               'Content-Type': 'application/json',
             },
           });
-          console.log('[SW v34] Presence ping sent ✓');
+          console.log('[SW v35] Presence ping sent ✓');
         } catch (e) {
-          console.log('[SW v34] Presence ping failed:', e.message);
+          console.log('[SW v35] Presence ping failed:', e.message);
         }
       })()
     );
@@ -132,7 +132,7 @@ function getStoredToken() {
 
 // ─── XTOX Service Worker v34 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v34';
+const CACHE_VERSION = 'v35';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -196,16 +196,16 @@ self.addEventListener('push', (event) => {
   try { data = event.data.json(); } catch { return; }
 
   if (data.type === 'incoming_call') {
-    // Include full call data (offer, roomId, etc.) in notification data
+    // Store offer as JSON string so notificationclick can JSON.parse it safely
     const notifData = {
       type: 'incoming_call',
       callerId: data.callerId || data.fromUserId || '',
       callerName: data.callerName || data.fromName || 'مستخدم XTOX',
       callerAvatar: data.callerAvatar || '',
-      callerSocketId: data.callerSocketId || '',  // Fix #82/#83: needed for direct WebRTC reconnect
-      offer: data.offer || null,
+      callerSocketId: data.callerSocketId || '',
+      offer: data.offer ? JSON.stringify(data.offer) : null,
       roomId: data.roomId || data.tag || '',
-      url: data.data?.url || `/chat?call=incoming&roomId=${data.roomId || ''}&callerId=${data.callerId || ''}`,
+      url: '/',
     };
 
     event.waitUntil(
@@ -215,13 +215,13 @@ self.addEventListener('push', (event) => {
           body: data.body || `${notifData.callerName} يتصل بك`,
           icon: data.icon || '/icon-192.png',
           badge: data.badge || '/icon-192.png',
-          tag: data.tag || `call-${notifData.roomId}`,
+          tag: 'incoming-call-' + notifData.roomId,
           requireInteraction: true,
           renotify: true,
           vibrate: [500, 200, 500, 200, 500, 200, 500],
           actions: [
             { action: 'answer', title: '📞 رد' },
-            { action: 'reject', title: '❌ رفض' },
+            { action: 'decline', title: '❌ رفض' },
           ],
           data: notifData,
         }
@@ -274,21 +274,14 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = notifData.url || '/chat';
 
   if (notifData.type === 'incoming_call') {
-    // autoAnswer URL: CallManager detects this query param on load and auto-answers the call
-    const callUrl = notifData.url || `/chat?call=incoming&roomId=${notifData.roomId}&callerId=${notifData.callerId}`;
-    const autoAnswerUrl = `/chat?call=incoming&autoAnswer=true&roomId=${notifData.roomId}&callerId=${notifData.callerId}`;
-    const rejectUrl = `/chat?reject_call=${notifData.roomId}&callerId=${notifData.callerId}`;
-
-    if (event.action === 'reject') {
-      // Just close the notification — socket is not connected in background anyway
-      // The pending call will timeout naturally on the server (60s TTL)
+    // decline action → just close notification (no socket in background)
+    if (event.action === 'decline') {
       event.waitUntil(Promise.resolve());
       return;
     }
 
-    // answer action OR clicked body → open app and post message with call data
-    // Fix #82: pass callerSocketId in URL and postMessage so CallManager can connect directly
-    const autoAnswerWithSocketUrl = `/?autoAnswer=${notifData.callerId}_${notifData.callerSocketId}&callerName=${encodeURIComponent(notifData.callerName)}`;
+    // answer action OR body click → focus existing window + postMessage, or open new window
+    const autoAnswerUrl = `/?autoAnswer=${notifData.callerId}_${encodeURIComponent(notifData.callerSocketId)}&callerName=${encodeURIComponent(notifData.callerName)}`;
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
         const callData = {
@@ -296,11 +289,12 @@ self.addEventListener('notificationclick', (event) => {
           callerId: notifData.callerId,
           callerName: notifData.callerName,
           callerAvatar: notifData.callerAvatar,
-          callerSocketId: notifData.callerSocketId,  // Fix #82: include callerSocketId
-          offer: notifData.offer,
+          callerSocketId: notifData.callerSocketId,
+          // Parse offer back from JSON string
+          offer: notifData.offer ? JSON.parse(notifData.offer) : null,
           roomId: notifData.roomId,
         };
-        // Try to focus an existing window and send it the call data via postMessage
+        // Focus an existing window and postMessage the call data
         for (const client of clientList) {
           if ('focus' in client) {
             client.focus();
@@ -308,8 +302,8 @@ self.addEventListener('notificationclick', (event) => {
             return;
           }
         }
-        // No existing window — open with autoAnswer=callerId_socketId (Fix #82)
-        return clients.openWindow(event.action === 'answer' ? autoAnswerWithSocketUrl : callUrl);
+        // No existing window → open app with autoAnswer query param
+        return clients.openWindow(autoAnswerUrl);
       })
     );
     return;
