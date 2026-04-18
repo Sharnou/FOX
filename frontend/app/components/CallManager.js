@@ -41,6 +41,46 @@ const AUDIO_CONSTRAINTS = {
 
 const NO_ANSWER_TIMEOUT_MS = 30000; // 30 seconds
 
+// ─── Web Audio API calling tone (no external file needed) ────────────────────
+// Plays a repeating ring-back tone pattern: 1s ring, 2s silence
+let _callingCtx = null;
+let _callingTimer = null;
+let _callingActive = false;
+
+function playCallingTone() {
+  if (_callingActive) return;
+  _callingActive = true;
+  const beep = () => {
+    if (!_callingActive) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      _callingCtx = ctx;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      // Two-tone ring: 440Hz then 480Hz (classic phone ring-back)
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.setValueAtTime(480, ctx.currentTime + 0.5);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 1.0);
+      osc.onended = () => { try { ctx.close(); } catch {} };
+    } catch (e) {}
+    // Ring again after 3 seconds (1s ring + 2s silence)
+    _callingTimer = setTimeout(beep, 3000);
+  };
+  beep();
+}
+
+function stopCallingTone() {
+  _callingActive = false;
+  clearTimeout(_callingTimer);
+  _callingTimer = null;
+  try { if (_callingCtx) { _callingCtx.close(); _callingCtx = null; } } catch {}
+}
+
 const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref) {
   const [incoming, setIncoming] = useState(null);   // { callerId, callerName, callerSocketId }
   const [active, setActive]     = useState(null);   // { peerName, remoteSocketId, startTime }
@@ -92,6 +132,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     localStream.current?.getTracks().forEach(t => t.stop());
     localStream.current = null;
     stopRingtone();
+    stopCallingTone();
     setActive(null);
     setIncoming(null);
     setPushIncoming(null);
@@ -142,7 +183,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     p.oniceconnectionstatechange = () => {
       const s = p.iceConnectionState;
       console.log('[WebRTC] ICE state:', s);
-      if (s === 'failed' || s === 'disconnected' || s === 'closed') {
+      // 'disconnected' is a temporary state — ICE may recover, so do NOT cleanup immediately
+      // Only cleanup on unrecoverable states: 'failed' or 'closed'
+      if (s === 'failed' || s === 'closed') {
         cleanup();
       }
     };
@@ -236,15 +279,20 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
           offer: p.localDescription,  // SDP offer for offline push answering
         });
 
+        // Play outgoing ring-back tone for caller
+        playCallingTone();
+
         // Start 30-second no-answer timer — cancel call and notify callee to stop ringing
         noAnswerTimer.current = setTimeout(() => {
           socket.emit('call:cancel', { targetUserId });  // callee stops ringing
+          stopCallingTone();
           cleanup();
         }, NO_ANSWER_TIMEOUT_MS);
 
         // Wait for responder to be ready, then send offer + flush buffered ICE
         socket.once('call:answered_ready', async ({ responderSocketId }) => {
           clearTimeout(noAnswerTimer.current);
+          stopCallingTone();
           // Update onicecandidate to send directly now we know the socket ID
           if (pc.current) {
             pc.current.onicecandidate = e => {
@@ -263,6 +311,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         socket.once('call:answered', async ({ answer, responderSocketId }) => {
           try {
             clearTimeout(noAnswerTimer.current);
+            stopCallingTone();
             if (pc.current) {
               await pc.current.setRemoteDescription(new RTCSessionDescription(answer));
               console.log('[WebRTC] Caller set remote description (answer)');
