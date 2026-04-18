@@ -19,6 +19,10 @@ export async function connectCouchbase() {
   // Stop retrying if we've hit the cap
   if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) return false;
 
+  if (process.env.COUCHBASE_ENABLED !== 'true') {
+    return false; // silent skip
+  }
+
   // Skip entirely if not configured — prevents noisy 30-second timeout on Railway
   if (!COUCHBASE_URL || !COUCHBASE_PASS) {
     console.warn('[COUCHBASE] Not configured (COUCHBASE_URL/COUCHBASE_PASS missing) — caching disabled');

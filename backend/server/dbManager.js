@@ -38,6 +38,11 @@ async function tryMongoDB() {
 
 // ── Attempt Couchbase connection (5s timeout — reduced, fire-and-forget) ─────
 async function tryCouchbase() {
+  // Couchbase is opt-in — must explicitly set COUCHBASE_ENABLED=true
+  if (process.env.COUCHBASE_ENABLED !== 'true') {
+    // Silent skip — no log spam
+    throw new Error('Couchbase not enabled');
+  }
   // Stop retrying after cap — prevents log spam
   if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) {
     return null;
