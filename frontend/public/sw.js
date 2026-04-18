@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v21';
+const _XTOX_CACHE = 'xtox-v22';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -92,7 +92,7 @@ self.addEventListener('periodicsync', function(event) {
 
 // ─── XTOX Service Worker v21 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v21';
+const CACHE_VERSION = 'v22';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -153,7 +153,7 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
 
   let data;
-  try { data = JSON.parse(event.data.text()); } catch { return; }
+  try { data = event.data.json(); } catch { return; }
 
   if (data.type === 'incoming_call') {
     // Include full call data (offer, roomId, etc.) in notification data
@@ -162,6 +162,7 @@ self.addEventListener('push', (event) => {
       callerId: data.callerId || data.fromUserId || '',
       callerName: data.callerName || data.fromName || 'مستخدم XTOX',
       callerAvatar: data.callerAvatar || '',
+      callerSocketId: data.callerSocketId || '',  // Fix #82/#83: needed for direct WebRTC reconnect
       offer: data.offer || null,
       roomId: data.roomId || data.tag || '',
       url: data.data?.url || `/chat?call=incoming&roomId=${data.roomId || ''}&callerId=${data.callerId || ''}`,
@@ -244,7 +245,9 @@ self.addEventListener('notificationclick', (event) => {
       return;
     }
 
-    // accept OR clicked body → open app and post message with call data
+    // answer action OR clicked body → open app and post message with call data
+    // Fix #82: pass callerSocketId in URL and postMessage so CallManager can connect directly
+    const autoAnswerWithSocketUrl = `/?autoAnswer=${notifData.callerId}_${notifData.callerSocketId}&callerName=${encodeURIComponent(notifData.callerName)}`;
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
         const callData = {
@@ -252,10 +255,11 @@ self.addEventListener('notificationclick', (event) => {
           callerId: notifData.callerId,
           callerName: notifData.callerName,
           callerAvatar: notifData.callerAvatar,
+          callerSocketId: notifData.callerSocketId,  // Fix #82: include callerSocketId
           offer: notifData.offer,
           roomId: notifData.roomId,
         };
-        // Try to focus an existing window and send it the call data
+        // Try to focus an existing window and send it the call data via postMessage
         for (const client of clientList) {
           if ('focus' in client) {
             client.focus();
@@ -263,8 +267,8 @@ self.addEventListener('notificationclick', (event) => {
             return;
           }
         }
-        // No existing window — open with autoAnswer flag so CallManager can auto-answer
-        return clients.openWindow(event.action === 'answer' ? autoAnswerUrl : callUrl);
+        // No existing window — open with autoAnswer=callerId_socketId (Fix #82)
+        return clients.openWindow(event.action === 'answer' ? autoAnswerWithSocketUrl : callUrl);
       })
     );
     return;
