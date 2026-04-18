@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v37';
+const _XTOX_CACHE = 'xtox-v38';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -102,9 +102,9 @@ self.addEventListener('periodicsync', function(event) {
               'Content-Type': 'application/json',
             },
           });
-          console.log('[SW v37] Presence ping sent ✓');
+          console.log('[SW v38] Presence ping sent ✓');
         } catch (e) {
-          console.log('[SW v37] Presence ping failed:', e.message);
+          console.log('[SW v38] Presence ping failed:', e.message);
         }
       })()
     );
@@ -132,7 +132,7 @@ function getStoredToken() {
 
 // ─── XTOX Service Worker v34 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v37';
+const CACHE_VERSION = 'v38';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -306,7 +306,12 @@ self.addEventListener('notificationclick', (event) => {
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
         // Build the callData to postMessage
         let parsedOffer = null;
-        try { parsedOffer = JSON.parse(notifData.offer); } catch {}
+        try {
+          // If offer is already a JS object (browser parsed the push JSON), use it directly
+          parsedOffer = (typeof notifData.offer === 'object' && notifData.offer !== null)
+            ? notifData.offer
+            : JSON.parse(notifData.offer);
+        } catch {}
 
         const callData = {
           type: 'incoming_call_push',
@@ -354,7 +359,7 @@ self.addEventListener('notificationclose', (event) => {
   const notifData = event.notification.data || {};
   if (notifData.type === 'incoming_call') {
     // Notify backend of missed call (fire and forget)
-    fetch('/api/calls/missed', {
+    fetch(_XTOX_API + '/api/calls/missed', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ callerId: notifData.callerId, roomId: notifData.roomId }),

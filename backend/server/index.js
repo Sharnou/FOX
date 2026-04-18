@@ -76,6 +76,7 @@ import promoteRouter from '../routes/promote.js';
 import whatsappRouter from '../routes/whatsapp.js';
 import notificationRoutes from '../routes/notifications.js';
 import pushRoutes from '../routes/push.js';
+import iceRoutes from '../routes/ice.js';
 import winnerRouter from '../routes/winner.js';
 import wpRouter from "../routes/wp.js";
 import translationsRouter from '../routes/translations.js';
@@ -255,6 +256,7 @@ app.use('/api/promote', promoteRouter);
 app.use('/api/whatsapp', whatsappRouter); // WhatsApp chatbot webhook (no auth — UltraMsg posts here)
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/ice', iceRoutes);
 app.use('/api/winner', winnerRouter);
 app.use('/api/wp', wpRouter); // WordPress.com OAuth2 + auto-sync
 app.use('/api/translations', translationsRouter); // Auto-generate translations via OpenAI + MongoDB cache

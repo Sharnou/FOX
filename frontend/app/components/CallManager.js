@@ -1,16 +1,27 @@
 'use client';
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 
-// ─── ICE Configuration (STUN + TURN for NAT traversal) ──────────────────────
-const ICE_CONFIG = {
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+
+// ─── ICE Configuration fallback (STUN + TURN for NAT traversal) ─────────────
+// Loaded dynamically from /api/ice/credentials on mount; this is the fallback.
+const ICE_CONFIG_FALLBACK = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    // OpenRelay (primary)
     { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turns:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    // FreeSWITCH public TURN (backup)
+    { urls: 'turn:relay1.expressturn.com:3478', username: 'efUN37POS8DY1RLZEP', credential: 'D6IHNBJLFg9wkHLv' },
+    // Numb.viagenie (backup)
+    { urls: 'turn:numb.viagenie.ca', credential: 'muazkh', username: 'webrtc@live.com' },
   ],
+  iceCandidatePoolSize: 10,
+  iceTransportPolicy: 'all',
 };
 
 // ─── getUserMedia — simple constraints, no exotic params ────────────────────
@@ -23,8 +34,8 @@ async function getAudio() {
 
 // ── Opus 4 kbps SDP cap (Egypt low-bandwidth) ──────────────────────────────
 // FIX Bug-B: b=AS:4 must be inserted AFTER the c= line (SDP spec §5.14).
-// The old code inserted it BEFORE c=, which some SDP parsers reject entirely.
-// Correct SDP section order: m=audio → c= → b=AS:4 → a=rtpmap → a=fmtp
+// NOTE: Only applied to OFFER (caller side). Answers must NOT be capped
+//       because cap4kbps in an answer breaks remote audio send parameters.
 function cap4kbps(sdp) {
   const m = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
   if (!m) return sdp;
@@ -110,7 +121,11 @@ function stopCallingTone() {
   _callingActive = false;
   clearTimeout(_callingTimer);
   _callingTimer = null;
-  try { if (_callingCtx) { _callingCtx.close(); _callingCtx = null; } } catch {}
+  // ERROR 5 fix: guard AudioContext close with try/catch — may already be closed
+  if (_callingCtx) {
+    try { _callingCtx.close(); } catch (e) { /* already closed — ignore */ }
+    _callingCtx = null;
+  }
 }
 
 const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref) {
@@ -124,6 +139,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const [callStatus, setCallStatus]     = useState(null); // 'no_answer' | null
   const [statusMessage, setStatusMessage] = useState('');
   const [pushSent, setPushSent]         = useState(false);
+  // Phase 3: ICE config fetched from backend; ICE_CONFIG_FALLBACK used until fetch resolves
+  const [iceConfig, setIceConfig]       = useState(ICE_CONFIG_FALLBACK);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const remoteAudio      = useRef(null);   // <audio> element — always in DOM
@@ -135,7 +152,26 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const ringtoneRef      = useRef(null);
   const noAnswerTimer    = useRef(null);
   const currentUserRef   = useRef(currentUser);
+  const iceConfigRef     = useRef(ICE_CONFIG_FALLBACK); // ref copy for stale-closure safety
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // ── Phase 3: Fetch ICE credentials from backend on mount ─────────────────
+  useEffect(() => {
+    fetch(`${BACKEND}/api/ice/credentials`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.iceServers) {
+          const cfg = { ...data, iceCandidatePoolSize: 10, iceTransportPolicy: 'all' };
+          setIceConfig(cfg);
+          iceConfigRef.current = cfg;
+          console.log('[CALL] ICE config loaded from backend ✓');
+        }
+      })
+      .catch(() => {
+        // Use ICE_CONFIG_FALLBACK — already set as default state
+        console.warn('[CALL] ICE credentials fetch failed — using fallback TURN servers');
+      });
+  }, []);
 
   // ── URL autoAnswer detection (push opened app with autoAnswer= param) ─────
   useEffect(() => {
@@ -213,7 +249,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   function createPC() {
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
 
-    const pc = new RTCPeerConnection(ICE_CONFIG);
+    // Use ref copy to avoid stale-closure issues in useImperativeHandle
+    const pc = new RTCPeerConnection(iceConfigRef.current);
     pcRef.current = pc;
 
     // Audio output: attach remote stream to <audio> element
@@ -323,20 +360,21 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         console.log('[CALL] caller addTrack:', t.kind);
       });
 
-      // Step 4-6: createOffer → cap4kbps → setLocalDescription
+      // Step 4-6: createOffer → cap4kbps (OFFER ONLY) → setLocalDescription
       const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
       const cappedOffer = { type: offer.type, sdp: cap4kbps(offer.sdp) };
       await pc.setLocalDescription(cappedOffer);
       console.log('[CALL] Offer created — SDP has audio:', cappedOffer.sdp.includes('m=audio'));
 
-      // Step 7: emit call:initiate (with capped offer)
+      // Step 7: emit call:initiate — ERROR 1 FIX: serialize as plain object
       const callerName   = currentUserRef.current?.name || currentUserRef.current?.username || 'مستخدم';
       const callerAvatar = currentUserRef.current?.avatar || '';
       socket.emit('call:initiate', {
         calleeId,
         callerName,
         callerAvatar,
-        offer: pc.localDescription,
+        // ERROR 1 FIX: plain object — RTCSessionDescription loses 'type' through JSON
+        offer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
       });
 
       // Step 8: show "Calling..." outgoing UI
@@ -359,11 +397,18 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         setStatusMessage('');
         setPushSent(false);
 
+        // ERROR 1 FIX: guard — validate answer before setRemoteDescription
+        if (!answer || !answer.type || !answer.sdp) {
+          console.error('[CALL] call:accepted — invalid answer object:', answer);
+          cleanup();
+          return;
+        }
+
         // Update ICE target now that we know callee's socket ID
         setICETarget(calleeSocketId);
 
-        // Set remote description
-        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        // Set remote description — use plain object to avoid null 'type'
+        await pc.setRemoteDescription(new RTCSessionDescription({ type: answer.type, sdp: answer.sdp }));
         console.log('[CALL] Caller set remote description ✓');
 
         // Flush any remote ICE that arrived before remote desc
@@ -593,7 +638,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     }
 
     // createPC → addTrack → setRemoteDescription → flushBufferedICE
-    // → createAnswer → cap4kbps → setLocalDescription → emit call:answer
+    // → createAnswer → setLocalDescription → emit call:answer
     const pc = createPC();
     stream.getTracks().forEach(t => {
       pc.addTrack(t, stream);
@@ -603,18 +648,30 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     // Set ICE target immediately (we know callerSocketId)
     setICETarget(callerSocketId);
 
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    // ERROR 1 FIX: guard — validate offer before setRemoteDescription
+    if (!offer || !offer.type || !offer.sdp) {
+      console.error('[CALL] setRemoteDescription aborted — invalid offer:', offer);
+      cleanup();
+      return;
+    }
+    // ERROR 1 FIX: use plain object { type, sdp } — avoids null type from RTCSessionDescription
+    await pc.setRemoteDescription(new RTCSessionDescription({ type: offer.type, sdp: offer.sdp }));
     console.log('[CALL] Callee remote description set ✓');
 
     // Flush remote ICE received before remote desc was set
     await flushBufferedICE();
 
+    // ERROR 2 FIX: Do NOT apply cap4kbps to answer — breaks audio send parameters.
+    // cap4kbps is ONLY applied to the offer (caller side, in initiateCall).
     const answer = await pc.createAnswer();
-    const cappedAnswer = { type: answer.type, sdp: cap4kbps(answer.sdp) };
-    await pc.setLocalDescription(cappedAnswer);
-    console.log('[CALL] Callee answer created ✓ — SDP has audio:', cappedAnswer.sdp.includes('m=audio'));
+    await pc.setLocalDescription(answer);
+    console.log('[CALL] Callee answer created ✓ — SDP has audio:', pc.localDescription.sdp.includes('m=audio'));
 
-    socket.emit('call:answer', { callerSocketId, answer: pc.localDescription });
+    // ERROR 1 FIX: serialize answer as plain object — never pass RTCSessionDescription
+    socket.emit('call:answer', {
+      callerSocketId,
+      answer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
+    });
 
     // Flush any local ICE already gathered
     sendLocalICE(callerSocketId);
@@ -657,21 +714,32 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       console.log('[CALL] acceptPushCall addTrack:', t.kind);
     });
 
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    // ERROR 1 FIX: guard — validate offer before setRemoteDescription
+    if (!offer || !offer.type || !offer.sdp) {
+      console.error('[CALL] acceptPushCall setRemoteDescription aborted — invalid offer:', offer);
+      cleanup();
+      return;
+    }
+    // ERROR 1 FIX: use plain object { type, sdp }
+    await pc.setRemoteDescription(new RTCSessionDescription({ type: offer.type, sdp: offer.sdp }));
     console.log('[CALL] acceptPushCall remote desc set ✓');
 
-    // flushBufferedICE → createAnswer → cap4kbps → setLocalDescription
+    // flushBufferedICE → createAnswer → setLocalDescription (NO cap4kbps on answer)
     await flushBufferedICE();
 
+    // ERROR 2 FIX: Do NOT apply cap4kbps to answer
     const answer = await pc.createAnswer();
-    const cappedAnswer = { type: answer.type, sdp: cap4kbps(answer.sdp) };
-    await pc.setLocalDescription(cappedAnswer);
+    await pc.setLocalDescription(answer);
     console.log('[CALL] acceptPushCall answer created ✓');
 
     // Wait for socket to be connected, then emit
     const emitAccept = () => {
       console.log('[CALL] acceptPushCall → emitting call:accept_from_push');
-      socket.emit('call:accept_from_push', { roomId, answer: pc.localDescription });
+      // ERROR 1 FIX: serialize answer as plain object
+      socket.emit('call:accept_from_push', {
+        roomId,
+        answer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
+      });
     };
 
     if (socket.connected) {
