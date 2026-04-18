@@ -102,6 +102,25 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const currentUserRef   = useRef(currentUser);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
+  // ─── B4: Detect ?autoAnswer=true in URL — show incoming call UI immediately ─
+  // When callee opens app from push notification, pre-show the incoming call UI
+  // while waiting for socket to replay call:incoming with the correct callerSocketId
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('autoAnswer') === 'true') {
+      const callerId = params.get('callerId') || params.get('roomId') || '';
+      const callerName = params.get('callerName') || 'مستخدم XTOX';
+      if (callerId) {
+        console.log('[CALL] autoAnswer URL detected — pre-showing incoming call UI for:', callerId);
+        // Pre-show incoming call overlay; callerSocketId is null until socket replays call:incoming
+        // acceptCall() guards against null callerSocketId — user must wait for socket event
+        setIncoming({ callerId, callerName, callerSocketId: null });
+        startRingtone();
+      }
+    }
+  }, []);
+
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   // ─── Ringtone helpers ────────────────────────────────────────────────────────
@@ -161,15 +180,16 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
     // ─── Fix B: ontrack — set volume/muted explicitly, handle autoplay block ───
     p.ontrack = e => {
-      console.log('[WebRTC] Remote track received:', e.track.kind, 'streams:', e.streams.length);
+      console.log('[CALL] ontrack fired — track:', e.track.kind, '| streams:', e.streams.length, '| remoteAudioRef valid:', !!remoteAudio.current);
       if (remoteAudio.current && e.streams && e.streams[0]) {
         remoteAudio.current.srcObject = e.streams[0];
         remoteAudio.current.volume = 1.0;
         remoteAudio.current.muted = false;
+        console.log('[CALL] Set remoteAudio.srcObject — stream tracks:', e.streams[0].getTracks().length);
         remoteAudio.current.play()
-          .then(() => console.log('[WebRTC] Remote audio playing ✓'))
+          .then(() => console.log('[CALL] Remote audio playing ✓'))
           .catch(err => {
-            console.warn('[WebRTC] Audio autoplay blocked:', err.message, '— attaching click handler');
+            console.warn('[CALL] Audio autoplay blocked:', err.message, '— attaching click/touch handler for recovery');
             // Recover from autoplay block on first user interaction
             const resume = () => {
               remoteAudio.current?.play().catch(() => {});
@@ -180,13 +200,13 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
             document.addEventListener('touchend', resume, { once: true });
           });
       } else {
-        console.error('[WebRTC] ontrack fired but remoteAudio ref or streams missing!');
+        console.error('[CALL] ontrack fired but remoteAudio ref or streams missing! remoteAudio:', !!remoteAudio.current, 'streams[0]:', !!(e.streams && e.streams[0]));
       }
     };
 
     p.oniceconnectionstatechange = () => {
       const s = p.iceConnectionState;
-      console.log('[WebRTC] ICE state:', s);
+      console.log('[CALL] ICE connection state:', s);
       // 'disconnected' is a temporary state — ICE may recover, so do NOT cleanup immediately
       // Only cleanup on unrecoverable states: 'failed' or 'closed'
       if (s === 'failed' || s === 'closed') {
@@ -195,7 +215,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     };
 
     p.onconnectionstatechange = () => {
-      console.log('[WebRTC] Connection state:', p.connectionState);
+      console.log('[CALL] Peer connection state:', p.connectionState);
+    };
+    p.onicegatheringstatechange = () => {
+      console.log('[CALL] ICE gathering state:', p.iceGatheringState);
     };
 
     pc.current = p;
@@ -250,12 +273,14 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       }
       try {
         // ─── Fix A: Get microphone FIRST before creating PC or offer ─────────
+        console.log('[CALL] initiateCall() — getting microphone first');
         const stream = await getAudio().catch(err => {
           if (err.name === 'NotAllowedError') {
             alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
           }
           throw err;
         });
+        console.log('[CALL] Got microphone ✓ tracks:', stream.getTracks().length);
 
         // Create PC with null remote socket ID — ICE will be buffered
         const p = createPC(null);
@@ -263,13 +288,13 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         // ─── Fix A: Add tracks BEFORE createOffer ────────────────────────────
         stream.getTracks().forEach(t => {
           p.addTrack(t, stream);
-          console.log('[WebRTC] Caller added local track:', t.kind);
+          console.log('[CALL] Caller addTrack:', t.kind, '| enabled:', t.enabled);
         });
 
         // Now create offer (tracks already present → SDP includes audio)
         const offer = await p.createOffer({ offerToReceiveAudio: true });
         await p.setLocalDescription(offer);
-        console.log('[WebRTC] Caller created offer, SDP has audio:', offer.sdp.includes('m=audio'));
+        console.log('[CALL] Caller created offer — SDP audio:', offer.sdp.includes('m=audio'), '| SDP excerpt:', offer.sdp.substring(0, 200));
 
         const callerId   = currentUser?._id || currentUser?.id || '';
         const callerName = currentUser?.name || 'مستخدم';
@@ -318,7 +343,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
             stopCallingTone();
             if (pc.current) {
               await pc.current.setRemoteDescription(new RTCSessionDescription(answer));
-              console.log('[WebRTC] Caller set remote description (answer)');
+              console.log('[CALL] Caller set remote desc (answer) — ICE state:', pc.current.iceConnectionState, '| connection:', pc.current.connectionState);
               // Flush any ICE candidates received before answer's remote description
               for (const c of receivedICE.current) {
                 await pc.current.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
@@ -385,11 +410,11 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         // ─── Fix A: Add local tracks BEFORE setRemoteDescription ─────────────
         stream.getTracks().forEach(t => {
           p.addTrack(t, stream);
-          console.log('[WebRTC] Callee added local track:', t.kind);
+          console.log('[CALL] Callee addTrack:', t.kind, '| enabled:', t.enabled);
         });
 
         await p.setRemoteDescription(new RTCSessionDescription(offer));
-        console.log('[WebRTC] Callee set remote description (offer)');
+        console.log('[CALL] Callee set remote desc (offer) — ICE state:', p.iceConnectionState, '| connection:', p.connectionState);
 
         // Flush any ICE candidates that arrived before the remote description was set
         for (const c of receivedICE.current) {
@@ -399,7 +424,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
         const answer = await p.createAnswer();
         await p.setLocalDescription(answer);
-        console.log('[WebRTC] Callee created answer');
+        console.log('[CALL] Callee created answer — SDP audio:', answer.sdp.includes('m=audio'));
 
         socket.emit('call:answer', { callerSocketId, answer });
       } catch (e) {
@@ -553,7 +578,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       });
 
       await p.setRemoteDescription(new RTCSessionDescription(offer));
-      console.log('[WebRTC] Push-callee set remote description (offer)');
+      console.log('[CALL] Push-callee set remote desc (offer) — ICE:', p.iceConnectionState);
 
       for (const c of receivedICE.current) {
         await p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
@@ -562,7 +587,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
       const answer = await p.createAnswer();
       await p.setLocalDescription(answer);
-      console.log('[WebRTC] Push-callee created answer');
+      console.log('[CALL] Push-callee created answer — SDP audio:', answer.sdp.includes('m=audio'));
 
       socket.emit('call:accept_from_push', { roomId, answer: p.localDescription });
 
@@ -576,6 +601,17 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
             }
           };
         }
+        // CRITICAL: flush any ICE candidates buffered while callerSocketId was unknown
+        // Without this, all candidates gathered during WebRTC setup are silently lost
+        // which breaks push-based calls (both sides connect but hear silence)
+        if (pendingICE.current.length > 0) {
+          console.log('[CALL] Push-callee flushing', pendingICE.current.length, 'buffered ICE candidates to caller:', callerSocketId);
+          pendingICE.current.forEach(c => {
+            socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: c });
+          });
+          pendingICE.current = [];
+        }
+        console.log('[CALL] Push-callee call:accepted_ok — callerSocketId:', callerSocketId);
         setActive({ peerName: callerName || 'مستخدم', remoteSocketId: callerSocketId, startTime: Date.now() });
       });
     } catch (e) {
@@ -593,8 +629,15 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
   async function acceptCall() {
     const { callerSocketId, callerName } = incoming;
+    // Guard: callerSocketId is null when pre-set by autoAnswer URL param
+    // — wait for socket to replay call:incoming with the real callerSocketId
+    if (!callerSocketId) {
+      console.warn('[CALL] acceptCall() called but callerSocketId is null — waiting for call:incoming socket event');
+      return;
+    }
     stopRingtone();
     setIncoming(null);
+    console.log('[CALL] acceptCall() — emitting call:answered_ready to:', callerSocketId);
     // Signal caller that we're ready to receive the offer
     socket.emit('call:answered_ready', { callerSocketId });
     // Set active immediately to show the active call overlay
