@@ -62,6 +62,12 @@ export default function ProfilePage({ params }) {
   const [isCurrentWinner, setIsCurrentWinner] = React.useState(false);
   const avatarInputRef = useRef(null);
 
+  // ── FIX: seller review hooks ABOVE all conditional returns (Rules of Hooks) ──
+  const [sellerReviews, setSellerReviews] = React.useState([]);
+  const [sellerAvgRating, setSellerAvgRating] = React.useState(0);
+  const [sellerReviewCount, setSellerReviewCount] = React.useState(0);
+  const [reviewsLoaded, setReviewsLoaded] = React.useState(false);
+
   // ── Fix 1: redirect if params.id is invalid ──────────────────────────
   useEffect(() => {
     const id = params?.id;
@@ -237,11 +243,6 @@ export default function ProfilePage({ params }) {
   if (!data) return null;
 
   const { user, ads } = data;
-  // Reviews loaded separately from new endpoint
-  const [sellerReviews, setSellerReviews] = React.useState([]);
-  const [sellerAvgRating, setSellerAvgRating] = React.useState(0);
-  const [sellerReviewCount, setSellerReviewCount] = React.useState(0);
-  const [reviewsLoaded, setReviewsLoaded] = React.useState(false);
   const isOwnProfile = myUserId === params?.id;
 
   // Renamed to lowercase to avoid TDZ risk after minification (depends on state)
@@ -404,8 +405,8 @@ export default function ProfilePage({ params }) {
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
             <a href={'/chat?target=' + params.id}
               onClick={(e) => {
-                const token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
-                if (!token) {
+                const tok = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+                if (!tok) {
                   e.preventDefault();
                   window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
                 }
