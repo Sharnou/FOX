@@ -40,47 +40,38 @@ function cap4kbps(sdp) {
   const m = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
   if (!m) return sdp;
   const pt = m[1];
-
-  // 4000 bps cap with FEC, DTX and 20ms packet time for low-bandwidth links
   const fmtp = `a=fmtp:${pt} maxaveragebitrate=4000;minptime=20;useinbandfec=1;usedtx=1;stereo=0;cbr=0`;
-
   const lines = sdp.split('\r\n');
   const result = [];
   let inAudio = false;
   let fmtpDone = false;
   let bwDone = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (const line of lines) {
+    if (line.startsWith('m=')) inAudio = line.startsWith('m=audio');
 
-    if (line.startsWith('m=')) {
-      inAudio = line.startsWith('m=audio');
+    // Skip ALL original fmtp lines for this PT (whether we already inserted or not)
+    if (inAudio && line.startsWith(`a=fmtp:${pt} `)) {
+      if (!fmtpDone) {
+        result.push(fmtp);  // insert replacement exactly once
+        fmtpDone = true;
+      }
+      // always skip the original line
+      continue;
     }
 
-    // Push the current line first (so c= always appears before b=AS:4)
     result.push(line);
 
-    // Insert b=AS:4 immediately AFTER the c= line in the audio section
-    // SDP §5.14: b= lines MUST follow c= lines within a media block
+    // Insert b=AS:4 immediately AFTER the c= line
     if (inAudio && !bwDone && line.startsWith('c=')) {
       result.push('b=AS:4');
       bwDone = true;
-      continue;
     }
 
-    // Replace existing fmtp line with our 4kbps version
-    if (inAudio && line.startsWith(`a=fmtp:${pt} `)) {
-      result.pop(); // remove the line we just pushed
-      result.push(fmtp);
-      fmtpDone = true;
-      continue;
-    }
-
-    // Insert fmtp after rtpmap when there is no existing fmtp line
+    // Insert fmtp after rtpmap only if we haven't done it via an existing fmtp line
     if (inAudio && !fmtpDone && line.startsWith(`a=rtpmap:${pt} `)) {
       result.push(fmtp);
       fmtpDone = true;
-      // NOTE: no continue here — the rtpmap line was already pushed above
     }
   }
 

@@ -34,6 +34,13 @@
   <div id="results"></div>
 </div>
 
+<div class="section" style="border:1px solid #4fc;padding:15px;border-radius:8px">
+  <h3 style="color:#4fc;margin:0 0 10px">💡 TURN Server Fix for Egypt</h3>
+  <p style="color:#ccc;margin:0 0 8px">If TURN times out, sign up free at <a href="https://www.metered.ca/stun-turn" style="color:#4fc" target="_blank">metered.ca/stun-turn</a> and add to Railway:</p>
+  <pre style="margin:0">METERED_API_KEY=your_api_key_here</pre>
+  <p style="color:#aaa;font-size:12px;margin:8px 0 0">This gives time-limited TURN credentials that work globally including Egypt's symmetric NAT.</p>
+</div>
+
 <div class="section">
   <h2>🔌 Socket Connection Test</h2>
   <label>JWT Token: <input id="tokenInput" placeholder="Paste your JWT token here" /></label>
@@ -62,10 +69,13 @@ const ICE_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turns:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:numb.viagenie.ca',                       username: 'webrtc@live.com',  credential: 'muazkh' },
+    { urls: 'turn:relay1.expressturn.com:3478',            username: 'efUN37POS8DY1RLZEP', credential: 'D6IHNBJLFg9wkHLv' },
   ],
 };
 
@@ -174,18 +184,38 @@ async function runAllTests() {
 }
 
 async function testTURN() {
-  return new Promise((resolve) => {
-    const pc = new RTCPeerConnection(ICE_CONFIG);
+  return new Promise(async (resolve) => {
+    // Fetch live ICE config from backend
+    let iceServers = ICE_CONFIG.iceServers;
+    try {
+      const r = await fetch(BACKEND + '/api/ice/credentials', { signal: AbortSignal.timeout(5000) });
+      if (r.ok) {
+        const data = await r.json();
+        if (data.iceServers) { iceServers = data.iceServers; log('Fetched live ICE config from backend ✓', 'ok'); }
+      }
+    } catch (e) { log('Using fallback ICE config: ' + e.message); }
+
+    const pc = new RTCPeerConnection({ iceServers, iceCandidatePoolSize: 10 });
     let hasTURN = false;
-    const t = setTimeout(() => { pc.close(); resolve({ ok: false, msg: 'Timeout — TURN may be unreachable (behind symmetric NAT?)' }); }, 8000);
+    let candidates = [];
+    const t = setTimeout(() => {
+      pc.close();
+      const msg = hasTURN
+        ? 'TURN relay found! ' + candidates.find(c=>c.type==='relay')?.address
+        : `Timeout after 12s — ${candidates.length} candidates (${candidates.map(c=>c.type).join(', ')}) — no relay. Calls may fail between different networks.`;
+      resolve({ ok: hasTURN, msg });
+    }, 12000);  // 12s timeout (was 8s — longer for slow connections)
+
     pc.onicecandidate = e => {
       if (!e.candidate) return;
-      log('ICE candidate: ' + e.candidate.type + ' — ' + e.candidate.candidate.substring(0, 80));
+      const c = { type: e.candidate.type, address: e.candidate.address, protocol: e.candidate.protocol };
+      candidates.push(c);
+      log(`ICE: ${c.type} ${c.protocol} ${c.address || ''}`.trim());
       if (e.candidate.type === 'relay') {
         hasTURN = true;
         clearTimeout(t);
         pc.close();
-        resolve({ ok: true, msg: 'TURN relay candidate received: ' + e.candidate.candidate.substring(0, 60) });
+        resolve({ ok: true, msg: `✅ TURN relay: ${e.candidate.candidate.substring(0, 80)}` });
       }
     };
     pc.createDataChannel('test');
