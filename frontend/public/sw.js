@@ -169,7 +169,7 @@ self.addEventListener('push', (event) => {
 
     event.waitUntil(
       self.registration.showNotification(
-        data.title || `📞 مكالمة واردة من ${notifData.callerName}`,
+        data.title || `مكالمة واردة — XTOX`,
         {
           body: data.body || 'اضغط للرد أو الرفض',
           icon: data.icon || '/favicon.ico',
@@ -232,7 +232,9 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = notifData.url || '/chat';
 
   if (notifData.type === 'incoming_call') {
+    // autoAnswer URL: CallManager detects this query param on load and auto-answers the call
     const callUrl = notifData.url || `/chat?call=incoming&roomId=${notifData.roomId}&callerId=${notifData.callerId}`;
+    const autoAnswerUrl = `/chat?call=incoming&autoAnswer=true&roomId=${notifData.roomId}&callerId=${notifData.callerId}`;
     const rejectUrl = `/chat?reject_call=${notifData.roomId}&callerId=${notifData.callerId}`;
 
     if (event.action === 'reject') {
@@ -260,8 +262,8 @@ self.addEventListener('notificationclick', (event) => {
             return;
           }
         }
-        // No existing window — open the call URL
-        return clients.openWindow(callUrl);
+        // No existing window — open with autoAnswer flag so CallManager can auto-answer
+        return clients.openWindow(event.action === 'accept' ? autoAnswerUrl : callUrl);
       })
     );
     return;
