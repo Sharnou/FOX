@@ -65,6 +65,9 @@ export function initSocket(io) {
       console.log('[Socket] User joined room:', 'user_' + userId, '| socket:', socket.id);
       // Broadcast online status to all other clients
       socket.broadcast.emit('user_online', { userId, timestamp: new Date() });
+      // Fix B: also emit user:status (standardized event) so any chat page
+      // that missed the connect-time broadcast picks up the online status
+      io.emit('user:status', { userId, isOnline: true });
 
       // ── Replay any pending call for this user (Part 2: WhatsApp-style offline call) ──
       for (const [roomId, pending] of pendingCalls.entries()) {

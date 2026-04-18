@@ -251,11 +251,15 @@ export default function ChatFloat() {
                         {unread > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unread}</span>}
                       </div>
                       <div style={{ flex: 1, overflow: 'hidden' }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: '#111', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          {otherName}
-                          {isMuted && <span style={{ fontSize: 11 }}>🔇</span>}
+                        {/* Fix F: Ad title is the PRIMARY label — big bold */}
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 1 }}>
+                          {conv.adTitle ? conv.adTitle.slice(0, 28) : (otherName || 'محادثة')}
                         </div>
-                        {conv.adTitle && <div style={{ fontSize: 10, color: '#7c3aed', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conv.adTitle.slice(0, 25)}</div>}
+                        {/* Fix F: User name — small purple below ad title */}
+                        <div style={{ fontSize: 10, color: '#7c3aed', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
+                          👤 {otherName}
+                          {isMuted && <span>🔇</span>}
+                        </div>
                         <div style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg?.text || 'ابدأ المحادثة'}</div>
                       </div>
                       {/* F1: ⋮ action button */}

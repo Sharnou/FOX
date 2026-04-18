@@ -78,6 +78,26 @@ function cap4kbps(sdp) {
   return result.join('\r\n');
 }
 
+
+// ─── IndexedDB call event logger (background tracking) ──────────────────────
+async function logCallEvent(type, data) {
+  data = data || {};
+  try {
+    var db = await new Promise(function(resolve, reject) {
+      var req = indexedDB.open('xtox-calls', 1);
+      req.onupgradeneeded = function(e) {
+        e.target.result.createObjectStore('events', { keyPath: 'id', autoIncrement: true });
+      };
+      req.onsuccess = function(e) { resolve(e.target.result); };
+      req.onerror = reject;
+    });
+    var tx = db.transaction('events', 'readwrite');
+    tx.objectStore('events').add(Object.assign({ type: type, ts: Date.now() }, data));
+  } catch (e) {
+    console.warn('[CALL] logCallEvent error:', e.message);
+  }
+}
+
 // ─── Web Audio API calling tone ─────────────────────────────────────────────
 let _callingCtx = null;
 let _callingTimer = null;
@@ -369,6 +389,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       });
 
       // Step 8: show "Calling..." outgoing UI
+      logCallEvent('outgoing_start', { peerId: calleeId, peerName: calleeName });
       setOfflineRinging({ calleeId, calleeName });
       setStatusMessage('جارٍ الاتصال...');
       setPushSent(false);
@@ -408,6 +429,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         // Flush local ICE to callee
         sendLocalICE(calleeSocketId);
 
+        logCallEvent('call_connected', { peerId: calleeId, peerName: calleeName, side: 'caller' });
         setActive({ peerName: calleeName, remoteSocketId: calleeSocketId, startTime: Date.now() });
       });
 
@@ -667,6 +689,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     // Flush any local ICE already gathered
     sendLocalICE(callerSocketId);
 
+    logCallEvent('incoming_accept', { peerId: callerSocketId, peerName: callerName, side: 'callee' });
     setActive({ peerName: callerName, remoteSocketId: callerSocketId, startTime: Date.now() });
   }
 
@@ -758,6 +781,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
   // ── Hangup ────────────────────────────────────────────────────────────────
   function hangup() {
+    if (active) {
+      var callDurationMs = Date.now() - (active.startTime || Date.now());
+      logCallEvent('call_end', { peerId: active.remoteSocketId, peerName: active.peerName || '', duration: Math.floor(callDurationMs / 1000) });
+    }
     if (active?.remoteSocketId) socket?.emit('call:end', { targetSocketId: active.remoteSocketId });
     if (offlineRinging?.roomId) socket?.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
     stopCallingTone();

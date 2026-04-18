@@ -378,6 +378,21 @@ function ChatPageInner() {
     socket.on('user_online', onOnline);
     socket.on('user_offline', onOffline);
     socket.on('user:status', onUserStatus);
+
+    // Fix A: query current online status of chat partner immediately after listeners are
+    // attached — we may have missed the user:status broadcast that fired at connect time
+    // (React renders async after setSocketInstance, so the broadcast is often missed).
+    var doCheckPartnerOnline = function() {
+      socket.emit('check_online', { userId: targetId }, function(res) {
+        if (res) setPartnerOnline(!!res.online);
+      });
+    };
+    if (socket.connected) {
+      doCheckPartnerOnline();
+    } else {
+      socket.once('connect', doCheckPartnerOnline);
+    }
+
     return function() {
       socket.off('user_online', onOnline);
       socket.off('user_offline', onOffline);
@@ -484,8 +499,16 @@ function ChatPageInner() {
         }).filter(function(c) { return c.id; });
         setConversations(function(prev) {
           var merged = apiConvs.slice();
-          prev.forEach(function(c) { if (!merged.find(function(m) { return m.id === c.id; })) merged.push(c); });
-          return merged.sort(function(a, b) { return (b.lastTime || 0) - (a.lastTime || 0); });
+          prev.forEach(function(c) { if (!merged.find(function(m) { return (m.chatId && m.chatId === c.chatId) || m.id === c.id; })) merged.push(c); });
+          // Fix C: dedup by chatId — never show the same chatId twice
+          var seenChatIds = new Set();
+          var deduped = merged.filter(function(c) {
+            var key = c.chatId || c.id;
+            if (seenChatIds.has(key)) return false;
+            seenChatIds.add(key);
+            return true;
+          });
+          return deduped.sort(function(a, b) { return (b.lastTime || 0) - (a.lastTime || 0); });
         });
         var urlChatId = new URLSearchParams(window.location.search).get('chatId');
         if (urlChatId) {
@@ -542,8 +565,17 @@ function ChatPageInner() {
     var s = io(SOCKET_URL, { auth: { token: token }, transports: ['websocket', 'polling'], withCredentials: true });
     socketRef.current = s;
     setSocketInstance(s);
-    s.emit('join', myId);
-    setJoined(true);
+    // Fix A: emit join only after socket is connected (ensures server marks us online
+    // before any user:status listeners have a chance to check the value)
+    s.on('connect', function() {
+      s.emit('join', myId);
+      setJoined(true);
+    });
+    // Handle already-connected case (reconnection)
+    if (s.connected) {
+      s.emit('join', myId);
+      setJoined(true);
+    }
     s.on('reconnect', function() {
       s.emit('join', myId);
       setJoined(true);
@@ -936,17 +968,26 @@ function ChatPageInner() {
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, flex: 1, overflowY: 'auto' }}>
               {conversations.map(function(conv) {
                 var unread   = unreadCounts[conv.id] || 0;
-                var isActive = conv.id === targetId;
+                var isActive = conv.chatId === chatId || conv.id === targetId;
                 return (
-                  <li key={conv.id}>
+                  <li key={conv.chatId || conv.id}>
                     <button
                       onClick={function() {
+                        // Fix D: immediately clear unread count for this conversation
                         setUnreadCounts(function(prev) {
                           var u = Object.assign({}, prev);
                           delete u[conv.id];
+                          delete u[conv.chatId];
                           localStorage.setItem('xtox_unread_counts', JSON.stringify(u));
                           return u;
                         });
+                        // Fix D: also clear from legacy xtox_unread key
+                        try {
+                          var storedUnread = JSON.parse(localStorage.getItem('xtox_unread') || '{}');
+                          delete storedUnread[conv.id];
+                          delete storedUnread[conv.chatId];
+                          localStorage.setItem('xtox_unread', JSON.stringify(storedUnread));
+                        } catch (_e) {}
                         setShowConvPanel(false);
                         var dest = conv.chatId
                           ? '/chat?chatId=' + encodeURIComponent(conv.chatId) + '&target=' + encodeURIComponent(conv.id) + (conv.name ? '&sellerName=' + encodeURIComponent(conv.name) : '')
@@ -961,16 +1002,18 @@ function ChatPageInner() {
                         <span style={{ position: 'absolute', bottom: 1, right: 1, width: 11, height: 11, borderRadius: '50%', background: onlineUsers.has(String(conv.id)) ? '#22c55e' : '#4b5563', border: '2px solid #002f34' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                        <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: unread > 0 ? 'bold' : 'normal', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
-                          {conv.name || 'محادثة'}
+                        {/* Fix C: Ad title is the PRIMARY label — big bold (it's the chat topic/context) */}
+                        <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
+                          {conv.adTitle || conv.name || 'محادثة'}
                         </div>
-                        {conv.adTitle && (
-                          <div style={{ color: isActive ? 'rgba(35,229,219,0.7)' : 'rgba(255,255,255,0.35)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
-                            📦 {conv.adTitle}
+                        {/* Fix C: User name — small purple accent below ad title */}
+                        {conv.name && (
+                          <div style={{ color: isActive ? 'rgba(35,229,219,0.8)' : '#a78bfa', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
+                            👤 {conv.name}
                           </div>
                         )}
                         {conv.lastMessage && (
-                          <div style={{ color: unread > 0 ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: unread > 0 ? '600' : 'normal' }}>
+                          <div style={{ color: unread > 0 ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: unread > 0 ? '600' : 'normal' }}>
                             {conv.lastMessage}
                           </div>
                         )}
