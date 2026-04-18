@@ -88,6 +88,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const [muted, setMuted]       = useState(false);
   const [offlineRinging, setOfflineRinging] = useState(null);  // { roomId, to } — ringing an offline user via push
   const [pushIncoming, setPushIncoming]     = useState(null);  // { callerId, callerName, offer, roomId } — received via SW push
+  const [callStatus, setCallStatus]         = useState(null);  // 'ringing_offline' | 'no_answer' | null
+  const [statusMessage, setStatusMessage]   = useState('');   // human-readable status shown in UI
 
   const pc               = useRef(null);
   const localStream      = useRef(null);
@@ -139,6 +141,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     setOfflineRinging(null);
     setDuration(0);
     setMuted(false);
+    setCallStatus(null);
+    setStatusMessage('');
   }, [stopRingtone]);
 
   function createPC(remoteSocketId) {
@@ -417,14 +421,18 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     const onRejected    = () => { stopRingtone(); cleanup(); };
     const onEnded       = () => { stopRingtone(); cleanup(); };
     const onUnavailable = ({ targetUserId }) => {
-      alert('المستخدم غير متصل حالياً — لا يمكن إجراء المكالمة');
-      cleanup();
+      // Previously showed a blocking alert — now the offline call flow handles this via
+      // call:ringing_offline. This event is kept for backward compat but should not block.
+      // Just silently stop the tone; ringing_offline UI is already shown.
+      stopCallingTone();
     };
 
     // ── Offline push call events ──────────────────────────────────────────────
-    const onRingingOffline = ({ roomId, to }) => {
-      // Caller: user is offline, we sent a push notification — show "جارٍ الاتصال..." UI
+    const onRingingOffline = ({ roomId, to, message }) => {
+      // Caller: user is offline, we sent a push notification (or pending stored) — show ringing UI
       setOfflineRinging({ roomId, to });
+      setCallStatus('ringing_offline');
+      setStatusMessage(message || 'جارٍ الاتصال... المستخدم خارج التطبيق');
     };
 
     const onExpired = () => {
@@ -436,6 +444,20 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     const onAcceptedOk = ({ callerSocketId }) => {
       // Push callee accepted — we're now connected as the callee
       // (caller will receive call:answered via socket, this is for the callee side)
+    };
+
+    // Callee opened the app while we were waiting (push sent, callee connected)
+    const onCalleeConnected = () => {
+      setStatusMessage('جارٍ الاتصال...');
+    };
+
+    // 60-second timeout expired — callee never answered
+    const onNoAnswer = () => {
+      stopCallingTone();
+      cleanup();
+      setCallStatus('no_answer');
+      setStatusMessage('لا يوجد رد');
+      setTimeout(() => setCallStatus(null), 3000);
     };
 
     // call:cancelled — caller hung up before callee answered (stop ringing)
@@ -455,6 +477,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     socket.on('call:ringing_offline',   onRingingOffline);
     socket.on('call:expired',           onExpired);
     socket.on('call:accepted_ok',       onAcceptedOk);
+    socket.on('call:callee_connected',  onCalleeConnected);
+    socket.on('call:no_answer',         onNoAnswer);
 
     // ── Service Worker message: incoming call from push notification ──────
     const onSWMessage = async (event) => {
@@ -482,6 +506,8 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       socket.off('call:ringing_offline',   onRingingOffline);
       socket.off('call:expired',           onExpired);
       socket.off('call:accepted_ok',       onAcceptedOk);
+      socket.off('call:callee_connected',  onCalleeConnected);
+      socket.off('call:no_answer',         onNoAnswer);
       socket.off('reconnect',              onReconnect);
       socket.off('connect',               onReconnect);
       if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
@@ -668,7 +694,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8, animation: 'pulse 1.5s infinite' }}>📞</div>
           <div style={{ fontWeight: 700, fontSize: 16, color: '#aaa' }}>جارٍ الاتصال...</div>
-          <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>تم إرسال إشعار للمستخدم</div>
+          <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>{statusMessage || 'تم إرسال إشعار للمستخدم'}</div>
           <button
             onClick={() => {
               socket.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
@@ -677,6 +703,14 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
             style={{ background: '#e74c3c', border: 'none', borderRadius: 24, padding: '10px 24px', color: '#fff', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>
             إلغاء 📵
           </button>
+        </div>
+      )}
+
+      {callStatus === 'no_answer' && !active && (
+        <div style={overlay}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>📵</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#e74c3c' }}>لا يوجد رد</div>
+          <div style={{ fontSize: 13, color: '#aaa', marginTop: 6 }}>لم يرد المستخدم على المكالمة</div>
         </div>
       )}
 
