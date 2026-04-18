@@ -39,6 +39,26 @@ const AUDIO_CONSTRAINTS = {
   video: false,
 };
 
+// ─── SDP helper: limit Opus codec to 4 kbps (Egypt low-bandwidth fix, Bug #81) ─
+function limitOpusBitrate(sdp) {
+  // Find Opus payload type from rtpmap line, e.g. "a=rtpmap:111 opus/48000/2"
+  const opusMatch = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
+  if (!opusMatch) return sdp; // no Opus found — return unchanged
+  const pt = opusMatch[1];
+  const lines = sdp.split('\r\n');
+  // Remove any existing fmtp line for this payload type
+  const filtered = lines.filter(l => !l.startsWith(`a=fmtp:${pt} `));
+  // Insert new fmtp line immediately after the rtpmap line
+  const rtpmapIdx = filtered.findIndex(l => l.startsWith(`a=rtpmap:${pt} `));
+  const fmtpLine = `a=fmtp:${pt} maxaveragebitrate=4000;cbr=0;useinbandfec=1;usedtx=1`;
+  if (rtpmapIdx >= 0) {
+    filtered.splice(rtpmapIdx + 1, 0, fmtpLine);
+  } else {
+    filtered.push(fmtpLine);
+  }
+  return filtered.join('\r\n');
+}
+
 const NO_ANSWER_TIMEOUT_MS = 30000; // 30 seconds
 
 // ─── Web Audio API calling tone (no external file needed) ────────────────────
@@ -102,20 +122,35 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const currentUserRef   = useRef(currentUser);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
-  // ─── B4: Detect ?autoAnswer=true in URL — show incoming call UI immediately ─
-  // When callee opens app from push notification, pre-show the incoming call UI
-  // while waiting for socket to replay call:incoming with the correct callerSocketId
+  // ─── B4: Detect ?autoAnswer=callerId_socketId in URL — show incoming call UI immediately ─
+  // When callee opens app from push notification, pre-show the incoming call UI.
+  // URL format: ?autoAnswer=<callerId>_<callerSocketId>  (Fix #82)
+  // Both callerId (MongoDB hex) and callerSocketId (Socket.IO ID) are embedded.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('autoAnswer') === 'true') {
-      const callerId = params.get('callerId') || params.get('roomId') || '';
-      const callerName = params.get('callerName') || 'مستخدم XTOX';
+    const autoAnswerParam = params.get('autoAnswer');
+    if (autoAnswerParam) {
+      let callerId = '';
+      let callerSocketId = null;
+      let callerName = params.get('callerName') || 'مستخدم XTOX';
+      if (autoAnswerParam === 'true') {
+        // Legacy format: ?autoAnswer=true&callerId=X
+        callerId = params.get('callerId') || params.get('roomId') || '';
+      } else {
+        // New format: ?autoAnswer=callerId_socketId (Fix #82)
+        const underscoreIdx = autoAnswerParam.indexOf('_');
+        if (underscoreIdx > 0) {
+          callerId = autoAnswerParam.slice(0, underscoreIdx);
+          callerSocketId = autoAnswerParam.slice(underscoreIdx + 1) || null;
+        } else {
+          callerId = autoAnswerParam;
+        }
+      }
       if (callerId) {
-        console.log('[CALL] autoAnswer URL detected — pre-showing incoming call UI for:', callerId);
-        // Pre-show incoming call overlay; callerSocketId is null until socket replays call:incoming
-        // acceptCall() guards against null callerSocketId — user must wait for socket event
-        setIncoming({ callerId, callerName, callerSocketId: null });
+        console.log('[CALL] autoAnswer URL detected — callerId:', callerId, '| callerSocketId:', callerSocketId);
+        // Pre-show incoming call overlay with callerSocketId if available
+        setIncoming({ callerId, callerName, callerSocketId });
         startRingtone();
       }
     }
@@ -231,11 +266,14 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: true,
+          sampleSize: 16,
+          channelCount: 1,
+          sampleRate: 8000,
           noiseSuppression: true,
+          echoCancellation: true,
           autoGainControl: true,
-          sampleRate: 44100,
-        }
+        },
+        video: false,
       });
     } catch (e) {
       if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
@@ -293,7 +331,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
         // Now create offer (tracks already present → SDP includes audio)
         const offer = await p.createOffer({ offerToReceiveAudio: true });
-        await p.setLocalDescription(offer);
+        // Fix #81: limit Opus to 4 kbps max average bitrate for low-bandwidth connections
+        const modifiedOfferSdp = limitOpusBitrate(offer.sdp);
+        await p.setLocalDescription(new RTCSessionDescription({ type: offer.type, sdp: modifiedOfferSdp }));
         console.log('[CALL] Caller created offer — SDP audio:', offer.sdp.includes('m=audio'), '| SDP excerpt:', offer.sdp.substring(0, 200));
 
         const callerId   = currentUser?._id || currentUser?.id || '';
@@ -423,10 +463,12 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         receivedICE.current = [];
 
         const answer = await p.createAnswer();
-        await p.setLocalDescription(answer);
-        console.log('[CALL] Callee created answer — SDP audio:', answer.sdp.includes('m=audio'));
+        // Fix #81: limit Opus to 4 kbps max average bitrate for low-bandwidth connections
+        const modifiedAnswerSdp = limitOpusBitrate(answer.sdp);
+        await p.setLocalDescription(new RTCSessionDescription({ type: answer.type, sdp: modifiedAnswerSdp }));
+        console.log('[CALL] Callee created answer — SDP audio:', answer.sdp.includes('m=audio'), '| Opus bitrate limited ✓');
 
-        socket.emit('call:answer', { callerSocketId, answer });
+        socket.emit('call:answer', { callerSocketId, answer: p.localDescription });
       } catch (e) {
         console.error('[CallManager] onOffer error:', e.message);
         cleanup();
@@ -508,10 +550,11 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     // ── Service Worker message: incoming call from push notification ──────
     const onSWMessage = async (event) => {
       if (!event.data) return;
-      const { type, callerId, callerName, offer, roomId } = event.data;
+      const { type, callerId, callerName, callerSocketId: swCallerSocketId, offer, roomId } = event.data;
       if (type === 'incoming_call_push' && offer && roomId) {
+        console.log('[CALL] SW message incoming_call_push — callerId:', callerId, '| callerSocketId:', swCallerSocketId, '| roomId:', roomId);
         // Show incoming call UI (push-based)
-        setPushIncoming({ callerId, callerName, offer, roomId });
+        setPushIncoming({ callerId, callerName, callerSocketId: swCallerSocketId, offer, roomId });
         startRingtone();
       }
     };
@@ -559,63 +602,88 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   }
 
   // Accept an incoming push call (callee side — push notification brought us here)
+  // Fix #82: ensure socket is connected before emitting call:accept_from_push
   async function acceptPushCall() {
     if (!pushIncoming) return;
     const { callerId, callerName, offer, roomId } = pushIncoming;
+    console.log('[CALL] acceptPushCall() started — roomId:', roomId, '| callerId:', callerId, '| socket connected:', socket?.connected);
     stopRingtone();
     setPushIncoming(null);
     try {
+      console.log('[CALL] acceptPushCall — requesting microphone...');
       const stream = await getAudio().catch(err => {
         if (err.name === 'NotAllowedError') alert('يرجى السماح بالوصول للميكروفون');
         return null;
       });
-      if (!stream) return;
+      if (!stream) { console.error('[CALL] acceptPushCall — failed to get audio stream'); return; }
+      console.log('[CALL] acceptPushCall — got microphone ✓ tracks:', stream.getTracks().length);
 
       const p = createPC(null);  // remote socket ID unknown yet — will learn via call:accepted_ok
       stream.getTracks().forEach(t => {
         p.addTrack(t, stream);
-        console.log('[WebRTC] Push-callee added local track:', t.kind);
+        console.log('[CALL] acceptPushCall — added local track:', t.kind, '| enabled:', t.enabled);
       });
 
+      console.log('[CALL] acceptPushCall — setting remote description (offer)...');
       await p.setRemoteDescription(new RTCSessionDescription(offer));
-      console.log('[CALL] Push-callee set remote desc (offer) — ICE:', p.iceConnectionState);
+      console.log('[CALL] acceptPushCall — remote desc set ✓ ICE:', p.iceConnectionState, '| connection:', p.connectionState);
 
-      for (const c of receivedICE.current) {
-        await p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+      // Flush ICE candidates that arrived before remote description was set
+      if (receivedICE.current.length > 0) {
+        console.log('[CALL] acceptPushCall — flushing', receivedICE.current.length, 'pre-buffered remote ICE candidates');
+        for (const c of receivedICE.current) {
+          await p.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('[CALL] addIceCandidate error:', e.message));
+        }
+        receivedICE.current = [];
       }
-      receivedICE.current = [];
 
+      console.log('[CALL] acceptPushCall — creating answer...');
       const answer = await p.createAnswer();
-      await p.setLocalDescription(answer);
-      console.log('[CALL] Push-callee created answer — SDP audio:', answer.sdp.includes('m=audio'));
+      // Fix #81: limit Opus to 4 kbps max average bitrate
+      const modifiedAnswerSdp = limitOpusBitrate(answer.sdp);
+      await p.setLocalDescription(new RTCSessionDescription({ type: answer.type, sdp: modifiedAnswerSdp }));
+      console.log('[CALL] acceptPushCall — answer created ✓ SDP audio:', answer.sdp.includes('m=audio'), '| Opus limited ✓');
 
-      socket.emit('call:accept_from_push', { roomId, answer: p.localDescription });
+      // Fix #82: wait for socket to be connected before emitting call:accept_from_push
+      const emitAccept = () => {
+        console.log('[CALL] acceptPushCall — emitting call:accept_from_push — roomId:', roomId, '| socket:', socket.id);
+        socket.emit('call:accept_from_push', { roomId, answer: p.localDescription });
+      };
+
+      if (socket.connected) {
+        emitAccept();
+      } else {
+        console.log('[CALL] acceptPushCall — socket not connected yet, waiting for connect event...');
+        socket.once('connect', () => {
+          console.log('[CALL] acceptPushCall — socket connected ✓ socket.id:', socket.id);
+          emitAccept();
+        });
+        socket.connect();
+      }
 
       // Wait for call:accepted_ok to know callerSocketId
       socket.once('call:accepted_ok', ({ callerSocketId }) => {
+        console.log('[CALL] acceptPushCall — call:accepted_ok received — callerSocketId:', callerSocketId);
         // Update ICE candidate target to caller's socket
         if (p) {
           p.onicecandidate = e => {
             if (e.candidate && socket) {
+              console.log('[CALL] acceptPushCall — sending ICE to caller:', callerSocketId);
               socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: e.candidate });
             }
           };
         }
-        // CRITICAL: flush any ICE candidates buffered while callerSocketId was unknown
-        // Without this, all candidates gathered during WebRTC setup are silently lost
-        // which breaks push-based calls (both sides connect but hear silence)
-        if (pendingICE.current.length > 0) {
-          console.log('[CALL] Push-callee flushing', pendingICE.current.length, 'buffered ICE candidates to caller:', callerSocketId);
-          pendingICE.current.forEach(c => {
-            socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: c });
-          });
-          pendingICE.current = [];
+        // Fix #82: flush all buffered ICE candidates to caller using flushPendingICE
+        const buffered = pendingICE.current.length;
+        if (buffered > 0) {
+          console.log('[CALL] acceptPushCall — flushing', buffered, 'buffered local ICE candidates to caller:', callerSocketId);
         }
-        console.log('[CALL] Push-callee call:accepted_ok — callerSocketId:', callerSocketId);
+        flushPendingICE(callerSocketId);
+        console.log('[CALL] acceptPushCall — call active ✓ peer:', callerName, '| callerSocketId:', callerSocketId);
         setActive({ peerName: callerName || 'مستخدم', remoteSocketId: callerSocketId, startTime: Date.now() });
       });
     } catch (e) {
-      console.error('[CallManager] acceptPushCall error:', e.message);
+      console.error('[CALL] acceptPushCall error:', e.message, e.stack);
       cleanup();
     }
   }

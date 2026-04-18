@@ -322,7 +322,8 @@ export function initSocket(io) {
                   callerId: actualCallerId,
                   callerName: callerName || 'مستخدم XTOX',
                   callerAvatar: callerAvatar || '',
-                  offer: offer || null,   // SDP offer for offline answering
+                  callerSocketId: socket.id,   // Fix #82/#83: callee needs this to reconnect
+                  offer: offer || null,          // SDP offer for offline answering
                   roomId,
                   title: `📞 مكالمة واردة من ${callerName || 'مستخدم XTOX'}`,
                   body: 'اضغط للرد أو الرفض',
@@ -334,12 +335,13 @@ export function initSocket(io) {
                     type: 'incoming_call',
                     callerId: actualCallerId,
                     callerName: callerName || 'مستخدم XTOX',
+                    callerSocketId: socket.id,  // Fix #82/#83: for direct reconnect
                     offer: offer || null,
                     roomId,
                     url: `/chat?call=incoming&roomId=${roomId}&callerId=${actualCallerId}`,
                   },
                   actions: [
-                    { action: 'accept', title: '✅ رد' },
+                    { action: 'answer', title: '📞 رد' },   // Fix #83: must match SW notificationclick handler
                     { action: 'reject', title: '❌ رفض' },
                   ],
                 });
