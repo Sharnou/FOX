@@ -40,6 +40,14 @@ function formatDuration(seconds) {
   return mm + ':' + ss;
 }
 
+
+// Resolve best display name from a populated user object
+// Fallback chain: name → username → xtoxId → whatsappPhone → phone → ''
+function resolveUserName(u) {
+  if (!u || typeof u !== 'object') return '';
+  return u.name || u.username || u.xtoxId || u.whatsappPhone || u.phone || '';
+}
+
 // Typing indicator dots
 function TypingDots() {
   return (
@@ -486,11 +494,11 @@ function ChatPageInner() {
           var myIdStr = String(myId);
           if (buyerId && buyerId !== myIdStr && buyerId.length >= 5) {
             otherId = buyerId;
-            otherName = (c.buyer && typeof c.buyer === 'object') ? (c.buyer.name || '') : '';
+            otherName = resolveUserName(c.buyer);
             otherAvatar = (c.buyer && typeof c.buyer === 'object') ? (c.buyer.avatar || '') : '';
           } else if (sellerId && sellerId !== myIdStr && sellerId.length >= 5) {
             otherId = sellerId;
-            otherName = (c.seller && typeof c.seller === 'object') ? (c.seller.name || '') : '';
+            otherName = resolveUserName(c.seller);
             otherAvatar = (c.seller && typeof c.seller === 'object') ? (c.seller.avatar || '') : '';
           }
           var lastMsg = c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1] : null;
@@ -997,21 +1005,19 @@ function ChatPageInner() {
                       style={{ width: '100%', background: isActive ? 'rgba(35,229,219,0.15)' : 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'right' }}>
                       <div style={{ position: 'relative', flexShrink: 0 }}>
                         <div style={{ width: 42, height: 42, borderRadius: '50%', background: isActive ? '#23e5db' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: isActive ? '#002f34' : 'white', fontWeight: 'bold' }}>
-                          {conv.name ? conv.name.charAt(0).toUpperCase() : '?'}
+                          {(conv.name || conv.adTitle || '?').charAt(0).toUpperCase()}
                         </div>
                         <span style={{ position: 'absolute', bottom: 1, right: 1, width: 11, height: 11, borderRadius: '50%', background: onlineUsers.has(String(conv.id)) ? '#22c55e' : '#4b5563', border: '2px solid #002f34' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                         {/* Fix C: Ad title is the PRIMARY label — big bold (it's the chat topic/context) */}
                         <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
-                          {conv.adTitle || conv.name || 'محادثة'}
+                          {conv.adTitle || 'إعلان'}
                         </div>
                         {/* Fix C: User name — small purple accent below ad title */}
-                        {conv.name && (
-                          <div style={{ color: isActive ? 'rgba(35,229,219,0.8)' : '#a78bfa', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
-                            👤 {conv.name}
-                          </div>
-                        )}
+                        <div style={{ color: isActive ? 'rgba(35,229,219,0.8)' : '#a78bfa', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
+                          👤 {conv.name || 'مستخدم'}
+                        </div>
                         {conv.lastMessage && (
                           <div style={{ color: unread > 0 ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: unread > 0 ? '600' : 'normal' }}>
                             {conv.lastMessage}
@@ -1066,7 +1072,7 @@ function ChatPageInner() {
                       <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right', color: '#64748b' }}>{arabicRelTime(m.time)}</div>
                     </div>
                   ) : (
-                    <div dir="rtl" role="article" aria-label={isSent ? 'رسالتك' : 'رسالة من ' + m.from}
+                    <div dir="rtl" role="article" aria-label={isSent ? 'رسالتك' : 'رسالة من ' + (sellerName || m.from)}
                       style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: isSent ? '18px 18px 4px 18px' : '18px 18px 18px 4px', background: isSent ? '#f97316' : '#ffffff', color: isSent ? '#ffffff' : '#1e293b', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', fontSize: 15, lineHeight: 1.55, wordBreak: 'break-word' }}>
                       {m.type === 'image' && m.text ? (
                         <img src={m.text} alt="صورة مرسلة" loading="lazy"
