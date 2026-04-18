@@ -46,6 +46,22 @@ export function initSocket(io) {
       console.log('[Socket] User joined room:', 'user_' + userId, '| socket:', socket.id);
       // Broadcast online status to all other clients
       socket.broadcast.emit('user_online', { userId, timestamp: new Date() });
+
+      // ── Replay any pending call for this user (Part 2: WhatsApp-style offline call) ──
+      for (const [roomId, pending] of pendingCalls.entries()) {
+        if (String(pending.to) === String(userId) && (Date.now() - pending.timestamp) < 60000) {
+          // Replay call:incoming to the now-connected callee
+          socket.emit('call:incoming', {
+            callerId: pending.callerId,
+            callerName: pending.callerName || 'مستخدم XTOX',
+            callerSocketId: pending.callerSocketId,
+          });
+          // Notify caller that callee is now online and ringing in-app
+          io.to('user_' + pending.callerId).emit('call:callee_connected', { calleeId: userId });
+          console.log('[Socket] Replayed pending call to newly connected callee:', userId, '| roomId:', roomId);
+          break; // One pending call at a time
+        }
+      }
     });
 
     // ── Check online status ─────────────────────────────────────
@@ -341,15 +357,20 @@ export function initSocket(io) {
                   // Store pending call with 60s TTL
                   const timeout = setTimeout(() => {
                     pendingCalls.delete(roomId);
-                    // Notify caller that time expired
-                    try { io.to(socket.id).emit('call:expired', { roomId }); } catch {}
+                    // Notify caller that callee never answered
+                    try {
+                      io.to('user_' + actualCallerId).emit('call:no_answer', { calleeId: targetUserId });
+                      io.to('user_' + actualCallerId).emit('call:expired', { roomId });
+                    } catch {}
                   }, 60000);
                   pendingCalls.set(roomId, {
                     offer,
                     callerId: actualCallerId,
+                    callerName: callerName || 'مستخدم XTOX',
                     callerSocketId: socket.id,
                     to: targetUserId,
                     timeout,
+                    timestamp: Date.now(),
                   });
 
                   // Tell caller we're ringing the offline user
@@ -363,8 +384,30 @@ export function initSocket(io) {
             console.error('[Push] Failed to send call notification:', pushErr.message);
           }
 
-          socket.emit('call:user_unavailable', { targetUserId });
-          console.log('[Socket] call:initiate — target user offline:', targetUserId);
+          // No push subscription available — still store pending call (will replay when callee connects)
+          const fallbackRoomId = `call_${actualCallerId}_${targetUserId}_${Date.now()}`;
+          const fallbackTimeout = setTimeout(() => {
+            pendingCalls.delete(fallbackRoomId);
+            try {
+              io.to('user_' + actualCallerId).emit('call:no_answer', { calleeId: targetUserId });
+              io.to('user_' + actualCallerId).emit('call:expired', { roomId: fallbackRoomId });
+            } catch {}
+          }, 60000);
+          pendingCalls.set(fallbackRoomId, {
+            offer,
+            callerId: actualCallerId,
+            callerName: callerName || 'مستخدم XTOX',
+            callerSocketId: socket.id,
+            to: targetUserId,
+            timeout: fallbackTimeout,
+            timestamp: Date.now(),
+          });
+          socket.emit('call:ringing_offline', {
+            roomId: fallbackRoomId,
+            to: targetUserId,
+            message: 'جارٍ الاتصال... المستخدم خارج التطبيق',
+          });
+          console.log('[Socket] call:initiate — stored pending call (no push subs):', targetUserId, '| roomId:', fallbackRoomId);
           return;
         }
       } catch (e) { /* fetchSockets failed — proceed anyway */ }
@@ -425,11 +468,33 @@ export function initSocket(io) {
     // Responder sends SDP answer to caller
     socket.on('call:answer', ({ callerSocketId, answer }) => {
       io.to(callerSocketId).emit('call:answered', { answer, responderSocketId: socket.id });
+      // Clean up any pending call for this callee
+      const calleeId = socket.data.userId;
+      if (calleeId) {
+        for (const [roomId, pending] of pendingCalls.entries()) {
+          if (String(pending.to) === String(calleeId)) {
+            clearTimeout(pending.timeout);
+            pendingCalls.delete(roomId);
+            break;
+          }
+        }
+      }
     });
 
     // Reject incoming call
     socket.on('call:reject', ({ callerSocketId }) => {
       io.to(callerSocketId).emit('call:rejected');
+      // Clean up any pending call for this callee
+      const calleeId = socket.data.userId;
+      if (calleeId) {
+        for (const [roomId, pending] of pendingCalls.entries()) {
+          if (String(pending.to) === String(calleeId)) {
+            clearTimeout(pending.timeout);
+            pendingCalls.delete(roomId);
+            break;
+          }
+        }
+      }
     });
 
     // ICE candidate relay
@@ -440,6 +505,17 @@ export function initSocket(io) {
     // End call
     socket.on('call:end', ({ otherSocketId }) => {
       io.to(otherSocketId).emit('call:ended');
+      // Clean up any pending call for this user (caller or callee)
+      const userId = socket.data.userId;
+      if (userId) {
+        for (const [roomId, pending] of pendingCalls.entries()) {
+          if (String(pending.callerId) === String(userId) || String(pending.to) === String(userId)) {
+            clearTimeout(pending.timeout);
+            pendingCalls.delete(roomId);
+            break;
+          }
+        }
+      }
     });
 
     // Cancel outgoing call before callee answers (notify callee to stop ringing)
