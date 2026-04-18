@@ -34,7 +34,9 @@ const AUDIO_CONSTRAINTS = {
     echoCancellation: true,
     noiseSuppression: true,
     autoGainControl: true,
-    sampleRate: 48000,
+    sampleSize: 16,
+    channelCount: 1,
+    sampleRate: 8000,
   },
   video: false,
 };
