@@ -323,8 +323,8 @@ export function initSocket(io) {
           try {
             const webpush = (await import('web-push')).default;
             // Use env vars if set, otherwise use hardcoded defaults (generated VAPID keys)
-            const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY  || 'BF4po3DK_lsqgzuEJ1Su7WSdxXX8xkzjnDQYF3tpe4DftSO6KRh5heBWOSYfef4A76iV1AX4H20hGPiDzo7IIrs';
-            const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || 'K1J41ZhtAIbjZLXukJuRrXaHAz_mDuVEQgV4ocZqW9s';
+            const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY  || 'BCTRfwu1JjM-5_-xGHauSSiVOBd6dkyEJJp3L57_-C6B-oDQW2IAmcnEVpwsGAsvmhBsvWLu9tMHe29zmcOn0UU';
+            const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '324Nf1YsyLKC_Mo0aQcTLqEYO7r1DraMQPLTxY43F3Q';
             const vapidSubject    = process.env.VAPID_SUBJECT || 'mailto:XTOX@XTOX.com';
 
             if (vapidPublicKey && vapidPrivateKey) {

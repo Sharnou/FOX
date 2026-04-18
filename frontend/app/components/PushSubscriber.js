@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 
 const BACKEND = 'https://xtox-production.up.railway.app';
 // C5: VAPID public key — must match backend VAPID_PUBLIC_KEY env var (or hardcoded fallback)
-const VAPID_DEFAULT = 'BF4po3DK_lsqgzuEJ1Su7WSdxXX8xkzjnDQYF3tpe4DftSO6KRh5heBWOSYfef4A76iV1AX4H20hGPiDzo7IIrs';
+const VAPID_DEFAULT = 'BCTRfwu1JjM-5_-xGHauSSiVOBd6dkyEJJp3L57_-C6B-oDQW2IAmcnEVpwsGAsvmhBsvWLu9tMHe29zmcOn0UU';
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

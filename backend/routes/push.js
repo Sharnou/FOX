@@ -54,7 +54,7 @@ router.delete('/unsubscribe', auth, async (req, res) => {
 // GET /api/push/vapid-public-key — returns VAPID public key for frontend subscription
 router.get('/vapid-public-key', (req, res) => {
   // D1: VAPID public key — env var preferred; hardcoded fallback matches spec
-  const key = process.env.VAPID_PUBLIC_KEY || 'BF4po3DK_lsqgzuEJ1Su7WSdxXX8xkzjnDQYF3tpe4DftSO6KRh5heBWOSYfef4A76iV1AX4H20hGPiDzo7IIrs';
+  const key = process.env.VAPID_PUBLIC_KEY || 'BCTRfwu1JjM-5_-xGHauSSiVOBd6dkyEJJp3L57_-C6B-oDQW2IAmcnEVpwsGAsvmhBsvWLu9tMHe29zmcOn0UU';
   res.json({ key });
 });
 
