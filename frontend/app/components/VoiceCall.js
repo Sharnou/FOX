@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { detectLang } from '../../lib/lang';
-import { useLanguage } from '../context/LanguageContext';
 
 // ── Translations ───────────────────────────────────────────────────────────────
 const TRANSLATIONS = {
@@ -174,8 +172,7 @@ function StatusDot({ color }) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  MAIN VOICECALL COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function VoiceCall({
-  const { t: tr, language, isRTL } = useLanguage(); socket, targetId, userId }) {
+export default function VoiceCall({ socket, targetId, userId }) {
   // ── Language ────────────────────────────────────────────────────────────────
   const [lang, setLang] = useState('ar');
   const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;
@@ -254,7 +251,7 @@ export default function VoiceCall({
       // Forward local ICE candidates to remote peer via socket
       pc.onicecandidate = (evt) => {
         if (evt.candidate && activeSocket) {
-          activeSocket.emit('ice-candidate', { to: remoteId, candidate: evt.candidate });
+          activeSocket.emit('ice_candidate', { to: remoteId, candidate: evt.candidate });
         }
       };
 
@@ -314,7 +311,10 @@ export default function VoiceCall({
       }
     };
 
-    // ③ Remote user rejected our call
+    // ③ Remote user rejected our call (for explicit call_rejected event if added)
+    // onCallRejected is merged into onCallEnded below
+    // (kept as reference but not registered as listener)
+    // eslint-disable-next-line no-unused-vars
     const onCallRejected = () => {
       cleanup();
       setCallStatus('ended');
@@ -322,10 +322,10 @@ export default function VoiceCall({
     };
 
     // ④ Receive ICE candidate from remote peer
-    const onIceCandidate = async ({ candidate }) => {
+    const onIceCandidate = async (candidateData) => {
       try {
-        if (pcRef.current && candidate) {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        if (pcRef.current && candidateData) {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidateData));
         }
       } catch {
         // Non-fatal ICE error — ignore
@@ -342,16 +342,14 @@ export default function VoiceCall({
 
     socket.on('incoming_call', onIncomingCall);
     socket.on('call_answered', onCallAccepted);
-    socket.on('call_ended', onCallRejected);
-    socket.on('ice_candidate', onIceCandidate);
     socket.on('call_ended', onCallEnded);
+    socket.on('ice_candidate', onIceCandidate);
 
     return () => {
       socket.off('incoming_call', onIncomingCall);
       socket.off('call_answered', onCallAccepted);
-      socket.off('call_ended', onCallRejected);
-      socket.off('ice_candidate', onIceCandidate);
       socket.off('call_ended', onCallEnded);
+      socket.off('ice_candidate', onIceCandidate);
     };
   }, [socket, cleanup, lang]);
 
