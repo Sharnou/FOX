@@ -172,10 +172,20 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       .then(r => r.json())
       .then(data => {
         if (data && data.iceServers) {
-          const cfg = { ...data, iceCandidatePoolSize: 10, iceTransportPolicy: 'all' };
+          let iceServers = data.iceServers;
+          // Fix 8: Ensure we always have TURN servers — add fallback if API returned STUN-only
+          const hasTurn = iceServers.some(s => {
+            const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+            return urls.some(u => typeof u === 'string' && u.startsWith('turn:'));
+          });
+          if (!hasTurn) {
+            console.warn('[ICE] No TURN servers from API — adding static fallback');
+            iceServers = [...iceServers, ...ICE_CONFIG_FALLBACK.iceServers];
+          }
+          const cfg = { iceServers, iceCandidatePoolSize: 10, iceTransportPolicy: 'all' };
           setIceConfig(cfg);
           iceConfigRef.current = cfg;
-          console.log('[CALL] ICE config loaded from backend ✓');
+          console.log('[CALL] ICE config loaded from backend ✓', hasTurn ? '(has TURN)' : '(TURN added from fallback)');
         }
       })
       .catch(() => {

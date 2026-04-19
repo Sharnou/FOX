@@ -34,9 +34,17 @@ const ChatSchema = new mongoose.Schema({
   unreadBuyer:  { type: Number, default: 0, min: 0 },
   unreadSeller: { type: Number, default: 0, min: 0 },
 
-  // Status
-  status: { type: String, enum: ['active', 'archived', 'blocked'], default: 'active' },
-  closeAt: { type: Date, default: null, index: true }, // set when ad is sold/deleted; cron job deletes chat after this date
+  // Status — 'closed' = ad sold/deleted, chat is read-only
+  status: { type: String, enum: ['active', 'archived', 'blocked', 'closed'], default: 'active' },
+
+  // Legacy closeAt: kept for compatibility (soft-deprecated — use closedAt below)
+  closeAt: { type: Date, default: null, index: true },
+
+  // closedAt: set when ad is sold/deleted — TTL index deletes chat 2 days (172800s) after this
+  closedAt: { type: Date, default: null },
+
+  // adStatus: mirrors the associated ad's status at time of close
+  adStatus: { type: String, enum: ['available', 'sold', 'deleted', 'inactive'], default: 'available' },
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now, index: true },
@@ -57,6 +65,13 @@ ChatSchema.index({ buyer: 1, seller: 1, ad: 1 }, { unique: true, sparse: true })
 
 // 30-day TTL index — auto-deletes chat documents 30 days after creation
 ChatSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+
+// 2-day TTL index on closedAt — auto-deletes chat 2 days after ad is sold/deleted
+// partialFilterExpression ensures only docs with a real Date are indexed (null is ignored)
+ChatSchema.index(
+  { closedAt: 1 },
+  { expireAfterSeconds: 172800, partialFilterExpression: { closedAt: { $type: 'date' } } }
+);
 
 // Auto-update updatedAt on save
 ChatSchema.pre('save', function(next) {

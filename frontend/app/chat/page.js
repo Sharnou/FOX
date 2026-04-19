@@ -220,6 +220,8 @@ function ChatPageInner() {
   var [chatStatus, setChatStatus]       = useState('active'); // 'active' | 'archived' | 'blocked'
   var [adStatus, setAdStatus]           = useState('');       // 'sold' | '' | etc.
   var [closeAt, setCloseAt]             = useState(null);     // Date when chat will be permanently deleted (7 days after ad sold/deleted)
+  var [chatClosed, setChatClosed]       = useState(false);    // true when backend emits chat:closed in real-time
+  var [chatClosedStatus, setChatClosedStatus] = useState('sold'); // 'sold' | 'deleted'
 
   var pcRef          = useRef(null);
   var remoteAudioRef = useRef(null);
@@ -675,6 +677,26 @@ function ChatPageInner() {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       typingTimerRef.current = setTimeout(function() { setIsTyping(false); }, 3000);
     });
+    // ── chat:closed: real-time notification when ad is sold/deleted ──────
+    s.on('chat:closed', function(data) {
+      var cid = data.chatId ? String(data.chatId) : '';
+      // Update conversation list
+      setConversations(function(prev) {
+        return prev.map(function(c) {
+          if ((c.chatId && String(c.chatId) === cid) || (c.chatId && c.chatId.toString() === cid)) {
+            return Object.assign({}, c, { isClosed: true, adStatus: data.adStatus || 'sold', closedAt: data.closedAt || null });
+          }
+          return c;
+        });
+      });
+      // If currently viewing this chat, show closed banner
+      if (cid && (chatIdRef.current === cid || String(chatIdRef.current) === cid)) {
+        setChatClosed(true);
+        setChatClosedStatus(data.adStatus || 'sold');
+        setChatStatus('closed');
+      }
+    });
+
     // Note: call signaling is handled by CallManager component (call:* events via Socket.IO)
     // Old call_offer/incoming_call listeners removed to avoid conflict with CallManager
   }
@@ -767,8 +789,8 @@ function ChatPageInner() {
   // Send text message
   function sendMessage() {
     if (!msg.trim() || !socketRef.current || !targetId) return;
-    // Guard: prevent sending messages to archived/sold chats
-    if (chatStatus === 'archived' || adStatus === 'sold') return;
+    // Guard: prevent sending messages to archived/sold/closed chats
+    if (isCurrentChatClosed || chatStatus === 'archived' || adStatus === 'sold') return;
     var now  = Date.now();
     var text = msg;
     var curChatId = chatIdRef.current;
@@ -810,6 +832,12 @@ function ChatPageInner() {
       setMessages(function(prev) { return prev.concat([locationMsg]); });
     });
   }
+
+  // Derived: is the currently open chat closed (ad sold/deleted)?
+  var _selectedConv = conversations.find(function(c) { return c.chatId === chatId || c.id === targetId; });
+  var isCurrentChatClosed = chatClosed || chatStatus === 'closed' || (_selectedConv && _selectedConv.isClosed);
+  var _closedAdStatus = chatClosedStatus || (_selectedConv && _selectedConv.adStatus) || adStatus || 'sold';
+  var _closedAt = (_selectedConv && _selectedConv.closedAt) || closeAt;
 
   // Call button config
   var callConfig = {
@@ -1014,6 +1042,16 @@ function ChatPageInner() {
                         <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
                           {conv.adTitle || 'إعلان'}
                         </div>
+                        {/* Ad status badge — shown below title */}
+                        {conv.adStatus && conv.adStatus !== 'available' && (
+                          <span style={{
+                            fontSize: 10, fontWeight: 600, borderRadius: 8, padding: '1px 6px', marginBottom: 2, display: 'inline-block',
+                            background: conv.adStatus === 'sold' ? 'rgba(239,68,68,0.15)' : 'rgba(156,163,175,0.2)',
+                            color: conv.adStatus === 'sold' ? '#ef4444' : '#9ca3af',
+                          }}>
+                            {conv.adStatus === 'sold' ? '✕ مباع' : '✕ محذوف'}
+                          </span>
+                        )}
                         {/* Fix C: User name — small purple accent below ad title */}
                         <div style={{ color: isActive ? 'rgba(35,229,219,0.8)' : '#a78bfa', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
                           👤 {conv.name || 'مستخدم'}
@@ -1107,17 +1145,19 @@ function ChatPageInner() {
 
           {targetId && (
             <>
-              {/* ── Sold / Archived banner ──────────────────────────────────── */}
-              {(chatStatus === 'archived' || adStatus === 'sold') && (
+              {/* ── Sold / Archived / Closed banner ──────────────────────────── */}
+              {(isCurrentChatClosed || chatStatus === 'archived' || adStatus === 'sold') && (
                 <div role="status" aria-live="polite" dir="rtl"
-                  style={{ background: '#1e3a5f', color: '#93c5fd', padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, fontWeight: 600, flexShrink: 0, borderTop: '1px solid rgba(147,197,253,0.2)' }}>
+                  style={{ background: '#fef3c7', color: '#92400e', padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, fontWeight: 600, flexShrink: 0, borderTop: '1px solid #fcd34d' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>🏷️</span>
-                    <span>تم بيع هذا الإعلان — المحادثة مغلقة ولا يمكن إرسال رسائل جديدة</span>
+                    <span style={{ fontSize: 18 }}>🔒</span>
+                    <span>
+                      {_closedAdStatus === 'deleted' ? 'تم حذف هذا الإعلان' : 'تم بيع هذا الإعلان'} — المحادثة مغلقة ولا يمكن إرسال رسائل جديدة
+                    </span>
                   </div>
-                  {closeAt && (
-                    <div style={{ fontSize: 12, color: '#fca5a5', marginRight: 28 }}>
-                      ⏳ سيتم حذف هذه المحادثة تلقائياً في غضون {Math.max(1, Math.ceil((closeAt - Date.now()) / (1000 * 60 * 60 * 24)))} {Math.max(1, Math.ceil((closeAt - Date.now()) / (1000 * 60 * 60 * 24))) === 1 ? 'يوم' : 'أيام'}
+                  {_closedAt && (
+                    <div style={{ fontSize: 11, color: '#b45309', marginRight: 28 }}>
+                      ⏳ ستُحذف هذه المحادثة تلقائياً بعد يومين من الإغلاق
                     </div>
                   )}
                 </div>
@@ -1125,7 +1165,7 @@ function ChatPageInner() {
 
               <footer style={{ background: '#ffffff', padding: '10px 14px', paddingBottom: 'max(10px, env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', boxShadow: '0 -2px 8px rgba(0,0,0,0.07)', flexShrink: 0, direction: 'rtl' }}>
                 {/* Disable all inputs when chat is archived (ad sold/closed) */}
-                {chatStatus === 'archived' || adStatus === 'sold' ? (
+                {isCurrentChatClosed || chatStatus === 'archived' || adStatus === 'sold' ? (
                   <div style={{ flex: 1, padding: '11px 16px', borderRadius: 24, border: '1.5px solid #e2e8f0', fontSize: 14, background: '#f1f5f9', color: '#94a3b8', textAlign: 'center', userSelect: 'none' }}>
                     المحادثة مغلقة
                   </div>

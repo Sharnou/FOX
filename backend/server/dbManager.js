@@ -57,6 +57,7 @@ async function tryCouchbase() {
   const password = process.env.COUCHBASE_PASSWORD  || '#N^wx+uO^70G';
   const bucketName = process.env.COUCHBASE_BUCKET || 'XTOX';
 
+  // Only reached if COUCHBASE_ENABLED=true — safe to log
   console.log(`[DB] Connecting to Couchbase: ${url} as ${username}`);
 
   // Dynamic import — won't crash if SDK not installed

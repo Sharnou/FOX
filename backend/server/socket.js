@@ -56,9 +56,12 @@ export function initSocket(io) {
     // ── Register user → join personal room ──────────────────────
     // Room-per-User pattern: all tabs for same user share the room
     socket.on('join', (payload) => {
+      // Guard: only process first join per socket (prevents 4-5x duplicate joins from React re-renders)
+      if (socket._xtoxJoined) return;
+      socket._xtoxJoined = true;
       // Accept both plain string userId (correct) and {userId} object (defensive fallback)
       const userId = typeof payload === 'string' ? payload : (payload?.userId || null);
-      if (!userId || typeof userId !== 'string') return;
+      if (!userId || typeof userId !== 'string') { socket._xtoxJoined = false; return; }
       socket.data.userId = userId;
       // Join personal notification room (supports multi-tab)
       socket.join('user_' + userId);
@@ -199,7 +202,8 @@ export function initSocket(io) {
                   }
                 }
               }
-            ]
+            ],
+            { updatePipeline: true }
           ).catch(async () => {
             // Fallback: simpler update if aggregation pipeline fails
             await Chat.updateOne(

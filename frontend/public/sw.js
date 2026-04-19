@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v41';
+const _XTOX_CACHE = 'xtox-v42';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -102,9 +102,9 @@ self.addEventListener('periodicsync', function(event) {
               'Content-Type': 'application/json',
             },
           });
-          console.log('[SW v41] Presence ping sent ✓');
+          console.log('[SW v42] Presence ping sent ✓');
         } catch (e) {
-          console.log('[SW v41] Presence ping failed:', e.message);
+          console.log('[SW v42] Presence ping failed:', e.message);
         }
       })()
     );
@@ -130,9 +130,26 @@ function getStoredToken() {
   });
 }
 
-// ─── XTOX Service Worker v34 ────────────────────────────────────────────────
+// ─── IndexedDB call event logger for SW (background push tracking) ──────────
+function logCallEventSW(type, data) {
+  data = data || {};
+  try {
+    var req = indexedDB.open('xtox-calls', 1);
+    req.onupgradeneeded = function(e) {
+      e.target.result.createObjectStore('events', { keyPath: 'id', autoIncrement: true });
+    };
+    req.onsuccess = function(e) {
+      var db = e.target.result;
+      var tx = db.transaction('events', 'readwrite');
+      var store = tx.objectStore('events');
+      store.add(Object.assign({ type: type, ts: Date.now() }, data));
+    };
+  } catch (e) { /* non-fatal */ }
+}
+
+// ─── XTOX Service Worker v42 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v41';
+const CACHE_VERSION = 'v42';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -187,72 +204,91 @@ self.addEventListener('message', event => {
   }
 });
 
-
-
-// ─── IndexedDB call event logger for SW (background push tracking) ──────────
-function logCallEventSW(type, data) {
-  data = data || {};
-  try {
-    var req = indexedDB.open('xtox-calls', 1);
-    req.onupgradeneeded = function(e) {
-      e.target.result.createObjectStore('events', { keyPath: 'id', autoIncrement: true });
-    };
-    req.onsuccess = function(e) {
-      var db = e.target.result;
-      var tx = db.transaction('events', 'readwrite');
-      var store = tx.objectStore('events');
-      store.add(Object.assign({ type: type, ts: Date.now() }, data));
-    };
-  } catch (e) { /* non-fatal */ }
-}
-
 // ── PUSH: handle incoming push notifications ─────────────────────────────────
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   let data;
   try { data = event.data.json(); } catch { return; }
 
+  // Fix 7A: track push receipt in IDB for analytics
+  logCallEventSW('push_received', { type: data.type || 'unknown' });
+
   if (data.type === 'incoming_call') {
     // Fix E: log incoming push call to IndexedDB for background tracking
     logCallEventSW('push_incoming', { callerId: data.callerId || '', callerName: data.callerName || '' });
-    const notifOptions = {
-      body: data.body || `مكالمة من ${data.callerName || 'مستخدم XTOX'}`,
-      icon: data.icon || '/icon-192.png',
-      badge: data.badge || '/favicon.ico',
-      image: data.callerAvatar || undefined,
-      tag: `call-${data.roomId}`,
-      renotify: true,
-      requireInteraction: true,                    // stays until user acts
-      silent: false,
-      vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500], // WhatsApp-style
-      actions: [
-        { action: 'answer',  title: '📞 رد'   },
-        { action: 'decline', title: '❌ رفض'  },
-      ],
-      data: {
-        type: 'incoming_call',
-        callerId: data.callerId || '',
-        callerName: data.callerName || 'مستخدم XTOX',
-        callerAvatar: data.callerAvatar || '',
-        callerSocketId: data.callerSocketId || '',
-        offer: JSON.stringify(data.offer || null),
-        roomId: data.roomId || '',
-        url: '/',
-      },
+
+    const notifData = {
+      type: 'incoming_call',
+      callerId: data.callerId || '',
+      callerName: data.callerName || 'مستخدم XTOX',
+      callerAvatar: data.callerAvatar || '',
+      callerSocketId: data.callerSocketId || '',
+      offer: JSON.stringify(data.offer || null),
+      roomId: data.roomId || '',
+      url: '/',
     };
+
+    // Fix 7B: Professional WhatsApp-style notification
+    const notifOptions = {
+      body: `${data.callerName || 'مستخدم XTOX'} يتصل بك الآن...`,
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      image: data.callerAvatar || undefined,
+      tag: 'incoming-call-' + (data.callerId || data.roomId || 'call'), // Fix 7C: dedup tag
+      renotify: true,                                                     // re-vibrate even if same tag
+      requireInteraction: true,                                           // stays until user acts
+      silent: false,
+      vibrate: [400, 200, 400, 200, 400, 600, 400, 200, 400],           // Fix 7B: 9-pulse WhatsApp pattern
+      timestamp: Date.now(),
+      data: notifData,
+      actions: [
+        { action: 'answer',  title: '📞 رد',  icon: '/favicon.svg' },
+        { action: 'decline', title: '❌ رفض', icon: '/favicon.svg' },
+      ],
+    };
+
     event.waitUntil(
-      self.registration.showNotification(data.title || '📞 مكالمة واردة', notifOptions)
+      (async () => {
+        // Fix 7C: close any existing notification for this caller before showing new one
+        try {
+          const existing = await self.registration.getNotifications({ tag: 'incoming-call-' + (data.callerId || data.roomId || 'call') });
+          existing.forEach(n => n.close());
+        } catch {}
+        await self.registration.showNotification(data.title || '📞 مكالمة واردة', notifOptions);
+      })()
     );
     return;
   }
 
-  // Regular message notification
-  if (data.type === 'new_message' || data.type === 'chat_message') {
+  // Fix 7D: new_message push type — skip if app is visible
+  if (data.type === 'new_message') {
+    event.waitUntil(
+      (async () => {
+        const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const focused = windowClients.some(c => c.visibilityState === 'visible');
+        if (!focused) {
+          await self.registration.showNotification(data.senderName || 'رسالة جديدة', {
+            body: data.text || '...',
+            icon: '/favicon.svg',
+            badge: '/favicon.svg',
+            tag: 'msg-' + (data.chatId || data.senderId || Date.now()),
+            renotify: true,
+            vibrate: [200, 100, 200],
+            data: { type: 'new_message', chatId: data.chatId, url: '/chat?chatId=' + (data.chatId || '') },
+          });
+        }
+      })()
+    );
+    return;
+  }
+
+  // Regular message notification (legacy type: chat_message)
+  if (data.type === 'chat_message') {
     event.waitUntil(
       self.registration.showNotification(data.title || 'رسالة جديدة', {
         body: data.body || data.message || '',
-        icon: '/icon-192.png',
-        badge: '/favicon.ico',
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
         tag: `msg-${data.chatId || Date.now()}`,
         renotify: true,
         vibrate: [200, 100, 200],
@@ -267,8 +303,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification(data.title || '🏆 بائع الشهر', {
         body: data.body || '',
-        icon: '/icon-192.png',
-        badge: '/favicon.ico',
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
         tag: 'monthly-winner',
         requireInteraction: false,
         vibrate: [200, 100, 200],
@@ -283,8 +319,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification(data.title || '🏆 قواعد بائع الشهر', {
         body: data.body || '',
-        icon: '/icon-192.png',
-        badge: '/favicon.ico',
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
         tag: 'winner-rules',
         requireInteraction: false,
         vibrate: [100, 50, 100],
@@ -299,8 +335,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification(data.title, {
         body: data.body || '',
-        icon: '/icon-192.png',
-        badge: '/favicon.ico',
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
         data: { url: data.url || '/' },
         vibrate: [200],
       })
@@ -378,6 +414,7 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('notificationclose', (event) => {
   const notifData = event.notification.data || {};
   if (notifData.type === 'incoming_call') {
+    logCallEventSW('push_dismissed', { callerId: notifData.callerId || '', roomId: notifData.roomId || '' });
     // Notify backend of missed call (fire and forget)
     fetch(_XTOX_API + '/api/calls/missed', {
       method: 'POST',

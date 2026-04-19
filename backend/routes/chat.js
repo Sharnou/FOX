@@ -39,7 +39,13 @@ router.get('/', auth, async (req, res) => {
       .populate('seller', 'name username xtoxId avatar phone whatsappPhone emailVerified whatsappVerified')
       .populate('ad', 'title images status price')
       .lean();
-    res.json({ success: true, chats });
+    // Attach adStatus + closedAt per chat for frontend badge
+    const enriched = chats.map(c => ({
+      ...c,
+      adStatus: c.adStatus || c.ad?.status || 'available',
+      closedAt: c.closedAt || null,
+    }));
+    res.json({ success: true, chats: enriched });
   } catch (e) {
     res.status(500).json({
       success: false,
@@ -188,6 +194,48 @@ router.patch('/sound-settings', auth, async (req, res) => {
     await User.findByIdAndUpdate(req.user.id, { muteSounds: !!muteSounds });
     res.json({ success: true, muteSounds: !!muteSounds });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/close-by-ad  — called by ad routes when ad is sold/deleted
+// Closes all active chats for the ad: sets status='closed', closedAt=now, adStatus
+// Must be BEFORE /:chatId routes to avoid route conflict
+// ─────────────────────────────────────────────────────────────
+router.post('/close-by-ad', auth, async (req, res) => {
+  try {
+    const { adId, adStatus } = req.body; // adStatus: 'sold' | 'deleted'
+    if (!adId || !mongoose.Types.ObjectId.isValid(adId)) {
+      return res.status(400).json({ error: 'adId required and must be valid' });
+    }
+    const now = new Date();
+    const result = await getChat().updateMany(
+      { ad: adId, status: 'active' },
+      { $set: { status: 'closed', closedAt: now, adStatus: adStatus || 'sold', updatedAt: now } }
+    );
+
+    // Emit chat:closed to all participants via Socket.IO
+    const io = req.app.get('io');
+    if (io) {
+      const closedChats = await getChat().find({ ad: adId, status: 'closed' })
+        .select('buyer seller adStatus closedAt')
+        .lean();
+      for (const chat of closedChats) {
+        const buyerId  = chat.buyer?.toString() || chat.buyer;
+        const sellerId = chat.seller?.toString() || chat.seller;
+        io.to('user_' + buyerId).emit('chat:closed', {
+          chatId: chat._id, adId, adStatus: chat.adStatus, closedAt: chat.closedAt,
+        });
+        io.to('user_' + sellerId).emit('chat:closed', {
+          chatId: chat._id, adId, adStatus: chat.adStatus, closedAt: chat.closedAt,
+        });
+      }
+    }
+
+    res.json({ success: true, closed: result.modifiedCount });
+  } catch (e) {
+    console.error('[CHAT] close-by-ad error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -480,6 +528,10 @@ router.post('/:chatId/messages', auth, async (req, res) => {
     });
     if (!chat) {
       return res.status(404).json({ success: false, error: 'Chat not found or access denied', message: 'المحادثة غير موجودة | Chat not found' });
+    }
+    // Block messages in closed chats (ad sold/deleted)
+    if (chat.status === 'closed') {
+      return res.status(403).json({ success: false, error: 'chat_closed', message: 'هذا الإعلان تم بيعه — المحادثة مغلقة' });
     }
     const message = {
       sender: req.user.id,
