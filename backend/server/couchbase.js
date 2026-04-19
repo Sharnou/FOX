@@ -59,7 +59,7 @@ export async function connectCouchbase() {
     _collection = null;
     _connected = false;
     couchbaseDisabled = true;
-    console.warn('[COUCHBASE] Disabled — connection failed (non-fatal, MongoDB is primary):', e.message || String(e));
+    console.log('[COUCHBASE] Disabled — connection failed (non-fatal, MongoDB is primary):', e.message || String(e));
     return false;
   }
 }

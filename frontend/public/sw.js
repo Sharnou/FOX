@@ -27,6 +27,8 @@ var _SKIP_DOMAINS = [
 self.addEventListener('fetch', function(event) {
   // Avoid handling non-GET requests
   if (event.request.method !== 'GET') return;
+  // NEVER intercept navigation requests — the main fetch handler below handles them correctly
+  if (event.request.mode === 'navigate') return;
   
   var url;
   try { url = new URL(event.request.url); } catch(e) { return; }
@@ -43,10 +45,13 @@ self.addEventListener('fetch', function(event) {
           var fetchPromise = fetch(event.request).then(function(response) {
             if (response.ok) cache.put(event.request, response.clone());
             return response;
-          }).catch(function() { return cached; });
+          }).catch(function() {
+            // Only return cached if it's a valid Response — never return undefined
+            return cached || fetch(event.request);
+          });
           return cached || fetchPromise;
         });
-      })
+      }).catch(function() { return fetch(event.request); })
     );
     return;
   }
@@ -54,6 +59,7 @@ self.addEventListener('fetch', function(event) {
   // Cache-first for static assets — only for same-origin or pre-approved CDNs.
   // External image/style/script requests (Google Fonts, avatars, etc.) are already
   // skipped by the _SKIP_DOMAINS check above, so this block is safe.
+  // FIX: use explicit comparisons (not || 'string' which is always truthy)
   if (event.request.destination === 'image' || 
       event.request.destination === 'style' || 
       event.request.destination === 'script') {
@@ -66,12 +72,16 @@ self.addEventListener('fetch', function(event) {
     event.respondWith(
       caches.open(_XTOX_CACHE).then(function(cache) {
         return cache.match(event.request).then(function(cached) {
-          return cached || fetch(event.request).then(function(r) {
-            if (r.ok) cache.put(event.request, r.clone());
+          if (cached) return cached;
+          return fetch(event.request).then(function(r) {
+            if (r && r.ok) cache.put(event.request, r.clone());
             return r;
-          }).catch(function() { return cached; });
+          }).catch(function() {
+            // cached could be undefined — fall back to a network error response
+            return cached || new Response('', { status: 503, statusText: 'Service Unavailable' });
+          });
         });
-      })
+      }).catch(function() { return fetch(event.request); })
     );
     return;
   }
@@ -474,8 +484,11 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Network failed — fall back to cache (better than nothing)
-          return caches.match(request);
+          // Network failed — fall back to cache; if not cached, return 503
+          // FIX: caches.match() returns Promise<Response|undefined> — must unwrap
+          return caches.match(request).then(function(r) {
+            return r || new Response('', { status: 503, statusText: 'Service Unavailable' });
+          });
         })
     );
     return;
@@ -492,7 +505,10 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(request))
+        // FIX: caches.match() returns Promise<Response|undefined> — must unwrap
+        .catch(() => caches.match(request).then(function(r) {
+          return r || new Response('', { status: 503, statusText: 'Service Unavailable' });
+        }))
     );
     return;
   }
@@ -558,10 +574,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request).catch(() => {
         // Network failed — serve offline page (from cache) or minimal fallback
-        return caches.match(OFFLINE_URL) || new Response(
-          '<html><body><h1>Offline</h1><p>Please check your connection.</p></body></html>',
-          { headers: { 'Content-Type': 'text/html' } }
-        );
+        // FIX: caches.match() returns a Promise, must use .then() to unwrap it
+        return caches.match(OFFLINE_URL).then(function(r) {
+          return r || new Response(
+            '<html><body><h1>Offline</h1><p>Please check your connection.</p></body></html>',
+            { headers: { 'Content-Type': 'text/html' } }
+          );
+        });
       })
     );
     return;

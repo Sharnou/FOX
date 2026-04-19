@@ -254,7 +254,6 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
 
 export default function AdPageClient({ params }) {
   const [lang, setLang] = useState('ar');
-  useEffect(() => { setLang(detectLang()); }, []);
   const [ad, setAd] = useState(null);
   const [callActive, setCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState('');
@@ -287,6 +286,8 @@ export default function AdPageClient({ params }) {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSubmitted, setReviewSubmitted]   = useState(false);
   const [reviewHover, setReviewHover]           = useState(0);
+  // Detect language after all state declarations are initialized
+  useEffect(() => { setLang(detectLang()); }, []);
   useEffect(() => {
     if (params && params.id) {
       fetch(API + '/api/ads/' + params.id)

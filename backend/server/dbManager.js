@@ -93,7 +93,7 @@ async function tryCouchbase() {
     couchbaseCluster = null;
     couchbaseBucket = null;
     couchbaseCollection = null;
-    console.warn('[DB] Couchbase unavailable (non-fatal, MongoDB is primary):', couchbaseError);
+    console.log('[DB] Couchbase unavailable (non-fatal, MongoDB is primary):', couchbaseError);
     return null;
   }
 }
