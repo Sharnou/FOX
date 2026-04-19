@@ -531,6 +531,10 @@ router.get('/subsub-options', async (req, res) => {
 
 // ── GET single ad ──
 router.get('/:id', async (req, res) => {
+  // Fix E: Validate ObjectId before DB query to avoid CastError and return clean 404
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(404).json({ error: 'Invalid ad ID' });
+  }
   try {
     const AdModel = getAdModel();
     const ad = await AdModel.findById(req.params.id).lean();

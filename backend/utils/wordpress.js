@@ -730,7 +730,7 @@ export function buildCountryJS(ad) {
 // ─── 2C: Build Open Graph + Twitter Card metadata object ────────────────────
 function buildOGMetadata(ad, title, excerpt) {
   const appUrl = 'https://fox-kohl-eight.vercel.app';
-  const adId = ad._id || ad.id || '';
+  const adId = ad._id?.toString() || (ad.id ? String(ad.id) : '');
   const firstImage = (ad.images || ad.media || [])[0] || 'https://fox-kohl-eight.vercel.app/logo192.png';
   const adUrl = `${appUrl}/ads/${adId}`;
 

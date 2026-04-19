@@ -41,7 +41,7 @@ async function sendSystemMsg(chatId, text, io) {
     const chat = await Chat.findByIdAndUpdate(
       chatId,
       { $push: { messages: { sender: null, text, type: 'system', status: 'delivered' } } },
-      { new: true, select: 'buyer seller messages' }
+      { returnDocument: 'after', select: 'buyer seller messages' }
     ).lean();
     if (!chat) return;
     const msg = chat.messages[chat.messages.length - 1];

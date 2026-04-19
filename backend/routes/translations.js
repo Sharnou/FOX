@@ -105,7 +105,7 @@ ${JSON.stringify(englishKeys, null, 2)}`;
     await TranslationCache.findOneAndUpdate(
       { lang },
       { lang, translations: translated, generatedAt: new Date(), version: TRANSLATION_VERSION },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     console.log(`[Translations] ${langName} cached successfully`);

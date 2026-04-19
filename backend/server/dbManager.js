@@ -95,8 +95,7 @@ async function tryCouchbase() {
     if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) {
       console.warn('[DB] Couchbase max retries reached — Couchbase disabled. Check COUCHBASE_URL env var and IP whitelist in Couchbase Capella.');
     } else {
-      console.error('[DB] Couchbase connection error:', e.message);
-      console.error('[DB] Couchbase error code:', e.code || e.cause?.code || 'N/A');
+      console.warn('[DB] Couchbase connection error (non-fatal):', e.message);
     }
     throw e;
   }
@@ -115,7 +114,7 @@ export async function connectDatabases() {
     console.log(`[DB] Active database: ${activeDB}`);
     // Fire Couchbase in background — NEVER blocks MongoDB from being primary
     tryCouchbase().catch(e => {
-      console.warn('[DB] Couchbase background attempt failed (non-fatal):', e.message);
+      console.warn('[DB] Couchbase background attempt: timeout (non-fatal, will retry later)');
     });
     return activeDB;
   }

@@ -15,7 +15,7 @@ SettingSchema.statics.set = async function(key, value) {
   return this.findOneAndUpdate(
     { key },
     { key, value, updatedAt: new Date() },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   )
 }
 
