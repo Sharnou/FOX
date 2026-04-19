@@ -84,13 +84,13 @@ export async function GET(request) {
 
   const mapping = COUNTRY_MAP[country];
   if (!mapping) {
-    // Unknown country — default to English, no toggle
+    // Unknown country — default to Arabic (Arabic-first app)
     return NextResponse.json({
       country,
-      language: 'en',
-      rtl: false,
-      nativeName: null,
-      showToggle: false,
+      language: 'ar',
+      rtl: true,
+      nativeName: 'عر',
+      showToggle: true,
     });
   }
 

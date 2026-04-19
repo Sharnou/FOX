@@ -1,8 +1,8 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { detectLang } from '../../lib/lang';
+import { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 const TRANSLATIONS = {
   ar: {
@@ -69,16 +69,18 @@ const VALUES = [
 ];
 
 export default function AboutPage() {
-  const [lang, setLang] = useState('ar');
-  const isRtl = lang === 'ar';
-  const t = TRANSLATIONS[lang];
+  // Use the global language context (Arabic-first) as the source of truth
+  const { language: globalLang, isRTL: globalRTL, showToggle } = useLanguage();
+  // Allow a local in-page toggle (only for the about page content, not the nav)
+  const [localOverride, setLocalOverride] = useState(null);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('xtox_lang');
-      if (stored === 'en') setLang('en');
-    } catch {}
-  }, []);
+  const lang = localOverride || globalLang || 'ar';
+  const isRtl = lang === 'ar' || lang === 'fa' || lang === 'he';
+  const t = TRANSLATIONS[lang] || TRANSLATIONS['ar'];
+
+  const handleToggle = () => {
+    setLocalOverride(lang === 'ar' ? 'en' : 'ar');
+  };
 
   return (
     <div
@@ -106,9 +108,9 @@ export default function AboutPage() {
         <p style={{ fontSize: 'clamp(14px,2.5vw,20px)', color: '#a78bfa', maxWidth: '600px', margin: '0 auto 24px' }}>
           {t.subtitle}
         </p>
-        {/* Language toggle */}
+        {/* Language toggle (only for this page's content) */}
         <button
-          onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+          onClick={handleToggle}
           style={{
             background: 'rgba(255,255,255,0.1)',
             border: '1px solid rgba(255,255,255,0.2)',

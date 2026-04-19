@@ -122,7 +122,7 @@ export function LanguageProvider({ children }) {
       if (storedCountry && storedToggle !== null) {
         country   = storedCountry;
         toggle    = storedToggle === 'true';
-        native    = storedNative || 'en';
+        native    = storedNative || 'ar';
         name      = storedName  || null;
         nativeRtl = storedRTL   === 'true';
       } else {
@@ -131,7 +131,7 @@ export function LanguageProvider({ children }) {
           const data = await res.json();
           country   = data.country    || 'EG';
           toggle    = !!data.showToggle;
-          native    = data.language   || 'en';
+          native    = data.language   || 'ar';
           name      = data.nativeName || null;
           nativeRtl = !!data.rtl;
         } catch {

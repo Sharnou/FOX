@@ -136,7 +136,7 @@ export default function RegisterPage() {
   const passwordStrength = getPasswordStrength(form.password);
 
   useEffect(() => {
-    const savedLang = localStorage.getItem('xtox_lang');
+    const savedLang = localStorage.getItem('xtox_language') || localStorage.getItem('xtox_lang');
     if (savedLang === 'en' || savedLang === 'ar') {
       setLang(savedLang);
     }
@@ -146,6 +146,7 @@ export default function RegisterPage() {
     const newLang = lang === 'ar' ? 'en' : 'ar';
     setLang(newLang);
     localStorage.setItem('xtox_lang', newLang);
+    localStorage.setItem('xtox_language', newLang);
   };
 
   const handleChange = (e) => {
