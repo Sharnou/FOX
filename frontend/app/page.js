@@ -18,6 +18,8 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
 const CAT_VALS = ['', 'Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion'];
 const CAT_ICONS = ['🌐', '🚗', '📱', '🏠', '💼', '🔧', '🛒', '💊', '🍕', '👗'];
+// Translation keys for each category (maps CAT_KEYS index → translations/index.js key)
+const CAT_TKEYS = ['cat_all', 'cat_vehicles', 'cat_electronics', 'cat_real_estate', 'cat_jobs', 'cat_services', 'cat_supermarket', 'cat_pharmacy', 'cat_food', 'cat_fashion'];
 
 const CAT_NAMES_AR = {
   all: 'جميع الإعلانات',
@@ -580,7 +582,7 @@ export default function Home() {
               role="listitem"
               onClick={() => selectCat(i)}
               aria-pressed={catIdx === i}
-              aria-label={t('home_categories') + ': ' + (tLoc[key] || CAT_NAMES_AR[key] || key)}
+              aria-label={t('home_categories') + ': ' + t(CAT_TKEYS[i])}
               className="cat-btn"
               style={{
                 fontWeight: catIdx === i ? 800 : 600,
@@ -595,7 +597,7 @@ export default function Home() {
               }}
             >
               <span aria-hidden="true">{CAT_ICONS[i]}</span>{' '}
-              {t[key] || CAT_NAMES_AR[key]}
+              {t(CAT_TKEYS[i])}
             </button>
           ))}
         </div>
@@ -621,7 +623,7 @@ export default function Home() {
             textAlign: isRTL ? 'right' : 'left',
           }}
         >
-          {'✨ ' + regular.length + ' ' + (tLoc[CAT_KEYS[catIdx]] || currentCatNameAr)}
+          {'✨ ' + regular.length + ' ' + t(CAT_TKEYS[catIdx])}
         </div>
       )}
 

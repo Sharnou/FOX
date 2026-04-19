@@ -3,10 +3,10 @@ import { useLanguage } from '../context/LanguageContext';
 
 // run 43+: Arabic category labels + icons + RTL accessibility for Arab marketplace users
 // Replaced hardcoded labels with t() translation calls so they auto-translate for every language.
-// Added aria-label, aria-pressed, dir="rtl" and scrollbar-hide for mobile UX.
+// Added aria-label, aria-pressed, dir={isRTL ? "rtl" : "ltr"} and scrollbar-hide for mobile UX.
 
 export default function CategoryNav({ active, onChange }) {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
 
   const categories = [
     { key: 'All',         icon: '🌐', label: t('cat_all') },
@@ -23,7 +23,7 @@ export default function CategoryNav({ active, onChange }) {
 
   return (
     <nav
-      aria-label={t('cat_all')}
+      aria-label={t('home_categories')}
       dir="rtl"
       className="flex gap-2 p-3 overflow-x-auto bg-white shadow-sm"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
