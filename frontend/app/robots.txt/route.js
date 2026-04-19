@@ -1,4 +1,6 @@
-User-agent: *
+export const dynamic = 'force-dynamic';
+
+const ROBOTS_CONTENT = `User-agent: *
 Allow: /
 Allow: /ads
 Allow: /ads/
@@ -48,4 +50,13 @@ User-agent: MJ12bot
 Disallow: /
 
 # Sitemap
-Sitemap: https://fox-kohl-eight.vercel.app/sitemap.xml
+Sitemap: https://fox-kohl-eight.vercel.app/sitemap.xml`;
+
+export async function GET() {
+  return new Response(ROBOTS_CONTENT, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=86400',
+    },
+  });
+}

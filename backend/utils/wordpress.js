@@ -255,15 +255,98 @@ function buildExcerpt(ad) {
   return desc.slice(0, 150) + (desc.length > 150 ? '...' : '');
 }
 
-// ─── buildTags: category + governorate + 'مصر' + 'XTOX' ──────────────────────
+// ─── buildTags: Rich SEO-optimized tag generator (returns array of tag names) ──
 function buildTags(ad) {
-  const tags = [];
-  if (ad.category) tags.push(ad.category);
-  const city = ad.city || ad.location || '';
-  if (city) tags.push(city);
-  tags.push('مصر');
-  tags.push('XTOX');
-  return tags.join(',');
+  const tags = new Set();
+
+  // Category tags (Arabic + English)
+  const catMap = {
+    'cars':        ['سيارات', 'Cars', 'مركبات', 'Vehicles'],
+    'electronics': ['إلكترونيات', 'Electronics', 'أجهزة'],
+    'realestate':  ['عقارات', 'Real Estate', 'شقق', 'أراضي'],
+    'jobs':        ['وظائف', 'Jobs', 'عمل', 'فرص عمل'],
+    'services':    ['خدمات', 'Services'],
+    'supermarket': ['سوبرماركت', 'Supermarket', 'بقالة'],
+    'pharmacy':    ['صيدلية', 'Pharmacy', 'دواء'],
+    'food':        ['طعام', 'Food', 'مطاعم', 'Fast Food'],
+    'fashion':     ['موضة', 'Fashion', 'ملابس', 'أزياء'],
+  };
+  const catKey = (ad.category || '').toLowerCase().replace(/\s+/g, '');
+  if (catMap[catKey]) catMap[catKey].forEach(t => tags.add(t));
+  else if (ad.category) tags.add(ad.category);
+
+  // Location tags
+  if (ad.governorate || ad.city) tags.add(ad.governorate || ad.city);
+  if (ad.city && ad.city !== ad.governorate) tags.add(ad.city);
+
+  // Condition tags
+  const condMap = {
+    'new':         ['جديد', 'New'],
+    'used':        ['مستعمل', 'Used'],
+    'refurbished': ['مجدد', 'Refurbished'],
+  };
+  if (ad.condition && condMap[ad.condition]) condMap[ad.condition].forEach(t => tags.add(t));
+
+  // Price range tags
+  const price = parseFloat(ad.price);
+  if (!isNaN(price)) {
+    if (price < 500)        tags.add('أقل من 500 جنيه');
+    else if (price < 2000)  tags.add('500 - 2000 جنيه');
+    else if (price < 10000) tags.add('2000 - 10000 جنيه');
+    else                    tags.add('أكثر من 10000 جنيه');
+  }
+
+  // Platform tags (always)
+  ['XTOX', 'مصر', 'Egypt', 'سوق إلكتروني', 'بيع وشراء'].forEach(t => tags.add(t));
+
+  // Title keywords (extract meaningful words > 3 chars, max 5)
+  if (ad.title) {
+    const words = ad.title.split(/\s+/).filter(w => w.length > 3).slice(0, 5);
+    words.forEach(w => tags.add(w));
+  }
+
+  return [...tags].slice(0, 20); // reasonable max for WP
+}
+
+// ─── PAGE_TAGS: Static page tag map for WP pages ─────────────────────────────
+export const PAGE_TAGS = {
+  home:        ['XTOX', 'سوق إلكتروني', 'مصر', 'بيع وشراء', 'إعلانات مبوبة', 'Egypt Marketplace'],
+  leaderboard: ['XTOX', 'متصدرو المبيعات', 'Leaderboard', 'أفضل البائعين', 'مصر'],
+  honorRoll:   ['XTOX', 'لوحة الشرف', 'Honor Roll', 'البائع المميز'],
+  ads:         ['XTOX', 'إعلانات', 'Ads', 'بيع وشراء', 'مصر', 'Egypt'],
+};
+
+// ─── getOrCreateTags: resolve tag names → WP tag IDs (via wp/v2 API) ─────────
+async function getOrCreateTags(tagNames, token) {
+  if (!token || !tagNames || !tagNames.length) return [];
+  const ids = [];
+  for (const name of tagNames) {
+    try {
+      const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]/g, '');
+      // Try to create
+      const res = await fetch('https://public-api.wordpress.com/wp/v2/sites/xt0x.wordpress.com/tags', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, slug }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const tag = await res.json();
+        if (tag.id) ids.push(tag.id);
+      } else if (res.status === 409) {
+        // Tag already exists — search for it
+        const search = await fetch(
+          `https://public-api.wordpress.com/wp/v2/sites/xt0x.wordpress.com/tags?search=${encodeURIComponent(name)}&per_page=1`,
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(8000) }
+        );
+        if (search.ok) {
+          const existing = await search.json();
+          if (existing[0]?.id) ids.push(existing[0].id);
+        }
+      }
+    } catch { /* skip failed tag — non-fatal */ }
+  }
+  return ids;
 }
 
 // ─── 2F: IndexNow ping (Bing + Yandex instant indexing) ─────────────────────
@@ -708,7 +791,8 @@ export async function createWPPost(ad) {
   try {
     const adId = (ad._id || ad.id || '').toString();
     const slug = `xtox-ad-${adId}`;
-    const tags = buildTags(ad);
+    const tagNames = buildTags(ad);
+    const tagIds = await getOrCreateTags(tagNames, getToken()).catch(() => []);
     const title = buildTitle(ad);
     const excerpt = buildExcerpt(ad);
 
@@ -727,7 +811,7 @@ export async function createWPPost(ad) {
       status: (ad.status && ad.status !== 'active' && ad.status !== 'publish') ? 'draft' : 'publish',
       slug,
       language: 'ar',
-      tags,
+      tags: tagIds,
       excerpt,
       format: 'standard',
       metadata,
@@ -933,6 +1017,7 @@ export async function updateWPPost(wpPostId, ad) {
     const title = buildTitle(ad);
     const excerpt = buildExcerpt(ad);
     const metadata = buildOGMetadata(ad, title, excerpt);
+    const updateTagIds = await getOrCreateTags(buildTags(ad), getToken()).catch(() => []);
     const res = await fetch(`${WP_API}/posts/${wpPostId}`, {
       method: 'POST',
       headers: authHeaders(),
@@ -943,7 +1028,7 @@ export async function updateWPPost(wpPostId, ad) {
         slug,
         language: 'ar',
         metadata,
-        tags: generateKeywords(ad).slice(0, 15).join(','),
+        tags: updateTagIds,
         status: 'publish',
       }),
       signal: AbortSignal.timeout(15000),
