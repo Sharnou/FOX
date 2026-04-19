@@ -89,6 +89,45 @@ export function initSocket(io) {
           break; // One pending call at a time
         }
       }
+
+      // ── Offline message delivery: emit pending_messages for each chat with unread msgs ──
+      try {
+        const _ChatModel = (await import('../models/Chat.js')).default;
+        const pendingChats = await _ChatModel.find({
+          $or: [
+            { buyer: userId, unreadBuyer: { $gt: 0 } },
+            { seller: userId, unreadSeller: { $gt: 0 } },
+          ],
+          status: { $ne: 'closed' },
+          deletedBy: { $ne: userId },
+        })
+        .select('_id buyer seller unreadBuyer unreadSeller messages adTitle')
+        .lean();
+
+        for (const chat of pendingChats) {
+          const isBuyer = String(chat.buyer) === String(userId);
+          const count = isBuyer ? (chat.unreadBuyer || 0) : (chat.unreadSeller || 0);
+          if (count <= 0) continue;
+          const otherId = isBuyer ? String(chat.seller) : String(chat.buyer);
+          const msgs = chat.messages || [];
+          const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+          socket.emit('pending_messages', {
+            chatId: String(chat._id),
+            count,
+            lastMessage: lastMsg ? {
+              text: lastMsg.text || '',
+              type: lastMsg.type || 'text',
+              createdAt: lastMsg.createdAt,
+            } : null,
+            senderId: otherId,
+          });
+        }
+        if (pendingChats.length > 0) {
+          console.log('[Socket] pending_messages: sent', pendingChats.length, 'notifications to user:', userId);
+        }
+      } catch (pendingErr) {
+        console.warn('[Socket] pending_messages check error:', pendingErr.message);
+      }
     });
 
     // ── Check online status ─────────────────────────────────────

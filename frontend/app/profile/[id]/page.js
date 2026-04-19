@@ -56,6 +56,8 @@ export default function ProfilePage({ params }) {
   const pcRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const [myUserId, setMyUserId] = React.useState('');
+  const [myReputation, setMyReputation] = React.useState(0);
+  const [dmLoading, setDmLoading] = React.useState(false);
   const [token, setToken] = React.useState('');
   const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [avatarUrl, setAvatarUrl] = React.useState(null);
@@ -83,6 +85,50 @@ export default function ProfilePage({ params }) {
       setMyUserId(localStorage.getItem('userId') || '');
     }
   }, []);
+
+  // Fetch viewer's own reputation for DM gating
+  useEffect(() => {
+    if (!myUserId) return;
+    // Try localStorage first (fast path)
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      const userObj = stored ? JSON.parse(stored) : null;
+      if (userObj && typeof userObj.reputationPoints === 'number') {
+        setMyReputation(userObj.reputationPoints);
+        return;
+      }
+    } catch {}
+    // Fallback: fetch profile
+    fetch(API + '/api/profile/' + myUserId)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.user) setMyReputation(d.user.reputationPoints || d.user.reputation || 0); })
+      .catch(() => {});
+  }, [myUserId]);
+
+  // sendDirect: create or find direct message chat and navigate
+  async function sendDirectMessage() {
+    const tok = token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+    if (!tok) { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
+    setDmLoading(true);
+    try {
+      const res = await fetch(API + '/api/chat/direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+        body: JSON.stringify({ targetUserId: params?.id }),
+      });
+      const data = await res.json();
+      if (data.chatId || data._id) {
+        router.push('/chat?chatId=' + (data.chatId || data._id));
+      } else if (data.error === 'insufficient_reputation') {
+        alert('تحتاج 100 نقطة سمعة للتواصل المباشر مع المستخدمين');
+      } else {
+        alert(data.message || data.error || 'حدث خطأ');
+      }
+    } catch (e) {
+      alert('حدث خطأ، يرجى المحاولة لاحقاً');
+    }
+    setDmLoading(false);
+  }
 
   // ── Fix 2: handle fetch errors, show proper error state ───────────────
   useEffect(() => {
@@ -414,6 +460,25 @@ export default function ProfilePage({ params }) {
               style={{ flex: 1, background: '#002f34', color: 'white', textAlign: 'center', padding: '12px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 14 }}>
               💬 مراسلة
             </a>
+
+            {/* DM button — visible only if viewer has 100+ rep AND logged in */}
+            {token && myReputation >= 100 ? (
+              <button
+                onClick={sendDirectMessage}
+                disabled={dmLoading}
+                title="رسالة مباشرة (100+ نقطة)"
+                style={{ flex: 1, background: '#6366f1', color: 'white', border: 'none', padding: '12px', borderRadius: 12, fontWeight: 'bold', fontSize: 14, cursor: dmLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: dmLoading ? 0.7 : 1 }}>
+                {dmLoading ? '...' : '💬 رسالة مباشرة'}
+              </button>
+            ) : token && myReputation < 100 ? (
+              <div
+                title="تحتاج 100 نقطة للتواصل المباشر"
+                style={{ flex: 1, background: '#e5e7eb', color: '#9ca3af', textAlign: 'center', padding: '12px', borderRadius: 12, fontWeight: 'bold', fontSize: 14, cursor: 'not-allowed' }}>
+                💬 رسالة مباشرة
+                <span style={{ display: 'block', fontSize: 10, fontWeight: 'normal', marginTop: 2 }}>تحتاج 100 نقطة</span>
+              </div>
+            ) : null}
+
             {callStatus && (
               <div style={{ width: '100%', background: callActive ? '#e8f8e8' : '#fff8e0', border: '1px solid ' + (callActive ? '#00aa44' : '#ffd700'), borderRadius: 10, padding: '8px 14px', fontSize: 13, textAlign: 'center' }}>
                 {callStatus}

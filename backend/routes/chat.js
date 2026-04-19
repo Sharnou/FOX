@@ -360,6 +360,88 @@ router.post('/whatsapp-notify', auth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/direct  — start DM with any user (requires rep >= 100)
+// Viewer must have reputationPoints >= 100 to message anyone directly
+// Must be BEFORE /:chatId routes to avoid route conflict
+// ─────────────────────────────────────────────────────────────
+router.post('/direct', auth, async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+    if (!targetUserId || !mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ success: false, error: 'targetUserId is required and must be valid' });
+    }
+    if (String(req.user.id) === String(targetUserId)) {
+      return res.status(400).json({ success: false, error: 'Cannot message yourself' });
+    }
+
+    // Check viewer reputation
+    const User = (await import('../models/User.js')).default;
+    const viewer = await User.findById(req.user.id).select('reputationPoints reputation').lean();
+    const viewerRep = (viewer?.reputationPoints || viewer?.reputation || 0);
+    if (viewerRep < 100) {
+      return res.status(403).json({
+        success: false,
+        error: 'insufficient_reputation',
+        message: 'تحتاج 100 نقطة للتواصل المباشر',
+        currentRep: viewerRep,
+        required: 100,
+      });
+    }
+
+    // Verify target user exists
+    const targetExists = await User.exists({ _id: targetUserId });
+    if (!targetExists) {
+      return res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
+    }
+
+    // Find existing chat between the two (any direction, any ad)
+    let chat = await getChat().findOne({
+      : [
+        { buyer: req.user.id, seller: targetUserId },
+        { buyer: targetUserId, seller: req.user.id },
+      ],
+    }).lean();
+
+    if (!chat) {
+      // Create new direct message chat
+      try {
+        const created = await getChat().findOneAndUpdate(
+          { buyer: req.user.id, seller: targetUserId, directMessage: true },
+          {
+            : {
+              buyer: req.user.id,
+              seller: targetUserId,
+              messages: [],
+              unreadBuyer: 0,
+              unreadSeller: 0,
+              status: 'active',
+              directMessage: true,
+            },
+          },
+          { upsert: true, returnDocument: 'after' }
+        );
+        chat = created?.toObject ? created.toObject() : created;
+      } catch (createErr) {
+        // Race condition — find existing
+        chat = await getChat().findOne({
+          : [
+            { buyer: req.user.id, seller: targetUserId },
+            { buyer: targetUserId, seller: req.user.id },
+          ],
+        }).lean();
+        if (!chat) throw createErr;
+      }
+    }
+
+    res.json({ success: true, chatId: chat._id, _id: chat._id });
+  } catch (e) {
+    console.error('[CHAT/direct] error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // DELETE /api/chat/:chatId — soft delete for current user
 // ─────────────────────────────────────────────────────────────
 router.delete('/:chatId', auth, async (req, res) => {

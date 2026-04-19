@@ -698,6 +698,69 @@ function ChatPageInner() {
       }
     });
 
+    // ── pending_messages: unread messages accumulated while user was offline ────
+    s.on('pending_messages', function(data) {
+      // data: { chatId, count, lastMessage, senderId }
+      var pid = String(data.chatId || '');
+      if (!pid || !data.count) return;
+
+      // Update unread count badge on chat list item
+      setUnreadCounts(function(prev) {
+        var upd = Object.assign({}, prev);
+        // Use the server-provided count (authoritative)
+        upd[pid] = data.count;
+        // Also key by senderId for backward compat
+        if (data.senderId) upd[data.senderId] = data.count;
+        try { localStorage.setItem('xtox_unread_counts', JSON.stringify(upd)); } catch {}
+        return upd;
+      });
+
+      // Also bump the conversation list preview
+      setConversations(function(prev) {
+        return prev.map(function(c) {
+          var cid = String(c.chatId || c._id || '');
+          if (cid === pid) {
+            return Object.assign({}, c, {
+              unread: (c.unread || 0) + data.count,
+              lastMessage: data.lastMessage ? {
+                text: data.lastMessage.text,
+                type: data.lastMessage.type || 'text',
+                time: data.lastMessage.createdAt ? new Date(data.lastMessage.createdAt).getTime() : Date.now(),
+              } : c.lastMessage,
+            });
+          }
+          return c;
+        });
+      });
+
+      // If currently viewing this exact chat, re-fetch messages to show the new ones
+      if (chatIdRef.current && String(chatIdRef.current) === pid) {
+        var tok = null;
+        try {
+          var stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+          var userObj = stored ? JSON.parse(stored) : null;
+          tok = (userObj && userObj.token) || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+        } catch(e) {}
+        if (tok) {
+          fetch(API_URL + '/api/chat/' + pid + '/messages?limit=50', { headers: { Authorization: 'Bearer ' + tok } })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(msgData) {
+              if (!msgData) return;
+              var msgs = (msgData.messages || []).slice().reverse();
+              setMessages(msgs.map(function(m) {
+                return {
+                  from: (String(m.sender) === String(myId)) ? 'me' : m.sender,
+                  text: m.text || '', type: m.type || 'text', duration: m.duration || 0,
+                  time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(),
+                  readBy: m.readBy || [], status: m.status || 'sent',
+                };
+              }));
+            })
+            .catch(function() {});
+        }
+      }
+    });
+
     // Note: call signaling is handled by CallManager component (call:* events via Socket.IO)
     // Old call_offer/incoming_call listeners removed to avoid conflict with CallManager
   }

@@ -51,7 +51,8 @@ const ChatSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now, index: true },
 
-  adTitle:    { type: String, default: '' },
+  adTitle:      { type: String, default: '' },
+  directMessage: { type: Boolean, default: false },
   mutedBy:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   ignoredBy:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   deletedBy:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

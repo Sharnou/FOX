@@ -3,105 +3,20 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallba
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
-// ─── ICE Configuration fallback (STUN + TURN for NAT traversal) ─────────────
-// Loaded dynamically from /api/ice/credentials on mount; this is the fallback.
-const ICE_CONFIG_FALLBACK = {
+// ─── ICE Configuration (static fallback — merged with dynamic fetch below) ──
+const ICE_CONFIG_STATIC = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    // OpenRelay (Metered.ca free public TURN — works from Egypt)
-    { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turns:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    // Expressturn free tier (500 MB/month — same credentials as backend/routes/ice.js)
     { urls: 'turn:relay.expressturn.com:3478',             username: 'efUN55DZL6OFIRBQXI', credential: 'UfBApCBfMQiOunPs' },
     { urls: 'turn:relay.expressturn.com:3478?transport=tcp', username: 'efUN55DZL6OFIRBQXI', credential: 'UfBApCBfMQiOunPs' },
+    { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject',   credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject',   credential: 'openrelayproject' },
   ],
-  iceCandidatePoolSize: 10,
-  iceTransportPolicy: 'all',
 };
 
-// ─── getUserMedia — simple constraints, no exotic params ────────────────────
-async function getAudio() {
-  return navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    video: false,
-  });
-}
-
-// ── Opus 4 kbps SDP cap (Egypt low-bandwidth) ──────────────────────────────
-// FIX Bug-B: b=AS:4 must be inserted AFTER the c= line (SDP spec §5.14).
-// NOTE: Only applied to OFFER (caller side). Answers must NOT be capped
-//       because cap4kbps in an answer breaks remote audio send parameters.
-function cap4kbps(sdp) {
-  const m = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
-  if (!m) return sdp;
-  const pt = m[1];
-  const fmtp = `a=fmtp:${pt} maxaveragebitrate=4000;minptime=20;useinbandfec=1;usedtx=1;stereo=0;cbr=0`;
-  const lines = sdp.split('\r\n');
-  const result = [];
-  let inAudio = false;
-  let fmtpDone = false;
-  let bwDone = false;
-
-  for (const line of lines) {
-    if (line.startsWith('m=')) inAudio = line.startsWith('m=audio');
-
-    // Skip ALL original fmtp lines for this PT (whether we already inserted or not)
-    if (inAudio && line.startsWith(`a=fmtp:${pt} `)) {
-      if (!fmtpDone) {
-        result.push(fmtp);  // insert replacement exactly once
-        fmtpDone = true;
-      }
-      // always skip the original line
-      continue;
-    }
-
-    result.push(line);
-
-    // Insert b=AS:4 immediately AFTER the c= line
-    if (inAudio && !bwDone && line.startsWith('c=')) {
-      result.push('b=AS:4');
-      bwDone = true;
-    }
-
-    // Insert fmtp after rtpmap only if we haven't done it via an existing fmtp line
-    if (inAudio && !fmtpDone && line.startsWith(`a=rtpmap:${pt} `)) {
-      result.push(fmtp);
-      fmtpDone = true;
-    }
-  }
-
-  return result.join('\r\n');
-}
-
-
-// ─── IndexedDB call event logger (background tracking) ──────────────────────
-async function logCallEvent(type, data) {
-  data = data || {};
-  try {
-    var db = await new Promise(function(resolve, reject) {
-      var req = indexedDB.open('xtox-calls', 1);
-      req.onupgradeneeded = function(e) {
-        e.target.result.createObjectStore('events', { keyPath: 'id', autoIncrement: true });
-      };
-      req.onsuccess = function(e) { resolve(e.target.result); };
-      req.onerror = reject;
-    });
-    var tx = db.transaction('events', 'readwrite');
-    tx.objectStore('events').add(Object.assign({ type: type, ts: Date.now() }, data));
-  } catch (e) {
-    console.warn('[CALL] logCallEvent error:', e.message);
-  }
-}
-
 // ─── Web Audio API calling tone ─────────────────────────────────────────────
-let _callingCtx = null;
-let _callingTimer = null;
-let _callingActive = false;
-
+let _callingCtx = null, _callingTimer = null, _callingActive = false;
 function playCallingTone() {
   if (_callingActive) return;
   _callingActive = true;
@@ -110,32 +25,36 @@ function playCallingTone() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       _callingCtx = ctx;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
       osc.frequency.setValueAtTime(440, ctx.currentTime);
       osc.frequency.setValueAtTime(480, ctx.currentTime + 0.5);
       gain.gain.setValueAtTime(0.25, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 1.0);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 1.0);
       osc.onended = () => { try { ctx.close(); } catch {} };
     } catch {}
     _callingTimer = setTimeout(beep, 3000);
   };
   beep();
 }
-
 function stopCallingTone() {
   _callingActive = false;
-  clearTimeout(_callingTimer);
-  _callingTimer = null;
-  // ERROR 5 fix: guard AudioContext close with try/catch — may already be closed
-  if (_callingCtx) {
-    try { _callingCtx.close(); } catch (e) { /* already closed — ignore */ }
-    _callingCtx = null;
-  }
+  clearTimeout(_callingTimer); _callingTimer = null;
+  if (_callingCtx) { try { _callingCtx.close(); } catch {} _callingCtx = null; }
+}
+
+// ─── IndexedDB call event logger ─────────────────────────────────────────────
+async function logCallEvent(type, data) {
+  try {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('xtox-calls', 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore('events', { keyPath: 'id', autoIncrement: true });
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = reject;
+    });
+    db.transaction('events', 'readwrite').objectStore('events').add({ type, ts: Date.now(), ...(data || {}) });
+  } catch {}
 }
 
 const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref) {
@@ -146,82 +65,41 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const [muted, setMuted]               = useState(false);
   const [pushIncoming, setPushIncoming] = useState(null);
   const [offlineRinging, setOfflineRinging] = useState(null);
-  const [callStatus, setCallStatus]     = useState(null); // 'no_answer' | null
+  const [callStatus, setCallStatus]     = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [pushSent, setPushSent]         = useState(false);
-  // Phase 3: ICE config fetched from backend; ICE_CONFIG_FALLBACK used until fetch resolves
-  const [iceConfig, setIceConfig]       = useState(ICE_CONFIG_FALLBACK);
+  const [iceConfig, setIceConfig]       = useState(ICE_CONFIG_STATIC);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
-  const remoteAudio      = useRef(null);   // <audio> element — always in DOM
-  const pcRef            = useRef(null);   // RTCPeerConnection
-  const localStream      = useRef(null);   // local mic stream
-  const pendingOffer     = useRef(null);   // { offer, callerSocketId, callerName, callerAvatar }
-  const bufferedICE      = useRef([]);     // remote ICE candidates buffered until remoteDescription set
-  const pendingLocalICE  = useRef([]);     // local ICE candidates buffered until remoteSocketId known
+  const remoteAudio      = useRef(null);
+  const pcRef            = useRef(null);
+  const localStream      = useRef(null);
+  const pendingOffer     = useRef(null);   // { offer, callerSocketId, callerName }
+  const bufferedICE      = useRef([]);     // remote ICE candidates buffered until remoteDesc set
   const ringtoneRef      = useRef(null);
   const noAnswerTimer    = useRef(null);
   const currentUserRef   = useRef(currentUser);
-  const iceConfigRef     = useRef(ICE_CONFIG_FALLBACK); // ref copy for stale-closure safety
-  const callOnceListenersRef = useRef([]);  // FIX: tracks .once call-setup listeners so cleanup() can remove them on retry
-  const socketPropRef    = useRef(socket);  // FIX: always-current socket ref for use inside cleanup() callback
+  const iceConfigRef     = useRef(ICE_CONFIG_STATIC);
+  const socketRef        = useRef(socket);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
-  useEffect(() => { socketPropRef.current = socket; }, [socket]);
+  useEffect(() => { socketRef.current = socket; }, [socket]);
 
-  // ── Phase 3: Fetch ICE credentials from backend on mount ─────────────────
+  // ── Fetch ICE credentials from backend on mount ───────────────────────────
   useEffect(() => {
     fetch(`${BACKEND}/api/ice/credentials`)
       .then(r => r.json())
       .then(data => {
-        if (data && data.iceServers) {
-          let iceServers = data.iceServers;
-          // Fix 8: Ensure we always have TURN servers — add fallback if API returned STUN-only
-          const hasTurn = iceServers.some(s => {
-            const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
-            return urls.some(u => typeof u === 'string' && u.startsWith('turn:'));
-          });
-          if (!hasTurn) {
-            console.warn('[ICE] No TURN servers from API — adding static fallback');
-            iceServers = [...iceServers, ...ICE_CONFIG_FALLBACK.iceServers];
-          }
-          const cfg = { iceServers, iceCandidatePoolSize: 10, iceTransportPolicy: 'all' };
-          setIceConfig(cfg);
-          iceConfigRef.current = cfg;
-          console.log('[CALL] ICE config loaded from backend ✓', hasTurn ? '(has TURN)' : '(TURN added from fallback)');
+        if (data && Array.isArray(data.iceServers)) {
+          // Merge: API servers first, then static fallback TURN servers
+          const merged = { iceServers: [...data.iceServers, ...ICE_CONFIG_STATIC.iceServers] };
+          setIceConfig(merged);
+          iceConfigRef.current = merged;
+          console.log('[CALL] step ICE-fetch: loaded', data.iceServers.length, 'servers from API');
         }
       })
       .catch(() => {
-        // Use ICE_CONFIG_FALLBACK — already set as default state
-        console.warn('[CALL] ICE credentials fetch failed — using fallback TURN servers');
+        console.warn('[CALL] ICE fetch failed — using static config');
       });
-  }, []);
-
-  // ── URL autoAnswer detection (push opened app with autoAnswer= param) ─────
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const autoAnswerParam = params.get('autoAnswer');
-    if (autoAnswerParam) {
-      let callerId = '';
-      let callerSocketId = null;
-      const callerName = params.get('callerName') || 'مستخدم XTOX';
-      if (autoAnswerParam === 'true') {
-        callerId = params.get('callerId') || params.get('roomId') || '';
-      } else {
-        const idx = autoAnswerParam.indexOf('_');
-        if (idx > 0) {
-          callerId = autoAnswerParam.slice(0, idx);
-          callerSocketId = autoAnswerParam.slice(idx + 1) || null;
-        } else {
-          callerId = autoAnswerParam;
-        }
-      }
-      if (callerId) {
-        console.log('[CALL] autoAnswer URL — callerId:', callerId, '| callerSocketId:', callerSocketId);
-        setIncoming({ callerId, callerName, callerAvatar: '', callerSocketId });
-        startRingtone();
-      }
-    }
   }, []);
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -231,8 +109,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     try {
       if (ringtoneRef.current) return;
       const audio = new Audio('/sounds/ringtone.wav');
-      audio.loop = true;
-      audio.volume = 0.8;
+      audio.loop = true; audio.volume = 0.8;
       audio.play().catch(() => {});
       ringtoneRef.current = audio;
     } catch {}
@@ -246,22 +123,17 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     }
   }, []);
 
-  // ── cleanup — reset everything ────────────────────────────────────────────
+  // ── cleanup ────────────────────────────────────────────────────────────────
   const cleanup = useCallback(() => {
     clearTimeout(noAnswerTimer.current);
     noAnswerTimer.current = null;
     bufferedICE.current = [];
-    pendingLocalICE.current = [];
     pendingOffer.current = null;
-    // FIX: Remove any stale one-time call-setup listeners (prevents double-fire on retry)
-    callOnceListenersRef.current.forEach(({ event, handler }) => {
-      socketPropRef.current?.off(event, handler);
-    });
-    callOnceListenersRef.current = [];
-    pcRef.current?.close();
-    pcRef.current = null;
-    localStream.current?.getTracks().forEach(t => t.stop());
-    localStream.current = null;
+    if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(t => t.stop());
+      localStream.current = null;
+    }
     stopRingtone();
     stopCallingTone();
     setActive(null);
@@ -273,22 +145,20 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     setPushSent(false);
   }, [stopRingtone]);
 
-  // ── createPC — RTCPeerConnection with ontrack + ICE buffering ────────────
-  function createPC() {
+  // ── createPC — create RTCPeerConnection ────────────────────────────────────
+  function createPC(targetSocketId) {
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
-
-    // Use ref copy to avoid stale-closure issues in useImperativeHandle
+    console.log('[CALL] step createPC: using ICE config with', iceConfigRef.current.iceServers.length, 'servers');
     const pc = new RTCPeerConnection(iceConfigRef.current);
     pcRef.current = pc;
 
-    // Audio output: attach remote stream to <audio> element
-    pc.ontrack = (e) => {
-      console.log('[CALL] ontrack', e.track.kind, e.streams.length);
+    // Remote audio playback
+    pc.ontrack = e => {
+      console.log('[CALL] step ontrack:', e.track.kind, 'streams:', e.streams.length);
       if (remoteAudio.current && e.streams[0]) {
         remoteAudio.current.srcObject = e.streams[0];
         remoteAudio.current.play().catch(err => {
-          console.warn('[CALL] play():', err.message);
-          // Recover on next user gesture
+          console.warn('[CALL] play() blocked:', err.message);
           const resume = () => {
             remoteAudio.current?.play().catch(() => {});
             document.removeEventListener('click', resume);
@@ -300,55 +170,42 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       }
     };
 
-    // Buffer local ICE until remoteSocketId is known (set via setICETarget)
-    pc.onicecandidate = (e) => {
+    // ICE candidate handler — sends to targetSocketId if known, else buffers
+    pc.onicecandidate = e => {
       if (!e.candidate) return;
-      pendingLocalICE.current.push(e.candidate);
-      console.log('[CALL] local ICE buffered — total:', pendingLocalICE.current.length);
+      const sock = socketRef.current;
+      if (sock && targetSocketId) {
+        console.log('[CALL] step ICE-send: candidate to', targetSocketId);
+        sock.emit('call:ice', { targetSocketId, candidate: e.candidate });
+      }
+      // else: candidate after cleanup — ignore
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[CALL] ICE state:', pc.iceConnectionState);
+      console.log('[CALL] step ICE-state:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'failed') {
+        console.warn('[CALL] ICE failed — attempting restart');
+        pc.restartIce?.();
+      }
       if (['failed', 'closed'].includes(pc.iceConnectionState)) cleanup();
     };
 
     pc.onconnectionstatechange = () => {
-      console.log('[CALL] Connection state:', pc.connectionState);
+      console.log('[CALL] step connection-state:', pc.connectionState);
     };
 
     return pc;
   }
 
-  // ── flushBufferedICE — add remote ICE candidates buffered before remoteDesc ─
+  // ── flushBufferedICE — add buffered remote ICE after remoteDesc is set ─────
   async function flushBufferedICE() {
     const pc = pcRef.current;
-    if (!pc) return;
-    console.log('[CALL] Flushing', bufferedICE.current.length, 'buffered remote ICE candidates');
+    if (!pc || !bufferedICE.current.length) return;
+    console.log('[CALL] step flush-ICE:', bufferedICE.current.length, 'buffered candidates');
     for (const c of bufferedICE.current) {
-      await pc.addIceCandidate(c).catch(e => console.warn('[CALL] addIceCandidate:', e.message));
+      await pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('[CALL] addIceCandidate:', e.message));
     }
     bufferedICE.current = [];
-  }
-
-  // ── sendLocalICE — flush buffered local ICE candidates to now-known target ─
-  function sendLocalICE(targetSocketId) {
-    if (!socket || !targetSocketId) return;
-    console.log('[CALL] Sending', pendingLocalICE.current.length, 'local ICE candidates → socket:', targetSocketId);
-    for (const c of pendingLocalICE.current) {
-      socket.emit('call:ice', { targetSocketId, candidate: c });
-    }
-    pendingLocalICE.current = [];
-  }
-
-  // ── setICETarget — update pc.onicecandidate to now send directly ──────────
-  function setICETarget(targetSocketId) {
-    const pc = pcRef.current;
-    if (!pc) return;
-    pc.onicecandidate = (e) => {
-      if (e.candidate && socket) {
-        socket.emit('call:ice', { targetSocketId, candidate: e.candidate });
-      }
-    };
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -356,19 +213,24 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   // ─────────────────────────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
     async initiateCall(calleeId, calleeName) {
-      if (active || incoming || pushIncoming) return;
+      if (active || incoming || pushIncoming) {
+        console.warn('[CALL] initiateCall blocked: another call in progress');
+        return;
+      }
       if (!socket || !socket.connected) {
         alert('جارٍ الاتصال بالخادم... حاول مرة أخرى بعد ثانية');
         return;
       }
 
-      // Step 1: getUserMedia
+      // Step 1: getUserMedia — SIMPLE constraints only
+      console.log('[CALL] step 1: getUserMedia');
       let stream;
       try {
-        stream = await getAudio();
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         localStream.current = stream;
+        console.log('[CALL] step 1 OK: got audio stream, tracks:', stream.getAudioTracks().length);
       } catch (e) {
-        console.error('[CALL] getUserMedia failed:', e.name, e.message);
+        console.error('[CALL] step 1 FAIL: getUserMedia error:', e.name, e.message);
         if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
           alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
         } else if (e.name === 'NotFoundError') {
@@ -379,91 +241,155 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         return;
       }
 
-      // Step 2: createPC
-      const pc = createPC();
+      // Step 2: createPC (targetSocketId unknown yet — ICE will be sent in call:accepted handler)
+      console.log('[CALL] step 2: createPC');
+      // We'll pass a placeholder; we'll update onicecandidate after getting calleeSocketId
+      const calleeSocketIdRef = { current: null };
+      const pc = new RTCPeerConnection(iceConfigRef.current);
+      pcRef.current = pc;
 
-      // Step 3: addTrack
+      // Remote audio
+      pc.ontrack = e => {
+        console.log('[CALL] step ontrack-caller:', e.track.kind);
+        if (remoteAudio.current && e.streams[0]) {
+          remoteAudio.current.srcObject = e.streams[0];
+          remoteAudio.current.play().catch(err => {
+            console.warn('[CALL] caller play() blocked:', err.message);
+            const resume = () => {
+              remoteAudio.current?.play().catch(() => {});
+              document.removeEventListener('click', resume);
+              document.removeEventListener('touchend', resume);
+            };
+            document.addEventListener('click', resume, { once: true });
+            document.addEventListener('touchend', resume, { once: true });
+          });
+        }
+      };
+
+      // Buffer ICE until calleeSocketId is known
+      const localICEBuffer = [];
+      pc.onicecandidate = e => {
+        if (!e.candidate) return;
+        if (calleeSocketIdRef.current) {
+          console.log('[CALL] step ICE-caller-send: candidate to callee', calleeSocketIdRef.current);
+          socket.emit('call:ice', { targetSocketId: calleeSocketIdRef.current, candidate: e.candidate });
+        } else {
+          localICEBuffer.push(e.candidate);
+          console.log('[CALL] step ICE-caller-buffer: total', localICEBuffer.length);
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('[CALL] step ICE-caller-state:', pc.iceConnectionState);
+        if (pc.iceConnectionState === 'failed') pc.restartIce?.();
+        if (['failed', 'closed'].includes(pc.iceConnectionState)) cleanup();
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log('[CALL] step conn-caller-state:', pc.connectionState);
+      };
+
+      // Step 3: addTrack BEFORE createOffer
+      console.log('[CALL] step 3: addTrack');
       stream.getTracks().forEach(t => {
         pc.addTrack(t, stream);
-        console.log('[CALL] caller addTrack:', t.kind);
+        console.log('[CALL] step 3 addTrack:', t.kind);
       });
 
-      // Step 4-6: createOffer → cap4kbps (OFFER ONLY) → setLocalDescription
-      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
-      const cappedOffer = { type: offer.type, sdp: cap4kbps(offer.sdp) };
-      await pc.setLocalDescription(cappedOffer);
-      console.log('[CALL] Offer created — SDP has audio:', cappedOffer.sdp.includes('m=audio'));
+      // Step 4: createOffer
+      console.log('[CALL] step 4: createOffer');
+      let offer;
+      try {
+        offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
+        console.log('[CALL] step 4 OK: offer type=', offer.type, 'sdp length=', offer.sdp.length);
+      } catch (e) {
+        console.error('[CALL] step 4 FAIL: createOffer error:', e.message);
+        cleanup();
+        return;
+      }
 
-      // Step 7: emit call:initiate — ERROR 1 FIX: serialize as plain object
+      // Step 5: setLocalDescription
+      console.log('[CALL] step 5: setLocalDescription');
+      await pc.setLocalDescription(offer);
+      console.log('[CALL] step 5 OK: localDescription.type=', pc.localDescription.type);
+
+      // Step 6: emit call:initiate with serialized offer (plain object — NOT RTCSessionDescription)
       const callerName   = currentUserRef.current?.name || currentUserRef.current?.username || 'مستخدم';
       const callerAvatar = currentUserRef.current?.avatar || '';
+      const plainOffer   = { type: pc.localDescription.type, sdp: pc.localDescription.sdp };
+
+      console.log('[CALL] step 6: emit call:initiate → calleeId=', calleeId);
       socket.emit('call:initiate', {
         calleeId,
         callerName,
         callerAvatar,
-        // ERROR 1 FIX: plain object — RTCSessionDescription loses 'type' through JSON
-        offer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
+        offer: plainOffer,
       });
 
-      // Step 8: show "Calling..." outgoing UI
-      logCallEvent('outgoing_start', { peerId: calleeId, peerName: calleeName });
+      // Step 7: show outgoing call UI + start tone
       setOfflineRinging({ calleeId, calleeName });
       setStatusMessage('جارٍ الاتصال...');
-      setPushSent(false);
       playCallingTone();
+      logCallEvent('outgoing_start', { peerId: calleeId, peerName: calleeName });
 
-      // Listen for push_sent feedback (callee was offline — push sent)
-      // FIX: use named function and store in callOnceListenersRef so cleanup() can remove it
+      // Listen for push_sent
       const onPushSent = () => { setPushSent(true); };
       socket.once('call:push_sent', onPushSent);
-      callOnceListenersRef.current.push({ event: 'call:push_sent', handler: onPushSent });
 
-      // Step 9: Listen for call:accepted (callee answered)
-      // FIX: named function + stale-PC guard prevents issues when user retries a timed-out call
+      // Step 8: listen for call:accepted (callee answered)
+      console.log('[CALL] step 8: waiting for call:accepted...');
       const onCallAccepted = async ({ answer, calleeSocketId }) => {
-        // FIX: Guard — if PC was closed (call timed out, user retried), ignore stale event
+        // Guard: PC may have been closed (timeout or user cancelled)
         if (!pcRef.current || pcRef.current.signalingState === 'closed') {
-          console.warn('[CALL] call:accepted — stale listener ignored (PC already closed)');
+          console.warn('[CALL] call:accepted ignored — PC already closed');
           return;
         }
-        console.log('[CALL] call:accepted — calleeSocketId:', calleeSocketId);
+        console.log('[CALL] step 8 RECEIVED call:accepted — calleeSocketId:', calleeSocketId);
         clearTimeout(noAnswerTimer.current);
         stopCallingTone();
         setOfflineRinging(null);
         setStatusMessage('');
         setPushSent(false);
+        socket.off('call:push_sent', onPushSent);
 
-        // ERROR 1 FIX: guard — validate answer before setRemoteDescription
+        // Validate answer
         if (!answer || !answer.type || !answer.sdp) {
-          console.error('[CALL] call:accepted — invalid answer object:', answer);
+          console.error('[CALL] step 8 FAIL: invalid answer object:', answer);
           cleanup();
           return;
         }
 
-        // Update ICE target now that we know callee's socket ID
-        setICETarget(calleeSocketId);
+        // Step 9: setRemoteDescription
+        console.log('[CALL] step 9: setRemoteDescription (answer)');
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: answer.type, sdp: answer.sdp }));
+          console.log('[CALL] step 9 OK: remoteDescription set');
+        } catch (e) {
+          console.error('[CALL] step 9 FAIL: setRemoteDescription error:', e.message);
+          cleanup();
+          return;
+        }
 
-        // Set remote description — use plain object to avoid null 'type'
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: answer.type, sdp: answer.sdp }));
-        console.log('[CALL] Caller set remote description ✓');
-
-        // Flush any remote ICE that arrived before remote desc
+        // Step 10: flush buffered remote ICE
         await flushBufferedICE();
 
-        // Flush local ICE to callee
-        sendLocalICE(calleeSocketId);
+        // Step 11: now calleeSocketId is known — update ICE target + flush buffered local ICE
+        calleeSocketIdRef.current = calleeSocketId;
+        console.log('[CALL] step 11: flushing', localICEBuffer.length, 'buffered local ICE to callee:', calleeSocketId);
+        for (const c of localICEBuffer) {
+          socket.emit('call:ice', { targetSocketId: calleeSocketId, candidate: c });
+        }
+        localICEBuffer.length = 0;
 
-        logCallEvent('call_connected', { peerId: calleeId, peerName: calleeName, side: 'caller' });
+        logCallEvent('call_connected', { peerId: calleeId, side: 'caller' });
         setActive({ peerName: calleeName, remoteSocketId: calleeSocketId, startTime: Date.now() });
       };
       socket.once('call:accepted', onCallAccepted);
-      callOnceListenersRef.current.push({ event: 'call:accepted', handler: onCallAccepted });
 
-      // Step 10: call:rejected — handled by persistent onRejected in useEffect (no duplicate .once needed)
-      // Step 11: call:no_answer — handled by persistent onNoAnswer in useEffect (no duplicate .once needed)
-
-      // 50-second safety net timer (server sends call:no_answer at 30s/45s, this is backup)
+      // 50-second timeout
       noAnswerTimer.current = setTimeout(() => {
+        socket.off('call:accepted', onCallAccepted);
+        socket.off('call:push_sent', onPushSent);
         socket.emit('call:cancel', { targetUserId: calleeId });
         stopCallingTone();
         setOfflineRinging(null);
@@ -487,25 +413,23 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
-    const getCurrent = () => currentUserRef.current;
 
     // Join personal room on connect/reconnect
     const joinRooms = () => {
-      const uid = (getCurrent()?._id || getCurrent()?.id) || '';
+      const uid = (currentUserRef.current?._id || currentUserRef.current?.id) || '';
       if (uid) {
         socket.emit('join_user_room', { userId: uid });
         socket.emit('join', uid);
-        console.log('[CallManager] Joined rooms:', uid);
+        console.log('[CALL] Joined user room:', uid);
       }
     };
     joinRooms();
     socket.on('connect', joinRooms);
     socket.on('reconnect', joinRooms);
 
-    // ── CALLEE SIDE: call:incoming ─────────────────────────────────────────
-    // Step 1: store offer + callerSocketId in pendingOffer, show incoming UI
+    // ── CALLEE: call:incoming ──────────────────────────────────────────────
     const onIncoming = ({ offer, callerSocketId, callerName, callerAvatar, callerId }) => {
-      console.log('[CALL] call:incoming — callerSocketId:', callerSocketId, '| caller:', callerName);
+      console.log('[CALL] step INCOMING: callerSocketId=', callerSocketId, 'caller=', callerName, 'offer type=', offer?.type);
       pendingOffer.current = {
         offer,
         callerSocketId,
@@ -521,20 +445,22 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       startRingtone();
     };
 
-    // ── ICE candidate relay (both sides) ──────────────────────────────────
+    // ── ICE relay (both sides) ─────────────────────────────────────────────
     const onICE = async ({ candidate }) => {
       if (!candidate) return;
       const pc = pcRef.current;
       if (!pc) {
         bufferedICE.current.push(candidate);
+        console.log('[CALL] step ICE-buffer (no PC yet):', bufferedICE.current.length);
         return;
       }
       if (pc.remoteDescription && pc.remoteDescription.type) {
         await pc.addIceCandidate(new RTCIceCandidate(candidate))
           .catch(e => console.warn('[CALL] addIceCandidate:', e.message));
+        console.log('[CALL] step ICE-added to PC');
       } else {
         bufferedICE.current.push(candidate);
-        console.log('[CALL] remote ICE buffered (no remoteDesc yet) — total:', bufferedICE.current.length);
+        console.log('[CALL] step ICE-buffer (no remoteDesc):', bufferedICE.current.length);
       }
     };
 
@@ -543,7 +469,6 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       stopCallingTone();
       setOfflineRinging(null);
       setPushSent(false);
-      // FIX: show rejection status (previously only handled in the now-removed .once in initiateCall)
       setCallStatus('rejected');
       setStatusMessage('رُفضت المكالمة');
       setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
@@ -574,33 +499,27 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       cleanup();
     };
 
-    const onExpired = () => {
-      stopRingtone();
-      cleanup();
-    };
+    const onExpired = () => { stopRingtone(); cleanup(); };
+    const onCalleeConnected = () => { setStatusMessage('جارٍ الاتصال...'); };
 
-    const onCalleeConnected = () => {
-      setStatusMessage('جارٍ الاتصال...');
-    };
-
-    // ── SW postMessage: incoming call via push notification ───────────────
-    const onSWMessage = (event) => {
+    // SW postMessage: incoming call via push notification
+    const onSWMessage = event => {
       if (!event.data) return;
       const { type, callerId, callerName, callerSocketId, offer, roomId } = event.data;
       if (type === 'incoming_call_push' && offer && roomId) {
-        console.log('[CALL] SW postMessage — callerId:', callerId, '| callerSocketId:', callerSocketId);
+        console.log('[CALL] step SW-push: callerId=', callerId, 'callerSocketId=', callerSocketId);
         setPushIncoming({ callerId, callerName, callerSocketId, offer, roomId });
         startRingtone();
       }
     };
 
-    socket.on('call:incoming',        onIncoming);
-    socket.on('call:ice',             onICE);
-    socket.on('call:rejected',        onRejected);
-    socket.on('call:ended',           onEnded);
-    socket.on('call:cancelled',       onCancelled);
-    socket.on('call:no_answer',       onNoAnswer);
-    socket.on('call:expired',         onExpired);
+    socket.on('call:incoming',         onIncoming);
+    socket.on('call:ice',              onICE);
+    socket.on('call:rejected',         onRejected);
+    socket.on('call:ended',            onEnded);
+    socket.on('call:cancelled',        onCancelled);
+    socket.on('call:no_answer',        onNoAnswer);
+    socket.on('call:expired',          onExpired);
     socket.on('call:callee_connected', onCalleeConnected);
 
     if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
@@ -608,15 +527,15 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     }
 
     return () => {
-      socket.off('connect',            joinRooms);
-      socket.off('reconnect',          joinRooms);
-      socket.off('call:incoming',      onIncoming);
-      socket.off('call:ice',           onICE);
-      socket.off('call:rejected',      onRejected);
-      socket.off('call:ended',         onEnded);
-      socket.off('call:cancelled',     onCancelled);
-      socket.off('call:no_answer',     onNoAnswer);
-      socket.off('call:expired',       onExpired);
+      socket.off('connect',             joinRooms);
+      socket.off('reconnect',           joinRooms);
+      socket.off('call:incoming',       onIncoming);
+      socket.off('call:ice',            onICE);
+      socket.off('call:rejected',       onRejected);
+      socket.off('call:ended',          onEnded);
+      socket.off('call:cancelled',      onCancelled);
+      socket.off('call:no_answer',      onNoAnswer);
+      socket.off('call:expired',        onExpired);
       socket.off('call:callee_connected', onCalleeConnected);
       if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
         navigator.serviceWorker.removeEventListener('message', onSWMessage);
@@ -636,69 +555,80 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   // ─────────────────────────────────────────────────────────────────────────
   async function acceptCall() {
     const pending = pendingOffer.current;
-    if (!pending) {
-      console.error('[CALL] acceptCall — no pending offer!');
-      return;
-    }
+    if (!pending) { console.error('[CALL] acceptCall: no pending offer!'); return; }
     const { offer, callerSocketId, callerName } = pending;
-    if (!callerSocketId) {
-      console.warn('[CALL] acceptCall — callerSocketId missing');
-      return;
-    }
+    if (!callerSocketId) { console.warn('[CALL] acceptCall: callerSocketId missing'); return; }
 
     stopRingtone();
     setIncoming(null);
     pendingOffer.current = null;
 
-    // Step 2 (callee): getUserMedia
+    // Step 1 (callee): getUserMedia — SIMPLE constraints
+    console.log('[CALL] callee step 1: getUserMedia');
     let stream;
     try {
-      stream = await getAudio();
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localStream.current = stream;
+      console.log('[CALL] callee step 1 OK: got audio stream');
     } catch (e) {
-      console.error('[CALL] acceptCall getUserMedia failed:', e.message);
+      console.error('[CALL] callee step 1 FAIL:', e.name, e.message);
       alert('خطأ في الميكروفون: ' + e.message);
       return;
     }
 
-    // createPC → addTrack → setRemoteDescription → flushBufferedICE
-    // → createAnswer → setLocalDescription → emit call:answer
-    const pc = createPC();
-    stream.getTracks().forEach(t => {
-      pc.addTrack(t, stream);
-      console.log('[CALL] callee addTrack:', t.kind);
-    });
+    // Step 2 (callee): createPC with callerSocketId known from the start
+    console.log('[CALL] callee step 2: createPC (callerSocketId=', callerSocketId, ')');
+    const pc = createPC(callerSocketId);
 
-    // Set ICE target immediately (we know callerSocketId)
-    setICETarget(callerSocketId);
-
-    // ERROR 1 FIX: guard — validate offer before setRemoteDescription
+    // Step 3 (callee): setRemoteDescription FIRST (then addTrack, then createAnswer)
+    console.log('[CALL] callee step 3: setRemoteDescription (offer)');
     if (!offer || !offer.type || !offer.sdp) {
-      console.error('[CALL] setRemoteDescription aborted — invalid offer:', offer);
+      console.error('[CALL] callee step 3 FAIL: invalid offer:', offer);
       cleanup();
       return;
     }
-    // ERROR 1 FIX: use plain object { type, sdp } — avoids null type from RTCSessionDescription
-    await pc.setRemoteDescription(new RTCSessionDescription({ type: offer.type, sdp: offer.sdp }));
-    console.log('[CALL] Callee remote description set ✓');
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription({ type: offer.type, sdp: offer.sdp }));
+      console.log('[CALL] callee step 3 OK: remoteDescription set, type=', pc.remoteDescription.type);
+    } catch (e) {
+      console.error('[CALL] callee step 3 FAIL: setRemoteDescription error:', e.message);
+      cleanup();
+      return;
+    }
 
-    // Flush remote ICE received before remote desc was set
+    // Flush remote ICE that arrived before this setRemoteDescription
     await flushBufferedICE();
 
-    // ERROR 2 FIX: Do NOT apply cap4kbps to answer — breaks audio send parameters.
-    // cap4kbps is ONLY applied to the offer (caller side, in initiateCall).
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    console.log('[CALL] Callee answer created ✓ — SDP has audio:', pc.localDescription.sdp.includes('m=audio'));
+    // Step 4 (callee): addTrack AFTER setRemoteDescription
+    console.log('[CALL] callee step 4: addTrack');
+    stream.getTracks().forEach(t => {
+      pc.addTrack(t, stream);
+      console.log('[CALL] callee step 4 addTrack:', t.kind);
+    });
 
-    // ERROR 1 FIX: serialize answer as plain object — never pass RTCSessionDescription
+    // Step 5 (callee): createAnswer
+    console.log('[CALL] callee step 5: createAnswer');
+    let answer;
+    try {
+      answer = await pc.createAnswer();
+      console.log('[CALL] callee step 5 OK: answer type=', answer.type, 'sdp length=', answer.sdp.length);
+    } catch (e) {
+      console.error('[CALL] callee step 5 FAIL: createAnswer error:', e.message);
+      cleanup();
+      return;
+    }
+
+    // Step 6 (callee): setLocalDescription
+    console.log('[CALL] callee step 6: setLocalDescription (answer)');
+    await pc.setLocalDescription(answer);
+    console.log('[CALL] callee step 6 OK: localDescription.type=', pc.localDescription.type);
+
+    // Step 7 (callee): emit call:answer (plain object — NOT RTCSessionDescription)
+    console.log('[CALL] callee step 7: emit call:answer → callerSocketId=', callerSocketId);
     socket.emit('call:answer', {
       callerSocketId,
       answer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
     });
-
-    // Flush any local ICE already gathered
-    sendLocalICE(callerSocketId);
 
     logCallEvent('incoming_accept', { peerId: callerSocketId, peerName: callerName, side: 'callee' });
     setActive({ peerName: callerName, remoteSocketId: callerSocketId, startTime: Date.now() });
@@ -712,19 +642,18 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // CALLEE SIDE: acceptPushCall (push-based incoming)
+  // CALLEE SIDE: acceptPushCall (push notification incoming)
   // ─────────────────────────────────────────────────────────────────────────
   async function acceptPushCall() {
     if (!pushIncoming) return;
     const { callerId, callerName, callerSocketId: swCallerSocketId, offer, roomId } = pushIncoming;
-    console.log('[CALL] acceptPushCall — roomId:', roomId, '| callerId:', callerId);
+    console.log('[CALL] acceptPushCall: roomId=', roomId, 'callerId=', callerId);
     stopRingtone();
     setPushIncoming(null);
 
-    // getUserMedia
     let stream;
     try {
-      stream = await getAudio();
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localStream.current = stream;
     } catch (e) {
       console.error('[CALL] acceptPushCall getUserMedia failed:', e.message);
@@ -732,53 +661,41 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       return;
     }
 
-    // createPC → addTrack → setRemoteDescription(offer)
-    const pc = createPC();
-    stream.getTracks().forEach(t => {
-      pc.addTrack(t, stream);
-      console.log('[CALL] acceptPushCall addTrack:', t.kind);
-    });
+    const pc = createPC(null); // socketId unknown until call:accepted_ok
 
-    // ERROR 1 FIX: guard — validate offer before setRemoteDescription
     if (!offer || !offer.type || !offer.sdp) {
-      console.error('[CALL] acceptPushCall setRemoteDescription aborted — invalid offer:', offer);
+      console.error('[CALL] acceptPushCall: invalid offer:', offer);
       cleanup();
       return;
     }
-    // ERROR 1 FIX: use plain object { type, sdp }
     await pc.setRemoteDescription(new RTCSessionDescription({ type: offer.type, sdp: offer.sdp }));
-    console.log('[CALL] acceptPushCall remote desc set ✓');
-
-    // flushBufferedICE → createAnswer → setLocalDescription (NO cap4kbps on answer)
     await flushBufferedICE();
 
-    // ERROR 2 FIX: Do NOT apply cap4kbps to answer
+    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    console.log('[CALL] acceptPushCall answer created ✓');
 
-    // Wait for socket to be connected, then emit
     const emitAccept = () => {
-      console.log('[CALL] acceptPushCall → emitting call:accept_from_push');
-      // ERROR 1 FIX: serialize answer as plain object
+      console.log('[CALL] acceptPushCall: emit call:accept_from_push → roomId=', roomId);
       socket.emit('call:accept_from_push', {
         roomId,
         answer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
       });
     };
+    if (socket.connected) emitAccept();
+    else { socket.once('connect', emitAccept); socket.connect(); }
 
-    if (socket.connected) {
-      emitAccept();
-    } else {
-      socket.once('connect', emitAccept);
-      socket.connect();
-    }
-
-    // Listen for call:accepted_ok → get callerSocketId, send local ICE, set active
     socket.once('call:accepted_ok', ({ callerSocketId }) => {
       console.log('[CALL] acceptPushCall call:accepted_ok — callerSocketId:', callerSocketId);
-      setICETarget(callerSocketId);
-      sendLocalICE(callerSocketId);
+      // Update onicecandidate now that we know callerSocketId
+      if (pcRef.current) {
+        pcRef.current.onicecandidate = e => {
+          if (e.candidate && socket) {
+            socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: e.candidate });
+          }
+        };
+      }
       setActive({ peerName: callerName || 'مستخدم', remoteSocketId: callerSocketId, startTime: Date.now() });
     });
   }
@@ -792,10 +709,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
   // ── Hangup ────────────────────────────────────────────────────────────────
   function hangup() {
-    if (active) {
-      var callDurationMs = Date.now() - (active.startTime || Date.now());
-      logCallEvent('call_end', { peerId: active.remoteSocketId, peerName: active.peerName || '', duration: Math.floor(callDurationMs / 1000) });
-    }
+    if (active) logCallEvent('call_end', { peerId: active.remoteSocketId, duration: Math.floor((Date.now() - (active.startTime || 0)) / 1000) });
     if (active?.remoteSocketId) socket?.emit('call:end', { targetSocketId: active.remoteSocketId });
     if (offlineRinging?.roomId) socket?.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
     stopCallingTone();
@@ -808,34 +722,16 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     setMuted(m => !m);
   }
 
-  // ── UI Styles ─────────────────────────────────────────────────────────────
   const overlay = {
-    position: 'fixed',
-    bottom: 80,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-    color: '#fff',
-    borderRadius: 20,
-    padding: '20px 28px',
-    zIndex: 9999,
-    boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-    textAlign: 'center',
-    minWidth: 280,
-    direction: 'rtl',
+    position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+    background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: '#fff',
+    borderRadius: 20, padding: '20px 28px', zIndex: 9999,
+    boxShadow: '0 12px 40px rgba(0,0,0,0.5)', textAlign: 'center', minWidth: 280, direction: 'rtl',
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* audio element ALWAYS in DOM — never conditional */}
-      <audio
-        ref={remoteAudio}
-        id="xtox-remote-audio"
-        autoPlay
-        playsInline
-        style={{ display: 'none' }}
-      />
+      <audio ref={remoteAudio} id="xtox-remote-audio" autoPlay playsInline style={{ display: 'none' }} />
 
       {/* Incoming call (socket-based) */}
       {incoming && !active && (
@@ -845,17 +741,11 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
           <div style={{ fontSize: 13, color: '#aaa', margin: '6px 0 18px' }}>مكالمة صوتية واردة</div>
           <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
-              <button onClick={rejectCall} aria-label="رفض المكالمة"
-                style={{ background: '#e74c3c', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>
-                📵
-              </button>
+              <button onClick={rejectCall} style={{ background: '#e74c3c', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>📵</button>
               <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>رفض</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <button onClick={acceptCall} aria-label="قبول المكالمة"
-                style={{ background: '#25d366', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>
-                📞
-              </button>
+              <button onClick={acceptCall} style={{ background: '#25d366', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>📞</button>
               <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>قبول</div>
             </div>
           </div>
@@ -870,36 +760,27 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
           <div style={{ fontSize: 13, color: '#aaa', margin: '6px 0 18px' }}>مكالمة واردة عبر الإشعارات</div>
           <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
-              <button onClick={rejectPushCall} aria-label="رفض المكالمة"
-                style={{ background: '#e74c3c', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>
-                📵
-              </button>
+              <button onClick={rejectPushCall} style={{ background: '#e74c3c', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>📵</button>
               <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>رفض</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <button onClick={acceptPushCall} aria-label="قبول المكالمة"
-                style={{ background: '#25d366', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>
-                📞
-              </button>
+              <button onClick={acceptPushCall} style={{ background: '#25d366', border: 'none', borderRadius: '50%', width: 54, height: 54, fontSize: 22, cursor: 'pointer', color: 'white' }}>📞</button>
               <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>قبول</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Outgoing call — pushSent shows different message */}
+      {/* Outgoing call */}
       {offlineRinging && !active && !incoming && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{offlineRinging.calleeName || 'جارٍ الاتصال...'}</div>
           <div style={{ fontSize: 13, color: '#888', margin: '6px 0 18px' }}>
-            {pushSent
-              ? '📱 المستخدم خارج التطبيق — تم إرسال إشعار'
-              : (statusMessage || 'جارٍ الاتصال...')}
+            {pushSent ? '📱 المستخدم خارج التطبيق — تم إرسال إشعار' : (statusMessage || 'جارٍ الاتصال...')}
           </div>
           <button
             onClick={() => {
-              if (offlineRinging?.roomId) socket?.emit('call:reject_from_push', { roomId: offlineRinging.roomId });
               socket?.emit('call:cancel', { targetUserId: offlineRinging?.calleeId });
               stopCallingTone();
               cleanup();
@@ -910,7 +791,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         </div>
       )}
 
-      {/* No answer / rejected status */}
+      {/* No answer / rejected */}
       {(callStatus === 'no_answer' || callStatus === 'rejected') && !active && (
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📵</div>
@@ -926,15 +807,13 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         <div style={overlay}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{active.peerName || 'مستخدم'}</div>
-          <div style={{ fontSize: 22, color: '#25d366', margin: '8px 0 18px', fontFamily: 'monospace' }}>
-            {fmt(duration)}
-          </div>
+          <div style={{ fontSize: 22, color: '#25d366', margin: '8px 0 18px', fontFamily: 'monospace' }}>{fmt(duration)}</div>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-            <button onClick={toggleMute} aria-label={muted ? 'إلغاء كتم الصوت' : 'كتم الصوت'}
+            <button onClick={toggleMute}
               style={{ background: muted ? '#e74c3c' : '#444', border: 'none', borderRadius: '50%', width: 44, height: 44, fontSize: 18, cursor: 'pointer' }}>
               {muted ? '🔇' : '🎤'}
             </button>
-            <button onClick={hangup} aria-label="إنهاء المكالمة"
+            <button onClick={hangup}
               style={{ background: '#e74c3c', border: 'none', borderRadius: 24, padding: '10px 24px', color: '#fff', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>
               إنهاء 📵
             </button>
