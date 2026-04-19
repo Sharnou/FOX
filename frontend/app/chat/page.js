@@ -161,6 +161,7 @@ function ChatPageInner() {
   var [loginRequired, setLoginRequired] = useState(false);
   var [chatError, setChatError]         = useState('');
   var [partnerOnline, setPartnerOnline] = useState(false); // online presence indicator
+  var [partnerLastSeen, setPartnerLastSeen] = useState(null); // last seen timestamp (ms)
   var [onlineUsers, setOnlineUsers]     = useState(new Set()); // all online users (for conv list)
   var [isMobile, setIsMobile]           = useState(false);
   var [socketInstance, setSocketInstance] = useState(null);
@@ -299,6 +300,9 @@ function ChatPageInner() {
     var onUserStatus = function(data) {
       if (String(data.userId) === String(targetId)) {
         setPartnerOnline(!!data.isOnline);
+        if (!data.isOnline && data.lastSeen) {
+          setPartnerLastSeen(new Date(data.lastSeen).getTime());
+        }
       }
       if (data.isOnline) {
         setOnlineUsers(function(prev) { var s = new Set(prev); s.add(String(data.userId)); return s; });
@@ -699,9 +703,14 @@ function ChatPageInner() {
 
   // Send text message
   function sendMessage() {
-    if (!msg.trim() || !socketRef.current || !targetId) return;
+    if (!msg.trim() || !targetId) return;
     // Guard: prevent sending messages to archived/sold/closed chats
     if (isCurrentChatClosed || chatStatus === 'archived' || adStatus === 'sold') return;
+    if (!socketRef.current || !socketRef.current.connected) {
+      setChatError('انقطع الاتصال — يرجى الانتظار قليلاً ثم المحاولة مجدداً');
+      setTimeout(function() { setChatError(''); }, 4000);
+      return;
+    }
     var now  = Date.now();
     var text = msg;
     var curChatId = chatIdRef.current;
@@ -818,7 +827,7 @@ function ChatPageInner() {
               <>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: partnerOnline ? '#22c55e' : '#9ca3af', display: 'inline-block', flexShrink: 0 }} />
                 <span style={{ color: partnerOnline ? '#86efac' : 'rgba(255,255,255,0.55)' }}>
-                  {partnerOnline ? 'متصل الآن' : 'غير متصل'}
+                  {partnerOnline ? 'متصل الآن' : partnerLastSeen ? ('آخر ظهور ' + arabicRelTime(partnerLastSeen)) : 'غير متصل'}
                 </span>
               </>
             ) : (

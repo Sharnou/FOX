@@ -45,7 +45,14 @@ export const metadata = {
     description: 'أكبر سوق محلي عربي - نشر إعلانات مجاني، بيع وشراء في مصر والدول العربية',
     images: [{ url: 'https://fox-kohl-eight.vercel.app/icon-512.png', width: 512, height: 512 }],
   },
-  twitter: { card: 'summary_large_image', site: '@XTOXapp', creator: '@XTOXapp' },
+  twitter: {
+    card: 'summary_large_image',
+    site: '@XTOXapp',
+    creator: '@XTOXapp',
+    title: 'XTOX - سوق محلي عربي | بيع واشتري مجاناً',
+    description: 'أكبر سوق محلي عربي - نشر إعلانات مجاني، بيع وشراء في مصر والدول العربية',
+    images: ['https://fox-kohl-eight.vercel.app/icon-512.png'],
+  },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-video-preview': -1, 'max-image-preview': 'large', 'max-snippet': -1 } },
   alternates: {
     canonical: 'https://fox-kohl-eight.vercel.app',

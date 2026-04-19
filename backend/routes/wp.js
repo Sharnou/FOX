@@ -251,24 +251,63 @@ router.get('/sitemap', async (req, res) => {
 })
 
 
-// POST /api/wp/dedup-all — admin: detect and remove duplicate WP posts
+// POST /api/wp/dedup-all — admin: global site-wide dedup of all WP posts
+// Fetches ALL posts, groups by slug prefix, keeps highest ID (newest), deletes extras
 router.post('/dedup-all', verifyToken, async (req, res) => {
   const role = req.user?.role;
   if (!['admin', 'sub_admin', 'superadmin'].includes(role)) {
     return res.status(403).json({ error: 'Admin only' });
   }
   try {
-    const Ad = (await import('../models/Ad.js')).default;
-    const { deduplicateWPPosts } = await import('../utils/wordpress.js');
-    // Only check ads that have a wpPostId (already synced at least once)
-    const ads = await Ad.find({ wpPostId: { $ne: null } }).select('_id wpPostId').lean();
-    let cleaned = 0;
-    for (const ad of ads) {
-      await deduplicateWPPosts(String(ad._id));
-      cleaned++;
-      await new Promise(r => setTimeout(r, 200));
+    const token = await getWpToken();
+    // Fetch all posts from WP (paginated, up to 1000)
+    const allPosts = [];
+    let page = 1;
+    while (true) {
+      const r = await fetch(`${WP_API}/posts?status=any&number=100&page=${page}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!r.ok) break;
+      const data = await r.json();
+      const posts = data.posts || (Array.isArray(data) ? data : []);
+      if (!posts.length) break;
+      allPosts.push(...posts);
+      if (posts.length < 100) break;
+      page++;
+      await new Promise(r => setTimeout(r, 300));
     }
-    res.json({ ok: true, checked: cleaned });
+
+    // Group by slug (strip numeric suffix: slug-2, slug-3 → same group)
+    const groups = {};
+    for (const post of allPosts) {
+      const baseSlug = (post.slug || '').replace(/-\d+$/, '');
+      if (!groups[baseSlug]) groups[baseSlug] = [];
+      groups[baseSlug].push(post);
+    }
+
+    // For each group: keep highest ID (newest), delete the rest
+    let deleted = 0;
+    let kept = 0;
+    for (const [slug, posts] of Object.entries(groups)) {
+      if (posts.length <= 1) { kept++; continue; }
+      // Sort by ID descending — keep highest (newest)
+      posts.sort((a, b) => (b.ID || b.id || 0) - (a.ID || a.id || 0));
+      const [keep, ...dupes] = posts;
+      kept++;
+      for (const dupe of dupes) {
+        try {
+          await fetch(`${WP_API}/posts/${dupe.ID || dupe.id}/delete`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(8000),
+          });
+          deleted++;
+          await new Promise(r => setTimeout(r, 150));
+        } catch (_) {}
+      }
+    }
+    res.json({ deleted, kept, total: allPosts.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -804,6 +804,8 @@ export async function createWPPost(ad) {
 
     // Get or create WordPress category for this ad's country (non-blocking fallback to null)
     const countryCatId = await getOrCreateWPCategory(ad.country || 'EG').catch(() => null);
+    // Get or create governorate sub-category (Egypt only, non-blocking)
+    const govCatId = await getOrCreateWPGovernorateCategory(ad).catch(() => null);
 
     const postBody = {
       title,
@@ -815,7 +817,8 @@ export async function createWPPost(ad) {
       excerpt,
       format: 'standard',
       metadata,
-      categories: countryCatId ? [countryCatId] : [],
+      // Assign both country-level + governorate sub-category (Task 2C)
+      categories: [countryCatId, govCatId].filter(Boolean),
       ...(featuredMediaId ? { featured_image: featuredMediaId } : {}),
     };
 
@@ -908,6 +911,109 @@ const COUNTRY_NAMES = {
 
 // In-process cache to avoid repeated WP API calls for same country
 const _catIdCache = {};
+
+
+// ─── Egypt governorate map (Arabic name → slug suffix) ─────────────────────
+const EG_GOVERNORATES = {
+  // Cairo metro
+  'القاهرة': { slug: 'cairo', name: 'القاهرة' },
+  'Cairo': { slug: 'cairo', name: 'القاهرة' },
+  'مدينة نصر': { slug: 'cairo', name: 'القاهرة' },
+  'هليوبوليس': { slug: 'cairo', name: 'القاهرة' },
+  'المعادي': { slug: 'cairo', name: 'القاهرة' },
+  'الشروق': { slug: 'cairo', name: 'القاهرة' },
+  'التجمع الخامس': { slug: 'cairo', name: 'القاهرة' },
+  'العبور': { slug: 'cairo', name: 'القاهرة' },
+  // Giza
+  'الجيزة': { slug: 'giza', name: 'الجيزة' },
+  'Giza': { slug: 'giza', name: 'الجيزة' },
+  '6 أكتوبر': { slug: 'giza', name: 'الجيزة' },
+  // Alexandria
+  'الإسكندرية': { slug: 'alexandria', name: 'الإسكندرية' },
+  'Alexandria': { slug: 'alexandria', name: 'الإسكندرية' },
+  // Delta
+  'المنصورة': { slug: 'dakahlia', name: 'المنصورة' },
+  'طنطا': { slug: 'gharbia', name: 'طنطا' },
+  'الزقازيق': { slug: 'sharkia', name: 'الزقازيق' },
+  'دمنهور': { slug: 'beheira', name: 'دمنهور' },
+  'بنها': { slug: 'qalyubia', name: 'بنها' },
+  // Canal
+  'السويس': { slug: 'suez', name: 'السويس' },
+  'بورسعيد': { slug: 'port-said', name: 'بورسعيد' },
+  'الإسماعيلية': { slug: 'ismailia', name: 'الإسماعيلية' },
+  // Upper Egypt
+  'المنيا': { slug: 'minya', name: 'المنيا' },
+  'سوهاج': { slug: 'sohag', name: 'سوهاج' },
+  'قنا': { slug: 'qena', name: 'قنا' },
+  'أسيوط': { slug: 'assiut', name: 'أسيوط' },
+  'الفيوم': { slug: 'fayoum', name: 'الفيوم' },
+  'أسوان': { slug: 'aswan', name: 'أسوان' },
+  'الأقصر': { slug: 'luxor', name: 'الأقصر' },
+  // Red Sea / Sinai
+  'شرم الشيخ': { slug: 'south-sinai', name: 'شرم الشيخ' },
+  'الغردقة': { slug: 'red-sea', name: 'الغردقة' },
+};
+
+// Cache: governorate slug → WP category ID
+const _govCatCache = {};
+
+// ─── Get or create WP governorate sub-category (child of country cat) ───────
+export async function getOrCreateWPGovernorateCategory(ad) {
+  try {
+    const token = getToken();
+    if (!token) return null;
+    const country = (ad.country || 'EG').toUpperCase();
+    // Only implement for Egypt for now
+    if (country !== 'EG') return null;
+    const cityKey = ad.governorate || ad.city || ad.location || '';
+    if (!cityKey) return null;
+    const govInfo = EG_GOVERNORATES[cityKey];
+    if (!govInfo) return null;
+    const cacheKey = 'EG-' + govInfo.slug;
+    if (_govCatCache[cacheKey]) return _govCatCache[cacheKey];
+
+    // Ensure parent country category exists
+    const parentId = await getOrCreateWPCategory('EG').catch(() => null);
+    const slug = 'gov-eg-' + govInfo.slug;
+    const name = govInfo.name;
+
+    // Check if governorate category already exists
+    const checkResp = await fetch(`${WP_API}/categories?slug=${slug}&number=1`, {
+      headers: authHeaders(),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (checkResp.ok) {
+      const cats = await checkResp.json();
+      const catList = cats.categories || (Array.isArray(cats) ? cats : []);
+      if (catList.length > 0) {
+        const catId = catList[0].ID || catList[0].id;
+        _govCatCache[cacheKey] = catId;
+        return catId;
+      }
+    }
+
+    // Create sub-category under country parent
+    const body = { name, slug, description: `إعلانات ${name} على XTOX` };
+    if (parentId) body.parent = parentId;
+    const createResp = await fetch(`${WP_API}/categories/new`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (createResp.ok) {
+      const cat = await createResp.json();
+      const catId = cat.ID || cat.id || null;
+      if (catId) _govCatCache[cacheKey] = catId;
+      console.log(`[WP-GOV-CAT] Created governorate category ${name}: ID=${catId}`);
+      return catId;
+    }
+    return null;
+  } catch (e) {
+    console.warn('[WP-GOV-CAT] Error:', e.message);
+    return null;
+  }
+}
 
 // ─── Get or create a WordPress category for a country ──────────────────────
 export async function getOrCreateWPCategory(countryCode) {
