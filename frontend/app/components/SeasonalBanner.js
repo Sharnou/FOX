@@ -152,32 +152,6 @@ function getBanners(country, year) {
       gradient: 'linear-gradient(135deg, #dc2626 0%, #fff 50%, #000 100%)',
       textColor: '#dc2626',
     });
-    // Sham el Nessim: day after Coptic Easter
-    // For 2026 Coptic Easter = April 19, so Sham = April 20
-    if (year === 2026) {
-      banners.push({
-        key: 'sham_el_nessim_2026',
-        start: d(2026, 4, 19),
-        end: d(2026, 4, 21),
-        emoji: '🌸',
-        title: 'شم النسيم المبارك!',
-        subtitle: 'كل عام وأنتم بخير 🌿🥚',
-        gradient: 'linear-gradient(135deg, #86efac 0%, #34d399 50%, #059669 100%)',
-        textColor: '#fff',
-      });
-    } else {
-      // Generic spring for other years (approximate)
-      banners.push({
-        key: 'sham_el_nessim_' + year,
-        start: d(year, 4, 19),
-        end: d(year, 4, 21),
-        emoji: '🌸',
-        title: 'شم النسيم المبارك!',
-        subtitle: 'كل عام وأنتم بخير 🌿🥚',
-        gradient: 'linear-gradient(135deg, #86efac 0%, #34d399 50%, #059669 100%)',
-        textColor: '#fff',
-      });
-    }
     // Sinai Liberation Day Apr 25
     banners.push({
       key: 'sinai_' + year,
@@ -460,9 +434,25 @@ export default function SeasonalBanner() {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const country = getCountryFromTimezone(tz);
       const active = getActiveBanner(country);
-      setBanner(active);
+      if (active) {
+        // Check if this banner was already dismissed (persistent)
+        try {
+          if (localStorage.getItem('xtox_banner_dismissed_' + active.key) === '1') {
+            setBanner(null);
+            return;
+          }
+        } catch {}
+        setBanner(active);
+      }
     } catch {}
   }, []);
+
+  const handleDismiss = () => {
+    if (banner?.key) {
+      try { localStorage.setItem('xtox_banner_dismissed_' + banner.key, '1'); } catch {}
+    }
+    setDismissed(true);
+  };
 
   if (!banner || dismissed) return null;
 
@@ -483,7 +473,7 @@ export default function SeasonalBanner() {
       {' — '}
       <span style={{ fontSize: 13 }}>{banner.subtitle}</span>
       <button
-        onClick={() => setDismissed(true)}
+        onClick={handleDismiss}
         style={{
           position: 'absolute',
           left: 12,

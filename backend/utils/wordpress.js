@@ -761,69 +761,170 @@ const EG_GOVS = [
   'المنصورة','طنطا','الزقازيق','دمنهور','بنها','شرم الشيخ','الغردقة',
 ];
 
-// Cities/governorates for other countries
-const GEO_COUNTRY_MAP = {
-  'الرياض':          { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'جدة':             { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'مكة المكرمة':     { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'المدينة المنورة': { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'الدمام':          { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'الخبر':           { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'أبها':            { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'تبوك':            { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'دبي':     { code: 'AE', lang: 'ar', name: 'UAE', wpCategory: 'الإمارات' },
-  'أبوظبي':  { code: 'AE', lang: 'ar', name: 'UAE', wpCategory: 'الإمارات' },
-  'الشارقة': { code: 'AE', lang: 'ar', name: 'UAE', wpCategory: 'الإمارات' },
-  'عجمان':   { code: 'AE', lang: 'ar', name: 'UAE', wpCategory: 'الإمارات' },
-  'عمان':    { code: 'JO', lang: 'ar', name: 'Jordan', wpCategory: 'الأردن' },
-  'الزرقاء': { code: 'JO', lang: 'ar', name: 'Jordan', wpCategory: 'الأردن' },
-  'إربد':    { code: 'JO', lang: 'ar', name: 'Jordan', wpCategory: 'الأردن' },
-  'الكويت':   { code: 'KW', lang: 'ar', name: 'Kuwait', wpCategory: 'الكويت' },
-  'حولي':     { code: 'KW', lang: 'ar', name: 'Kuwait', wpCategory: 'الكويت' },
-  'بيروت':   { code: 'LB', lang: 'ar', name: 'Lebanon', wpCategory: 'لبنان' },
-  'الدوحة':  { code: 'QA', lang: 'ar', name: 'Qatar', wpCategory: 'قطر' },
-  'Paris':   { code: 'FR', lang: 'fr', name: 'France', wpCategory: 'France' },
-  'Lyon':    { code: 'FR', lang: 'fr', name: 'France', wpCategory: 'France' },
-  'Berlin':  { code: 'DE', lang: 'de', name: 'Germany', wpCategory: 'Deutschland' },
-  'Istanbul': { code: 'TR', lang: 'tr', name: 'Turkey', wpCategory: 'Türkiye' },
+// Complete country → language mapping
+const COUNTRY_LANG_MAP = {
+  // Arabic (ar) — Middle East & North Africa
+  EG: { lang: 'ar', currency: 'EGP', dir: 'rtl', name: 'Egypt',        wpCat: 'مصر' },
+  SA: { lang: 'ar', currency: 'SAR', dir: 'rtl', name: 'Saudi Arabia', wpCat: 'السعودية' },
+  AE: { lang: 'ar', currency: 'AED', dir: 'rtl', name: 'UAE',          wpCat: 'الإمارات' },
+  KW: { lang: 'ar', currency: 'KWD', dir: 'rtl', name: 'Kuwait',       wpCat: 'الكويت' },
+  QA: { lang: 'ar', currency: 'QAR', dir: 'rtl', name: 'Qatar',        wpCat: 'قطر' },
+  BH: { lang: 'ar', currency: 'BHD', dir: 'rtl', name: 'Bahrain',      wpCat: 'البحرين' },
+  OM: { lang: 'ar', currency: 'OMR', dir: 'rtl', name: 'Oman',         wpCat: 'عمان' },
+  JO: { lang: 'ar', currency: 'JOD', dir: 'rtl', name: 'Jordan',       wpCat: 'الأردن' },
+  LB: { lang: 'ar', currency: 'LBP', dir: 'rtl', name: 'Lebanon',      wpCat: 'لبنان' },
+  IQ: { lang: 'ar', currency: 'IQD', dir: 'rtl', name: 'Iraq',         wpCat: 'العراق' },
+  SY: { lang: 'ar', currency: 'SYP', dir: 'rtl', name: 'Syria',        wpCat: 'سوريا' },
+  LY: { lang: 'ar', currency: 'LYD', dir: 'rtl', name: 'Libya',        wpCat: 'ليبيا' },
+  TN: { lang: 'ar', currency: 'TND', dir: 'rtl', name: 'Tunisia',      wpCat: 'تونس' },
+  DZ: { lang: 'ar', currency: 'DZD', dir: 'rtl', name: 'Algeria',      wpCat: 'الجزائر' },
+  MA: { lang: 'ar', currency: 'MAD', dir: 'rtl', name: 'Morocco',      wpCat: 'المغرب' },
+  SD: { lang: 'ar', currency: 'SDG', dir: 'rtl', name: 'Sudan',        wpCat: 'السودان' },
+  YE: { lang: 'ar', currency: 'YER', dir: 'rtl', name: 'Yemen',        wpCat: 'اليمن' },
+  PS: { lang: 'ar', currency: 'ILS', dir: 'rtl', name: 'Palestine',    wpCat: 'فلسطين' },
+  // English (en)
+  US: { lang: 'en', currency: 'USD', dir: 'ltr', name: 'United States', wpCat: 'United States' },
+  GB: { lang: 'en', currency: 'GBP', dir: 'ltr', name: 'United Kingdom', wpCat: 'United Kingdom' },
+  CA: { lang: 'en', currency: 'CAD', dir: 'ltr', name: 'Canada',        wpCat: 'Canada' },
+  AU: { lang: 'en', currency: 'AUD', dir: 'ltr', name: 'Australia',     wpCat: 'Australia' },
+  IN: { lang: 'en', currency: 'INR', dir: 'ltr', name: 'India',         wpCat: 'India' },
+  NG: { lang: 'en', currency: 'NGN', dir: 'ltr', name: 'Nigeria',       wpCat: 'Nigeria' },
+  // French (fr)
+  FR: { lang: 'fr', currency: 'EUR', dir: 'ltr', name: 'France',        wpCat: 'France' },
+  BE: { lang: 'fr', currency: 'EUR', dir: 'ltr', name: 'Belgium',       wpCat: 'Belgique' },
+  CH: { lang: 'fr', currency: 'CHF', dir: 'ltr', name: 'Switzerland',   wpCat: 'Suisse' },
+  SN: { lang: 'fr', currency: 'XOF', dir: 'ltr', name: 'Senegal',       wpCat: 'Sénégal' },
+  // Russian (ru)
+  RU: { lang: 'ru', currency: 'RUB', dir: 'ltr', name: 'Russia',        wpCat: 'Россия' },
+  UA: { lang: 'ru', currency: 'UAH', dir: 'ltr', name: 'Ukraine',       wpCat: 'Украина' },
+  KZ: { lang: 'ru', currency: 'KZT', dir: 'ltr', name: 'Kazakhstan',    wpCat: 'Казахстан' },
+  BY: { lang: 'ru', currency: 'BYN', dir: 'ltr', name: 'Belarus',       wpCat: 'Беларусь' },
+  // German (de)
+  DE: { lang: 'de', currency: 'EUR', dir: 'ltr', name: 'Germany',       wpCat: 'Deutschland' },
+  AT: { lang: 'de', currency: 'EUR', dir: 'ltr', name: 'Austria',       wpCat: 'Österreich' },
+  // Spanish (es)
+  ES: { lang: 'es', currency: 'EUR', dir: 'ltr', name: 'Spain',         wpCat: 'España' },
+  MX: { lang: 'es', currency: 'MXN', dir: 'ltr', name: 'Mexico',        wpCat: 'México' },
+  AR: { lang: 'es', currency: 'ARS', dir: 'ltr', name: 'Argentina',     wpCat: 'Argentina' },
+  CO: { lang: 'es', currency: 'COP', dir: 'ltr', name: 'Colombia',      wpCat: 'Colombia' },
+  // Turkish (tr)
+  TR: { lang: 'tr', currency: 'TRY', dir: 'ltr', name: 'Turkey',        wpCat: 'Türkiye' },
+  AZ: { lang: 'tr', currency: 'AZN', dir: 'ltr', name: 'Azerbaijan',    wpCat: 'Azerbaycan' },
+  // Chinese (zh)
+  CN: { lang: 'zh', currency: 'CNY', dir: 'ltr', name: 'China',         wpCat: '中国' },
+  TW: { lang: 'zh', currency: 'TWD', dir: 'ltr', name: 'Taiwan',        wpCat: '台灣' },
+  HK: { lang: 'zh', currency: 'HKD', dir: 'ltr', name: 'Hong Kong',     wpCat: '香港' },
+  SG: { lang: 'zh', currency: 'SGD', dir: 'ltr', name: 'Singapore',     wpCat: 'Singapore' },
 };
 
-const GEO_BY_CODE = {
-  'EG': { code: 'EG', lang: 'ar', name: 'Egypt',        wpCategory: 'مصر' },
-  'SA': { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
-  'AE': { code: 'AE', lang: 'ar', name: 'UAE',          wpCategory: 'الإمارات' },
-  'KW': { code: 'KW', lang: 'ar', name: 'Kuwait',       wpCategory: 'الكويت' },
-  'QA': { code: 'QA', lang: 'ar', name: 'Qatar',        wpCategory: 'قطر' },
-  'BH': { code: 'BH', lang: 'ar', name: 'Bahrain',      wpCategory: 'البحرين' },
-  'JO': { code: 'JO', lang: 'ar', name: 'Jordan',       wpCategory: 'الأردن' },
-  'LB': { code: 'LB', lang: 'ar', name: 'Lebanon',      wpCategory: 'لبنان' },
-  'MA': { code: 'MA', lang: 'ar', name: 'Morocco',      wpCategory: 'المغرب' },
-  'DZ': { code: 'DZ', lang: 'ar', name: 'Algeria',      wpCategory: 'الجزائر' },
-  'TN': { code: 'TN', lang: 'ar', name: 'Tunisia',      wpCategory: 'تونس' },
-  'IQ': { code: 'IQ', lang: 'ar', name: 'Iraq',         wpCategory: 'العراق' },
-  'LY': { code: 'LY', lang: 'ar', name: 'Libya',        wpCategory: 'ليبيا' },
-  'OM': { code: 'OM', lang: 'ar', name: 'Oman',         wpCategory: 'عُمان' },
-  'YE': { code: 'YE', lang: 'ar', name: 'Yemen',        wpCategory: 'اليمن' },
-  'SD': { code: 'SD', lang: 'ar', name: 'Sudan',        wpCategory: 'السودان' },
-  'SY': { code: 'SY', lang: 'ar', name: 'Syria',        wpCategory: 'سوريا' },
-  'PS': { code: 'PS', lang: 'ar', name: 'Palestine',    wpCategory: 'فلسطين' },
-  'FR': { code: 'FR', lang: 'fr', name: 'France',       wpCategory: 'France' },
-  'DE': { code: 'DE', lang: 'de', name: 'Germany',      wpCategory: 'Deutschland' },
-  'TR': { code: 'TR', lang: 'tr', name: 'Turkey',       wpCategory: 'Türkiye' },
-  'US': { code: 'US', lang: 'en', name: 'USA',          wpCategory: 'USA' },
-  'GB': { code: 'GB', lang: 'en', name: 'UK',           wpCategory: 'UK' },
+// City name → ISO country code lookup
+const CITY_TO_COUNTRY = {
+  // Egyptian cities (already covered by EG_GOVS + ARAB_CITIES)
+  'القاهرة':'EG','الإسكندرية':'EG','الجيزة':'EG','شرم الشيخ':'EG','الغردقة':'EG',
+  'أسوان':'EG','الأقصر':'EG','المنصورة':'EG','طنطا':'EG','الزقازيق':'EG',
+  'السويس':'EG','بورسعيد':'EG','الإسماعيلية':'EG','المنيا':'EG','سوهاج':'EG',
+  'قنا':'EG','أسيوط':'EG','دمنهور':'EG','الفيوم':'EG','بنها':'EG',
+  'مدينة نصر':'EG','هليوبوليس':'EG','المعادي':'EG','الشروق':'EG','6 أكتوبر':'EG',
+  'العبور':'EG','التجمع الخامس':'EG',
+  // Saudi cities
+  'الرياض':'SA','جدة':'SA','مكة المكرمة':'SA','المدينة المنورة':'SA',
+  'الدمام':'SA','الخبر':'SA','الظهران':'SA','تبوك':'SA','أبها':'SA',
+  'خميس مشيط':'SA','القصيم':'SA','حائل':'SA','نجران':'SA','جازان':'SA','ينبع':'SA',
+  // UAE cities
+  'دبي':'AE','أبوظبي':'AE','الشارقة':'AE','عجمان':'AE',
+  'رأس الخيمة':'AE','الفجيرة':'AE','أم القيوين':'AE','Dubai':'AE','Abu Dhabi':'AE',
+  // Kuwait cities
+  'الكويت':'KW','حولي':'KW','الفروانية':'KW','الأحمدي':'KW','الجهراء':'KW','مبارك الكبير':'KW',
+  // Qatar cities
+  'الدوحة':'QA','الريان':'QA','الوكرة':'QA','الخور':'QA','الشمال':'QA','Doha':'QA',
+  // Bahrain cities
+  'المنامة':'BH','المحرق':'BH','الرفاع':'BH','مدينة عيسى':'BH','مدينة حمد':'BH','Manama':'BH',
+  // Oman cities
+  'مسقط':'OM','صلالة':'OM','صحار':'OM','نزوى':'OM','السيب':'OM','Muscat':'OM',
+  // Jordan cities
+  'عمان':'JO','الزرقاء':'JO','إربد':'JO','العقبة':'JO','السلط':'JO','المفرق':'JO','Amman':'JO',
+  // Lebanon cities
+  'بيروت':'LB','طرابلس':'LB','صيدا':'LB','صور':'LB','زحلة':'LB','Beirut':'LB',
+  // Morocco cities
+  'الدار البيضاء':'MA','الرباط':'MA','فاس':'MA','مراكش':'MA','أكادير':'MA',
+  'طنجة':'MA','مكناس':'MA','وجدة':'MA','Casablanca':'MA','Rabat':'MA',
+  // Algeria cities
+  'الجزائر':'DZ','وهران':'DZ','قسنطينة':'DZ','عنابة':'DZ','سطيف':'DZ','تلمسان':'DZ','بجاية':'DZ',
+  'Algiers':'DZ','Oran':'DZ',
+  // Tunisia cities
+  'تونس':'TN','صفاقس':'TN','سوسة':'TN','بنزرت':'TN','قابس':'TN','القيروان':'TN',
+  'Tunis':'TN','Sfax':'TN',
+  // Iraq cities
+  'بغداد':'IQ','البصرة':'IQ','الموصل':'IQ','أربيل':'IQ','النجف':'IQ',
+  'كربلاء':'IQ','كركوك':'IQ','Baghdad':'IQ','Basra':'IQ',
+  // Libya cities
+  'طرابلس':'LY','بنغازي':'LY','مصراتة':'LY','سبها':'LY','الزاوية':'LY','Tripoli':'LY',
+  // Syria cities
+  'دمشق':'SY','حلب':'SY','حمص':'SY','اللاذقية':'SY','طرطوس':'SY','حماة':'SY',
+  'Damascus':'SY','Aleppo':'SY',
+  // Yemen cities
+  'صنعاء':'YE','عدن':'YE','تعز':'YE','الحديدة':'YE','إب':'YE','Sana'a':'YE','Aden':'YE',
+  // Sudan cities
+  'الخرطوم':'SD','أم درمان':'SD','بحري':'SD','بورتسودان':'SD','كسلا':'SD','Khartoum':'SD',
+  // Palestine cities
+  'غزة':'PS','رام الله':'PS','نابلس':'PS','الخليل':'PS','جنين':'PS','Gaza':'PS','Ramallah':'PS',
+  // German cities
+  'Berlin':'DE','München':'DE','Hamburg':'DE','Frankfurt':'DE','Köln':'DE',
+  'Vienna':'AT','Wien':'AT',
+  // Russian cities
+  'Moscow':'RU','Москва':'RU','Saint Petersburg':'RU','Санкт-Петербург':'RU',
+  'Novosibirsk':'RU','Almaty':'KZ','Алматы':'KZ',
+  // Spanish cities
+  'Madrid':'ES','Barcelona':'ES','Mexico City':'MX','Ciudad de México':'MX',
+  'Buenos Aires':'AR','Bogotá':'CO',
+  // Turkish cities
+  'Istanbul':'TR','İstanbul':'TR','Ankara':'TR','Izmir':'TR','İzmir':'TR',
+  'Baku':'AZ','Bakı':'AZ',
+  // Chinese cities
+  'Beijing':'CN','北京':'CN','Shanghai':'CN','上海':'CN','Guangzhou':'CN',
+  'Shenzhen':'CN','Hong Kong':'HK','香港':'HK','Taipei':'TW','台北':'TW',
+  // English cities
+  'London':'GB','New York':'US','Los Angeles':'US','Sydney':'AU',
+  'Toronto':'CA','Melbourne':'AU','Chicago':'US','Houston':'US',
+  'Lagos':'NG','Mumbai':'IN','Delhi':'IN','Kolkata':'IN',
+  // French cities
+  'Paris':'FR','Lyon':'FR','Marseille':'FR','Brussels':'BE','Bruxelles':'BE',
+  'Geneva':'CH','Genève':'CH','Zurich':'CH','Zürich':'CH','Dakar':'SN',
 };
 
 /**
- * Detect the country for an ad based on governorate/city or country field.
+ * Detect the country for an ad based on city/governorate or country field.
  */
 export function detectAdCountry(ad) {
-  const gov = ad.governorate || ad.city || ad.location || '';
-  if (EG_GOVS.includes(gov)) return GEO_BY_CODE.EG;
-  if (GEO_COUNTRY_MAP[gov]) return GEO_COUNTRY_MAP[gov];
-  const countryField = (ad.country || '').toUpperCase();
-  if (countryField && GEO_BY_CODE[countryField]) return GEO_BY_CODE[countryField];
-  return GEO_BY_CODE.EG; // Default: Egypt
+  const city = (ad.city || '').trim();
+  const gov  = (ad.governorate || '').trim();
+  const countryField = (ad.country || '').trim().toUpperCase();
+
+  // 1. City lookup
+  if (city && CITY_TO_COUNTRY[city]) {
+    const code = CITY_TO_COUNTRY[city];
+    return { code, ...COUNTRY_LANG_MAP[code] };
+  }
+  // 2. Governorate lookup (Egyptian governorates)
+  if (gov && EG_GOVS.includes(gov)) {
+    return { code: 'EG', ...COUNTRY_LANG_MAP.EG };
+  }
+  // 3. Governorate as city fallback
+  if (gov && CITY_TO_COUNTRY[gov]) {
+    const code = CITY_TO_COUNTRY[gov];
+    return { code, ...COUNTRY_LANG_MAP[code] };
+  }
+  // 4. country field (2-letter ISO)
+  if (countryField.length === 2 && COUNTRY_LANG_MAP[countryField]) {
+    return { code: countryField, ...COUNTRY_LANG_MAP[countryField] };
+  }
+  // 5. country field (full name match)
+  const byName = Object.entries(COUNTRY_LANG_MAP).find(([, v]) =>
+    v.name.toLowerCase() === countryField.toLowerCase()
+  );
+  if (byName) return { code: byName[0], ...byName[1] };
+  // Default: Egypt
+  return { code: 'EG', ...COUNTRY_LANG_MAP.EG };
 }
 
 // ─── Multi-language translation via MyMemory free API ───────────────────────
@@ -850,19 +951,20 @@ async function translateAdContent(ad, targetLang) {
 
 // ─── Build geo-aware HTML post content ──────────────────────────────────────
 const GEO_LABELS = {
-  ar: { price: 'السعر', location: 'الموقع', category: 'التصنيف', condition: 'الحالة', viewAd: 'عرض الإعلان', platform: 'منصة XTOX — سوق إلكتروني عربي ذكي' },
-  fr: { price: 'Prix', location: 'Lieu', category: 'Catégorie', condition: 'État', viewAd: "Voir l\'annonce", platform: 'XTOX — Marché électronique arabe' },
-  en: { price: 'Price', location: 'Location', category: 'Category', condition: 'Condition', viewAd: 'View Ad', platform: 'XTOX — Smart Arab Marketplace' },
-  ru: { price: 'Цена', location: 'Местоположение', category: 'Категория', condition: 'Состояние', viewAd: 'Посмотреть объявление', platform: 'XTOX — Арабский рынок' },
-  de: { price: 'Preis', location: 'Standort', category: 'Kategorie', condition: 'Zustand', viewAd: 'Anzeige ansehen', platform: 'XTOX — Arabischer Marktplatz' },
-  tr: { price: 'Fiyat', location: 'Konum', category: 'Kategori', condition: 'Durum', viewAd: 'İlanı Gör', platform: 'XTOX — Arap Pazaryeri' },
+  ar: { price: 'السعر', location: 'الموقع', category: 'التصنيف', condition: 'الحالة', viewAd: '🔗 عرض الإعلان', platform: 'منصة XTOX — سوق إلكتروني عربي ذكي', new: 'جديد', used: 'مستعمل' },
+  en: { price: 'Price', location: 'Location', category: 'Category', condition: 'Condition', viewAd: '🔗 View Ad', platform: 'XTOX — Smart Arab Marketplace', new: 'New', used: 'Used' },
+  fr: { price: 'Prix', location: 'Lieu', category: 'Catégorie', condition: 'État', viewAd: "🔗 Voir l'annonce", platform: 'XTOX — Marché Arabe Intelligent', new: 'Neuf', used: 'Occasion' },
+  ru: { price: 'Цена', location: 'Местоположение', category: 'Категория', condition: 'Состояние', viewAd: '🔗 Смотреть объявление', platform: 'XTOX — Умный арабский рынок', new: 'Новый', used: 'Б/у' },
+  de: { price: 'Preis', location: 'Standort', category: 'Kategorie', condition: 'Zustand', viewAd: '🔗 Anzeige ansehen', platform: 'XTOX — Intelligenter arabischer Marktplatz', new: 'Neu', used: 'Gebraucht' },
+  es: { price: 'Precio', location: 'Ubicación', category: 'Categoría', condition: 'Estado', viewAd: '🔗 Ver anuncio', platform: 'XTOX — Mercado árabe inteligente', new: 'Nuevo', used: 'Usado' },
+  tr: { price: 'Fiyat', location: 'Konum', category: 'Kategori', condition: 'Durum', viewAd: '🔗 İlanı Gör', platform: 'XTOX — Akıllı Arap Pazaryeri', new: 'Yeni', used: 'İkinci El' },
+  zh: { price: '价格', location: '位置', category: '类别', condition: '状况', viewAd: '🔗 查看广告', platform: 'XTOX — 智能阿拉伯市场', new: '全新', used: '二手' },
 };
 
 function buildGeoContent(ad, country, translated) {
   const isRTL = ['ar', 'he', 'fa', 'ur'].includes(country.lang);
   const dir = isRTL ? 'rtl' : 'ltr';
-  const CURRENCY_MAP = { EG:'EGP', SA:'SAR', AE:'AED', KW:'KWD', QA:'QAR', BH:'BHD', OM:'OMR', FR:'EUR', DE:'EUR' };
-  const currency = CURRENCY_MAP[country.code] || 'USD';
+  const currency = country.currency || 'USD';
   const L = GEO_LABELS[country.lang] || GEO_LABELS.en;
   const adId = (ad._id || ad.id || '').toString();
   const adUrl = `https://fox-kohl-eight.vercel.app/ads/${adId}`;

@@ -76,9 +76,17 @@ export default function WinnerBanner() {
       .then(r => r.json())
       .then(d => {
         if (d.winner) {
+          // Check if winner is from current month
+          const now = new Date();
+          const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+          const winnerMonth = (d.winner.month || '').slice(0, 7); // YYYY-MM
+          if (winnerMonth && winnerMonth !== currentMonthKey) {
+            // Old winner — don't show banner
+            return;
+          }
           setWinner(d.winner);
-          // FIX C — State management: check if already dismissed for this winner
-          const dismissKey = `xtox_winner_dismissed_${d.winner._id}`;
+          // FIX C — Persist dismiss state per winner+month key
+          const dismissKey = `xtox_winner_dismissed_${d.winner._id}_${currentMonthKey}`;
           if (localStorage.getItem(dismissKey) === '1') {
             setDismissed(true);
           }
@@ -95,9 +103,13 @@ export default function WinnerBanner() {
   }, []);
 
   const handleDismiss = () => {
-    // FIX C — Persist dismiss state to localStorage so banner stays gone after reload
+    // FIX C — Persist dismiss state per winner+month (banner stays gone after reload)
     if (winner?._id) {
-      try { localStorage.setItem(`xtox_winner_dismissed_${winner._id}`, '1'); } catch {}
+      try {
+        const now = new Date();
+        const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        localStorage.setItem(`xtox_winner_dismissed_${winner._id}_${currentMonthKey}`, '1');
+      } catch {}
     }
     setDismissed(true);
   };

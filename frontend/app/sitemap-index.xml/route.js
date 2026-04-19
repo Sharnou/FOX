@@ -11,22 +11,34 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-// Supported country-specific sitemaps (expand as XTOX grows)
+// Supported country-specific sitemaps — all 8 language zones
 const COUNTRY_SITEMAPS = [
+  // Arabic (ar)
   { code: 'EG', lang: 'ar', label: 'Egypt' },
   { code: 'SA', lang: 'ar', label: 'Saudi Arabia' },
   { code: 'AE', lang: 'ar', label: 'UAE' },
   { code: 'KW', lang: 'ar', label: 'Kuwait' },
   { code: 'QA', lang: 'ar', label: 'Qatar' },
   { code: 'JO', lang: 'ar', label: 'Jordan' },
-  { code: 'LB', lang: 'ar', label: 'Lebanon' },
   { code: 'MA', lang: 'ar', label: 'Morocco' },
   { code: 'DZ', lang: 'ar', label: 'Algeria' },
   { code: 'TN', lang: 'ar', label: 'Tunisia' },
   { code: 'IQ', lang: 'ar', label: 'Iraq' },
+  // English (en)
+  { code: 'US', lang: 'en', label: 'United States' },
+  { code: 'GB', lang: 'en', label: 'United Kingdom' },
+  // French (fr)
   { code: 'FR', lang: 'fr', label: 'France' },
+  // Russian (ru)
+  { code: 'RU', lang: 'ru', label: 'Russia' },
+  // German (de)
   { code: 'DE', lang: 'de', label: 'Germany' },
+  // Spanish (es)
+  { code: 'ES', lang: 'es', label: 'Spain' },
+  // Turkish (tr)
   { code: 'TR', lang: 'tr', label: 'Turkey' },
+  // Chinese (zh)
+  { code: 'CN', lang: 'zh', label: 'China' },
 ];
 
 export async function GET() {

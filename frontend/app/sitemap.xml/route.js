@@ -39,13 +39,26 @@ function entry({ path, freq, pri, withHreflang = false, image = null, lastmod = 
   ].filter(Boolean).join('\n');
 }
 
-// Country → language map for geo-targeted hreflang
+// Country → language map for geo-targeted hreflang (all 8 languages)
 const COUNTRY_LANG_MAP = {
-  'EG': 'ar', 'SA': 'ar', 'AE': 'ar', 'JO': 'ar', 'LB': 'ar', 'KW': 'ar',
-  'QA': 'ar', 'BH': 'ar', 'OM': 'ar', 'MA': 'ar', 'DZ': 'ar', 'TN': 'ar',
-  'IQ': 'ar', 'LY': 'ar', 'SY': 'ar', 'YE': 'ar', 'SD': 'ar', 'PS': 'ar',
-  'FR': 'fr', 'DE': 'de', 'TR': 'tr', 'RU': 'ru', 'CN': 'zh', 'ES': 'es',
-  'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en',
+  // Arabic (ar)
+  'EG': 'ar', 'SA': 'ar', 'AE': 'ar', 'KW': 'ar', 'QA': 'ar', 'BH': 'ar',
+  'OM': 'ar', 'JO': 'ar', 'LB': 'ar', 'IQ': 'ar', 'SY': 'ar', 'LY': 'ar',
+  'TN': 'ar', 'DZ': 'ar', 'MA': 'ar', 'SD': 'ar', 'YE': 'ar', 'PS': 'ar',
+  // English (en)
+  'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en', 'IN': 'en', 'NG': 'en',
+  // French (fr)
+  'FR': 'fr', 'BE': 'fr', 'CH': 'fr', 'SN': 'fr',
+  // Russian (ru)
+  'RU': 'ru', 'UA': 'ru', 'KZ': 'ru', 'BY': 'ru',
+  // German (de)
+  'DE': 'de', 'AT': 'de',
+  // Spanish (es)
+  'ES': 'es', 'MX': 'es', 'AR': 'es', 'CO': 'es',
+  // Turkish (tr)
+  'TR': 'tr', 'AZ': 'tr',
+  // Chinese (zh)
+  'CN': 'zh', 'TW': 'zh', 'HK': 'zh', 'SG': 'zh',
 };
 
 // Build hreflang links for an ad based on its country
