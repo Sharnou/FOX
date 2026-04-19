@@ -16,7 +16,8 @@ const ICE_CONFIG_STATIC = {
 };
 
 // ─── Web Audio API calling tone ─────────────────────────────────────────────
-let _callingCtx = null, _callingTimer = null, _callingActive = false;
+// Candidate 2 fix: track _callingOsc so we can stop it immediately in stopCallingTone()
+let _callingCtx = null, _callingOsc = null, _callingTimer = null, _callingActive = false;
 function playCallingTone() {
   if (_callingActive) return;
   _callingActive = true;
@@ -26,13 +27,14 @@ function playCallingTone() {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       _callingCtx = ctx;
       const osc = ctx.createOscillator(), gain = ctx.createGain();
+      _callingOsc = osc;
       osc.connect(gain); gain.connect(ctx.destination);
       osc.frequency.setValueAtTime(440, ctx.currentTime);
       osc.frequency.setValueAtTime(480, ctx.currentTime + 0.5);
       gain.gain.setValueAtTime(0.25, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
       osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 1.0);
-      osc.onended = () => { try { ctx.close(); } catch {} };
+      osc.onended = () => { _callingOsc = null; try { ctx.close(); } catch {} };
     } catch {}
     _callingTimer = setTimeout(beep, 3000);
   };
@@ -41,7 +43,11 @@ function playCallingTone() {
 function stopCallingTone() {
   _callingActive = false;
   clearTimeout(_callingTimer); _callingTimer = null;
-  // Bug 3 fix: check state !== 'closed' before closing to avoid InvalidStateError
+  // Candidate 2 fix: stop the oscillator explicitly before closing context
+  if (_callingOsc) {
+    try { _callingOsc.stop(); } catch(e) {}
+    _callingOsc = null;
+  }
   if (_callingCtx) {
     if (_callingCtx.state !== 'closed') {
       try { _callingCtx.close(); } catch(e) {}
@@ -231,6 +237,84 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         return;
       }
 
+      // ── Candidate 1+4 FIX: Define handlers FIRST and register call:accepted
+      // SYNCHRONOUSLY before any async operation. This prevents a race where the
+      // callee answers while we are awaiting getUserMedia / createOffer /
+      // setLocalDescription, causing the event to arrive before the listener
+      // is registered and the call never transitioning to "connected".
+      // ─────────────────────────────────────────────────────────────────────
+      const calleeSocketIdRef = { current: null };
+      const localICEBuffer = [];
+      let _callAccepted = false; // prevents no-answer timer from firing after accept
+
+      // onPushSent must be declared before onCallAccepted (referenced inside it)
+      const onPushSent = () => { setPushSent(true); };
+
+      // ── call:accepted handler ─────────────────────────────────────────────
+      const onCallAccepted = async ({ answer, calleeSocketId }) => {
+        _callAccepted = true;
+
+        // Candidate 3 FIX: stopCallingTone() FIRST — before ANY guard or async op.
+        // If this handler is reached for any reason, the tone MUST stop immediately.
+        stopCallingTone();                          // 1. stop tone
+        clearTimeout(noAnswerTimer.current);        // 2. kill no-answer timer
+        noAnswerTimer.current = null;
+        setOfflineRinging(null);                    // 3. dismiss calling overlay
+        setStatusMessage('');
+        setPushSent(false);
+        socket.off('call:push_sent', onPushSent);
+        // Candidate 4 FIX: defensive off (socket.once already removed it, but be safe)
+        socket.off('call:accepted', onCallAccepted);
+
+        // Candidate 6 FIX: log receipt + validate SDP before any WebRTC ops
+        console.log('[CALL] call:accepted received — answer.type:', answer?.type, '| calleeSocketId:', calleeSocketId);
+        if (!answer?.type || !answer?.sdp) {
+          console.error('[CALL] call:accepted — invalid answer SDP:', answer);
+          cleanup();
+          return;
+        }
+
+        // Guard: PC may have been closed (ICE failure, or user cancelled before event arrived)
+        // NOTE: tone already stopped above, so the overlay is already clear
+        if (!pcRef.current || pcRef.current.signalingState === 'closed') {
+          console.warn('[CALL] call:accepted — PC already closed (tone stopped above)');
+          return;
+        }
+
+        // Step 9: setRemoteDescription
+        console.log('[CALL] step 9: setRemoteDescription (answer)');
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: answer.type, sdp: answer.sdp }));
+          console.log('[CALL] step 9 OK: remoteDescription set');
+        } catch (e) {
+          console.error('[CALL] step 9 FAIL: setRemoteDescription error:', e.message);
+          cleanup();
+          return;
+        }
+
+        // Step 10: flush buffered remote ICE
+        await flushBufferedICE();
+
+        // Step 11: calleeSocketId now known — flush buffered local ICE to callee
+        calleeSocketIdRef.current = calleeSocketId;
+        console.log('[CALL] step 11: flushing', localICEBuffer.length, 'buffered local ICE to callee:', calleeSocketId);
+        for (const c of localICEBuffer) {
+          socket.emit('call:ice', { targetSocketId: calleeSocketId, candidate: c });
+        }
+        localICEBuffer.length = 0;
+
+        logCallEvent('call_connected', { peerId: calleeId, side: 'caller' });
+        // Step 12: transition UI to active call (Candidate 3: Step 5)
+        setActive({ peerName: calleeName, remoteSocketId: calleeSocketId, startTime: Date.now() });
+      };
+
+      // Candidate 4 FIX: remove any stale listener (e.g. from a previous failed call)
+      socket.off('call:accepted', onCallAccepted);
+      // Candidate 1 FIX: register SYNCHRONOUSLY — BEFORE the first await below
+      socket.once('call:accepted', onCallAccepted);
+
+      // ── ASYNC SECTION ────────────────────────────────────────────────────
+
       // Step 1: getUserMedia — SIMPLE constraints only
       console.log('[CALL] step 1: getUserMedia');
       let stream;
@@ -240,6 +324,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         console.log('[CALL] step 1 OK: got audio stream, tracks:', stream.getAudioTracks().length);
       } catch (e) {
         console.error('[CALL] step 1 FAIL: getUserMedia error:', e.name, e.message);
+        socket.off('call:accepted', onCallAccepted); // clean up listener on error
         if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
           alert('يرجى السماح بالوصول للميكروفون لإجراء المكالمات');
         } else if (e.name === 'NotFoundError') {
@@ -250,14 +335,13 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         return;
       }
 
-      // Step 2: createPC (targetSocketId unknown yet — ICE will be sent in call:accepted handler)
+      // Step 2: createPC (targetSocketId unknown yet — ICE will be sent after calleeSocketId known)
       console.log('[CALL] step 2: createPC');
-      // We'll pass a placeholder; we'll update onicecandidate after getting calleeSocketId
-      const calleeSocketIdRef = { current: null };
+      if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
       const pc = new RTCPeerConnection(iceConfigRef.current);
       pcRef.current = pc;
 
-      // Remote audio
+      // Remote audio playback
       pc.ontrack = e => {
         console.log('[CALL] step ontrack-caller:', e.track.kind);
         if (remoteAudio.current && e.streams[0]) {
@@ -275,8 +359,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         }
       };
 
-      // Buffer ICE until calleeSocketId is known
-      const localICEBuffer = [];
+      // Buffer ICE until calleeSocketId is known (resolved in call:accepted handler)
       pc.onicecandidate = e => {
         if (!e.candidate) return;
         if (calleeSocketIdRef.current) {
@@ -313,6 +396,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         console.log('[CALL] step 4 OK: offer type=', offer.type, 'sdp length=', offer.sdp.length);
       } catch (e) {
         console.error('[CALL] step 4 FAIL: createOffer error:', e.message);
+        socket.off('call:accepted', onCallAccepted);
         cleanup();
         return;
       }
@@ -341,62 +425,14 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       playCallingTone();
       logCallEvent('outgoing_start', { peerId: calleeId, peerName: calleeName });
 
-      // Listen for push_sent
-      const onPushSent = () => { setPushSent(true); };
+      // Register push_sent listener
       socket.once('call:push_sent', onPushSent);
 
-      // Step 8: listen for call:accepted (callee answered)
-      console.log('[CALL] step 8: waiting for call:accepted...');
-      const onCallAccepted = async ({ answer, calleeSocketId }) => {
-        // Guard: PC may have been closed (timeout or user cancelled)
-        if (!pcRef.current || pcRef.current.signalingState === 'closed') {
-          console.warn('[CALL] call:accepted ignored — PC already closed');
-          return;
-        }
-        console.log('[CALL] step 8 RECEIVED call:accepted — calleeSocketId:', calleeSocketId);
-        clearTimeout(noAnswerTimer.current);
-        stopCallingTone();
-        setOfflineRinging(null);
-        setStatusMessage('');
-        setPushSent(false);
-        socket.off('call:push_sent', onPushSent);
-
-        // Validate answer
-        if (!answer || !answer.type || !answer.sdp) {
-          console.error('[CALL] step 8 FAIL: invalid answer object:', answer);
-          cleanup();
-          return;
-        }
-
-        // Step 9: setRemoteDescription
-        console.log('[CALL] step 9: setRemoteDescription (answer)');
-        try {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: answer.type, sdp: answer.sdp }));
-          console.log('[CALL] step 9 OK: remoteDescription set');
-        } catch (e) {
-          console.error('[CALL] step 9 FAIL: setRemoteDescription error:', e.message);
-          cleanup();
-          return;
-        }
-
-        // Step 10: flush buffered remote ICE
-        await flushBufferedICE();
-
-        // Step 11: now calleeSocketId is known — update ICE target + flush buffered local ICE
-        calleeSocketIdRef.current = calleeSocketId;
-        console.log('[CALL] step 11: flushing', localICEBuffer.length, 'buffered local ICE to callee:', calleeSocketId);
-        for (const c of localICEBuffer) {
-          socket.emit('call:ice', { targetSocketId: calleeSocketId, candidate: c });
-        }
-        localICEBuffer.length = 0;
-
-        logCallEvent('call_connected', { peerId: calleeId, side: 'caller' });
-        setActive({ peerName: calleeName, remoteSocketId: calleeSocketId, startTime: Date.now() });
-      };
-      socket.once('call:accepted', onCallAccepted);
-
-      // 50-second timeout
+      // 50-second no-answer timeout
+      // Guard with _callAccepted flag: if call:accepted fires before timer setup
+      // (extremely rare but theoretically possible), the timer won't destroy an active call
       noAnswerTimer.current = setTimeout(() => {
+        if (_callAccepted) return; // already accepted — do nothing
         socket.off('call:accepted', onCallAccepted);
         socket.off('call:push_sent', onPushSent);
         socket.emit('call:cancel', { targetUserId: calleeId });

@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v47';
+const _XTOX_CACHE = 'xtox-v48';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -112,9 +112,9 @@ self.addEventListener('periodicsync', function(event) {
               'Content-Type': 'application/json',
             },
           });
-          console.log('[SW v47] Presence ping sent ✓');
+          console.log('[SW v48] Presence ping sent ✓');
         } catch (e) {
-          console.log('[SW v47] Presence ping failed:', e.message);
+          console.log('[SW v48] Presence ping failed:', e.message);
         }
       })()
     );
@@ -157,9 +157,9 @@ function logCallEventSW(type, data) {
   } catch (e) { /* non-fatal */ }
 }
 
-// ─── XTOX Service Worker v47 ────────────────────────────────────────────────
+// ─── XTOX Service Worker v48 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v47';
+const CACHE_VERSION = 'v48';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
