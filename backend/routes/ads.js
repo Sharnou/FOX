@@ -22,7 +22,7 @@ import mongoose from 'mongoose';
 import multer from 'multer';
 import { CLOUDINARY_ENABLED } from '../server/cloudinary.js';
 import { moderateAdContent } from '../utils/adModeration.js';
-import { createWPPost, deleteWPPost } from '../utils/wordpress.js';
+import { createWPPost, deleteWPPost, updateWPPost } from '../utils/wordpress.js';
 import { addPointsToUser } from '../utils/points.js';
 import { locationToCountry, countryFromIP } from '../utils/geoCountry.js';
 
@@ -1166,7 +1166,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     setImmediate(async () => {
       try {
         const adObj = ad.toObject ? ad.toObject() : ad;
-        console.log('[WordPress] Attempting to sync ad:', adObj._id, adObj.title);
+        console.log(`[WP] Auto-sync for new ad ${adObj._id}: ${adObj.title}`);
         const result = await createWPPost(adObj);
         if (result) {
           await getAdModel().findByIdAndUpdate(ad._id, {
@@ -1472,6 +1472,28 @@ router.put('/:id', auth, async (req, res) => {
         );
       } catch (e) {
         console.warn('[AIQuality] Update scoring failed:', e.message);
+      }
+    });
+
+    // WORDPRESS SYNC on PUT update (upsert) — non-blocking
+    setImmediate(async () => {
+      try {
+        if (!process.env.WP_ACCESS_TOKEN) {
+          console.log('[WP] WP_ACCESS_TOKEN not set — skipping PUT sync for ad:', ad._id);
+          return;
+        }
+        const adObj = ad.toObject ? ad.toObject() : ad;
+        console.log(`[WP] Auto-sync for updated ad ${adObj._id}: ${adObj.title}`);
+        if (adObj.wpPostId) {
+          await updateWPPost(adObj.wpPostId, adObj);
+        } else {
+          const result = await createWPPost(adObj);
+          if (result) {
+            await getAdModel().findByIdAndUpdate(ad._id, { wpPostId: result.wpPostId, wpPostUrl: result.wpPostUrl });
+          }
+        }
+      } catch (_wpPutErr) {
+        console.warn('[WP] PUT sync failed (non-fatal):', _wpPutErr.message);
       }
     });
 

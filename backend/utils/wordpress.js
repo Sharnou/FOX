@@ -251,14 +251,19 @@ export function buildTitle(ad) {
 
 // ─── 2B: Rich Meta Description (excerpt) ────────────────────────────────────
 function buildExcerpt(ad) {
-  const desc = (ad.description || ad.title || '').slice(0, 150);
-  const price = ad.price ? `${Number(ad.price).toLocaleString()} ${ad.currency || 'جنيه'}` : '';
+  const desc = (ad.description || ad.title || '');
+  return desc.slice(0, 150) + (desc.length > 150 ? '...' : '');
+}
+
+// ─── buildTags: category + governorate + 'مصر' + 'XTOX' ──────────────────────
+function buildTags(ad) {
+  const tags = [];
+  if (ad.category) tags.push(ad.category);
   const city = ad.city || ad.location || '';
-  let excerpt = desc;
-  if (price) excerpt += ` — السعر: ${price}`;
-  if (city) excerpt += ` — ${city}`;
-  excerpt += ' | XTOX سوق محلي';
-  return excerpt;
+  if (city) tags.push(city);
+  tags.push('مصر');
+  tags.push('XTOX');
+  return tags.join(',');
 }
 
 // ─── 2F: IndexNow ping (Bing + Yandex instant indexing) ─────────────────────
@@ -367,113 +372,27 @@ function buildPWAWidget(adId) {
 }
 
 function buildContent(ad) {
-  const appUrl = 'https://fox-kohl-eight.vercel.app';
-  const adId = ad._id || ad.id || '';
-  const adLink = `${appUrl}/ads/${adId}`;
-  const installLink = `${appUrl}/install`;
-  const keywords = generateKeywords(ad).join(', ');
-  const wpPostUrl = ad.wpPostUrl || `https://xt0x.wordpress.com/?p=${adId}`;
-  const category = ad.category || ad.subCategory || 'إعلانات';
-  const city = ad.city || ad.location || '';
-  const sellerName = ad.sellerName || ad.userName || 'XTOX Seller';
-  const firstImage = (ad.images || ad.media || [])[0] || 'https://fox-kohl-eight.vercel.app/logo192.png';
+  const adId = (ad._id || ad.id || '').toString();
+  const title = (ad.title || '');
+  const description = (ad.description || ad.title || '');
+  const price = (ad.price !== undefined && ad.price !== null) ? `${Number(ad.price).toLocaleString()} جنيه` : 'غير محدد';
+  const governorate = ad.city || ad.location || 'غير محدد';
+  const category = ad.category || 'غير محدد';
+  const condition = ad.condition || 'غير محدد';
 
-  const imagesHtml = (ad.images || ad.media || []).slice(0, 6).map((src, i) =>
-    `<img src="${src}" alt="${(ad.title||'').replace(/"/g,'')}" style="max-width:100%;border-radius:12px;margin:8px 0;" loading="lazy"/>`
-  ).join('\n');
-
-  const videoHtml = ad.video
-    ? `<video controls preload="metadata" style="max-width:100%;border-radius:12px;margin:12px 0;"><source src="${ad.video}" type="video/mp4"></video>`
-    : '';
-
-  const priceBlock = ad.price
-    ? `<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:16px;border-radius:12px;font-size:24px;font-weight:bold;text-align:center;margin:16px 0;">💰 ${Number(ad.price).toLocaleString()} ${ad.currency || 'ج.م'}</div>`
-    : '';
-
-  // 2D: Schema.org Product markup (exact spec)
-  const priceCurrency = ad.currency === 'ريال' ? 'SAR' : ad.currency === 'درهم' ? 'AED' : ad.currency === 'KWD' ? 'KWD' : 'EGP';
-  const schemaBlock = `<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Product",
-  "name": "${(ad.title || '').replace(/"/g, '\\"').replace(/\n/g, ' ')}",
-  "description": "${(ad.description || ad.title || '').slice(0, 300).replace(/"/g, '\\"').replace(/\n/g, ' ')}",
-  "image": "${firstImage}",
-  "offers": {
-    "@type": "Offer",
-    "price": "${ad.price || 0}",
-    "priceCurrency": "${priceCurrency}",
-    "availability": "https://schema.org/InStock",
-    "url": "${adLink}"
-  },
-  "seller": {
-    "@type": "Person",
-    "name": "${sellerName.replace(/"/g, '\\"')}"
-  }
-}
-</script>`;
-
-  // 2E: Call-to-Action Footer (exact spec)
-  const ctaBlock = `<hr>
-<div style="background:#f0f7ff;border-radius:8px;padding:16px;text-align:center;margin-top:20px">
-  <p style="font-size:18px;font-weight:bold">🔥 هل أعجبك هذا الإعلان؟</p>
-  <a href="${adLink}"
-     style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:16px">
-     👀 عرض الإعلان الكامل والتواصل مع البائع
-  </a>
-  <p style="margin-top:12px;font-size:14px">
-    📱 <a href="${appUrl}">XTOX</a> — السوق المحلي العربي الأول | إعلانات مجانية | محادثة مباشرة | مكالمات صوتية
-  </p>
-</div>`;
-
-  // 2I: Related Posts Section (exact spec)
-  const relatedBlock = `<p style="margin-top:16px">
-  🔍 <strong>تصفح المزيد:</strong>
-  <a href="https://xt0x.wordpress.com/?cat=${encodeURIComponent(category)}">المزيد من إعلانات ${category}</a> |
-  <a href="https://xt0x.wordpress.com/">جميع الإعلانات</a>
-</p>`;
-
-  const pwaWidget = buildPWAWidget(adId);
-  
-  return `<div dir="rtl" style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;">
-
-${pwaWidget}
-
-<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:20px;margin-bottom:20px;border:2px solid rgba(99,102,241,0.4);">
-<h2 style="color:#fff;margin:0 0 8px;">${ad.title || ''}</h2>
-<p style="color:#a5b4fc;margin:0;font-size:14px;">${city ? `📍 ${city} &nbsp;|&nbsp;` : ''}${category ? `🏷️ ${category} &nbsp;|&nbsp;` : ''}👁️ ${ad.views || 0} مشاهدة</p>
-${priceBlock}
-</div>
-
-${imagesHtml}
-${videoHtml}
-
-${ad.description ? `<div style="background:#f8f9ff;border-radius:12px;padding:16px;margin:16px 0;border-right:4px solid #6366f1;"><h3 style="color:#6366f1;margin:0 0 8px;">📝 تفاصيل الإعلان</h3><p style="line-height:1.8;margin:0;">${ad.description}</p></div>` : ''}
-
-<div style="text-align:center;margin:28px 0;">
-<a href="${adLink}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;text-decoration:none;padding:16px 36px;border-radius:50px;font-size:17px;font-weight:bold;margin:6px;">🔍 عرض الإعلان في التطبيق</a>
-<br><br>
-<a href="${installLink}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;text-decoration:none;padding:12px 28px;border-radius:50px;font-size:15px;font-weight:bold;">📲 تحميل XTOX مجاناً</a>
-</div>
-
-<div style="background:#fffbeb;border-radius:12px;padding:16px;border:1px solid #fbbf24;">
-<h3 style="color:#b45309;margin:0 0 10px;">⭐ لماذا XTOX؟</h3>
-<ul style="line-height:2.2;padding-right:20px;margin:0;font-size:14px;">
-<li>🆓 نشر مجاني بدون عمولة</li>
-<li>📞 مكالمات صوتية مع البائع</li>
-<li>💬 دردشة آمنة ومشفرة</li>
-<li>🏆 مسابقة بائع الشهر بجوائز حقيقية</li>
-<li>🌍 جميع الدول العربية</li>
-</ul>
-</div>
-
-${ctaBlock}
-${relatedBlock}
-
-<p style="font-size:1px;color:#fff;line-height:1;">${keywords}</p>
-<p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px;">نُشر تلقائياً من <a href="${appUrl}">تطبيق XTOX</a></p>
-${schemaBlock}
-${buildCountryJS(ad)}
+  return `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 16px; line-height: 1.8; color: #222;">
+  <h2 style="color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 8px;">${title}</h2>
+  <p style="background: #f8f9fa; padding: 12px; border-right: 4px solid #1a73e8; border-radius: 4px;">${description}</p>
+  <table style="width:100%; border-collapse: collapse; margin-top: 16px;">
+    <tr><td style="padding:8px; border:1px solid #ddd; background:#f2f2f2; font-weight:bold;">السعر</td><td style="padding:8px; border:1px solid #ddd;">${price}</td></tr>
+    <tr><td style="padding:8px; border:1px solid #ddd; background:#f2f2f2; font-weight:bold;">المحافظة</td><td style="padding:8px; border:1px solid #ddd;">${governorate}</td></tr>
+    <tr><td style="padding:8px; border:1px solid #ddd; background:#f2f2f2; font-weight:bold;">التصنيف</td><td style="padding:8px; border:1px solid #ddd;">${category}</td></tr>
+    <tr><td style="padding:8px; border:1px solid #ddd; background:#f2f2f2; font-weight:bold;">الحالة</td><td style="padding:8px; border:1px solid #ddd;">${condition}</td></tr>
+  </table>
+  <div style="margin-top: 20px; text-align: center;">
+    <a href="https://fox-kohl-eight.vercel.app/ads/${adId}" style="background:#1a73e8; color:#fff; padding:12px 24px; border-radius:6px; text-decoration:none; font-size:16px; display:inline-block;">🔗 عرض الإعلان</a>
+  </div>
+  <p style="margin-top: 24px; color: #888; font-size: 13px; text-align: center;">منصة XTOX — سوق إلكتروني مصري ذكي</p>
 </div>`;
 }
 
@@ -734,6 +653,50 @@ function buildOGMetadata(ad, title, excerpt) {
   };
 }
 
+
+// ─── Upload featured image to WordPress media library ────────────────────────
+async function uploadFeaturedImage(imageUrl) {
+  if (!isConfigured() || !imageUrl) return null;
+  // Only upload http URLs (skip base64 data: URLs)
+  if (!imageUrl.startsWith('http')) return null;
+  try {
+    const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(8000) });
+    if (!imgRes.ok) return null;
+    const imgBuffer = await imgRes.arrayBuffer();
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    const ext = contentType.includes('png') ? '.png' : contentType.includes('gif') ? '.gif' : '.jpg';
+
+    // WordPress.com media upload uses multipart/form-data
+    const { FormData, Blob } = await import('node:buffer').catch(() => ({}));
+    // Use native FormData if available, otherwise skip
+    if (typeof FormData === 'undefined' && typeof globalThis.FormData === 'undefined') {
+      return null;
+    }
+    const fd = new (globalThis.FormData || FormData)();
+    const blob = new (globalThis.Blob || Blob)([imgBuffer], { type: contentType });
+    fd.append('media[]', blob, `ad-image${ext}`);
+
+    const mediaRes = await fetch(`${WP_API}/media/new`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${getToken()}` },
+      body: fd,
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!mediaRes.ok) {
+      console.log('[WP-Media] Upload failed:', mediaRes.status);
+      return null;
+    }
+    const mediaData = await mediaRes.json();
+    const media = mediaData.media && mediaData.media[0];
+    const mediaId = media ? (media.ID || media.id) : null;
+    console.log('[WP-Media] Featured image uploaded, ID:', mediaId);
+    return mediaId;
+  } catch (e) {
+    console.log('[WP-Media] Featured image upload failed (non-fatal):', e.message);
+    return null;
+  }
+}
+
 // ─── Create WordPress.com post (with upsert: update if slug exists) ──────────
 export async function createWPPost(ad) {
   console.log('[WordPress] createWPPost called, token configured:', !!getToken());
@@ -745,9 +708,13 @@ export async function createWPPost(ad) {
   try {
     const adId = (ad._id || ad.id || '').toString();
     const slug = `xtox-ad-${adId}`;
-    const tags = generateKeywords(ad).slice(0, 15).join(',');
+    const tags = buildTags(ad);
     const title = buildTitle(ad);
     const excerpt = buildExcerpt(ad);
+
+    // Upload featured image (first image in ad.images) — non-fatal if fails
+    const firstImageUrl = (ad.images || ad.media || [])[0] || null;
+    const featuredMediaId = await uploadFeaturedImage(firstImageUrl).catch(() => null);
     const content = buildContent(ad);
     const metadata = buildOGMetadata(ad, title, excerpt);
 
@@ -757,7 +724,7 @@ export async function createWPPost(ad) {
     const postBody = {
       title,
       content,
-      status: 'publish',
+      status: (ad.status && ad.status !== 'active' && ad.status !== 'publish') ? 'draft' : 'publish',
       slug,
       language: 'ar',
       tags,
@@ -765,6 +732,7 @@ export async function createWPPost(ad) {
       format: 'standard',
       metadata,
       categories: countryCatId ? [countryCatId] : [],
+      ...(featuredMediaId ? { featured_image: featuredMediaId } : {}),
     };
 
     // ── Fix 2: Upsert logic — check if slug already exists ─────────────────
