@@ -253,8 +253,25 @@ export default function ChatFloat() {
                       <div style={{ flex: 1, overflow: 'hidden' }}>
                         {/* Fix F: Ad title is the PRIMARY label — big bold */}
                         <div style={{ fontWeight: 700, fontSize: 13, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 1 }}>
-                          {conv.adTitle ? conv.adTitle.slice(0, 28) : (otherName || 'محادثة')}
+                          {conv.adTitle ? conv.adTitle.slice(0, 28) : 'إعلان غير متاح'}
                         </div>
+                        {/* Ad status badge (5 colours) — always shown, defaults to 'available' */}
+                        {(function() {
+                          var _adSt = conv.adStatus || 'available';
+                          var _sm = {
+                            available: { color: '#4ade80', bg: 'rgba(74,222,128,0.12)',  label: '● متاح' },
+                            inactive:  { color: '#15803d', bg: 'rgba(21,128,61,0.15)',   label: '● نائم' },
+                            sold:      { color: '#facc15', bg: 'rgba(250,204,21,0.15)',  label: '✓ مباع' },
+                            deleted:   { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   label: '✕ محذوف' },
+                            expired:   { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: '◌ منتهي' },
+                          };
+                          var _s2 = _sm[_adSt] || _sm.available;
+                          return (
+                            <span style={{ fontSize: 9, fontWeight: 600, borderRadius: 6, padding: '1px 5px', marginBottom: 1, display: 'inline-block', background: _s2.bg, color: _s2.color }}>
+                              {_s2.label}
+                            </span>
+                          );
+                        })()}
                         {/* Fix F: User name — small purple below ad title */}
                         <div style={{ fontSize: 10, color: '#7c3aed', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
                           👤 {otherName}

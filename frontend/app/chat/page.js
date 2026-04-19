@@ -48,6 +48,14 @@ function resolveUserName(u) {
   return u.name || u.username || u.xtoxId || '';
 }
 
+// Map ad status string for display (frontend helper)
+function mapAdStatus(chatAdStatus, adAdStatus) {
+  var s = chatAdStatus || adAdStatus || 'available';
+  if (s === 'active') return 'available';
+  if (['available','inactive','sold','deleted','expired'].indexOf(s) >= 0) return s;
+  return 'available';
+}
+
 // Typing indicator dots
 function TypingDots() {
   return (
@@ -498,20 +506,28 @@ function ChatPageInner() {
           // Robust ID extraction: handles ObjectId, populated object, and string
           var buyerId  = ((c.buyer?._id  || c.buyer )?.toString?.()  || '').replace(/^new ObjectId\("?|"?\)$/g,'');
           var sellerId = ((c.seller?._id || c.seller)?.toString?.() || '').replace(/^new ObjectId\("?|"?\)$/g,'');
-          var otherId = '', otherName = '', otherAvatar = '';
+          var otherId = '', otherName = '', otherAvatar = '', otherXtoxId = '';
           var myIdStr = String(myId);
           if (buyerId && buyerId !== myIdStr && buyerId.length >= 5) {
             otherId = buyerId;
             otherName = resolveUserName(c.buyer);
             otherAvatar = (c.buyer && typeof c.buyer === 'object') ? (c.buyer.avatar || '') : '';
+            otherXtoxId = (c.buyer && typeof c.buyer === 'object') ? (c.buyer.xtoxId || '') : '';
           } else if (sellerId && sellerId !== myIdStr && sellerId.length >= 5) {
             otherId = sellerId;
             otherName = resolveUserName(c.seller);
             otherAvatar = (c.seller && typeof c.seller === 'object') ? (c.seller.avatar || '') : '';
+            otherXtoxId = (c.seller && typeof c.seller === 'object') ? (c.seller.xtoxId || '') : '';
           }
           var lastMsg = c.lastMessage || (c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1] : null);
-          var adTitle = c.adTitle || (c.ad && c.ad.title) || '';
-          return { id: otherId, name: otherName, avatar: otherAvatar, adTitle: adTitle, chatId: c._id, lastMessage: lastMsg ? (lastMsg.text || '') : '', lastTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
+          var adTitle = (c.adTitle && c.adTitle !== '') 
+            ? c.adTitle 
+            : (c.ad && c.ad.title) 
+            ? c.ad.title 
+            : (c.lastMessage && c.lastMessage.text && c.lastMessage.type !== 'system')
+            ? c.lastMessage.text.slice(0, 40)
+            : '';
+          return { id: otherId, name: otherName, xtoxId: otherXtoxId, avatar: otherAvatar, adTitle: adTitle, adStatus: mapAdStatus(c.adStatus, c.ad && c.ad.status), chatId: c._id, lastMessage: lastMsg ? (lastMsg.text || '') : '', lastTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
         }).filter(function(c) { return c.id; });
         setConversations(function(prev) {
           var merged = apiConvs.slice();
@@ -1083,18 +1099,22 @@ function ChatPageInner() {
                       }}
                       style={{ width: '100%', background: isActive ? 'rgba(35,229,219,0.15)' : 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'right' }}>
                       <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <div style={{ width: 42, height: 42, borderRadius: '50%', background: isActive ? '#23e5db' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: isActive ? '#002f34' : 'white', fontWeight: 'bold' }}>
-                          {(conv.name || conv.adTitle || '?').charAt(0).toUpperCase()}
+                        <div style={{ width: 42, height: 42, borderRadius: '50%', background: isActive ? '#23e5db' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: isActive ? '#002f34' : 'white', fontWeight: 'bold', overflow: 'hidden', flexShrink: 0 }}>
+                          {conv.avatar
+                            ? <img src={conv.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={function(e) { e.target.style.display='none'; }} />
+                            : (conv.name || conv.adTitle || '?').charAt(0).toUpperCase()
+                          }
                         </div>
                         <span style={{ position: 'absolute', bottom: 1, right: 1, width: 11, height: 11, borderRadius: '50%', background: onlineUsers.has(String(conv.id)) ? '#22c55e' : '#4b5563', border: '2px solid #002f34' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                         {/* Fix C: Ad title is the PRIMARY label — big bold (it's the chat topic/context) */}
                         <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
-                          {conv.adTitle || 'إعلان'}
+                          {conv.adTitle || 'إعلان غير متاح'}
                         </div>
-                        {/* Ad status badge (5 colours) — shown below title */}
-                        {conv.adStatus && (function() {
+                        {/* Ad status badge (5 colours) — always shown, defaults to 'available' */}
+                        {(function() {
+                          var _adSt = conv.adStatus || 'available';
                           var _statusMap = {
                             available: { color: '#4ade80', bg: 'rgba(74,222,128,0.12)',  label: '● متاح' },
                             inactive:  { color: '#15803d', bg: 'rgba(21,128,61,0.15)',   label: '● نائم' },
@@ -1102,7 +1122,7 @@ function ChatPageInner() {
                             deleted:   { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   label: '✕ محذوف' },
                             expired:   { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: '◌ منتهي' },
                           };
-                          var _s = _statusMap[conv.adStatus] || _statusMap.available;
+                          var _s = _statusMap[_adSt] || _statusMap.available;
                           return (
                             <span style={{
                               fontSize: 10, fontWeight: 600, borderRadius: 8,
@@ -1115,7 +1135,7 @@ function ChatPageInner() {
                         })()}
                         {/* Fix C: User name — small purple accent below ad title */}
                         <div style={{ color: isActive ? 'rgba(35,229,219,0.8)' : '#a78bfa', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
-                          👤 {conv.name || 'مستخدم'}
+                          👤 {conv.name || conv.xtoxId || 'مستخدم'}
                         </div>
                         {conv.lastMessage && (
                           <div style={{ color: unread > 0 ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: unread > 0 ? '600' : 'normal' }}>
