@@ -1,26 +1,17 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-
-// Detect RTL from browser language
-function useRTL() {
-  const [rtl, setRtl] = useState(true);
-  useEffect(() => {
-    const lang = navigator.language || 'ar';
-    setRtl(['ar', 'he', 'fa', 'ur'].some(l => lang.startsWith(l)));
-  }, []);
-  return rtl;
-}
+import { useLanguage } from '../context/LanguageContext';
 
 /**
  * FloatingSearchBar — appears as a sticky top bar when the user scrolls
- * past 220px. Supports Arabic RTL and bilingual labels.
+ * past 220px. Fully translated via the global useLanguage() context.
  */
 export default function FloatingSearchBar() {
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState('');
-  const rtl = useRTL();
   const router = useRouter();
+  const { t, isRTL } = useLanguage();
 
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > 220);
@@ -39,15 +30,15 @@ export default function FloatingSearchBar() {
 
   if (!visible) return null;
 
-  const placeholder = rtl ? 'ابحث عن أي شيء...' : 'Search anything...';
-  const btnLabel   = rtl ? 'بحث' : 'Search';
-  const ariaLabel  = rtl ? 'شريط البحث السريع' : 'Quick search bar';
+  const placeholder = t('search_placeholder');
+  const btnLabel   = t('search_btn');
+  const ariaLabel  = t('search_title');
 
   return (
     <div
       role="search"
       aria-label={ariaLabel}
-      dir={rtl ? 'rtl' : 'ltr'}
+      dir={isRTL ? 'rtl' : 'ltr'}
       style={{
         position: 'fixed',
         top: 0,
@@ -98,8 +89,8 @@ export default function FloatingSearchBar() {
             padding: '9px 16px',
             fontSize: 16,
             fontFamily: "inherit",
-            textAlign: rtl ? 'right' : 'left',
-            direction: rtl ? 'rtl' : 'ltr',
+            textAlign: isRTL ? 'right' : 'left',
+            direction: isRTL ? 'rtl' : 'ltr',
             caretColor: '#23e5db',
             transition: 'box-shadow 0.2s',
           }}

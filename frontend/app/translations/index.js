@@ -20,7 +20,7 @@ const translations = {
     nav_terms: 'الشروط',
     nav_about: 'عن التطبيق',
     nav_search: 'بحث',
-    nav_install: 'تحميل',
+    nav_install: 'تثبيت',
     nav_my_ads: 'إعلاناتي',
 
     // Auth / Login

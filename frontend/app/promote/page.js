@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { detectLang } from '../../lib/lang';
+import { useLanguage } from '../context/LanguageContext';
 
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -36,7 +37,9 @@ function PromotePageInner() {
   // Featured slots (max 16 normal-style ads)
   const [featuredSlots, setFeaturedSlots] = useState(null); // { used, max, available }
 
-  const isRTL = lang === 'ar';
+  const { isRTL: ctxIsRTL, language: ctxLang, t: globalT } = useLanguage();
+  const isRTL = ctxIsRTL;
+  // t(ar, en) is kept for inline strings; also exposes globalT for key-based lookups
   const t = (ar, en) => isRTL ? ar : en;
 
   // Build plans dynamically based on free plan status
