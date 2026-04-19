@@ -286,8 +286,15 @@ export default function ProfilePage() {
 
         {/* Avatar */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'white', margin: '0 auto 12px' }}>
-            {initials}
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'white', margin: '0 auto 12px', overflow: 'hidden', flexShrink: 0 }}>
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name || user.username || ''}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                onError={e => { e.target.style.display = 'none'; }}
+              />
+            ) : initials}
           </div>
           <h2 style={{ margin: '0 0 4px', fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
             {user.username || user.name || user.email}

@@ -564,7 +564,7 @@ connectDatabases().then(async (db) => {
 
     // Monthly winner cron
     try {
-      initMonthlyWinner();
+      initMonthlyWinner(io);
     } catch (_winErr) {
       console.warn('[MonthlyWinner] init failed (non-fatal):', _winErr.message);
     }

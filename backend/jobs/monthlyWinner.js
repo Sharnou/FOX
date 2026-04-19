@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import webpush from 'web-push';
 
 // Lazy imports to avoid circular dependencies at startup
+// Module-level io reference — set by initMonthlyWinner(io)
+let _io = null;
+
 async function getModels() {
   const [{ default: User }, { default: Ad }, { default: PushSubscription }] = await Promise.all([
     import('../models/User.js'),
@@ -194,6 +197,46 @@ export async function runMonthlyWinner() {
       console.warn('[MonthlyWinner] WinnerHistory save failed (non-fatal):', _histErr.message);
     }
 
+    // ── SAVE TO HONOR ROLL ──────────────────────────────────────────────────
+    try {
+      let HonorRoll;
+      try { HonorRoll = mongoose.model('HonorRoll'); }
+      catch { const { default: HR } = await import('../models/HonorRoll.js'); HonorRoll = HR; }
+
+      const ARABIC_MONTHS = {
+        '01':'يناير','02':'فبراير','03':'مارس','04':'أبريل',
+        '05':'مايو','06':'يونيو','07':'يوليو','08':'أغسطس',
+        '09':'سبتمبر','10':'أكتوبر','11':'نوفمبر','12':'ديسمبر',
+      };
+      const moStr = String(now.getMonth() + 1).padStart(2, '0');
+      const monthName = `${ARABIC_MONTHS[moStr] || moStr} ${now.getFullYear()}`;
+
+      const hrWinners = [
+        { rank: 1, userId: winner._id, name: winner.name, avatar: winner.avatar, reputationPoints: winner.monthlyPoints, totalPoints: winner.reputationPoints + 50, reward: 'بائع الشهر 🥇', rewardDescription: 'إعلان مميز ذهبي 7 أيام + 50 نقطة سمعة' },
+      ];
+      if (second) hrWinners.push({ rank: 2, userId: second._id, name: second.name, avatar: second.avatar, reputationPoints: second.monthlyPoints, totalPoints: second.reputationPoints, reward: 'المركز الثاني 🥈', rewardDescription: 'إعلان مميز 3 أيام مجاناً' });
+      if (third)  hrWinners.push({ rank: 3, userId: third._id,  name: third.name,  avatar: third.avatar,  reputationPoints: third.monthlyPoints,  totalPoints: third.reputationPoints,  reward: 'المركز الثالث 🥉', rewardDescription: 'إعلان مميز يوم مجاناً' });
+
+      await HonorRoll.findOneAndUpdate(
+        { month: monthKey },
+        { month: monthKey, monthName, year: now.getFullYear(), winners: hrWinners, announcedAt: new Date(), announcementSent: true },
+        { upsert: true }
+      );
+
+      // ── Broadcast socket event to all connected clients ─────────────────
+      if (_io) {
+        _io.emit('winner:announced', {
+          month: monthKey,
+          monthName,
+          announcedAt: new Date().toISOString(),
+          winners: hrWinners,
+        });
+        console.log('[MonthlyWinner] socket winner:announced emitted to all clients.');
+      }
+    } catch (_hrErr) {
+      console.warn('[MonthlyWinner] HonorRoll save/broadcast failed (non-fatal):', _hrErr.message);
+    }
+
     // Reset all users' monthlyPoints for new month
     await User.updateMany({}, [
       { $set: { lastMonthPoints: '$monthlyPoints', monthlyPoints: 0 } }
@@ -301,7 +344,8 @@ export async function broadcastWinnerRules() {
   console.log(`[WinnerRules] Sent to ${sent} users.`);
 }
 
-export function initMonthlyWinner() {
+export function initMonthlyWinner(io) {
+  if (io) _io = io;
   // Run at 23:30 on days 28-31 (self-checks if last day of month)
   cron.schedule('30 23 28-31 * *', runMonthlyWinner, { timezone: 'Africa/Cairo' });
   // Bi-weekly rules reminder: 1st and 15th of every month at 10:00 Cairo

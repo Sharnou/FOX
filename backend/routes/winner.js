@@ -235,4 +235,132 @@ router.get('/history', async (req, res) => {
   }
 });
 
+
+// ── GET /api/winner/latest — returns latest HonorRoll entry ───────────────
+router.get('/latest', async (req, res) => {
+  try {
+    let HonorRoll;
+    try { HonorRoll = mongoose.model('HonorRoll'); }
+    catch { const { default: HR } = await import('../models/HonorRoll.js'); HonorRoll = HR; }
+
+    const latest = await HonorRoll.findOne()
+      .sort({ announcedAt: -1 })
+      .populate('winners.userId', 'name username avatar xtoxId')
+      .lean();
+
+    if (!latest) return res.json(null);
+
+    res.json({
+      month: latest.month,
+      monthName: latest.monthName,
+      announcedAt: latest.announcedAt,
+      winners: (latest.winners || []).map(w => ({
+        rank: w.rank,
+        userId: w.userId?._id || w.userId,
+        name: w.userId?.name || w.name,
+        username: w.userId?.username || w.username,
+        avatar: w.userId?.avatar || w.avatar,
+        reputationPoints: w.reputationPoints,
+        totalPoints: w.totalPoints,
+        reward: w.reward,
+        rewardDescription: w.rewardDescription,
+      })),
+    });
+  } catch (e) {
+    console.error('[Winner] /latest error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/winner/announce — admin only, manual winner announcement ─────
+router.post('/announce', auth, async (req, res) => {
+  try {
+    // Admin check
+    const adminUser = await User.findById(req.user.id).select('role').lean();
+    if (!adminUser || !['admin', 'superadmin', 'sub_admin'].includes(adminUser.role)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { month, monthName, winners } = req.body;
+    if (!month || !winners || !Array.isArray(winners)) {
+      return res.status(400).json({ error: 'month and winners[] required' });
+    }
+
+    let HonorRoll;
+    try { HonorRoll = mongoose.model('HonorRoll'); }
+    catch { const { default: HR } = await import('../models/HonorRoll.js'); HonorRoll = HR; }
+
+    // Enrich winners with user data
+    const enrichedWinners = await Promise.all(winners.map(async (w) => {
+      let userData = null;
+      if (w.userId && mongoose.Types.ObjectId.isValid(w.userId)) {
+        userData = await User.findById(w.userId).select('name username avatar reputationPoints monthlyPoints').lean();
+      }
+      return {
+        rank: w.rank,
+        userId: w.userId || null,
+        name: userData?.name || w.name || 'مستخدم',
+        username: userData?.username || w.username || '',
+        avatar: userData?.avatar || w.avatar || '',
+        reputationPoints: userData?.monthlyPoints || w.reputationPoints || 0,
+        totalPoints: userData?.reputationPoints || w.totalPoints || 0,
+        reward: w.reward || (w.rank === 1 ? 'بائع الشهر 🥇' : w.rank === 2 ? 'المركز الثاني 🥈' : 'المركز الثالث 🥉'),
+        rewardDescription: w.rewardDescription || (w.rank === 1 ? 'شارة ذهبية + تميّز في نتائج البحث لمدة شهر' : w.rank === 2 ? 'إعلان مميز 3 أيام مجاناً' : 'إعلان مميز يوم مجاناً'),
+      };
+    }));
+
+    // Save to HonorRoll
+    const honorRoll = await HonorRoll.findOneAndUpdate(
+      { month },
+      { month, monthName: monthName || month, year: parseInt(month.split('-')[0]), winners: enrichedWinners, announcedAt: new Date(), announcementSent: true },
+      { upsert: true, new: true }
+    );
+
+    // Broadcast via Socket.IO
+    let socketBroadcast = false;
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('winner:announced', {
+          month: honorRoll.month,
+          monthName: honorRoll.monthName,
+          announcedAt: honorRoll.announcedAt,
+          winners: enrichedWinners,
+        });
+        socketBroadcast = true;
+      }
+    } catch (_e) { console.warn('[Winner] socket broadcast failed:', _e.message); }
+
+    // Send push to all users
+    let pushSent = 0;
+    try {
+      const webpush = (await import('web-push')).default;
+      const { default: PushSubscription } = await import('../models/PushSubscription.js');
+      const allSubs = await PushSubscription.find({}).lean();
+      const top = enrichedWinners.find(w => w.rank === 1);
+      const pushPayload = JSON.stringify({
+        type: 'winner_announced',
+        title: '🏆 إعلان فائزي الشهر!',
+        body: top ? `مبروك ${top.name}! اكتشف فائزي هذا الشهر` : 'مبروك للفائزين! اكتشف من فاز بجوائز هذا الشهر',
+        month: honorRoll.month,
+        url: '/winner-history',
+      });
+      for (const sub of allSubs) {
+        try {
+          await webpush.sendNotification(sub.subscription, pushPayload);
+          pushSent++;
+        } catch (e) {
+          if (e.statusCode === 410) await PushSubscription.deleteOne({ _id: sub._id });
+        }
+        await new Promise(r => setTimeout(r, 10));
+      }
+    } catch (_pe) { console.warn('[Winner] push broadcast failed:', _pe.message); }
+
+    res.json({ success: true, announced: true, socketBroadcast, pushSent, month: honorRoll.month });
+  } catch (e) {
+    console.error('[Winner] /announce error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

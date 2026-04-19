@@ -11,6 +11,7 @@ import CartoonMoodPopup from './components/CartoonMoodPopup';
 import BannerAds from './components/BannerAds';
 import SeasonalBanner from './components/SeasonalBanner';
 import WinnerBanner from './components/WinnerBanner';
+import WinnerAnnouncement from './components/WinnerAnnouncement';
 import CountryTabs from './components/CountryTabs';
 import LanguageToggle from './components/LanguageToggle';
 
@@ -478,6 +479,7 @@ export default function Home() {
           SEASONAL / CELEBRATION BANNER (auto-expires)
       ══════════════════════════════════════════ */}
       <SeasonalBanner />
+      <WinnerAnnouncement />
       <WinnerBanner />
 
       {/* ══════════════════════════════════════════

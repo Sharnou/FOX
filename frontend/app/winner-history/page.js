@@ -125,19 +125,19 @@ export default function WinnerHistoryPage() {
                 )}
 
                 {/* Winner info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'center' }}>
-                  {winner.avatar ? (
-                    <img
-                      src={winner.avatar}
-                      alt={winner.name}
-                      loading="lazy"
-                      style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '2px solid #fbbf24' }}
-                    />
-                  ) : (
-                    <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(167,139,250,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, border: '2px solid rgba(167,139,250,0.4)' }}>
-                      👤
-                    </div>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {/* Avatar */}
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'white', fontWeight: 700, border: '2px solid #fbbf24' }}>
+                    {winner.avatar ? (
+                      <img
+                        src={winner.avatar}
+                        alt={winner.name || ''}
+                        loading="lazy"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={e => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (winner.name || winner.username || 'U')[0].toUpperCase()}
+                  </div>
                   <div>
                     <a
                       href={winner.userId ? `/profile/${winner.userId}` : '#'}
@@ -155,6 +155,19 @@ export default function WinnerHistoryPage() {
                       <div style={{ fontSize: 12, color: '#86efac', marginTop: 2 }}>🎁 {winner.prize}</div>
                     )}
                   </div>
+                  {/* Chat/congratulate button */}
+                  {winner.userId && (
+                    <a
+                      href={`/chat?userId=${winner.userId}`}
+                      title="أرسل تهنئة"
+                      style={{
+                        width: 40, height: 40, borderRadius: '50%',
+                        background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: 'white', textDecoration: 'none', flexShrink: 0, fontSize: 18,
+                      }}
+                    >💬</a>
+                  )}
                 </div>
 
                 {/* Winner's top ads */}
