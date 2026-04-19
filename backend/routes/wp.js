@@ -313,4 +313,162 @@ router.post('/dedup-all', verifyToken, async (req, res) => {
   }
 });
 
+
+// POST /api/wp/dedup-now — alias for dedup-all but uses v2 API + title dedup
+// Fetches ALL posts, groups by slug, keeps highest ID, deletes extras
+router.post('/dedup-now', verifyToken, async (req, res) => {
+  const role = req.user?.role;
+  if (!['admin', 'sub_admin', 'superadmin'].includes(role)) {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  try {
+    const token = await getWpToken();
+    const WP_V2_SITE = `https://public-api.wordpress.com/wp/v2/sites/${WP_SITE}`;
+
+    // Fetch ALL posts (paginated)
+    let allPosts = [];
+    let page = 1;
+    while (true) {
+      const r = await fetch(`${WP_V2_SITE}/posts?per_page=100&page=${page}&orderby=id&order=asc&status=any`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!r.ok) break;
+      const posts = await r.json();
+      if (!Array.isArray(posts) || !posts.length) break;
+      allPosts = allPosts.concat(posts);
+      if (posts.length < 100) break;
+      page++;
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // Group by slug (strip numeric suffix: slug-2, slug-3 → same group)
+    const groups = {};
+    for (const p of allPosts) {
+      const baseSlug = (p.slug || '').replace(/-\d+$/, '');
+      if (!groups[baseSlug]) groups[baseSlug] = [];
+      groups[baseSlug].push(p);
+    }
+
+    let deleted = 0, kept = 0;
+    for (const [slug, posts] of Object.entries(groups)) {
+      if (posts.length <= 1) { kept++; continue; }
+      // Sort by ID descending — keep highest (newest)
+      posts.sort((a, b) => (b.id || 0) - (a.id || 0));
+      const [keep, ...dupes] = posts;
+      kept++;
+      for (const dupe of dupes) {
+        try {
+          const dr = await fetch(`${WP_V2_SITE}/posts/${dupe.id}?force=true`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(8000),
+          });
+          if (dr.ok) { deleted++; console.log(`[WP-DEDUP-NOW] Deleted post id=${dupe.id} slug="${slug}"`); }
+          await new Promise(r => setTimeout(r, 150));
+        } catch (_) {}
+      }
+    }
+    res.json({ deleted, kept, total: allPosts.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/wp/dedup-titles — dedup posts AND pages by TITLE similarity
+router.post('/dedup-titles', verifyToken, async (req, res) => {
+  const role = req.user?.role;
+  if (!['admin', 'sub_admin', 'superadmin'].includes(role)) {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  try {
+    const token = await getWpToken();
+    const WP_V2_SITE = `https://public-api.wordpress.com/wp/v2/sites/${WP_SITE}`;
+
+    // Fetch all posts
+    let allPosts = [];
+    let page = 1;
+    while (true) {
+      const r = await fetch(
+        `${WP_V2_SITE}/posts?per_page=100&page=${page}&orderby=id&order=asc`,
+        { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) }
+      );
+      if (!r.ok) break;
+      const posts = await r.json();
+      if (!Array.isArray(posts) || !posts.length) break;
+      allPosts = allPosts.concat(posts);
+      if (posts.length < 100) break;
+      page++;
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // Group by normalized title
+    const groups = {};
+    for (const p of allPosts) {
+      const key = (p.title?.rendered || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    }
+
+    let deleted = 0;
+    for (const [title, posts] of Object.entries(groups)) {
+      if (posts.length <= 1) continue;
+      // Sort by ID descending — keep highest (newest)
+      posts.sort((a, b) => (b.id || 0) - (a.id || 0));
+      const toDelete = posts.slice(1); // all but the newest
+      for (const p of toDelete) {
+        try {
+          const dr = await fetch(
+            `${WP_V2_SITE}/posts/${p.id}?force=true`,
+            { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) }
+          );
+          if (dr.ok) { deleted++; console.log(`[WP-DEDUP-TITLE] Deleted post id=${p.id} title="${title.slice(0,50)}"`); }
+          await new Promise(r => setTimeout(r, 150));
+        } catch (_) {}
+      }
+    }
+
+    // Also dedup pages by title
+    let allPages = [];
+    page = 1;
+    while (true) {
+      const r = await fetch(
+        `${WP_V2_SITE}/pages?per_page=100&page=${page}`,
+        { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) }
+      );
+      if (!r.ok) break;
+      const pages = await r.json();
+      if (!Array.isArray(pages) || !pages.length) break;
+      allPages = allPages.concat(pages);
+      if (pages.length < 100) break;
+      page++;
+      await new Promise(r => setTimeout(r, 300));
+    }
+    const pageGroups = {};
+    for (const p of allPages) {
+      const key = (p.title?.rendered || '').trim().toLowerCase();
+      if (!pageGroups[key]) pageGroups[key] = [];
+      pageGroups[key].push(p);
+    }
+    for (const [title, pages] of Object.entries(pageGroups)) {
+      if (pages.length <= 1) continue;
+      pages.sort((a, b) => (b.id || 0) - (a.id || 0));
+      for (const p of pages.slice(1)) {
+        try {
+          const dr = await fetch(
+            `${WP_V2_SITE}/pages/${p.id}?force=true`,
+            { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) }
+          );
+          if (dr.ok) { deleted++; console.log(`[WP-DEDUP-TITLE] Deleted page id=${p.id} title="${title.slice(0,50)}"`); }
+          await new Promise(r => setTimeout(r, 150));
+        } catch (_) {}
+      }
+    }
+
+    res.json({ deleted, total: allPosts.length + allPages.length, kept: allPosts.length + allPages.length - deleted });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router
