@@ -2,6 +2,7 @@ import express from 'express'
 import Ad from '../models/Ad.js'
 import Setting from '../models/Setting.js'
 import { auth as verifyToken } from '../middleware/auth.js'
+import { getWPTokenStatus } from '../utils/wordpress.js'
 
 const router = express.Router()
 
@@ -42,6 +43,21 @@ router.get('/status', async (req, res) => {
     })
   } catch (err) {
     res.json({ connected: false, error: err.message })
+  }
+})
+
+// GET /api/wp/token-status — check if WP OAuth token is currently valid
+router.get('/token-status', (req, res) => {
+  try {
+    const status = getWPTokenStatus()
+    res.json({
+      ...status,
+      message: status.valid
+        ? 'WP token is valid (or has not been tested yet)'
+        : `WP token is INVALID since ${status.invalidSince}. Retry after ${status.retryAfter}. Re-auth at /api/wp/auth`,
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 

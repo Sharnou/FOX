@@ -1,7 +1,13 @@
 import express from 'express';
 const router = express.Router();
 
-// Proven static TURN servers — used when Metered not configured
+// ── Metered TURN credentials (hardcoded fallback if env vars missing/wrong) ──
+// App: xtox | API Key: b407qSLzRIoMZMVIlidUC19HPqxyLqLrbmXmL_4-NwyeoM6P
+// URL format: https://{appName}.metered.live/api/v1/turn/credentials?apiKey={key}
+const DEFAULT_METERED_APP = 'xtox';
+const DEFAULT_METERED_KEY = 'b407qSLzRIoMZMVIlidUC19HPqxyLqLrbmXmL_4-NwyeoM6P';
+
+// Proven static TURN servers — used when Metered not configured or unavailable
 const STATIC_ICE = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
@@ -17,17 +23,15 @@ const STATIC_ICE = [
 ];
 
 router.get('/credentials', async (req, res) => {
-  const apiKey  = process.env.METERED_API_KEY;
-  const appName = process.env.METERED_APP_NAME || 'xtox';
+  // Use env vars if set, otherwise fall back to hardcoded correct values
+  const appName = process.env.METERED_APP_NAME || DEFAULT_METERED_APP;
+  const apiKey  = process.env.METERED_API_KEY  || DEFAULT_METERED_KEY;
 
-  // Skip Metered entirely if no API key — return static servers immediately
-  if (!apiKey) {
-    return res.json({ iceServers: STATIC_ICE });
-  }
+  // Build the correct Metered API URL format: https://{appName}.metered.live/api/v1/...
+  const meteredUrl = `https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
 
   try {
-    const url = `https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    const resp = await fetch(meteredUrl, { signal: AbortSignal.timeout(4000) });
     if (!resp.ok) {
       console.warn(`[ICE] Metered unavailable (${resp.status}) — using static TURN fallback`);
       return res.json({ iceServers: STATIC_ICE });

@@ -3,6 +3,36 @@
 const SITE = 'xt0x.wordpress.com';
 const WP_API = `https://public-api.wordpress.com/rest/v1.1/sites/${SITE}`;
 const WP_V2  = `https://public-api.wordpress.com/wp/v2/sites/${SITE}`;
+// ─── WP Token Validity Cache — skip calls for 1hr after invalid_token response ─
+let _wpTokenInvalid = false;
+let _wpTokenInvalidAt = 0;
+const WP_TOKEN_RETRY_MS = 60 * 60 * 1000; // 1 hour
+
+function isWPTokenValid() {
+  if (!_wpTokenInvalid) return true;
+  if (Date.now() - _wpTokenInvalidAt > WP_TOKEN_RETRY_MS) {
+    _wpTokenInvalid = false; // retry after 1 hour
+    return true;
+  }
+  return false;
+}
+
+function markWPTokenInvalid() {
+  _wpTokenInvalid = true;
+  _wpTokenInvalidAt = Date.now();
+  console.error('[WP] ⚠️ OAuth token invalid — re-authenticate at /api/wp/auth');
+}
+
+export function getWPTokenStatus() {
+  return {
+    valid: isWPTokenValid(),
+    invalid: _wpTokenInvalid,
+    invalidSince: _wpTokenInvalid ? new Date(_wpTokenInvalidAt).toISOString() : null,
+    retryAfter: _wpTokenInvalid ? new Date(_wpTokenInvalidAt + WP_TOKEN_RETRY_MS).toISOString() : null,
+  };
+}
+
+
 
 function getToken() {
   return process.env.WP_ACCESS_TOKEN;
@@ -1116,6 +1146,12 @@ export async function createWPPost(ad) {
     return null;
   }
 
+  // Skip if token is known invalid — avoids filling logs with 400 errors for 1 hour
+  if (!isWPTokenValid()) {
+    console.info('[WP] Skipping createWPPost — token known invalid (re-auth needed at /api/wp/auth)');
+    return null;
+  }
+
   try {
     const adId = (ad._id || ad.id || '').toString();
     const slug = `xtox-ad-${adId}`;
@@ -1201,6 +1237,15 @@ export async function createWPPost(ad) {
     console.log('[WordPress] Response status:', res.status);
 
     if (!res.ok) {
+      // Check for invalid_token — mark as invalid to skip future calls for 1 hour
+      if (res.status === 400) {
+        let errBody = null;
+        try { errBody = JSON.parse(responseText); } catch {}
+        if (errBody?.error === 'invalid_token') {
+          markWPTokenInvalid();
+          return null; // don't throw — just skip
+        }
+      }
       console.error('[WordPress.com] Create/Update failed:', res.status, responseText.slice(0, 500));
       return null;
     }

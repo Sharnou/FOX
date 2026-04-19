@@ -188,105 +188,49 @@ export function initSocket(io) {
     });
 
     // ── Mark messages as READ (WhatsApp-style) ──────────────────
-    // Emitted by recipient when they open a chat
-    socket.on('mark_read', async ({ chatId }) => {
+    // Emitted by recipient when they open a chat.
+    // PERMANENT FIX: use plain object $set (NOT array) — no updatePipeline needed.
+    // otherId declared at top-level so it is always in scope (no scope-related ReferenceError).
+    socket.on('mark_read', async ({ chatId, userId: payloadUserId }) => {
       try {
         if (!chatId) return;
-        const userId = socket.data.userId;
+        // Accept userId from payload (frontend) or from authenticated socket
+        const userId = payloadUserId || socket.data.userId;
         if (!userId) return;
 
-        // Persist read status in DB
-        let otherId = null;
-        try {
-          const mongoose = await import('mongoose');
-          const Chat = mongoose.default.models.Chat || (await import('../models/Chat.js')).default;
+        const mongoose = await import('mongoose');
+        const Chat = mongoose.default.models.Chat || (await import('../models/Chat.js')).default;
 
-          // Fetch chat to find the other participant
-          const chat = await Chat.findById(chatId).select('buyer seller messages').lean();
-          if (!chat) return;
+        const chat = await Chat.findById(chatId).select('buyer seller').lean();
+        if (!chat) return;
 
-          otherId = String(chat.buyer) === String(userId)
-            ? String(chat.seller)
-            : String(chat.buyer);
+        const isBuyer  = String(chat.buyer)  === String(userId);
+        const isSeller = String(chat.seller) === String(userId);
+        if (!isBuyer && !isSeller) return;
 
-          // Update all unread messages not sent by this user
-          await Chat.updateOne(
-            { _id: chatId },
-            [
-              {
-                $set: {
-                  messages: {
-                    $map: {
-                      input: '$messages',
-                      as: 'msg',
-                      in: {
-                        $cond: [
-                          {
-                            $and: [
-                              { $ne: [{ $toString: '$$msg.sender' }, userId] },
-                              { $not: { $in: [{ $toObjectId: userId }, { $ifNull: ['$$msg.readBy', []] }] } },
-                            ]
-                          },
-                          {
-                            $mergeObjects: [
-                              '$$msg',
-                              {
-                                status: 'read',
-                                readBy: { $concatArrays: [{ $ifNull: ['$$msg.readBy', []] }, [{ $toObjectId: userId }]] },
-                              }
-                            ]
-                          },
-                          '$$msg'
-                        ]
-                      }
-                    }
-                  }
-                }
-              }
-            ],
-            { updatePipeline: true }
-          ).catch(async () => {
-            // Fallback: simpler update if aggregation pipeline fails
-            await Chat.updateOne(
-              { _id: chatId },
-              {
-                $set: { 'messages.$[elem].status': 'read' },
-                $addToSet: { 'messages.$[elem].readBy': userId },
-              },
-              {
-                arrayFilters: [
-                  {
-                    'elem.sender': { $ne: mongoose.default.Types.ObjectId.isValid(userId) ? new mongoose.default.Types.ObjectId(userId) : userId },
-                    'elem.readBy': { $not: { $elemMatch: { $eq: mongoose.default.Types.ObjectId.isValid(userId) ? new mongoose.default.Types.ObjectId(userId) : userId } } },
-                  }
-                ],
-              }
-            );
-          });
+        // otherId always defined here — no scope issues
+        const otherId = isBuyer ? String(chat.seller) : String(chat.buyer);
+        const field   = isBuyer ? 'unreadBuyer' : 'unreadSeller';
 
-          // Reset unread counter for this user
-          if (String(chat.buyer) === String(userId)) {
-            await Chat.updateOne({ _id: chatId }, { $set: { unreadBuyer: 0 } });
-          } else {
-            await Chat.updateOne({ _id: chatId }, { $set: { unreadSeller: 0 } });
-          }
+        // Plain object update — NOT an array. Avoids the updatePipeline error.
+        await Chat.updateOne({ _id: chatId }, { $set: { [field]: 0 } });
 
-          // Notify the OTHER participant that their messages were read
+        // Notify the OTHER participant that their messages were read
+        if (otherId) {
           io.to('user_' + otherId).emit('messages_read', {
             chatId,
             readBy: userId,
+            by: userId,
             readAt: new Date(),
           });
-
-          console.log('[Socket] mark_read: chat', chatId, '| reader:', userId, '| notified:', otherId);
-        } catch (dbErr) {
-          console.error('[Socket] mark_read DB error:', dbErr.message);
         }
 
         // Confirm to reader that unread count is cleared
         socket.emit('unread_cleared', { chatId, senderId: otherId });
-      } catch (e) {
-        console.error('[Socket] mark_read error:', e.message);
+
+        console.log('[Socket] mark_read: chat', chatId, '| reader:', userId, '| notified:', otherId);
+      } catch (err) {
+        console.error('[Socket] mark_read error:', err.message);
       }
     });
 

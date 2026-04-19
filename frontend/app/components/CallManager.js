@@ -69,6 +69,11 @@ async function logCallEvent(type, data) {
   } catch {}
 }
 
+// ES2024: Promise.withResolvers() — use if supported (Node 22+ / modern browsers)
+// Usage: const { promise, resolve, reject } = Promise.withResolvers();
+// Availability check:
+const _hasPromiseWithResolvers = typeof Promise.withResolvers === 'function';
+
 const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref) {
   // ── State ─────────────────────────────────────────────────────────────────
   const [incoming, setIncoming]         = useState(null);
@@ -104,7 +109,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     fetch(`${BACKEND}/api/ice/credentials`)
       .then(r => r.json())
       .then(data => {
-        if (data && Array.isArray(data.iceServers)) {
+        if (Array.isArray(data?.iceServers)) {
           // Merge: API servers first, then static fallback TURN servers
           const merged = { iceServers: [...data.iceServers, ...ICE_CONFIG_STATIC.iceServers] };
           setIceConfig(merged);
@@ -139,6 +144,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   }, []);
 
   // ── cleanup ────────────────────────────────────────────────────────────────
+  /**
+   * @description Cleanup all call resources: PC, streams, ringtones, state.
+   * Safe to call multiple times.
+   */
   const cleanup = useCallback(() => {
     clearTimeout(noAnswerTimer.current);
     noAnswerTimer.current = null;
@@ -227,6 +236,11 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   // CALLER SIDE: initiateCall
   // ─────────────────────────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
+    /**
+     * @param {string} calleeId - MongoDB user ID of callee
+     * @param {string} [calleeName] - Display name of callee (shown in UI)
+     * @returns {Promise<void>}
+     */
     async initiateCall(calleeId, calleeName) {
       if (active || incoming || pushIncoming) {
         console.warn('[CALL] initiateCall blocked: another call in progress');
@@ -344,7 +358,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       // Remote audio playback
       pc.ontrack = e => {
         console.log('[CALL] step ontrack-caller:', e.track.kind);
-        if (remoteAudio.current && e.streams[0]) {
+        if (remoteAudio.current && e.streams?.[0]) {
           remoteAudio.current.srcObject = e.streams[0];
           remoteAudio.current.play().catch(err => {
             console.warn('[CALL] caller play() blocked:', err.message);
@@ -428,7 +442,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       // Register push_sent listener
       socket.once('call:push_sent', onPushSent);
 
-      // 50-second no-answer timeout
+      // 50-second no-answer timeout — AbortController pattern is available in modern browsers:
+      // const ac = new AbortController(); setTimeout(() => ac.abort(), 50000);
+      // But noAnswerTimer + clearTimeout is equivalent and has better React cleanup semantics.
       // Guard with _callAccepted flag: if call:accepted fires before timer setup
       // (extremely rare but theoretically possible), the timer won't destroy an active call
       noAnswerTimer.current = setTimeout(() => {
@@ -514,7 +530,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         console.log('[CALL] step ICE-buffer (no PC yet):', bufferedICE.current.length);
         return;
       }
-      if (pc.remoteDescription && pc.remoteDescription.type) {
+      if (pc.remoteDescription?.type) {
         await pc.addIceCandidate(new RTCIceCandidate(candidate))
           .catch(e => console.warn('[CALL] addIceCandidate:', e.message));
         console.log('[CALL] step ICE-added to PC');
@@ -613,6 +629,11 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   // ─────────────────────────────────────────────────────────────────────────
   // CALLEE SIDE: acceptCall (socket-based incoming)
   // ─────────────────────────────────────────────────────────────────────────
+  /**
+   * @description Callee accepts an incoming socket-based call.
+   * Completes the WebRTC handshake and transitions to active call.
+   * @returns {Promise<void>}
+   */
   async function acceptCall() {
     const pending = pendingOffer.current;
     if (!pending) { console.error('[CALL] acceptCall: no pending offer!'); return; }

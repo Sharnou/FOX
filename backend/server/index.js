@@ -78,6 +78,14 @@ import notificationRoutes from '../routes/notifications.js';
 import pushRoutes from '../routes/push.js';
 import iceRoutes from '../routes/ice.js';
 import winnerRouter from '../routes/winner.js';
+// WP token validity check (deferred import to avoid startup crash if module errors)
+let _getWPTokenStatus = null;
+(async () => {
+  try {
+    const wpUtils = await import('../utils/wordpress.js');
+    _getWPTokenStatus = wpUtils.getWPTokenStatus;
+  } catch {}
+})();
 import wpRouter from "../routes/wp.js";
 import translationsRouter from '../routes/translations.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
@@ -438,6 +446,32 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  GEMINI_API_KEY=<google-gemini-key>');
   console.log('  COUCHBASE_URL=<couchbase-capella-url>  # optional');
 });
+
+// ── WP OAuth startup check — 30 seconds after start, verify token is valid ───
+setTimeout(async () => {
+  try {
+    const wpToken = process.env.WP_ACCESS_TOKEN;
+    if (!wpToken) {
+      // Try MongoDB token
+      const Setting = mongoose.models.Setting;
+      if (!Setting) return;
+      const dbToken = await Setting.get?.('wp_access_token').catch(() => null);
+      if (!dbToken) return;
+    }
+    const r = await fetch('https://public-api.wordpress.com/rest/v1.1/me', {
+      headers: { Authorization: `Bearer ${wpToken || ''}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (data.error === 'invalid_token') {
+      console.error('[WP] ⚠️ OAuth token expired — visit /api/wp/auth to re-authenticate');
+    } else if (r.ok && data.email) {
+      console.log('[WP] ✅ OAuth token valid — connected as:', data.display_name || data.email);
+    }
+  } catch (e) {
+    console.warn('[WP] Startup token check failed (non-fatal):', e.message);
+  }
+}, 30000);
 
 // ── DB startup race: MongoDB vs Couchbase — handled by dbManager ─────────────
 // connectDatabases() is called after server.listen (see below)
