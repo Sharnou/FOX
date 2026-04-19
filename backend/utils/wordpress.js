@@ -2,6 +2,7 @@
 
 const SITE = 'xt0x.wordpress.com';
 const WP_API = `https://public-api.wordpress.com/rest/v1.1/sites/${SITE}`;
+const WP_V2  = `https://public-api.wordpress.com/wp/v2/sites/${SITE}`;
 
 function getToken() {
   return process.env.WP_ACCESS_TOKEN;
@@ -16,6 +17,16 @@ function authHeaders() {
     'Authorization': `Bearer ${getToken()}`,
     'Content-Type': 'application/json',
   };
+}
+
+
+// ─── HTML escape helper ──────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ─── City database — 60+ Arab cities ────────────────────────────────────────
@@ -737,10 +748,189 @@ function buildOGMetadata(ad, title, excerpt) {
 }
 
 
+
+// ─── GEO-TARGETING: Country detection ───────────────────────────────────────
+
+// All Egyptian governorates
+const EG_GOVS = [
+  'القاهرة','الجيزة','الإسكندرية','البحيرة','الغربية','الشرقية','القليوبية',
+  'المنوفية','الدقهلية','كفر الشيخ','دمياط','بورسعيد','الإسماعيلية','السويس',
+  'شمال سيناء','جنوب سيناء','الفيوم','بني سويف','المنيا','أسيوط','سوهاج',
+  'قنا','الأقصر','أسوان','البحر الأحمر','مطروح','الوادي الجديد',
+  'مدينة نصر','هليوبوليس','المعادي','الشروق','6 أكتوبر','العبور','التجمع الخامس',
+  'المنصورة','طنطا','الزقازيق','دمنهور','بنها','شرم الشيخ','الغردقة',
+];
+
+// Cities/governorates for other countries
+const GEO_COUNTRY_MAP = {
+  'الرياض':          { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'جدة':             { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'مكة المكرمة':     { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'المدينة المنورة': { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'الدمام':          { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'الخبر':           { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'أبها':            { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'تبوك':            { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'دبي':     { code: 'AE', lang: 'ar', name: 'UAE', wpCategory: 'الإمارات' },
+  'أبوظبي':  { code: 'AE', lang: 'ar', name: 'UAE', wpCategory: 'الإمارات' },
+  'الشارقة': { code: 'AE', lang: 'ar', name: 'UAE', wpCategory: 'الإمارات' },
+  'عجمان':   { code: 'AE', lang: 'ar', name: 'UAE', wpCategory: 'الإمارات' },
+  'عمان':    { code: 'JO', lang: 'ar', name: 'Jordan', wpCategory: 'الأردن' },
+  'الزرقاء': { code: 'JO', lang: 'ar', name: 'Jordan', wpCategory: 'الأردن' },
+  'إربد':    { code: 'JO', lang: 'ar', name: 'Jordan', wpCategory: 'الأردن' },
+  'الكويت':   { code: 'KW', lang: 'ar', name: 'Kuwait', wpCategory: 'الكويت' },
+  'حولي':     { code: 'KW', lang: 'ar', name: 'Kuwait', wpCategory: 'الكويت' },
+  'بيروت':   { code: 'LB', lang: 'ar', name: 'Lebanon', wpCategory: 'لبنان' },
+  'الدوحة':  { code: 'QA', lang: 'ar', name: 'Qatar', wpCategory: 'قطر' },
+  'Paris':   { code: 'FR', lang: 'fr', name: 'France', wpCategory: 'France' },
+  'Lyon':    { code: 'FR', lang: 'fr', name: 'France', wpCategory: 'France' },
+  'Berlin':  { code: 'DE', lang: 'de', name: 'Germany', wpCategory: 'Deutschland' },
+  'Istanbul': { code: 'TR', lang: 'tr', name: 'Turkey', wpCategory: 'Türkiye' },
+};
+
+const GEO_BY_CODE = {
+  'EG': { code: 'EG', lang: 'ar', name: 'Egypt',        wpCategory: 'مصر' },
+  'SA': { code: 'SA', lang: 'ar', name: 'Saudi Arabia', wpCategory: 'السعودية' },
+  'AE': { code: 'AE', lang: 'ar', name: 'UAE',          wpCategory: 'الإمارات' },
+  'KW': { code: 'KW', lang: 'ar', name: 'Kuwait',       wpCategory: 'الكويت' },
+  'QA': { code: 'QA', lang: 'ar', name: 'Qatar',        wpCategory: 'قطر' },
+  'BH': { code: 'BH', lang: 'ar', name: 'Bahrain',      wpCategory: 'البحرين' },
+  'JO': { code: 'JO', lang: 'ar', name: 'Jordan',       wpCategory: 'الأردن' },
+  'LB': { code: 'LB', lang: 'ar', name: 'Lebanon',      wpCategory: 'لبنان' },
+  'MA': { code: 'MA', lang: 'ar', name: 'Morocco',      wpCategory: 'المغرب' },
+  'DZ': { code: 'DZ', lang: 'ar', name: 'Algeria',      wpCategory: 'الجزائر' },
+  'TN': { code: 'TN', lang: 'ar', name: 'Tunisia',      wpCategory: 'تونس' },
+  'IQ': { code: 'IQ', lang: 'ar', name: 'Iraq',         wpCategory: 'العراق' },
+  'LY': { code: 'LY', lang: 'ar', name: 'Libya',        wpCategory: 'ليبيا' },
+  'OM': { code: 'OM', lang: 'ar', name: 'Oman',         wpCategory: 'عُمان' },
+  'YE': { code: 'YE', lang: 'ar', name: 'Yemen',        wpCategory: 'اليمن' },
+  'SD': { code: 'SD', lang: 'ar', name: 'Sudan',        wpCategory: 'السودان' },
+  'SY': { code: 'SY', lang: 'ar', name: 'Syria',        wpCategory: 'سوريا' },
+  'PS': { code: 'PS', lang: 'ar', name: 'Palestine',    wpCategory: 'فلسطين' },
+  'FR': { code: 'FR', lang: 'fr', name: 'France',       wpCategory: 'France' },
+  'DE': { code: 'DE', lang: 'de', name: 'Germany',      wpCategory: 'Deutschland' },
+  'TR': { code: 'TR', lang: 'tr', name: 'Turkey',       wpCategory: 'Türkiye' },
+  'US': { code: 'US', lang: 'en', name: 'USA',          wpCategory: 'USA' },
+  'GB': { code: 'GB', lang: 'en', name: 'UK',           wpCategory: 'UK' },
+};
+
+/**
+ * Detect the country for an ad based on governorate/city or country field.
+ */
+export function detectAdCountry(ad) {
+  const gov = ad.governorate || ad.city || ad.location || '';
+  if (EG_GOVS.includes(gov)) return GEO_BY_CODE.EG;
+  if (GEO_COUNTRY_MAP[gov]) return GEO_COUNTRY_MAP[gov];
+  const countryField = (ad.country || '').toUpperCase();
+  if (countryField && GEO_BY_CODE[countryField]) return GEO_BY_CODE[countryField];
+  return GEO_BY_CODE.EG; // Default: Egypt
+}
+
+// ─── Multi-language translation via MyMemory free API ───────────────────────
+async function translateText(text, fromLang, toLang) {
+  if (!text || fromLang === toLang) return text;
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 500))}&langpair=${fromLang}|${toLang}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return text;
+    const data = await r.json();
+    return data.responseData?.translatedText || text;
+  } catch { return text; }
+}
+
+async function translateAdContent(ad, targetLang) {
+  const sourceLang = 'ar';
+  if (targetLang === sourceLang) return { title: ad.title, description: ad.description };
+  const [title, description] = await Promise.all([
+    translateText(ad.title || '', sourceLang, targetLang),
+    translateText((ad.description || '').slice(0, 500), sourceLang, targetLang),
+  ]);
+  return { title, description };
+}
+
+// ─── Build geo-aware HTML post content ──────────────────────────────────────
+const GEO_LABELS = {
+  ar: { price: 'السعر', location: 'الموقع', category: 'التصنيف', condition: 'الحالة', viewAd: 'عرض الإعلان', platform: 'منصة XTOX — سوق إلكتروني عربي ذكي' },
+  fr: { price: 'Prix', location: 'Lieu', category: 'Catégorie', condition: 'État', viewAd: "Voir l\'annonce", platform: 'XTOX — Marché électronique arabe' },
+  en: { price: 'Price', location: 'Location', category: 'Category', condition: 'Condition', viewAd: 'View Ad', platform: 'XTOX — Smart Arab Marketplace' },
+  ru: { price: 'Цена', location: 'Местоположение', category: 'Категория', condition: 'Состояние', viewAd: 'Посмотреть объявление', platform: 'XTOX — Арабский рынок' },
+  de: { price: 'Preis', location: 'Standort', category: 'Kategorie', condition: 'Zustand', viewAd: 'Anzeige ansehen', platform: 'XTOX — Arabischer Marktplatz' },
+  tr: { price: 'Fiyat', location: 'Konum', category: 'Kategori', condition: 'Durum', viewAd: 'İlanı Gör', platform: 'XTOX — Arap Pazaryeri' },
+};
+
+function buildGeoContent(ad, country, translated) {
+  const isRTL = ['ar', 'he', 'fa', 'ur'].includes(country.lang);
+  const dir = isRTL ? 'rtl' : 'ltr';
+  const CURRENCY_MAP = { EG:'EGP', SA:'SAR', AE:'AED', KW:'KWD', QA:'QAR', BH:'BHD', OM:'OMR', FR:'EUR', DE:'EUR' };
+  const currency = CURRENCY_MAP[country.code] || 'USD';
+  const L = GEO_LABELS[country.lang] || GEO_LABELS.en;
+  const adId = (ad._id || ad.id || '').toString();
+  const adUrl = `https://fox-kohl-eight.vercel.app/ads/${adId}`;
+  const price = ad.price ? `${ad.price} ${currency}` : '—';
+  const location = [ad.city, ad.governorate, country.name].filter(Boolean).join(', ');
+  const borderSide = isRTL ? 'right' : 'left';
+  return `<div dir="${dir}" style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;font-size:16px;line-height:1.8;color:#222;max-width:800px;margin:0 auto;">
+  <h2 style="color:#6366f1;border-bottom:2px solid #6366f1;padding-bottom:8px;">${esc(translated.title || ad.title || '')}</h2>
+  <p style="background:#f8f9fa;padding:12px;border-${borderSide}:4px solid #6366f1;border-radius:4px;">${esc(translated.description || ad.description || '')}</p>
+  <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+    <tr><td style="padding:8px;border:1px solid #ddd;background:#f2f2f2;font-weight:bold;">${L.price}</td><td style="padding:8px;border:1px solid #ddd;">${esc(price)}</td></tr>
+    <tr><td style="padding:8px;border:1px solid #ddd;background:#f2f2f2;font-weight:bold;">${L.location}</td><td style="padding:8px;border:1px solid #ddd;">${esc(location)}</td></tr>
+    <tr><td style="padding:8px;border:1px solid #ddd;background:#f2f2f2;font-weight:bold;">${L.category}</td><td style="padding:8px;border:1px solid #ddd;">${esc(ad.category || '')}</td></tr>
+    <tr><td style="padding:8px;border:1px solid #ddd;background:#f2f2f2;font-weight:bold;">${L.condition}</td><td style="padding:8px;border:1px solid #ddd;">${esc(ad.condition || '')}</td></tr>
+  </table>
+  <div style="margin-top:20px;text-align:center;">
+    <a href="${esc(adUrl)}" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:16px;display:inline-block;">${L.viewAd} &#x2192;</a>
+  </div>
+  <p style="margin-top:24px;color:#888;font-size:13px;text-align:center;">${L.platform}</p>
+</div>`;
+}
+
+// ─── Fix D: Create or update a WordPress static page (slug-check-before-create) ─
+export async function createOrUpdateWPPage(slug, title, content, token) {
+  const tok = token || getToken();
+  if (!tok) return null;
+  try {
+    const check = await fetch(
+      `${WP_V2}/pages?slug=${encodeURIComponent(slug)}&per_page=1`,
+      { headers: { Authorization: `Bearer ${tok}` }, signal: AbortSignal.timeout(8000) }
+    );
+    const existing = check.ok ? await check.json() : [];
+    if (Array.isArray(existing) && existing.length > 0) {
+      const updateRes = await fetch(`${WP_V2}/pages/${existing[0].id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content, status: 'publish' }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (updateRes.ok) {
+        const updated = await updateRes.json();
+        console.log(`[WP-PAGE] Updated page slug=${slug} id=${updated.id}`);
+        return updated.id;
+      }
+      return existing[0].id;
+    }
+    const createRes = await fetch(`${WP_V2}/pages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content, slug, status: 'publish' }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (createRes.ok) {
+      const page = await createRes.json();
+      console.log(`[WP-PAGE] Created page slug=${slug} id=${page.id}`);
+      return page.id;
+    }
+    return null;
+  } catch (e) {
+    console.warn('[WP-PAGE] createOrUpdateWPPage error:', e.message);
+    return null;
+  }
+}
+
 // ─── Upload featured image to WordPress media library ────────────────────────
-async function uploadFeaturedImage(imageUrl) {
-  if (!isConfigured() || !imageUrl) return null;
-  // Only upload http URLs (skip base64 data: URLs)
+async function uploadFeaturedImage(imageUrl, token) {
+  const tok = token || getToken();
+  if (!tok || !imageUrl) return null;
   if (!imageUrl.startsWith('http')) return null;
   try {
     const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(8000) });
@@ -761,7 +951,7 @@ async function uploadFeaturedImage(imageUrl) {
 
     const mediaRes = await fetch(`${WP_API}/media/new`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${getToken()}` },
+      headers: { 'Authorization': `Bearer ${tok}` },
       body: fd,
       signal: AbortSignal.timeout(20000),
     });
@@ -776,6 +966,42 @@ async function uploadFeaturedImage(imageUrl) {
     return mediaId;
   } catch (e) {
     console.log('[WP-Media] Featured image upload failed (non-fatal):', e.message);
+    return null;
+  }
+}
+
+
+// ─── INTERNAL: Update WP post by ID (supports geo + translation) ─────────────
+async function _updateWPPostById(ad, postId, token) {
+  const tok = token || getToken();
+  if (!tok || !postId) return null;
+  try {
+    const adId = (ad._id || ad.id || '').toString();
+    const slug = `xtox-ad-${adId}`;
+    const country = detectAdCountry(ad);
+    const translated = await translateAdContent(ad, country.lang).catch(() => ({ title: ad.title, description: ad.description }));
+    const title = buildTitle(ad);
+    const excerpt = (translated.description || ad.description || '').slice(0, 150) + '...';
+    const content = buildGeoContent(ad, country, translated);
+    const metadata = buildOGMetadata(ad, title, excerpt);
+    const tagIds = await getOrCreateTags(buildTags(ad), tok).catch(() => []);
+    const res = await fetch(`${WP_API}/posts/${postId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content, excerpt, slug, language: country.lang, metadata, tags: tagIds, status: 'publish' }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const updated = await res.json().catch(() => ({}));
+      console.log(`[WP] Updated post id=${postId} for ad ${adId} | country=${country.code}`);
+      if (updated.URL) triggerSitemapPing(updated.URL);
+      return postId;
+    }
+    const err = await res.text().catch(() => '');
+    console.error(`[WP] _updateWPPostById failed (${res.status}):`, err.slice(0, 200));
+    return null;
+  } catch (e) {
+    console.error('[WP] _updateWPPostById error:', e.message);
     return null;
   }
 }
@@ -803,21 +1029,28 @@ export async function createWPPost(ad) {
     const metadata = buildOGMetadata(ad, title, excerpt);
 
     // Get or create WordPress category for this ad's country (non-blocking fallback to null)
-    const countryCatId = await getOrCreateWPCategory(ad.country || 'EG').catch(() => null);
+    const countryCatId = await getOrCreateWPCategory(ad.country || 'EG').catch(() => null); // Note: geo country category set below
     // Get or create governorate sub-category (Egypt only, non-blocking)
     const govCatId = await getOrCreateWPGovernorateCategory(ad).catch(() => null);
 
+    // ── Geo: Detect country + translate content ─────────────────────────────
+    const geoCountry = detectAdCountry(ad);
+    const translated = await translateAdContent(ad, geoCountry.lang).catch(() => ({ title, description: ad.description }));
+    const geoContent = buildGeoContent(ad, geoCountry, translated);
+    const geoExcerpt = (translated.description || ad.description || '').slice(0, 150) + '...';
+
+    console.log(`[WP] CREATE new post | country=${geoCountry.code} lang=${geoCountry.lang} | title:`, title.slice(0, 60));
+
     const postBody = {
       title,
-      content,
+      content: geoContent,
       status: (ad.status && ad.status !== 'active' && ad.status !== 'publish') ? 'draft' : 'publish',
       slug,
-      language: 'ar',
+      language: geoCountry.lang,
       tags: tagIds,
-      excerpt,
+      excerpt: geoExcerpt,
       format: 'standard',
       metadata,
-      // Assign both country-level + governorate sub-category (Task 2C)
       categories: [countryCatId, govCatId].filter(Boolean),
       ...(featuredMediaId ? { featured_image: featuredMediaId } : {}),
     };
@@ -1114,8 +1347,32 @@ export async function deleteWPPost(wpPostId) {
   }
 }
 
-// ─── Update WordPress.com post ─────────────────────────────────────────────
+// ─── Update WordPress.com post (public wrapper) ─────────────────────────────
+// Signature: updateWPPost(wpPostId, ad)
+// wpPostId can be a string/number/null — if null, finds by slug; if still not found, creates
 export async function updateWPPost(wpPostId, ad) {
+  if (!isConfigured()) return;
+  let postId = wpPostId;
+  // If no postId provided, try to find by slug
+  if (!postId && ad) {
+    const adId = (ad._id || ad.id || '').toString();
+    const slug = `xtox-ad-${adId}`;
+    try {
+      const slugCheckRes = await fetch(`${WP_API}/posts/slug:${slug}`, {
+        headers: authHeaders(), signal: AbortSignal.timeout(8000),
+      });
+      if (slugCheckRes.ok) {
+        const existing = await slugCheckRes.json();
+        if (existing && existing.ID) postId = String(existing.ID);
+      }
+    } catch {}
+  }
+  if (!postId) return createWPPost(ad); // No existing post — create
+  return _updateWPPostById(ad, postId, getToken());
+}
+
+// ─── Legacy updateWPPost body (kept for reference — no longer used) ─────────
+async function _legacyUpdateWPPostBody(wpPostId, ad) {
   if (!isConfigured() || !wpPostId) return;
   try {
     const adId = (ad._id || ad.id || '').toString();
