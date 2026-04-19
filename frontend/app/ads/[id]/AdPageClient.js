@@ -277,6 +277,16 @@ export default function AdPageClient({ params }) {
   const [showChatBox, setShowChatBox] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [adNotFound, setAdNotFound] = useState(false);
+
+  // ── Review state (declare before useEffect that uses them) ──────────
+  const [reviewChecked, setReviewChecked]       = useState(false);
+  const [existingReview, setExistingReview]     = useState(null);
+  const [showReviewForm, setShowReviewForm]     = useState(false);
+  const [reviewRating, setReviewRating]         = useState(0);
+  const [reviewComment, setReviewComment]       = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted]   = useState(false);
+  const [reviewHover, setReviewHover]           = useState(0);
   useEffect(() => {
     if (params && params.id) {
       fetch(API + '/api/ads/' + params.id)
