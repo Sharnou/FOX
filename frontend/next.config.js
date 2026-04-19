@@ -9,6 +9,16 @@ const nextConfig = {
   },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // Safety net: ensure /sitemap.xml always hits the route handler
+        { source: '/sitemap.xml', destination: '/sitemap.xml' },
+      ],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
   async headers() {
     return [
       {
@@ -46,4 +56,4 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-// Build: 20260417114055
+// Build: 20260418000000

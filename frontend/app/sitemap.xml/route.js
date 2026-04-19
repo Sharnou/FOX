@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 const BASE = 'https://fox-kohl-eight.vercel.app';
 const API  = 'https://xtox-production.up.railway.app';
@@ -6,80 +7,94 @@ const LANGS = ['ar','en','fr','ru','de','es','tr','zh'];
 
 function esc(s) {
   return String(s ?? '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-function staticEntry(path, freq, pri, hreflang = false) {
+function hreflang(path) {
   const loc = `${BASE}${path}`;
-  const today = new Date().toISOString().slice(0,10);
-  const alts = hreflang
-    ? LANGS.map(l => `    <xhtml:link rel="alternate" hreflang="${l}" href="${esc(loc)}?lang=${l}"/>`).join('\n') +
-      `\n    <xhtml:link rel="alternate" hreflang="x-default" href="${esc(loc)}"/>`
-    : '';
-  return `  <url>
-    <loc>${esc(loc)}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>${freq}</changefreq>
-    <priority>${pri}</priority>${alts ? '\n' + alts : ''}
-  </url>`;
+  return LANGS.map(l =>
+    `    <xhtml:link rel="alternate" hreflang="${l}" href="${esc(loc)}?lang=${l}"/>`
+  ).join('\n') + `\n    <xhtml:link rel="alternate" hreflang="x-default" href="${esc(loc)}"/>`;
 }
 
-function adEntry(ad) {
-  const loc = `${BASE}/ads/${ad._id}`;
-  const lastmod = ad.updatedAt
-    ? new Date(ad.updatedAt).toISOString().slice(0,10)
-    : new Date().toISOString().slice(0,10);
-  const img = Array.isArray(ad.images) && ad.images[0]
-    && typeof ad.images[0] === 'string'
-    && ad.images[0].startsWith('http')
-    ? `\n    <image:image>\n      <image:loc>${esc(ad.images[0])}</image:loc>\n      <image:title>${esc(ad.title)}</image:title>\n    </image:image>`
+function entry({ path, freq, pri, withHreflang = false, image = null, lastmod = null }) {
+  const loc = esc(`${BASE}${path}`);
+  const date = lastmod || new Date().toISOString().slice(0, 10);
+  const imgBlock = image
+    ? `\n    <image:image>\n      <image:loc>${esc(image.url)}</image:loc>\n      <image:title>${esc(image.title)}</image:title>\n    </image:image>`
     : '';
-  return `  <url>
-    <loc>${esc(loc)}</loc>
-    <lastmod>${lastmod}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>${img}
-  </url>`;
+  const altBlock = withHreflang ? '\n' + hreflang(path) : '';
+  return [
+    '  <url>',
+    `    <loc>${loc}</loc>`,
+    `    <lastmod>${date}</lastmod>`,
+    `    <changefreq>${freq}</changefreq>`,
+    `    <priority>${pri}</priority>`,
+    imgBlock,
+    altBlock,
+    '  </url>',
+  ].filter(Boolean).join('\n');
 }
 
 export async function GET() {
+  const today = new Date().toISOString().slice(0, 10);
+
   const statics = [
-    staticEntry('/',            'weekly',  '1.0', true),
-    staticEntry('/ads',         'daily',   '0.9', true),
-    staticEntry('/leaderboard', 'weekly',  '0.8', true),
-    staticEntry('/honor-roll',  'weekly',  '0.8', true),
-    staticEntry('/login',       'monthly', '0.5', true),
-    staticEntry('/register',    'monthly', '0.5', true),
+    entry({ path: '/',            freq: 'weekly',  pri: '1.0', withHreflang: true }),
+    entry({ path: '/ads',         freq: 'daily',   pri: '0.9', withHreflang: true }),
+    entry({ path: '/leaderboard', freq: 'weekly',  pri: '0.8', withHreflang: true }),
+    entry({ path: '/honor-roll',  freq: 'weekly',  pri: '0.8', withHreflang: true }),
+    entry({ path: '/login',       freq: 'monthly', pri: '0.5', withHreflang: true }),
+    entry({ path: '/register',    freq: 'monthly', pri: '0.5', withHreflang: true }),
   ];
 
   let dynamics = [];
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
     const r = await fetch(`${API}/api/ads?limit=500&status=active`, {
-      signal: AbortSignal.timeout(5000),
-      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
     });
+    clearTimeout(timer);
     if (r.ok) {
       const data = await r.json();
       const ads = Array.isArray(data) ? data : (data.ads ?? data.data ?? []);
-      dynamics = ads.filter(a => a?._id).slice(0, 494).map(adEntry);
+      dynamics = ads
+        .filter(a => a?._id)
+        .slice(0, 493)
+        .map(a => {
+          const imgUrl = Array.isArray(a.images) && typeof a.images[0] === 'string' && a.images[0].startsWith('http')
+            ? a.images[0] : null;
+          return entry({
+            path: `/ads/${a._id}`,
+            freq: 'weekly',
+            pri: '0.8',
+            lastmod: a.updatedAt ? new Date(a.updatedAt).toISOString().slice(0, 10) : today,
+            image: imgUrl ? { url: imgUrl, title: a.title || '' } : null,
+          });
+        });
     }
   } catch { /* fallback to static only */ }
 
-  const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset
-  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-  xmlns:xhtml="http://www.w3.org/1999/xhtml">
-${[...statics, ...dynamics].join('\n')}
-</urlset>`;
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset',
+    '  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"',
+    '  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"',
+    '  xmlns:xhtml="http://www.w3.org/1999/xhtml">',
+    [...statics, ...dynamics].join('\n'),
+    '</urlset>',
+  ].join('\n');
 
-  return new Response(body, {
+  return new Response(xml, {
     status: 200,
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
       'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-      'X-Robots-Tag': 'noindex',
     },
   });
 }

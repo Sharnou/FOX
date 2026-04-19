@@ -60,8 +60,8 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico, manifest, icons
      * - Google Search Console verification files (google*.html)
-     * - Any file with a static asset extension (svg, png, jpg, etc., html)
+     * - Any file with a static asset extension (svg, png, jpg, xml, txt, etc.)
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|manifest|icons|google.*\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|html)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|manifest|icons|google.*\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|xml|html|txt)$).*)',
   ],
 };

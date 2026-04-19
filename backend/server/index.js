@@ -153,6 +153,7 @@ app.get('/api/health', (_, res) => {
   const stateNames = ['disconnected', 'connected', 'connecting', 'disconnecting'];
   res.json({
     status: 'ok',
+    version: '1.0.0',
     uptime: Math.floor(process.uptime()),
     db: stateNames[connState] || 'unknown',
     mongoConnected: connState === 1,
