@@ -250,4 +250,28 @@ router.get('/sitemap', async (req, res) => {
   }
 })
 
+
+// POST /api/wp/dedup-all — admin: detect and remove duplicate WP posts
+router.post('/dedup-all', verifyToken, async (req, res) => {
+  const role = req.user?.role;
+  if (!['admin', 'sub_admin', 'superadmin'].includes(role)) {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  try {
+    const Ad = (await import('../models/Ad.js')).default;
+    const { deduplicateWPPosts } = await import('../utils/wordpress.js');
+    // Only check ads that have a wpPostId (already synced at least once)
+    const ads = await Ad.find({ wpPostId: { $ne: null } }).select('_id wpPostId').lean();
+    let cleaned = 0;
+    for (const ad of ads) {
+      await deduplicateWPPosts(String(ad._id));
+      cleaned++;
+      await new Promise(r => setTimeout(r, 200));
+    }
+    res.json({ ok: true, checked: cleaned });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router

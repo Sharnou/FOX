@@ -354,6 +354,46 @@ cron.schedule('0 3 * * *', async () => {
   logger.info('Auto-backup complete');
 });
 
+
+// Daily 1am: sync XTOX ads missing from WordPress
+cron.schedule('0 1 * * *', async () => {
+  try {
+    const { createWPPost } = await import('../utils/wordpress.js');
+    const Ad = (await import('../models/Ad.js')).default;
+    const unsynced = await Ad.find({ 
+      wpPostId: null, 
+      status: { $in: ['active', 'available'] },
+    }).select('_id title status country').limit(100).lean();
+    
+    if (unsynced.length === 0) return console.log('[WP-CRON] All ads synced ✓');
+    console.log(`[WP-CRON] Syncing ${unsynced.length} missing ads to WordPress...`);
+    
+    let synced = 0, failed = 0;
+    for (const adSummary of unsynced) {
+      try {
+        // Get full ad document for sync
+        const ad = await Ad.findById(adSummary._id).lean();
+        if (!ad) continue;
+        const result = await createWPPost(ad);
+        if (result && result.wpPostId) {
+          await Ad.updateOne({ _id: ad._id }, { $set: { wpPostId: result.wpPostId, wpPostUrl: result.wpPostUrl || '' } });
+          synced++;
+        } else {
+          failed++;
+        }
+        // Rate limit: 300ms between posts
+        await new Promise(r => setTimeout(r, 300));
+      } catch (e) {
+        failed++;
+        console.warn(`[WP-CRON] Failed to sync ad ${adSummary._id}:`, e.message);
+      }
+    }
+    console.log(`[WP-CRON] Done: ${synced} synced, ${failed} failed`);
+  } catch (e) {
+    console.error('[WP-CRON] Daily sync error:', e.message);
+  }
+}, { timezone: 'Africa/Cairo' });
+
 // Health check every 15 minutes
 cron.schedule('*/15 * * * *', async () => {
   await runHealthCheck();

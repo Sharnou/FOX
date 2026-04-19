@@ -751,6 +751,9 @@ export async function createWPPost(ad) {
     const content = buildContent(ad);
     const metadata = buildOGMetadata(ad, title, excerpt);
 
+    // Get or create WordPress category for this ad's country (non-blocking fallback to null)
+    const countryCatId = await getOrCreateWPCategory(ad.country || 'EG').catch(() => null);
+
     const postBody = {
       title,
       content,
@@ -761,6 +764,7 @@ export async function createWPPost(ad) {
       excerpt,
       format: 'standard',
       metadata,
+      categories: countryCatId ? [countryCatId] : [],
     };
 
     // ── Fix 2: Upsert logic — check if slug already exists ─────────────────
@@ -829,11 +833,107 @@ export async function createWPPost(ad) {
       triggerSitemapPing(post.URL);
     }
 
+    // Dedup: clean up any slug duplicates created by retries
+    try { await deduplicateWPPosts(adId); } catch (_) {}
+
     return { wpPostId: String(post.ID), wpPostUrl: post.URL };
   } catch (e) {
     console.error('[WordPress.com] Create/Upsert error:', e.message);
     console.error('[WordPress.com] Stack:', e.stack);
     return null;
+  }
+}
+
+
+
+// ─── Country names map (ISO 2-letter → Arabic name) ────────────────────────
+const COUNTRY_NAMES = {
+  EG: 'مصر', SA: 'السعودية', AE: 'الإمارات', KW: 'الكويت', QA: 'قطر',
+  BH: 'البحرين', JO: 'الأردن', LB: 'لبنان', MA: 'المغرب', DZ: 'الجزائر',
+  TN: 'تونس', IQ: 'العراق', LY: 'ليبيا', OM: 'عُمان', YE: 'اليمن',
+  SD: 'السودان', SY: 'سوريا', PS: 'فلسطين',
+};
+
+// In-process cache to avoid repeated WP API calls for same country
+const _catIdCache = {};
+
+// ─── Get or create a WordPress category for a country ──────────────────────
+export async function getOrCreateWPCategory(countryCode) {
+  if (!countryCode) return null;
+  const code = countryCode.toUpperCase();
+  if (_catIdCache[code]) return _catIdCache[code];
+  try {
+    const token = getToken();
+    if (!token) return null;
+    const slug = 'country-' + code.toLowerCase();
+    const name = COUNTRY_NAMES[code] || code;
+
+    // Check if category exists
+    const checkResp = await fetch(`${WP_API}/categories?slug=${slug}&number=1`, {
+      headers: authHeaders(),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (checkResp.ok) {
+      const cats = await checkResp.json();
+      const catList = cats.categories || (Array.isArray(cats) ? cats : []);
+      if (catList.length > 0) {
+        const catId = catList[0].ID || catList[0].id;
+        _catIdCache[code] = catId;
+        return catId;
+      }
+    }
+
+    // Create category if not found
+    const createResp = await fetch(`${WP_API}/categories/new`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ name, slug, description: `إعلانات ${name} على XTOX` }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (createResp.ok) {
+      const cat = await createResp.json();
+      const catId = cat.ID || cat.id || null;
+      if (catId) _catIdCache[code] = catId;
+      console.log(`[WP-CAT] Created category for ${code}: ID=${catId}`);
+      return catId;
+    }
+    return null;
+  } catch (e) {
+    console.warn('[WP-CAT] Error for', countryCode, ':', e.message);
+    return null;
+  }
+}
+
+// ─── Deduplicate WordPress posts for an ad (keep oldest, delete extras) ─────
+export async function deduplicateWPPosts(adId) {
+  try {
+    const token = getToken();
+    if (!token) return;
+    const slug = 'xtox-ad-' + adId;
+    // Search for all posts with this slug (including numbered duplicates: slug-2, slug-3)
+    const searchUrl = `${WP_API}/posts?slug=${encodeURIComponent(slug)}&status=any&number=20`;
+    const resp = await fetch(searchUrl, {
+      headers: authHeaders(),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const postList = data.posts || (Array.isArray(data) ? data : []);
+    if (postList.length <= 1) return; // No duplicates
+
+    // Keep the first (oldest/original), delete the rest
+    const [keep, ...dupes] = postList.sort((a, b) => new Date(a.date) - new Date(b.date));
+    console.log(`[WP-DEDUP] Ad ${adId}: keeping post ${keep.ID}, deleting ${dupes.length} duplicate(s)`);
+    for (const dupe of dupes) {
+      await fetch(`${WP_API}/posts/${dupe.ID}/delete`, {
+        method: 'POST',
+        headers: authHeaders(),
+        signal: AbortSignal.timeout(8000),
+      }).catch(() => {});
+    }
+    return keep.ID;
+  } catch (e) {
+    console.warn('[WP-DEDUP] Error:', e.message);
   }
 }
 
