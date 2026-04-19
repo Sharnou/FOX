@@ -73,12 +73,41 @@ router.get('/', auth, async (req, res) => {
       .populate('ad', 'title images status price')
       .lean();
     // Attach adStatus (5 states) + closedAt per chat for frontend badge
-    const enriched = chats.map(c => ({
-      ...c,
-      adStatus: mapAdStatus(c.adStatus, c.ad?.status),
-      closedAt: c.closedAt || null,
-    }));
-    res.json({ success: true, chats: enriched });
+    // ONLY last message preview — NOT the full messages array (avoids sending 500msgs × N chats)
+    const enriched = chats.map(c => {
+      const msgs = c.messages || [];
+      const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+      return {
+        _id: c._id,
+        buyer:    c.buyer,
+        seller:   c.seller,
+        ad:       c.ad,
+        adTitle:  c.adTitle || (c.ad && c.ad.title) || '',
+        adStatus: mapAdStatus(c.adStatus, c.ad?.status),
+        closedAt: c.closedAt || null,
+        status:   c.status,
+        messageCount: c.messageCount || msgs.length,
+        unreadBuyer:  c.unreadBuyer  || 0,
+        unreadSeller: c.unreadSeller || 0,
+        updatedAt: c.updatedAt,
+        createdAt: c.createdAt,
+        // ONLY last message preview — never the full messages[]
+        lastMessage: lastMsg ? {
+          _id:       lastMsg._id,
+          text:      lastMsg.text || '',
+          type:      lastMsg.type || 'text',
+          sender:    lastMsg.sender,
+          createdAt: lastMsg.createdAt,
+          status:    lastMsg.status,
+        } : null,
+        mutedBy:    c.mutedBy    || [],
+        ignoredBy:  c.ignoredBy  || [],
+        deletedBy:  c.deletedBy  || [],
+        reportedBy: c.reportedBy || [],
+      };
+    });
+    // Return as plain array — frontend handles both shapes: data.chats || Array.isArray(data)
+    res.json(enriched);
   } catch (e) {
     res.status(500).json({
       success: false,
@@ -434,6 +463,9 @@ router.get('/:chatId/messages', auth, async (req, res) => {
 
     res.json({
       messages: paged,
+      adTitle:  chat.adTitle  || '',
+      adStatus: chat.adStatus || 'available',
+      status:   chat.status   || 'active',
       pagination: {
         total,
         page,

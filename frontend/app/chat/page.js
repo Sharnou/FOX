@@ -431,6 +431,12 @@ function ChatPageInner() {
         setMessages(msgs.map(function(m) {
           return { from: (String(m.sender) === String(myId)) ? 'me' : m.sender, text: m.text || '', type: m.type || 'text', duration: m.duration || 0, time: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(), readBy: m.readBy || [], status: m.status || (m.readBy && m.readBy.length > 0 ? 'read' : 'sent') };
         }));
+        // Pick up adTitle/adStatus from messages endpoint (Fix 3)
+        if (msgData.adTitle) setApiChats(function(prev) {
+          return prev.map(function(ac) { return String(ac._id) === cid ? Object.assign({}, ac, { adTitle: msgData.adTitle }) : ac; });
+        });
+        if (msgData.adStatus) setAdStatus(function(prev) { return prev || msgData.adStatus; });
+        if (msgData.status === 'closed') { setChatStatus('closed'); setChatClosed(true); }
       })
       .catch(function() {});
     // Also rejoin socket room for the new chat
@@ -503,8 +509,8 @@ function ChatPageInner() {
             otherName = resolveUserName(c.seller);
             otherAvatar = (c.seller && typeof c.seller === 'object') ? (c.seller.avatar || '') : '';
           }
-          var lastMsg = c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1] : null;
-          var adTitle = c.adTitle || c.ad?.title || '';
+          var lastMsg = c.lastMessage || (c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1] : null);
+          var adTitle = c.adTitle || (c.ad && c.ad.title) || '';
           return { id: otherId, name: otherName, avatar: otherAvatar, adTitle: adTitle, chatId: c._id, lastMessage: lastMsg ? (lastMsg.text || '') : '', lastTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
         }).filter(function(c) { return c.id; });
         setConversations(function(prev) {
