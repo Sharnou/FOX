@@ -156,6 +156,7 @@ export function initSocket(io) {
         if (!userId) return;
 
         // Persist read status in DB
+        let otherId = null;
         try {
           const mongoose = await import('mongoose');
           const Chat = mongoose.default.models.Chat || (await import('../models/Chat.js')).default;
@@ -164,7 +165,7 @@ export function initSocket(io) {
           const chat = await Chat.findById(chatId).select('buyer seller messages').lean();
           if (!chat) return;
 
-          const otherId = String(chat.buyer) === String(userId)
+          otherId = String(chat.buyer) === String(userId)
             ? String(chat.seller)
             : String(chat.buyer);
 
@@ -203,6 +204,7 @@ export function initSocket(io) {
                 }
               }
             ],
+            { updatePipeline: true }
           ).catch(async () => {
             // Fallback: simpler update if aggregation pipeline fails
             await Chat.updateOne(

@@ -461,7 +461,9 @@ function ChatPageInner() {
             seenChatIds.add(key);
             return true;
           });
-          return deduped.sort(function(a, b) { return (b.lastTime || 0) - (a.lastTime || 0); });
+          var sorted = deduped.sort(function(a, b) { return (b.lastTime || 0) - (a.lastTime || 0); });
+          try { localStorage.setItem('xtox_conversations', JSON.stringify(sorted)); } catch(_e) {}
+          return sorted;
         });
         var urlChatId = new URLSearchParams(window.location.search).get('chatId');
         if (urlChatId) {
@@ -568,8 +570,11 @@ function ChatPageInner() {
         var exists = prev.find(function(c) { return c.id === senderId; });
         var upd = exists
           ? prev.map(function(c) { return c.id === senderId ? Object.assign({}, c, { lastMessage: data.text, lastTime: msgTime }) : c; })
-          : [{ id: senderId, lastMessage: data.text, lastTime: msgTime }].concat(prev.slice(0, 49));
-        localStorage.setItem('xtox_conversations', JSON.stringify(upd));
+          : [{ id: senderId, chatId: data.chatId || null, lastMessage: data.text, lastTime: msgTime }].concat(prev.slice(0, 49));
+        // Only persist conversations that have adTitle or name — skeleton entries will be
+        // overwritten by the next API call, so don't persist bare skeletons to localStorage
+        var enriched = upd.filter(function(c) { return c.name || c.adTitle || c.xtoxId; });
+        if (enriched.length > 0) localStorage.setItem('xtox_conversations', JSON.stringify(upd));
         return upd;
       });
     });
@@ -723,7 +728,8 @@ function ChatPageInner() {
       var upd = exists
         ? prev.map(function(c) { return c.id === targetId ? Object.assign({}, c, { lastMessage: text, lastTime: now }) : c; })
         : [{ id: targetId, lastMessage: text, lastTime: now }].concat(prev.slice(0, 49));
-      localStorage.setItem('xtox_conversations', JSON.stringify(upd));
+      // Only persist if we have enriched conversations (not just bare skeletons)
+      if (upd.some(function(c) { return c.name || c.adTitle || c.xtoxId; })) localStorage.setItem('xtox_conversations', JSON.stringify(upd));
       return upd;
     });
     var currentChatId = chatIdRef.current;
