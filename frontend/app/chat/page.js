@@ -56,6 +56,11 @@ function mapAdStatus(chatAdStatus, adAdStatus) {
   return 'available';
 }
 
+// ── Safe JSON.parse — never crashes on malformed localStorage values (BUG 11) ──
+function safeParse(str, fallback) {
+  try { var v = JSON.parse(str); return (v !== null && v !== undefined) ? v : fallback; } catch { return fallback; }
+}
+
 // Typing indicator dots
 function TypingDots() {
   return (
@@ -111,69 +116,6 @@ function MessageTick({ status, readBy }) {
   );
 }
 
-// Incoming call modal
-function IncomingCallModal({ from, onAccept, onReject }) {
-  return (
-    <div role="dialog" aria-modal="true" aria-label="مكالمة واردة"
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div dir="rtl" style={{ background: 'white', borderRadius: 24, padding: '36px 28px', textAlign: 'center', minWidth: 280, maxWidth: 340, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.35)', animation: 'xtox-pop 0.2s ease-out' }}>
-        <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12 }}>
-          <div style={{ position: 'absolute', inset: -10, borderRadius: '50%', border: '3px solid #22c55e', animation: 'xtox-ring 1.5s ease-out infinite', opacity: 0 }} />
-          <div style={{ fontSize: 52 }}>&#128222;</div>
-        </div>
-        <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 'bold', color: '#111' }}>مكالمة واردة</h2>
-        <p style={{ margin: '0 0 28px', color: '#6b7280', fontSize: 14 }}>من {from}</p>
-        <div style={{ display: 'flex', gap: 24, justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ textAlign: 'center' }}>
-            <button onClick={onReject} aria-label="رفض المكالمة"
-              style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: 64, height: 64, fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(239,68,68,0.4)' }}>
-              &#x2715;
-            </button>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#ef4444', fontWeight: 600 }}>رفض</span>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <button onClick={onAccept} aria-label="قبول المكالمة"
-              style={{ background: '#22c55e', color: 'white', border: 'none', borderRadius: '50%', width: 64, height: 64, fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(34,197,94,0.4)' }}>
-              &#128222;
-            </button>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#22c55e', fontWeight: 600 }}>قبول</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Active call overlay
-function ActiveCallOverlay({ callDuration, isMuted, onToggleMute, onEndCall, otherId }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 900, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div dir="rtl" style={{ background: '#1e293b', borderRadius: 24, padding: '40px 28px', textAlign: 'center', minWidth: 280, maxWidth: 340, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-        <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, margin: '0 auto 16px' }}>&#128222;</div>
-        <p style={{ margin: '0 0 4px', color: '#94a3b8', fontSize: 13 }}>متصل مع | Connected with</p>
-        <h2 style={{ margin: '0 0 8px', color: 'white', fontSize: 20, fontWeight: 'bold' }}>{otherId}</h2>
-        <p style={{ margin: '0 0 32px', color: '#22c55e', fontSize: 24, fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' }}>{formatDuration(callDuration)}</p>
-        <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center' }}>
-            <button onClick={onToggleMute} aria-label={isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت'}
-              style={{ background: isMuted ? '#374151' : '#1d4ed8', color: 'white', border: 'none', borderRadius: '50%', width: 60, height: 60, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isMuted ? '🔇' : '🎤'}
-            </button>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#94a3b8' }}>{isMuted ? 'مكتوم' : 'مفتوح'}</span>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <button onClick={onEndCall} aria-label="إنهاء المكالمة"
-              style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: 60, height: 60, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(239,68,68,0.5)' }}>
-              &#9743;
-            </button>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#ef4444' }}>إنهاء</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Location message card
 function LocationCard({ msg }) {
   return (
@@ -208,10 +150,7 @@ function ChatPageInner() {
   var [joined, setJoined]               = useState(false);
   var [messages, setMessages]           = useState([]);
   var [msg, setMsg]                     = useState('');
-  var [callState, setCallState]         = useState('idle');
-  var [incomingCall, setIncomingCall]   = useState(null);
-  var [isMuted, setIsMuted]             = useState(false);
-  var [callDuration, setCallDuration]   = useState(0);
+  // BUG8: callState/incomingCall/isMuted/callDuration removed — CallManager handles all call UI
   var [isTyping, setIsTyping]           = useState(false);
   var [conversations, setConversations] = useState([]);
   var [unreadCounts, setUnreadCounts]   = useState({});
@@ -231,15 +170,13 @@ function ChatPageInner() {
   var [chatClosed, setChatClosed]       = useState(false);    // true when backend emits chat:closed in real-time
   var [chatClosedStatus, setChatClosedStatus] = useState('sold'); // 'sold' | 'deleted'
 
-  var pcRef          = useRef(null);
-  var remoteAudioRef = useRef(null);
-  var localStreamRef = useRef(null);
-  var messagesEndRef = useRef(null);
-  var typingTimerRef = useRef(null);
-  var socketRef      = useRef(null);
-  var chatIdRef      = useRef('');
-  var callTimerRef   = useRef(null);
-  var callManagerRef = useRef(null);
+  var remoteAudioRef  = useRef(null);
+  var messagesEndRef  = useRef(null);
+  var typingTimerRef  = useRef(null);
+  var socketRef       = useRef(null);
+  var chatIdRef       = useRef('');
+  var callManagerRef  = useRef(null);
+  var pendingRejectRef = useRef(''); // BUG7: stores reject_call roomId until socket connects
 
   // Detect mobile
   useEffect(function() {
@@ -259,16 +196,15 @@ function ChatPageInner() {
   // NOTE: deps include searchParams so this re-runs on client-side navigation
   useEffect(function() {
     if (typeof window !== 'undefined') {
-      var user   = JSON.parse(localStorage.getItem('user') || '{}');
+      var user   = safeParse(localStorage.getItem('user'), {});
       var uid    = user.id || user._id || '';
       var cid    = searchParams.get('chatId') || new URLSearchParams(window.location.search).get('chatId') || '';
       var tid    = searchParams.get('target') || new URLSearchParams(window.location.search).get('target') || '';
       var sname  = searchParams.get('sellerName') || new URLSearchParams(window.location.search).get('sellerName') || '';
       // Handle push notification reject: /chat?reject_call=<roomId>
       var rejectRoomId = searchParams.get('reject_call') || new URLSearchParams(window.location.search).get('reject_call') || '';
-      if (rejectRoomId && socketRef.current) {
-        socketRef.current.emit('call:reject_from_push', { roomId: rejectRoomId });
-      }
+      // BUG7 FIX: socket may not be ready yet — store in ref and emit inside connect handler
+      if (rejectRoomId) pendingRejectRef.current = rejectRoomId;
       setCurrentUser(user);
       setTargetId(tid);
       if (sname) setSellerName(sname);
@@ -292,34 +228,12 @@ function ChatPageInner() {
     }
   }, [messages]);
 
-  // Call duration timer
-  useEffect(function() {
-    if (callState === 'active') {
-      setCallDuration(0);
-      callTimerRef.current = setInterval(function() {
-        setCallDuration(function(prev) { return prev + 1; });
-      }, 1000);
-    } else {
-      if (callTimerRef.current) {
-        clearInterval(callTimerRef.current);
-        callTimerRef.current = null;
-      }
-      setCallDuration(0);
-    }
-    return function() {
-      if (callTimerRef.current) {
-        clearInterval(callTimerRef.current);
-        callTimerRef.current = null;
-      }
-    };
-  }, [callState]);
-
   // Load conversations from localStorage
   useEffect(function() {
     if (typeof window === 'undefined') return;
-    var stored = JSON.parse(localStorage.getItem('xtox_conversations') || '[]');
+    var stored = safeParse(localStorage.getItem('xtox_conversations'), []);
     setConversations(stored);
-    var storedUnread = JSON.parse(localStorage.getItem('xtox_unread_counts') || '{}');
+    var storedUnread = safeParse(localStorage.getItem('xtox_unread_counts'), {});
     if (targetId && storedUnread[targetId]) {
       var upd = Object.assign({}, storedUnread);
       delete upd[targetId];
@@ -415,6 +329,7 @@ function ChatPageInner() {
       socket.off('user_online', onOnline);
       socket.off('user_offline', onOffline);
       socket.off('user:status', onUserStatus);
+      socket.off('connect', doCheckPartnerOnline); // BUG6 FIX: prevent stale once-listener
     };
   }, [socketInstance, targetId]);
 
@@ -425,7 +340,7 @@ function ChatPageInner() {
     var token = null;
     try {
       var stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-      var userObj = stored ? JSON.parse(stored) : null;
+      var userObj = stored ? safeParse(stored, null) : null;
       token = (userObj && userObj.token) || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
     } catch(e) {}
     if (!token) return;
@@ -474,6 +389,8 @@ function ChatPageInner() {
         typingTimerRef.current = null;
       }
       if (socketRef.current) {
+        // BUG22 FIX: clean up the io-manager reconnect listener
+        try { socketRef.current.io.off('reconnect'); } catch {}
         socketRef.current.disconnect();
         socketRef.current = null;
       }
@@ -486,7 +403,7 @@ function ChatPageInner() {
     var token = null;
     try {
       var stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-      var userObj = stored ? JSON.parse(stored) : null;
+      var userObj = stored ? safeParse(stored, null) : null;
       token = (userObj && userObj.token) || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
     } catch(e) {}
     if (!token) {
@@ -527,7 +444,7 @@ function ChatPageInner() {
             : (c.lastMessage && c.lastMessage.text && c.lastMessage.type !== 'system')
             ? c.lastMessage.text.slice(0, 40)
             : '';
-          return { id: otherId, name: otherName, xtoxId: otherXtoxId, avatar: otherAvatar, adTitle: adTitle, adStatus: mapAdStatus(c.adStatus, c.ad && c.ad.status), chatId: c._id, lastMessage: lastMsg ? (lastMsg.text || '') : '', lastTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
+          return { id: otherId, name: otherName, xtoxId: otherXtoxId, avatar: otherAvatar, adTitle: adTitle, adStatus: mapAdStatus(c.adStatus, c.ad && c.ad.status), chatId: c._id, lastMessage: lastMsg ? (lastMsg.text || '') : '', lastTime: (lastMsg && lastMsg.createdAt) ? new Date(lastMsg.createdAt).getTime() : 0 };
         }).filter(function(c) { return c.id; });
         setConversations(function(prev) {
           var merged = apiConvs.slice();
@@ -572,7 +489,7 @@ function ChatPageInner() {
             // If chat is linked to an ad, fetch the ad status to show sold banner
             if (chat.ad) {
               try {
-                var adRes = await fetch(API_URL + '/api/ads/' + chat.ad);
+                var adRes = await fetch(API_URL + '/api/ads/' + (chat.ad?._id || chat.ad));
                 if (adRes.ok) {
                   var adData = await adRes.json();
                   var fetchedAd = adData.ad || adData;
@@ -601,6 +518,11 @@ function ChatPageInner() {
     // before any user:status listeners have a chance to check the value)
     s.on('connect', function() {
       s.emit('join', myId);
+      // BUG7 FIX: emit pending push-notification reject now that socket is ready
+      if (pendingRejectRef.current) {
+        s.emit('call:reject_from_push', { roomId: pendingRejectRef.current });
+        pendingRejectRef.current = '';
+      }
       setJoined(true);
     });
     // Handle already-connected case (reconnection)
@@ -608,7 +530,8 @@ function ChatPageInner() {
       s.emit('join', myId);
       setJoined(true);
     }
-    s.on('reconnect', function() {
+    // BUG22 FIX: Socket.IO v4 removed 'reconnect' from socket instance — use socket.io manager
+    s.io.on('reconnect', function() {
       s.emit('join', myId);
       setJoined(true);
     });
@@ -686,10 +609,12 @@ function ChatPageInner() {
 
     // Recipient gets told their unread count for this chat was cleared
     s.on('unread_cleared', function(data) {
-      if (!data || !data.chatId) return;
+      if (!data || (!data.chatId && !data.senderId)) return;
       setUnreadCounts(function(prev) {
         var upd = Object.assign({}, prev);
-        upd[data.chatId] = 0;
+        // BUG2 FIX: unreadCounts is keyed by senderId (userId), not chatId
+        if (data.senderId) delete upd[data.senderId];
+        if (data.chatId) delete upd[data.chatId];  // legacy cleanup
         localStorage.setItem('xtox_unread_counts', JSON.stringify(upd));
         return upd;
       });
@@ -768,90 +693,9 @@ function ChatPageInner() {
     // Old call_offer/incoming_call listeners removed to avoid conflict with CallManager
   }
 
-  // Create RTCPeerConnection
-  function createPeerConnection(s, remoteId) {
-    var pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] });
-    pc.ontrack = function(e) { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = e.streams[0]; };
-    pc.onicecandidate = function(e) { if (e.candidate) s.emit('ice_candidate', { to: remoteId, candidate: e.candidate }); };
-    pcRef.current = pc;
-    return pc;
-  }
 
-  // Start outgoing call
-  async function startCall() {
-    if (!targetId || !socketRef.current) return;
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('المتصفح لا يدعم المكالمات الصوتية | Browser does not support voice calls');
-      return;
-    }
-    setCallState('calling');
-    try {
-      var stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      localStreamRef.current = stream;
-      var pc = createPeerConnection(socketRef.current, targetId);
-      stream.getTracks().forEach(function(t) { pc.addTrack(t, stream); });
-      var offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socketRef.current.emit('call_offer', { to: targetId, from: myId, offer: pc.localDescription });
-    } catch(e) {
-      setCallState('idle');
-    }
-  }
-
-  // Accept incoming call
-  async function acceptCall() {
-    if (!incomingCall || !socketRef.current) return;
-    var from  = incomingCall.from;
-    var offer = incomingCall.offer;
-    setIncomingCall(null);
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('المتصفح لا يدعم المكالمات الصوتية | Browser does not support voice calls');
-      return;
-    }
-    try {
-      var stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      localStreamRef.current = stream;
-      var pc = createPeerConnection(socketRef.current, from);
-      stream.getTracks().forEach(function(t) { pc.addTrack(t, stream); });
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      var answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socketRef.current.emit('call_answer', { to: from, answer: pc.localDescription });
-      setCallState('active');
-    } catch(e) {
-      setCallState('idle');
-    }
-  }
-
-  // End call
-  function endCall() {
-    var tid = targetId || (incomingCall ? incomingCall.from : null);
-    if (socketRef.current && tid) socketRef.current.emit('call_end', { to: tid });
-    if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(function(t) { t.stop(); });
-      localStreamRef.current = null;
-    }
-    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
-    setIsMuted(false);
-    setCallState('idle');
-  }
-
-  // Toggle mute
-  function toggleMute() {
-    if (!localStreamRef.current) return;
-    var newMuted = !isMuted;
-    localStreamRef.current.getAudioTracks().forEach(function(t) { t.enabled = !newMuted; });
-    setIsMuted(newMuted);
-  }
-
-  // Reject incoming call
-  function rejectIncomingCall() {
-    if (!incomingCall || !socketRef.current) return;
-    socketRef.current.emit('call_end', { to: incomingCall.from });
-    setIncomingCall(null);
-    setCallState('idle');
-  }
+  // BUG8: startCall/acceptCall/endCall/toggleMute/rejectIncomingCall/createPeerConnection removed
+  // All call signaling is handled by <CallManager> component
 
   // Send text message
   function sendMessage() {
@@ -905,16 +749,6 @@ function ChatPageInner() {
   var isCurrentChatClosed = chatClosed || chatStatus === 'closed' || (_selectedConv && _selectedConv.isClosed);
   var _closedAdStatus = chatClosedStatus || (_selectedConv && _selectedConv.adStatus) || adStatus || 'sold';
   var _closedAt = (_selectedConv && _selectedConv.closedAt) || closeAt;
-
-  // Call button config
-  var callConfig = {
-    idle:    { label: 'مكالمة',           bg: '#16a34a', action: startCall, disabled: false },
-    calling: { label: 'جار الاتصال...',  bg: '#f97316', action: null,      disabled: true  },
-    ringing: { label: 'واردة...',          bg: '#22c55e', action: null,      disabled: true  },
-    active:  { label: 'إنهاء المكالمة',   bg: '#ef4444', action: endCall,   disabled: false },
-    ended:   { label: 'انتهت',             bg: '#9ca3af', action: null,      disabled: true  },
-  };
-  var cc = callConfig[callState] || callConfig.idle;
 
   var totalUnread = Object.values(unreadCounts).reduce(function(s, n) { return s + n; }, 0);
 
@@ -1086,7 +920,7 @@ function ChatPageInner() {
                         });
                         // Fix D: also clear from legacy xtox_unread key
                         try {
-                          var storedUnread = JSON.parse(localStorage.getItem('xtox_unread') || '{}');
+                          var storedUnread = safeParse(localStorage.getItem('xtox_unread'), {});
                           delete storedUnread[conv.id];
                           delete storedUnread[conv.chatId];
                           localStorage.setItem('xtox_unread', JSON.stringify(storedUnread));

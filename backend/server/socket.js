@@ -203,7 +203,6 @@ export function initSocket(io) {
                 }
               }
             ],
-            { updatePipeline: true }
           ).catch(async () => {
             // Fallback: simpler update if aggregation pipeline fails
             await Chat.updateOne(
@@ -243,7 +242,7 @@ export function initSocket(io) {
         }
 
         // Confirm to reader that unread count is cleared
-        socket.emit('unread_cleared', { chatId });
+        socket.emit('unread_cleared', { chatId, senderId: otherId });
       } catch (e) {
         console.error('[Socket] mark_read error:', e.message);
       }
@@ -265,41 +264,6 @@ export function initSocket(io) {
         from: data.from || socket.data.userId,
       });
     });
-
-    // ── Voice Call (WebRTC Signaling) ────────────────────────────
-
-    // Caller sends offer to receiver
-    socket.on('call_offer', (data) => {
-      if (!data || !data.to) return;
-      io.to('user_' + data.to).emit('incoming_call', {
-        from: data.from || socket.data.userId,
-        offer: data.offer,
-      });
-    });
-
-    // Receiver answers call
-    socket.on('call_answer', (data) => {
-      if (!data || !data.to) return;
-      io.to('user_' + data.to).emit('call_answered', {
-        answer: data.answer,
-        from: socket.data.userId,
-      });
-    });
-
-    // ICE candidates exchange
-    socket.on('ice_candidate', (data) => {
-      if (!data || !data.to) return;
-      io.to('user_' + data.to).emit('ice_candidate', data.candidate);
-    });
-
-    // End call
-    socket.on('call_end', (data) => {
-      if (!data || !data.to) return;
-      io.to('user_' + data.to).emit('call_ended', {
-        from: socket.data.userId,
-      });
-    });
-
 
     // ── WebRTC Call Signaling (Room-per-Socket pattern) ─────────────
     // Personal room for direct calls
@@ -561,6 +525,7 @@ export function initSocket(io) {
     // End call
     socket.on('call:end', ({ targetSocketId, otherSocketId }) => {
       const dest = targetSocketId || otherSocketId;
+      if (!dest) return;
       io.to(dest).emit('call:ended');
       // Clean up any pending call for this user (caller or callee)
       const userId = socket.data.userId;

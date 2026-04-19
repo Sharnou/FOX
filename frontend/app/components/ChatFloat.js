@@ -50,7 +50,7 @@ export default function ChatFloat() {
       // Skip if offline — avoid failed request spam
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       fetch(`${API}/api/chat/unread-count`, { headers: { Authorization: `Bearer ${userToken}` } })
-        .then(r => r.json())
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(d => setUnreadTotal(d.count || d.unreadCount || 0))
         .catch(() => {});
     };
@@ -64,7 +64,7 @@ export default function ChatFloat() {
     if (!user?.token) return;
     setLoading(true);
     fetch(`${API}/api/chat`, { headers: { Authorization: `Bearer ${user.token}` } })
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(data => {
         const list = Array.isArray(data) ? data : (data.chats || []);
         setConversations(list);
@@ -81,10 +81,18 @@ export default function ChatFloat() {
   // Socket connection for active mini-chat
   useEffect(() => {
     if (!activeChat || !user?.token) return;
+    let cancelled = false; // BUG5 FIX: prevent socket leak if cleanup runs before import resolves
     import('socket.io-client').then(({ io }) => {
+      if (cancelled) return; // BUG5 FIX: don't create socket after cleanup
       const socket = io(SOCKET_URL, { auth: { token: user.token }, transports: ['websocket', 'polling'] });
       socketRef.current = socket;
-      socket.emit('join', user.id || user._id);
+      // BUG14 FIX: emit join after socket connects, not synchronously (prevents undefined userId emit)
+      const uid = user.id || user._id;
+      if (socket.connected && uid) {
+        socket.emit('join', uid);
+      } else if (uid) {
+        socket.on('connect', () => socket.emit('join', uid));
+      }
       socket.on('receive_message', (data) => {
         // F2: Sound on receive (check mute flag)
         const soundMuted = localStorage.getItem('xtox_mute_sounds') === 'true';
@@ -99,12 +107,20 @@ export default function ChatFloat() {
             setTimeout(() => ctx.close(), 500);
           } catch {}
         }
-        setMessages(prev => [...prev, data]);
+        // BUG17 FIX: normalize incoming socket message to consistent shape
+        setMessages(prev => [...prev, {
+          _id: data._id || String(Date.now()),
+          from: data.from || data.sender,
+          sender: data.from || data.sender,
+          text: data.text || '',
+          type: data.type || 'text',
+          createdAt: data.timestamp || data.createdAt || new Date().toISOString(),
+        }]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       });
     }).catch(() => {});
-    // Use ref for cleanup to handle async import race condition
     return () => {
+      cancelled = true; // BUG5 FIX: signal async import to abort
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -118,7 +134,7 @@ export default function ChatFloat() {
     fetch(`${API}/api/chat/${activeChat.chatId}/messages?limit=30`, {
       headers: { Authorization: `Bearer ${userToken}` }
     })
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(data => {
         const msgs = Array.isArray(data) ? data : (data.messages || []);
         setMessages([...msgs].reverse());
@@ -148,7 +164,7 @@ export default function ChatFloat() {
   async function sendMsg() {
     if (!msg.trim() || !activeChat) return;
     const myId = (user?.id || user?._id || '').toString();
-    const newMsg = { from: myId, to: activeChat.targetId, text: msg.trim(), time: new Date().toISOString(), _id: Date.now() };
+    const newMsg = { from: myId, to: activeChat.targetId, chatId: activeChat.chatId || activeChat._id, text: msg.trim(), time: new Date().toISOString(), _id: Date.now() };
     setMessages(prev => [...prev, newMsg]);
     setMsg('');
     socketRef.current?.emit('send_message', newMsg);

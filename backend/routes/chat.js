@@ -46,9 +46,9 @@ async function sendSystemMsg(chatId, text, io) {
     if (!chat) return;
     const msg = chat.messages[chat.messages.length - 1];
     if (io) {
-      const payload = { chatId: chat._id, message: { ...msg, from: 'system' } };
-      io.to('user_' + chat.buyer?.toString()).emit('receive_message', payload);
-      io.to('user_' + chat.seller?.toString()).emit('receive_message', payload);
+      // BUG1 FIX: emit system_message with flat payload (receive_message read data.text not data.message.text)
+      io.to('user_' + chat.buyer?.toString()).emit('system_message', { chatId: chat._id, text });
+      io.to('user_' + chat.seller?.toString()).emit('system_message', { chatId: chat._id, text });
     }
   } catch (e) {
     console.warn('[CHAT] sendSystemMsg error:', e.message);
@@ -68,6 +68,10 @@ router.get('/', auth, async (req, res) => {
       deletedBy: { $ne: req.user.id }
     })
       .sort({ updatedAt: -1 })
+      // BUG18 FIX: project only last message — avoid loading full messages[] for all chats
+      .select({ buyer: 1, seller: 1, ad: 1, adTitle: 1, adStatus: 1, closedAt: 1, status: 1,
+                messageCount: 1, unreadBuyer: 1, unreadSeller: 1, updatedAt: 1, createdAt: 1,
+                mutedBy: 1, ignoredBy: 1, deletedBy: 1, reportedBy: 1, messages: { $slice: -1 } })
       .populate('buyer',  'name username xtoxId avatar emailVerified whatsappVerified')
       .populate('seller', 'name username xtoxId avatar emailVerified whatsappVerified')
       .populate('ad', 'title images status price')
@@ -240,23 +244,16 @@ router.post('/start', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.get('/unread-count', auth, async (req, res) => {
   try {
-    // FIX: use buyer/seller query instead of users[]
-    const chats = await getChat().find(userInChatQuery(req.user.id)).lean();
-    let total = 0;
-    for (const chat of chats) {
-      if (Array.isArray(chat.messages)) {
-        total += chat.messages.filter(
-          (m) =>
-            m.sender?.toString() !== req.user.id.toString() &&
-            !m.readBy?.map((id) => id.toString()).includes(req.user.id.toString())
-        ).length;
-      }
-    }
-    res.json({
-      unreadCount: total,
-      count: total,
-      // مجموع الرسائل غير المقروءة
-    });
+    // BUG19 FIX: Use pre-computed unreadBuyer/unreadSeller fields instead of scanning all messages
+    const chats = await getChat()
+      .find(userInChatQuery(req.user.id))
+      .select('buyer unreadBuyer unreadSeller')
+      .lean();
+    const total = chats.reduce((sum, c) => {
+      const isBuyer = String(c.buyer) === String(req.user.id);
+      return sum + (isBuyer ? (c.unreadBuyer || 0) : (c.unreadSeller || 0));
+    }, 0);
+    res.json({ unreadCount: total, count: total });
   } catch (e) {
     res.status(500).json({
       error: e.message,
@@ -668,13 +665,16 @@ router.post('/:chatId/messages', auth, async (req, res) => {
       read: false,
       createdAt: new Date(),
     };
+    // BUG3 FIX: Determine recipient's unread counter key
+    const isBuyer = String(chat.buyer) === String(req.user.id) || String(chat.buyer?._id) === String(req.user.id);
+    const unreadKey = isBuyer ? 'unreadSeller' : 'unreadBuyer';
     // Atomic update: $push + $slice prevents the 16MB document limit
     const updateResult = await getChat().findOneAndUpdate(
       { _id: chat._id },
       {
         $push: { messages: { $each: [message], $slice: -500 } },
         $set:  { updatedAt: new Date() },
-        $inc:  { messageCount: 1 },
+        $inc:  { messageCount: 1, [unreadKey]: 1 },
       },
       { returnDocument: 'after', select: { messages: { $slice: -1 } } }
     );
