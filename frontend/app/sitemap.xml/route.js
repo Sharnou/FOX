@@ -39,6 +39,47 @@ function entry({ path, freq, pri, withHreflang = false, image = null, lastmod = 
   ].filter(Boolean).join('\n');
 }
 
+// Country → language map for geo-targeted hreflang
+const COUNTRY_LANG_MAP = {
+  'EG': 'ar', 'SA': 'ar', 'AE': 'ar', 'JO': 'ar', 'LB': 'ar', 'KW': 'ar',
+  'QA': 'ar', 'BH': 'ar', 'OM': 'ar', 'MA': 'ar', 'DZ': 'ar', 'TN': 'ar',
+  'IQ': 'ar', 'LY': 'ar', 'SY': 'ar', 'YE': 'ar', 'SD': 'ar', 'PS': 'ar',
+  'FR': 'fr', 'DE': 'de', 'TR': 'tr', 'RU': 'ru', 'CN': 'zh', 'ES': 'es',
+  'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en',
+};
+
+// Build hreflang links for an ad based on its country
+function adHreflang(path, countryCode) {
+  const lang = COUNTRY_LANG_MAP[countryCode] || 'ar';
+  const loc = `${BASE}${path}`;
+  return [
+    `    <xhtml:link rel="alternate" hreflang="${lang}-${countryCode}" href="${esc(loc)}"/>`,
+    `    <xhtml:link rel="alternate" hreflang="${lang}" href="${esc(loc)}"/>`,
+    `    <xhtml:link rel="alternate" hreflang="x-default" href="${esc(loc)}"/>`,
+  ].join('\n');
+}
+
+// entry variant that adds geo hreflang based on ad country
+function entryWithGeoHreflang({ path, freq, pri, lastmod = null, image = null, countryCode = 'EG' }) {
+  const loc = esc(`${BASE}${path}`);
+  const date = lastmod || new Date().toISOString().slice(0, 10);
+  const imgBlock = image
+    ? `\n    <image:image>\n      <image:loc>${esc(image.url)}</image:loc>\n      <image:title>${esc(image.title)}</image:title>\n    </image:image>`
+    : '';
+  const altBlock = '\n' + adHreflang(path, countryCode);
+  return [
+    '  <url>',
+    `    <loc>${loc}</loc>`,
+    `    <lastmod>${date}</lastmod>`,
+    `    <changefreq>${freq}</changefreq>`,
+    `    <priority>${pri}</priority>`,
+    imgBlock,
+    altBlock,
+    '  </url>',
+  ].filter(Boolean).join('\n');
+}
+
+
 export async function GET() {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -69,12 +110,13 @@ export async function GET() {
         .map(a => {
           const imgUrl = Array.isArray(a.images) && typeof a.images[0] === 'string' && a.images[0].startsWith('http')
             ? a.images[0] : null;
-          return entry({
+          return entryWithGeoHreflang({
             path: `/ads/${a._id}`,
             freq: 'weekly',
             pri: '0.8',
             lastmod: a.updatedAt ? new Date(a.updatedAt).toISOString().slice(0, 10) : today,
             image: imgUrl ? { url: imgUrl, title: a.title || '' } : null,
+            countryCode: a.country || 'EG',
           });
         });
     }
