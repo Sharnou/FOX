@@ -28,32 +28,37 @@ export default function PushSubscriber() {
         const reg = await navigator.serviceWorker.ready;
         if (cancelled) return;
 
-        // Check if already subscribed — avoid re-subscribing on every mount
-        let sub = await reg.pushManager.getSubscription();
+        // Request notification permission first
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted' || cancelled) return;
 
-        if (!sub) {
-          // Request notification permission first
-          const perm = await Notification.requestPermission();
-          if (perm !== 'granted' || cancelled) return;
+        // Get VAPID public key from backend (with fallback to hardcoded key)
+        let vapidKey = VAPID_DEFAULT;
+        try {
+          const res = await fetch(`${BACKEND}/api/push/vapid-public-key`, { signal: AbortSignal.timeout(5000) });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.key) vapidKey = json.key;
+          }
+        } catch { /* use hardcoded default */ }
 
-          // Get VAPID public key from backend (with fallback to hardcoded key)
-          let vapidKey = VAPID_DEFAULT;
-          try {
-            const res = await fetch(`${BACKEND}/api/push/vapid-public-key`, { signal: AbortSignal.timeout(5000) });
-            if (res.ok) {
-              const json = await res.json();
-              if (json.key) vapidKey = json.key;
-            }
-          } catch { /* use hardcoded default */ }
+        if (cancelled) return;
 
-          if (cancelled) return;
-
-          // Subscribe to push notifications
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidKey),
-          });
+        // Fix Bug 2: Unsubscribe any existing subscription before subscribing fresh.
+        // This prevents the "A subscription with a different applicationServerKey already exists"
+        // error that occurs when the VAPID key changes between deployments.
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) {
+          try { await existing.unsubscribe(); } catch (_unsubErr) { /* non-fatal */ }
         }
+
+        if (cancelled) return;
+
+        // Subscribe fresh with current VAPID key
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
 
         if (!sub || cancelled) return;
 

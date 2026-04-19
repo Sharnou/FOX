@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v44';
+const _XTOX_CACHE = 'xtox-v46';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -112,9 +112,9 @@ self.addEventListener('periodicsync', function(event) {
               'Content-Type': 'application/json',
             },
           });
-          console.log('[SW v44] Presence ping sent ✓');
+          console.log('[SW v46] Presence ping sent ✓');
         } catch (e) {
-          console.log('[SW v44] Presence ping failed:', e.message);
+          console.log('[SW v46] Presence ping failed:', e.message);
         }
       })()
     );
@@ -159,7 +159,7 @@ function logCallEventSW(type, data) {
 
 // ─── XTOX Service Worker v43 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v45';
+const CACHE_VERSION = 'v46';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -405,12 +405,20 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  // Regular notification click — open or focus URL
+  // Regular notification click — open or focus URL (navigate to chat if needed)
   const url = notifData.url || '/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
+          // Navigate existing window to the target URL (e.g. chat page) then focus
+          if (url && url !== '/' && typeof client.navigate === 'function') {
+            return client.navigate(url).then(function(c) {
+              if (c && 'focus' in c) c.focus();
+            }).catch(function() {
+              client.focus();
+            });
+          }
           client.focus();
           return;
         }

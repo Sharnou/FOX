@@ -41,7 +41,13 @@ function playCallingTone() {
 function stopCallingTone() {
   _callingActive = false;
   clearTimeout(_callingTimer); _callingTimer = null;
-  if (_callingCtx) { try { _callingCtx.close(); } catch {} _callingCtx = null; }
+  // Bug 3 fix: check state !== 'closed' before closing to avoid InvalidStateError
+  if (_callingCtx) {
+    if (_callingCtx.state !== 'closed') {
+      try { _callingCtx.close(); } catch(e) {}
+    }
+    _callingCtx = null;
+  }
 }
 
 // ─── IndexedDB call event logger ─────────────────────────────────────────────
@@ -661,7 +667,45 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       return;
     }
 
-    const pc = createPC(null); // socketId unknown until call:accepted_ok
+    // Bug 4 fix: buffer ICE candidates locally until callerSocketId is known from call:accepted_ok
+    const localICEBuffer = [];
+
+    // Create PC manually (not via createPC) so we can buffer ICE
+    if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
+    const pc = new RTCPeerConnection(iceConfigRef.current);
+    pcRef.current = pc;
+
+    pc.ontrack = e => {
+      console.log('[CALL] acceptPushCall ontrack:', e.track.kind);
+      if (remoteAudio.current && e.streams[0]) {
+        remoteAudio.current.srcObject = e.streams[0];
+        remoteAudio.current.play().catch(err => {
+          const resume = () => {
+            remoteAudio.current?.play().catch(() => {});
+            document.removeEventListener('click', resume);
+            document.removeEventListener('touchend', resume);
+          };
+          document.addEventListener('click', resume, { once: true });
+          document.addEventListener('touchend', resume, { once: true });
+        });
+      }
+    };
+
+    // Buffer all ICE candidates until callerSocketId arrives in call:accepted_ok
+    pc.onicecandidate = e => {
+      if (!e.candidate) return;
+      localICEBuffer.push(e.candidate);
+      console.log('[CALL] acceptPushCall: ICE buffered, total:', localICEBuffer.length);
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('[CALL] acceptPushCall ICE state:', pc.iceConnectionState);
+      if (['failed', 'closed'].includes(pc.iceConnectionState)) cleanup();
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log('[CALL] acceptPushCall conn state:', pc.connectionState);
+    };
 
     if (!offer || !offer.type || !offer.sdp) {
       console.error('[CALL] acceptPushCall: invalid offer:', offer);
@@ -688,14 +732,21 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
     socket.once('call:accepted_ok', ({ callerSocketId }) => {
       console.log('[CALL] acceptPushCall call:accepted_ok — callerSocketId:', callerSocketId);
-      // Update onicecandidate now that we know callerSocketId
+      // Now callerSocketId is known — update onicecandidate to send future candidates
       if (pcRef.current) {
         pcRef.current.onicecandidate = e => {
           if (e.candidate && socket) {
+            console.log('[CALL] acceptPushCall: ICE sent to callerSocketId:', callerSocketId);
             socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: e.candidate });
           }
         };
       }
+      // Flush all ICE candidates that were buffered before callerSocketId was known
+      console.log('[CALL] acceptPushCall: flushing', localICEBuffer.length, 'buffered ICE to callerSocketId:', callerSocketId);
+      for (const c of localICEBuffer) {
+        socket.emit('call:ice', { targetSocketId: callerSocketId, candidate: c });
+      }
+      localICEBuffer.length = 0;
       setActive({ peerName: callerName || 'مستخدم', remoteSocketId: callerSocketId, startTime: Date.now() });
     });
   }

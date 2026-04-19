@@ -1572,6 +1572,10 @@ router.patch('/:id/sold', auth, async (req, res) => {
 // Also deletes all linked chat conversations and their Cloudinary media.
 router.delete('/:id', auth, async (req, res) => {
   try {
+    // Validate ObjectId before querying to avoid CastError → 500
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
     const isAdmin = req.user.role === 'admin' || req.user.role === 'sub_admin' || req.user.role === 'superadmin';
     const query = isAdmin ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
     const ad = await getAdModel().findOne(query);
@@ -1580,6 +1584,33 @@ router.delete('/:id', auth, async (req, res) => {
     // WORDPRESS: delete post before soft-deleting ad
     if (ad.wpPostId) {
       setImmediate(() => deleteWPPost(ad.wpPostId));
+    }
+
+    // Delete Cloudinary images if Cloudinary is configured
+    if (CLOUDINARY_ENABLED) {
+      const allMedia = [...(ad.media || []), ...(ad.images || [])];
+      const uniqueMedia = [...new Set(allMedia)];
+      const cloudinaryUrls = uniqueMedia.filter(u => u && String(u).includes('cloudinary.com'));
+      if (cloudinaryUrls.length > 0) {
+        setImmediate(async () => {
+          try {
+            const { default: cloudinaryClient } = await import('../server/cloudinary.js');
+            for (const url of cloudinaryUrls) {
+              try {
+                // Extract public_id from Cloudinary URL: .../<folder>/<public_id>.<ext>
+                const match = String(url).match(/\/upload\/(?:v\d+\/)?(.+?)\.[^/.]+$/);
+                if (match && match[1]) {
+                  await cloudinaryClient.uploader.destroy(match[1]);
+                }
+              } catch (_imgErr) {
+                console.warn('[DELETE] Cloudinary destroy failed for', url, ':', _imgErr.message);
+              }
+            }
+          } catch (_cloudErr) {
+            console.warn('[DELETE] Cloudinary cleanup failed (non-fatal):', _cloudErr.message);
+          }
+        });
+      }
     }
 
     // Soft-delete the ad
@@ -1616,7 +1647,7 @@ router.delete('/:id', auth, async (req, res) => {
       }
     })();
 
-    res.json({ ok: true });
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
