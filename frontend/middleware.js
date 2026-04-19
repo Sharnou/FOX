@@ -59,7 +59,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization)
      * - favicon.ico, manifest, icons
+     * - Google Search Console verification files (google*.html)
+     * - Any file with a static asset extension (svg, png, jpg, etc., html)
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|manifest|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|manifest|icons|google.*\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|html)$).*)',
   ],
 };
