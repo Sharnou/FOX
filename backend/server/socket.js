@@ -422,6 +422,35 @@ export function initSocket(io) {
           return;
         }
       } catch (e) { /* fetchSockets failed — proceed anyway */ }
+      // FIX E: Auto system message on call — notify both parties via chat history
+      try {
+        const _ChatModel = await import('../models/Chat.js').then(m => m.default);
+        const _mongoose  = await import('mongoose');
+        const _User = _mongoose.default.models.User;
+        const _callChat = await _ChatModel.findOne({
+          $or: [
+            { buyer: actualCallerId, seller: targetUserId },
+            { buyer: targetUserId, seller: actualCallerId },
+          ],
+          status: 'active',
+        }).select('_id buyer seller').lean();
+        if (_callChat) {
+          let _callerDisplayName = callerName || 'مستخدم XTOX';
+          if (_User && _callerDisplayName === 'مستخدم XTOX') {
+            const _callerDoc = await _User.findById(actualCallerId).select('name username xtoxId').lean().catch(() => null);
+            if (_callerDoc) _callerDisplayName = _callerDoc.name || _callerDoc.username || _callerDoc.xtoxId || 'مستخدم XTOX';
+          }
+          const _callMsgText = `📞 ${_callerDisplayName} يتصل بك`;
+          await _ChatModel.findByIdAndUpdate(_callChat._id, {
+            $push: { messages: { sender: actualCallerId, text: _callMsgText, type: 'system', status: 'delivered' } }
+          }).catch(() => {});
+          io.to('user_' + _callChat.buyer?.toString()).emit('system_message', { chatId: _callChat._id, text: _callMsgText });
+          io.to('user_' + _callChat.seller?.toString()).emit('system_message', { chatId: _callChat._id, text: _callMsgText });
+        }
+      } catch (_callSmsErr) {
+        console.warn('[Socket] call system message error:', _callSmsErr.message);
+      }
+
       // Emit call:incoming WITH offer so callee can do full WebRTC setup in acceptCall()
       io.to('user_' + targetUserId).emit('call:incoming', {
         callerId: actualCallerId,

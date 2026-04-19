@@ -588,9 +588,23 @@ export default function AdPageClient({ params }) {
       {phone && (<button onClick={copyPhone} dir="rtl" style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: copied ? '2px solid #00aa44' : '2px solid #e0e0e0', background: copied ? '#e8f8e8' : '#f8f8f8', color: copied ? '#00aa44' : '#002f34', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
         {copied ? (<><span style={{ fontSize: 18 }}>✓</span><span>تم النسخ</span></>) : (<><span style={{ fontSize: 16 }}>📋</span><span>نسخ الرقم</span><span style={{ color: '#666', fontWeight: 'normal', fontSize: 13 }}>{phone}</span></>)}
       </button>)}
-      {phone && (<a href={'https://wa.me/' + (phone || '').replace(/\D/g, '').replace(/^0/, '20')} target="_blank" rel="noopener noreferrer" dir="rtl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, background: '#25D366', color: 'white', fontWeight: 'bold', fontSize: 15, textDecoration: 'none', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", boxSizing: 'border-box' }}>
+      {phone && (<button onClick={function() {
+        // Notify seller via system message (non-blocking)
+        var _tok = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        var _adId = ad && ad._id ? String(ad._id) : '';
+        if (_tok && _adId) {
+          fetch(API + '/api/chat/whatsapp-notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + _tok },
+            body: JSON.stringify({ adId: _adId }),
+          }).catch(function() {});
+        }
+        // Open WhatsApp
+        var waNum = (phone || '').replace(/\D/g, '').replace(/^0/, '20');
+        window.open('https://wa.me/' + waNum, '_blank', 'noopener,noreferrer');
+      }} dir="rtl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, background: '#25D366', color: 'white', fontWeight: 'bold', fontSize: 15, border: 'none', cursor: 'pointer', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", boxSizing: 'border-box' }}>
         <span style={{ fontSize: 18 }}>💬</span><span>واتساب</span>
-      </a>)}
+      </button>)}
       <button onClick={async () => { if (navigator.share) { try { await navigator.share({ title: (ad && ad.title) || 'إعلان XTOX', text: (ad && ad.description) || '', url: window.location.href }); } catch (e) {} } else { navigator.clipboard.writeText(window.location.href); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); } }} style={{ display: 'block', width: '100%', padding: '12px', marginTop: '8px', background: shareCopied ? '#16a34a' : '#1877F2', color: '#fff', fontWeight: 'bold', fontSize: '16px', borderRadius: '10px', border: 'none', cursor: 'pointer', transition: 'background 0.3s' }}>
         {shareCopied ? '✓ تم نسخ الرابط' : '📤 مشاركة'}
       </button>

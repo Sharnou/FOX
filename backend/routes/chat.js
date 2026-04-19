@@ -23,6 +23,39 @@ const router = express.Router();
 function userInChatQuery(userId) {
   return { $or: [{ buyer: userId }, { seller: userId }] };
 }
+// ── Ad status mapping (5 states: available / inactive / sold / deleted / expired) ──
+function mapAdStatus(chatAdStatus, adAdStatus) {
+  const s = chatAdStatus || adAdStatus || 'available';
+  if (s === 'active')    return 'available';
+  if (s === 'inactive')  return 'inactive';
+  if (s === 'sold')      return 'sold';
+  if (s === 'deleted')   return 'deleted';
+  if (s === 'expired')   return 'expired';
+  if (s === 'available') return 'available';
+  return 'available';
+}
+
+// ── System message helper — pushes a system msg and broadcasts via socket ────
+async function sendSystemMsg(chatId, text, io) {
+  try {
+    const chat = await Chat.findByIdAndUpdate(
+      chatId,
+      { $push: { messages: { sender: null, text, type: 'system', status: 'delivered' } } },
+      { new: true, select: 'buyer seller messages' }
+    ).lean();
+    if (!chat) return;
+    const msg = chat.messages[chat.messages.length - 1];
+    if (io) {
+      const payload = { chatId: chat._id, message: { ...msg, from: 'system' } };
+      io.to('user_' + chat.buyer?.toString()).emit('receive_message', payload);
+      io.to('user_' + chat.seller?.toString()).emit('receive_message', payload);
+    }
+  } catch (e) {
+    console.warn('[CHAT] sendSystemMsg error:', e.message);
+  }
+}
+
+
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/chat  — list all chats for the authenticated user
@@ -35,14 +68,14 @@ router.get('/', auth, async (req, res) => {
       deletedBy: { $ne: req.user.id }
     })
       .sort({ updatedAt: -1 })
-      .populate('buyer',  'name username xtoxId avatar phone whatsappPhone emailVerified whatsappVerified')
-      .populate('seller', 'name username xtoxId avatar phone whatsappPhone emailVerified whatsappVerified')
+      .populate('buyer',  'name username xtoxId avatar emailVerified whatsappVerified')
+      .populate('seller', 'name username xtoxId avatar emailVerified whatsappVerified')
       .populate('ad', 'title images status price')
       .lean();
-    // Attach adStatus + closedAt per chat for frontend badge
+    // Attach adStatus (5 states) + closedAt per chat for frontend badge
     const enriched = chats.map(c => ({
       ...c,
-      adStatus: c.adStatus || c.ad?.status || 'available',
+      adStatus: mapAdStatus(c.adStatus, c.ad?.status),
       closedAt: c.closedAt || null,
     }));
     res.json({ success: true, chats: enriched });
@@ -146,6 +179,19 @@ router.post('/start', auth, async (req, res) => {
       } catch {}
     }
 
+    // C5: For new chats — send system message to seller notifying them
+    try {
+      const isNewChat = !chat.messages || chat.messages.length === 0;
+      if (isNewChat) {
+        const buyerName = req.user?.name || req.user?.username || req.user?.xtoxId || 'مستخدم';
+        const ioApp = req.app.get('io');
+        // Non-blocking — don't await so it doesn't delay response
+        sendSystemMsg(chat._id, `💬 ${buyerName} بدأ محادثة معك`, ioApp).catch(() => {});
+      }
+    } catch (_sysErr) {
+      // Non-fatal
+    }
+
     res.json({ success: true, chatId: chat._id, _id: chat._id, chat });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message || 'Error creating chat' });
@@ -197,43 +243,85 @@ router.patch('/sound-settings', auth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/chat/close-by-ad  — called by ad routes when ad is sold/deleted
-// Closes all active chats for the ad: sets status='closed', closedAt=now, adStatus
+// POST /api/chat/close-by-ad  — called by ad routes when ad status changes
+// sold/deleted → closes chat + sets closedAt (7-day TTL)
+// expired/inactive → updates adStatus only, chat remains open
 // Must be BEFORE /:chatId routes to avoid route conflict
 // ─────────────────────────────────────────────────────────────
 router.post('/close-by-ad', auth, async (req, res) => {
   try {
-    const { adId, adStatus } = req.body; // adStatus: 'sold' | 'deleted'
+    const { adId, adStatus } = req.body;
     if (!adId || !mongoose.Types.ObjectId.isValid(adId)) {
       return res.status(400).json({ error: 'adId required and must be valid' });
     }
-    const now = new Date();
-    const result = await getChat().updateMany(
-      { ad: adId, status: 'active' },
-      { $set: { status: 'closed', closedAt: now, adStatus: adStatus || 'sold', updatedAt: now } }
-    );
-
-    // Emit chat:closed to all participants via Socket.IO
     const io = req.app.get('io');
-    if (io) {
-      const closedChats = await getChat().find({ ad: adId, status: 'closed' })
-        .select('buyer seller adStatus closedAt')
-        .lean();
-      for (const chat of closedChats) {
-        const buyerId  = chat.buyer?.toString() || chat.buyer;
-        const sellerId = chat.seller?.toString() || chat.seller;
-        io.to('user_' + buyerId).emit('chat:closed', {
-          chatId: chat._id, adId, adStatus: chat.adStatus, closedAt: chat.closedAt,
-        });
-        io.to('user_' + sellerId).emit('chat:closed', {
-          chatId: chat._id, adId, adStatus: chat.adStatus, closedAt: chat.closedAt,
-        });
+    const mappedStatus = mapAdStatus(adStatus, adStatus);
+    // sold + deleted → hard-close chats; expired + inactive → soft update only
+    const shouldClose = ['sold', 'deleted'].includes(mappedStatus);
+
+    const chats = await getChat().find({ ad: adId, status: { $ne: 'closed' } })
+      .select('_id buyer seller')
+      .lean();
+
+    if (chats.length > 0) {
+      const updateDoc = shouldClose
+        ? { $set: { adStatus: mappedStatus, status: 'closed', closedAt: new Date(), updatedAt: new Date() } }
+        : { $set: { adStatus: mappedStatus, updatedAt: new Date() } };
+      await getChat().updateMany({ ad: adId, status: { $ne: 'closed' } }, updateDoc);
+
+      if (io) {
+        for (const chat of chats) {
+          const payload = {
+            chatId: chat._id, adId, adStatus: mappedStatus, isClosed: shouldClose,
+            closedAt: shouldClose ? new Date() : null,
+          };
+          io.to('user_' + chat.buyer?.toString()).emit('chat:ad_status', payload);
+          io.to('user_' + chat.seller?.toString()).emit('chat:ad_status', payload);
+          // Also emit legacy chat:closed for backward compat
+          if (shouldClose) {
+            io.to('user_' + chat.buyer?.toString()).emit('chat:closed', payload);
+            io.to('user_' + chat.seller?.toString()).emit('chat:closed', payload);
+          }
+        }
       }
     }
 
-    res.json({ success: true, closed: result.modifiedCount });
+    res.json({ success: true, updated: chats.length, closed: shouldClose ? chats.length : 0 });
   } catch (e) {
     console.error('[CHAT] close-by-ad error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/whatsapp-notify — buyer tapped WhatsApp button, notify seller
+// Must be BEFORE /:chatId routes to avoid conflict
+// ─────────────────────────────────────────────────────────────
+router.post('/whatsapp-notify', auth, async (req, res) => {
+  try {
+    const { chatId, adId } = req.body;
+    const io = req.app.get('io');
+    const buyerName = req.user?.name || req.user?.username || req.user?.xtoxId || 'مستخدم';
+
+    let targetChatId = chatId;
+    // If no chatId, look up by adId + buyer
+    if (!targetChatId && adId && mongoose.Types.ObjectId.isValid(adId)) {
+      const found = await getChat().findOne({
+        ad: adId,
+        buyer: req.user.id,
+        status: 'active',
+      }).select('_id').lean();
+      if (found) targetChatId = found._id;
+    }
+
+    if (!targetChatId || !mongoose.Types.ObjectId.isValid(String(targetChatId))) {
+      return res.status(400).json({ error: 'chatId or adId required' });
+    }
+
+    await sendSystemMsg(targetChatId, `📱 ${buyerName} طلب التواصل عبر واتساب`, io);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[CHAT] whatsapp-notify error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });

@@ -42,10 +42,10 @@ function formatDuration(seconds) {
 
 
 // Resolve best display name from a populated user object
-// Fallback chain: name → username → xtoxId → whatsappPhone → phone → ''
+// Fallback chain: name → username → xtoxId only (never phone — privacy)
 function resolveUserName(u) {
   if (!u || typeof u !== 'object') return '';
-  return u.name || u.username || u.xtoxId || u.whatsappPhone || u.phone || '';
+  return u.name || u.username || u.xtoxId || '';
 }
 
 // Typing indicator dots
@@ -677,6 +677,31 @@ function ChatPageInner() {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       typingTimerRef.current = setTimeout(function() { setIsTyping(false); }, 3000);
     });
+    // ── chat:ad_status: real-time ad status update (5 states) ──────────────
+    s.on('chat:ad_status', function(data) {
+      var cid = data.chatId ? String(data.chatId) : '';
+      setConversations(function(prev) {
+        return prev.map(function(c) {
+          if ((c.chatId && String(c.chatId) === cid) || String(c.chatId || '') === cid) {
+            return Object.assign({}, c, {
+              adStatus: data.adStatus || c.adStatus,
+              isClosed: data.isClosed || c.isClosed,
+              closedAt: data.closedAt || c.closedAt,
+            });
+          }
+          return c;
+        });
+      });
+      // If currently viewing this chat and it's now closed:
+      if (cid && (chatIdRef.current === cid || String(chatIdRef.current) === cid)) {
+        setAdStatus(function(prev) { return data.adStatus || prev; });
+        if (data.isClosed) {
+          setChatClosed(true);
+          setChatClosedStatus(data.adStatus || 'sold');
+          setChatStatus('closed');
+        }
+      }
+    });
     // ── chat:closed: real-time notification when ad is sold/deleted ──────
     s.on('chat:closed', function(data) {
       var cid = data.chatId ? String(data.chatId) : '';
@@ -694,6 +719,26 @@ function ChatPageInner() {
         setChatClosed(true);
         setChatClosedStatus(data.adStatus || 'sold');
         setChatStatus('closed');
+      }
+    });
+
+    // ── system_message: seller/buyer gets notified of key events ─────────
+    s.on('system_message', function(data) {
+      var smChatId = data.chatId ? String(data.chatId) : '';
+      if (!smChatId) return;
+      // Only add to message list if currently viewing that chat
+      if (chatIdRef.current && String(chatIdRef.current) === smChatId) {
+        setMessages(function(prev) {
+          return prev.concat([{
+            _id: String(Date.now()),
+            text: data.text || '',
+            type: 'system',
+            from: 'system',
+            time: Date.now(),
+            status: 'delivered',
+            readBy: [],
+          }]);
+        });
       }
     });
 
@@ -1042,16 +1087,26 @@ function ChatPageInner() {
                         <div style={{ color: isActive ? '#23e5db' : 'white', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
                           {conv.adTitle || 'إعلان'}
                         </div>
-                        {/* Ad status badge — shown below title */}
-                        {conv.adStatus && conv.adStatus !== 'available' && (
-                          <span style={{
-                            fontSize: 10, fontWeight: 600, borderRadius: 8, padding: '1px 6px', marginBottom: 2, display: 'inline-block',
-                            background: conv.adStatus === 'sold' ? 'rgba(239,68,68,0.15)' : 'rgba(156,163,175,0.2)',
-                            color: conv.adStatus === 'sold' ? '#ef4444' : '#9ca3af',
-                          }}>
-                            {conv.adStatus === 'sold' ? '✕ مباع' : '✕ محذوف'}
-                          </span>
-                        )}
+                        {/* Ad status badge (5 colours) — shown below title */}
+                        {conv.adStatus && (function() {
+                          var _statusMap = {
+                            available: { color: '#4ade80', bg: 'rgba(74,222,128,0.12)',  label: '● متاح' },
+                            inactive:  { color: '#15803d', bg: 'rgba(21,128,61,0.15)',   label: '● نائم' },
+                            sold:      { color: '#facc15', bg: 'rgba(250,204,21,0.15)',  label: '✓ مباع' },
+                            deleted:   { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   label: '✕ محذوف' },
+                            expired:   { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: '◌ منتهي' },
+                          };
+                          var _s = _statusMap[conv.adStatus] || _statusMap.available;
+                          return (
+                            <span style={{
+                              fontSize: 10, fontWeight: 600, borderRadius: 8,
+                              padding: '1px 7px', marginBottom: 2, display: 'inline-block',
+                              background: _s.bg, color: _s.color,
+                            }}>
+                              {_s.label}
+                            </span>
+                          );
+                        })()}
                         {/* Fix C: User name — small purple accent below ad title */}
                         <div style={{ color: isActive ? 'rgba(35,229,219,0.8)' : '#a78bfa', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }}>
                           👤 {conv.name || 'مستخدم'}
@@ -1109,6 +1164,10 @@ function ChatPageInner() {
                       <LocationCard msg={m} />
                       <div style={{ fontSize: 11, marginTop: 4, opacity: 0.65, textAlign: isSent ? 'left' : 'right', color: '#64748b' }}>{arabicRelTime(m.time)}</div>
                     </div>
+                  ) : m.type === 'system' ? (
+                    <div style={{ width: '100%', textAlign: 'center', color: '#94a3b8', fontSize: 11, padding: '4px 12px', fontStyle: 'italic', userSelect: 'none' }}>
+                      {m.text}
+                    </div>
                   ) : (
                     <div dir="rtl" role="article" aria-label={isSent ? 'رسالتك' : 'رسالة من ' + (sellerName || m.from)}
                       style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: isSent ? '18px 18px 4px 18px' : '18px 18px 18px 4px', background: isSent ? '#f97316' : '#ffffff', color: isSent ? '#ffffff' : '#1e293b', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', fontSize: 15, lineHeight: 1.55, wordBreak: 'break-word' }}>
@@ -1157,7 +1216,7 @@ function ChatPageInner() {
                   </div>
                   {_closedAt && (
                     <div style={{ fontSize: 11, color: '#b45309', marginRight: 28 }}>
-                      ⏳ ستُحذف هذه المحادثة تلقائياً بعد يومين من الإغلاق
+                      ⏳ ستُحذف هذه المحادثة تلقائياً بعد 7 أيام من الإغلاق
                     </div>
                   )}
                 </div>

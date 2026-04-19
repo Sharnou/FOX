@@ -564,6 +564,40 @@ router.get('/:id', async (req, res) => {
       }
     } catch {}
 
+    // FIX D: Auto-notify seller via system msg if buyer has an open chat for this ad
+    if (req.user) {
+      try {
+        const viewerId  = String(req.user.id || req.user._id);
+        const _sellerId = String(ad.userId || ad.seller || '');
+        // Only notify if viewer is not the seller
+        if (viewerId && _sellerId && viewerId !== _sellerId) {
+          const ChatModel = (await import('../models/Chat.js')).default;
+          const _chat = await ChatModel.findOne({
+            ad: ad._id,
+            buyer: viewerId,
+            status: 'active',
+          }).select('_id buyer seller').lean();
+          if (_chat) {
+            const viewerName = req.user.name || req.user.username || req.user.xtoxId || 'مستخدم';
+            const _io = req.app?.get ? req.app.get('io') : null;
+            const _msgText = `👀 ${viewerName} شاهد إعلانك`;
+            // Non-blocking: push system message + notify seller
+            ChatModel.findByIdAndUpdate(_chat._id, {
+              $push: { messages: { sender: null, text: _msgText, type: 'system', status: 'delivered' } }
+            }).then(() => {
+              if (_io) {
+                _io.to('user_' + String(_chat.seller)).emit('system_message', {
+                  chatId: _chat._id, text: _msgText
+                });
+              }
+            }).catch(() => {});
+          }
+        }
+      } catch (_viewNotifyErr) {
+        // Non-fatal — never block the ad view response
+      }
+    }
+
     // Normalize media — ensure both images and media fields are populated
     const normalized = {
       ...ad,
