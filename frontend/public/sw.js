@@ -159,7 +159,7 @@ function logCallEventSW(type, data) {
 
 // ─── XTOX Service Worker v43 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v44';
+const CACHE_VERSION = 'v45';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 

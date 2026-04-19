@@ -10,15 +10,14 @@ const ICE_CONFIG_FALLBACK = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    // OpenRelay (primary)
+    // OpenRelay (Metered.ca free public TURN — works from Egypt)
     { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turns:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    // FreeSWITCH public TURN (backup)
-    { urls: 'turn:relay1.expressturn.com:3478', username: 'efUN37POS8DY1RLZEP', credential: 'D6IHNBJLFg9wkHLv' },
-    // Numb.viagenie (backup)
-    { urls: 'turn:numb.viagenie.ca', credential: 'muazkh', username: 'webrtc@live.com' },
+    // Expressturn free tier (500 MB/month — same credentials as backend/routes/ice.js)
+    { urls: 'turn:relay.expressturn.com:3478',             username: 'efUN55DZL6OFIRBQXI', credential: 'UfBApCBfMQiOunPs' },
+    { urls: 'turn:relay.expressturn.com:3478?transport=tcp', username: 'efUN55DZL6OFIRBQXI', credential: 'UfBApCBfMQiOunPs' },
   ],
   iceCandidatePoolSize: 10,
   iceTransportPolicy: 'all',
@@ -164,7 +163,10 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const noAnswerTimer    = useRef(null);
   const currentUserRef   = useRef(currentUser);
   const iceConfigRef     = useRef(ICE_CONFIG_FALLBACK); // ref copy for stale-closure safety
+  const callOnceListenersRef = useRef([]);  // FIX: tracks .once call-setup listeners so cleanup() can remove them on retry
+  const socketPropRef    = useRef(socket);  // FIX: always-current socket ref for use inside cleanup() callback
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+  useEffect(() => { socketPropRef.current = socket; }, [socket]);
 
   // ── Phase 3: Fetch ICE credentials from backend on mount ─────────────────
   useEffect(() => {
@@ -251,6 +253,11 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     bufferedICE.current = [];
     pendingLocalICE.current = [];
     pendingOffer.current = null;
+    // FIX: Remove any stale one-time call-setup listeners (prevents double-fire on retry)
+    callOnceListenersRef.current.forEach(({ event, handler }) => {
+      socketPropRef.current?.off(event, handler);
+    });
+    callOnceListenersRef.current = [];
     pcRef.current?.close();
     pcRef.current = null;
     localStream.current?.getTracks().forEach(t => t.stop());
@@ -406,12 +413,19 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
       playCallingTone();
 
       // Listen for push_sent feedback (callee was offline — push sent)
-      socket.once('call:push_sent', () => {
-        setPushSent(true);
-      });
+      // FIX: use named function and store in callOnceListenersRef so cleanup() can remove it
+      const onPushSent = () => { setPushSent(true); };
+      socket.once('call:push_sent', onPushSent);
+      callOnceListenersRef.current.push({ event: 'call:push_sent', handler: onPushSent });
 
       // Step 9: Listen for call:accepted (callee answered)
-      socket.once('call:accepted', async ({ answer, calleeSocketId }) => {
+      // FIX: named function + stale-PC guard prevents issues when user retries a timed-out call
+      const onCallAccepted = async ({ answer, calleeSocketId }) => {
+        // FIX: Guard — if PC was closed (call timed out, user retried), ignore stale event
+        if (!pcRef.current || pcRef.current.signalingState === 'closed') {
+          console.warn('[CALL] call:accepted — stale listener ignored (PC already closed)');
+          return;
+        }
         console.log('[CALL] call:accepted — calleeSocketId:', calleeSocketId);
         clearTimeout(noAnswerTimer.current);
         stopCallingTone();
@@ -430,7 +444,7 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
         setICETarget(calleeSocketId);
 
         // Set remote description — use plain object to avoid null 'type'
-        await pc.setRemoteDescription(new RTCSessionDescription({ type: answer.type, sdp: answer.sdp }));
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: answer.type, sdp: answer.sdp }));
         console.log('[CALL] Caller set remote description ✓');
 
         // Flush any remote ICE that arrived before remote desc
@@ -441,31 +455,12 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
 
         logCallEvent('call_connected', { peerId: calleeId, peerName: calleeName, side: 'caller' });
         setActive({ peerName: calleeName, remoteSocketId: calleeSocketId, startTime: Date.now() });
-      });
+      };
+      socket.once('call:accepted', onCallAccepted);
+      callOnceListenersRef.current.push({ event: 'call:accepted', handler: onCallAccepted });
 
-      // Step 10: call:rejected
-      socket.once('call:rejected', () => {
-        console.log('[CALL] call:rejected');
-        stopCallingTone();
-        setOfflineRinging(null);
-        setPushSent(false);
-        setCallStatus('rejected');
-        setStatusMessage('رُفضت المكالمة');
-        setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
-        cleanup();
-      });
-
-      // Step 11: call:no_answer
-      socket.once('call:no_answer', () => {
-        console.log('[CALL] call:no_answer');
-        stopCallingTone();
-        setOfflineRinging(null);
-        setPushSent(false);
-        setCallStatus('no_answer');
-        setStatusMessage('لا يوجد رد');
-        setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
-        cleanup();
-      });
+      // Step 10: call:rejected — handled by persistent onRejected in useEffect (no duplicate .once needed)
+      // Step 11: call:no_answer — handled by persistent onNoAnswer in useEffect (no duplicate .once needed)
 
       // 50-second safety net timer (server sends call:no_answer at 30s/45s, this is backup)
       noAnswerTimer.current = setTimeout(() => {
@@ -546,6 +541,12 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     const onRejected = () => {
       console.log('[CALL] call:rejected');
       stopCallingTone();
+      setOfflineRinging(null);
+      setPushSent(false);
+      // FIX: show rejection status (previously only handled in the now-removed .once in initiateCall)
+      setCallStatus('rejected');
+      setStatusMessage('رُفضت المكالمة');
+      setTimeout(() => { setCallStatus(null); setStatusMessage(''); }, 3000);
       cleanup();
     };
 
