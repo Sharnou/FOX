@@ -74,7 +74,8 @@ export function initSocket(io) {
 
       // ── Replay any pending call for this user (Part 2: WhatsApp-style offline call) ──
       for (const [roomId, pending] of pendingCalls.entries()) {
-        if (String(pending.to) === String(userId) && (Date.now() - pending.timestamp) < 60000) {
+        // FIX-DUP: skip entries already delivered via room emit to online callee
+        if (String(pending.to) === String(userId) && (Date.now() - pending.timestamp) < 60000 && !pending.delivered) {
           // Replay call:incoming to the now-connected callee
           socket.emit('call:incoming', {
             callerId: pending.callerId,
@@ -473,10 +474,16 @@ export function initSocket(io) {
           io.to('user_' + actualCallerId).emit('call:no_answer', { calleeId: targetUserId });
           io.to('user_' + targetUserId).emit('call:cancelled', { callerId: actualCallerId });
         } catch {}
-      }, 30000);
+      // FIX-RACE: increase from 30s → 45s to reduce no-answer race condition
+      }, 45000);
       pendingCalls.set(onlineNoAnswerKey, {
         offer: null, callerId: actualCallerId, callerName, callerSocketId: socket.id,
         to: targetUserId, timeout: onlineTimeout, timestamp: Date.now(),
+        // FIX-DUP: mark as already delivered to prevent join-handler replay
+        // (JWT middleware pre-joins the room so _xtoxJoined is NOT set yet
+        //  when call:incoming is emitted; the later 'join' event replay would
+        //  re-emit call:incoming to the same socket causing a duplicate)
+        delivered: true,
       });
     });
 
@@ -490,10 +497,18 @@ export function initSocket(io) {
       clearTimeout(pending.timeout);
       pendingCalls.delete(roomId);
       // Relay answer to the original caller — emit call:accepted (matches frontend socket.once)
+      // FIX-RACE: emit to specific socket AND to user room (handles stale callerSocketId)
       io.to(pending.callerSocketId).emit('call:accepted', {
         answer,
         calleeSocketId: socket.id,
       });
+      // Also emit to caller's user room in case their socket ID changed
+      if (pending.callerId) {
+        io.to('user_' + pending.callerId).emit('call:accepted', {
+          answer,
+          calleeSocketId: socket.id,
+        });
+      }
       // Tell callee to proceed with callerSocketId so it can send ICE
       socket.emit('call:accepted_ok', { callerId: pending.callerId, callerSocketId: pending.callerSocketId });
       console.log('[Socket] call:accept_from_push — roomId:', roomId, '| callee:', socket.id, '→ caller:', pending.callerSocketId);
@@ -529,7 +544,11 @@ export function initSocket(io) {
     // Responder sends SDP answer to caller
     socket.on('call:answer', ({ callerSocketId, answer }) => {
       // Emit call:accepted — matches frontend socket.once('call:accepted')
+      // FIX-RACE: emit to specific socket AND to user room for resilience.
+      // If the caller's socket reconnected after call:initiate (new socket ID),
+      // the room emit ensures call:accepted is still delivered.
       io.to(callerSocketId).emit('call:accepted', { answer, calleeSocketId: socket.id });
+
       // Clean up any pending call for this callee (online timeout or push pending)
       const calleeId = socket.data.userId;
       if (calleeId) {
@@ -537,6 +556,10 @@ export function initSocket(io) {
           if (String(pending.to) === String(calleeId)) {
             clearTimeout(pending.timeout);
             pendingCalls.delete(roomId);
+            // Also emit to caller's user room (handles stale callerSocketId after reconnect)
+            if (pending.callerId) {
+              io.to('user_' + pending.callerId).emit('call:accepted', { answer, calleeSocketId: socket.id });
+            }
           }
         }
       }
@@ -588,6 +611,16 @@ export function initSocket(io) {
       io.to('user_' + targetUserId).emit('call:cancelled', {
         callerId: socket.data.userId,
       });
+      // FIX: clear pending call so the no-answer timer doesn't fire spuriously
+      const callerId = socket.data.userId;
+      if (callerId) {
+        for (const [roomId, pending] of pendingCalls.entries()) {
+          if (String(pending.callerId) === String(callerId) && String(pending.to) === String(targetUserId)) {
+            clearTimeout(pending.timeout);
+            pendingCalls.delete(roomId);
+          }
+        }
+      }
       console.log('[Socket] call:cancel — caller:', socket.data.userId, '→ callee room:', 'user_' + targetUserId);
     });
 

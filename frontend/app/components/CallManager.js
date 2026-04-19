@@ -87,6 +87,9 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
   const currentUserRef   = useRef(currentUser);
   const iceConfigRef     = useRef(ICE_CONFIG_STATIC);
   const socketRef        = useRef(socket);
+  // FIX-DUP: dedup guard — tracks last seen callerSocketId to prevent processing
+  // the same call:incoming event twice (defense in depth against server-side replay bug)
+  const lastIncomingKey  = useRef(null);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
   useEffect(() => { socketRef.current = socket; }, [socket]);
 
@@ -436,6 +439,21 @@ const CallManager = forwardRef(function CallManager({ socket, currentUser }, ref
     // ── CALLEE: call:incoming ──────────────────────────────────────────────
     const onIncoming = ({ offer, callerSocketId, callerName, callerAvatar, callerId }) => {
       console.log('[CALL] step INCOMING: callerSocketId=', callerSocketId, 'caller=', callerName, 'offer type=', offer?.type);
+
+      // FIX-DUP: deduplicate — if we already set up for this exact callerSocketId
+      // within the last 5 seconds, ignore the duplicate event.
+      // Root cause: server-side JWT pre-join + manual 'join' event double-delivers
+      // call:incoming when callee is online. This guard is defense-in-depth.
+      const dedupKey = callerSocketId + '_' + (callerId || '');
+      if (lastIncomingKey.current === dedupKey) {
+        console.warn('[CALL] call:incoming DUPLICATE suppressed — key:', dedupKey);
+        return;
+      }
+      lastIncomingKey.current = dedupKey;
+      setTimeout(() => {
+        if (lastIncomingKey.current === dedupKey) lastIncomingKey.current = null;
+      }, 5000);
+
       pendingOffer.current = {
         offer,
         callerSocketId,
