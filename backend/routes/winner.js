@@ -313,7 +313,7 @@ router.post('/announce', auth, async (req, res) => {
     const honorRoll = await HonorRoll.findOneAndUpdate(
       { month },
       { month, monthName: monthName || month, year: parseInt(month.split('-')[0]), winners: enrichedWinners, announcedAt: new Date(), announcementSent: true },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     // Broadcast via Socket.IO

@@ -1,8 +1,9 @@
 // Couchbase Capella integration — optional, non-fatal
 // Uses dynamic import to avoid crashing if SDK not installed
 // Only connects if COUCHBASE_ENABLED=true AND all required env vars are set
+// On any failure: log ONCE at warn level, disable permanently — NO retries
 
-// ── Fix C: Module-level guard — skip entirely if not configured ──────────────
+// ── Module-level guard — skip entirely if not configured ─────────────────────
 const COUCHBASE_ENABLED = process.env.COUCHBASE_ENABLED === 'true'
   && !!(process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST)
   && !!(process.env.COUCHBASE_USER || process.env.COUCHBASE_USERNAME)
@@ -13,29 +14,27 @@ let _cluster = null;
 let _collection = null;
 let _connected = false;
 
-// Fix C: module-level disabled flag — all exported functions check this first
+// Disabled flag — all exported functions check this first
+// Starts as true (disabled) unless all env vars are present
 let couchbaseDisabled = !COUCHBASE_ENABLED;
+// Ensure we only ever attempt once
+let _attemptMade = false;
 
 const COUCHBASE_URL  = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST;
 const COUCHBASE_USER = process.env.COUCHBASE_USER || process.env.COUCHBASE_USERNAME || 'xtox';
 const COUCHBASE_PASS = process.env.COUCHBASE_PASS || process.env.COUCHBASE_PASSWORD;
 const BUCKET_NAME    = process.env.COUCHBASE_BUCKET || 'XTOX';
 
-// ── Fix B: Exponential backoff state ─────────────────────────────────────────
-let retryCount = 0;
-const MAX_RETRIES = 10;
-let retryDelayMs = 30000;          // Start: 30s
-const MAX_RETRY_DELAY_MS = 600000; // Cap: 10min
-
 export async function connectCouchbase() {
-  // Fix C: immediately return if Couchbase is disabled or permanently failed
+  // Immediately return if disabled or already attempted
   if (couchbaseDisabled) return false;
+  if (_attemptMade) return _connected;
+  _attemptMade = true;
 
   try {
     // Dynamic import — won't crash if SDK not installed
     const couchbase = await import('couchbase').catch(() => null);
     if (!couchbase) {
-      console.warn('[COUCHBASE] SDK not installed — skipping (non-fatal)');
       couchbaseDisabled = true;
       return false;
     }
@@ -43,48 +42,30 @@ export async function connectCouchbase() {
     _cluster = await couchbase.default.connect(COUCHBASE_URL, {
       username: COUCHBASE_USER,
       password: COUCHBASE_PASS,
-      configProfile: 'wanDevelopment',  // Required for Capella cloud connections
-      connectTimeout: 3000,             // Fail fast (was SDK default ~30s)
-      kvTimeout: 2000,                  // KV op timeout (was SDK default ~10s)
+      configProfile: 'wanDevelopment',
+      connectTimeout: 3000,
+      kvTimeout: 2000,
     });
 
     const bucket = _cluster.bucket(BUCKET_NAME);
     _collection = bucket.defaultCollection();
     await bucket.waitUntilReady(5000);
     _connected = true;
-    // Fix B: reset backoff counters on success
-    retryCount = 0;
-    retryDelayMs = 30000;
     console.log('[COUCHBASE] Connected ✅');
     return true;
   } catch (e) {
-    retryCount++;
+    // Log ONCE at warn level, then permanently disable — NO retries, NO setTimeout
     _cluster = null;
     _collection = null;
     _connected = false;
-
-    if (retryCount >= MAX_RETRIES) {
-      // Fix B: stop retrying after 10 attempts
-      couchbaseDisabled = true;
-      console.warn('[DB] Couchbase permanently disabled after 10 failed attempts — MongoDB is primary DB');
-    } else {
-      // Fix A: use console.warn instead of console.error (avoids Railway severity:error)
-      console.warn('[DB] Couchbase connection error (non-fatal):', e.message);
-      // Fix B: schedule retry with exponential backoff
-      console.warn('[DB] Couchbase background attempt: timeout (non-fatal, will retry later)');
-      const delay = retryDelayMs;
-      retryDelayMs = Math.min(retryDelayMs * 2, MAX_RETRY_DELAY_MS);
-      setTimeout(() => {
-        connectCouchbase().catch(() => {});
-      }, delay);
-    }
+    couchbaseDisabled = true;
+    console.warn('[COUCHBASE] Disabled — connection failed (non-fatal, MongoDB is primary):', e.message || String(e));
     return false;
   }
 }
 
 // Smart backup with retention (7 daily + 4 weekly + 3 monthly)
 export async function createBackup(type, data) {
-  // Fix C: immediate null return if disabled
   if (couchbaseDisabled || !_collection) return null;
   try {
     const now = Date.now();
@@ -121,7 +102,6 @@ async function applyRetentionPolicy(type) {
 }
 
 export async function cacheSet(key, value, ttlSeconds = 300) {
-  // Fix C: immediate false return if disabled
   if (couchbaseDisabled || !_collection) return false;
   try {
     await _collection.upsert(`cache::${key}`, { value }, { expiry: ttlSeconds });
@@ -130,7 +110,6 @@ export async function cacheSet(key, value, ttlSeconds = 300) {
 }
 
 export async function cacheGet(key) {
-  // Fix C: immediate null return if disabled
   if (couchbaseDisabled || !_collection) return null;
   try {
     const r = await _collection.get(`cache::${key}`);
@@ -139,7 +118,6 @@ export async function cacheGet(key) {
 }
 
 export function isCouchbaseConnected() {
-  // Fix C: return false immediately if disabled
   return !couchbaseDisabled && _connected;
 }
 

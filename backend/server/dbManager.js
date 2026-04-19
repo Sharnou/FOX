@@ -12,8 +12,8 @@ let couchbaseCluster = null;
 let couchbaseBucket = null;
 let couchbaseCollection = null;
 let couchbaseError = null;
-let couchbaseRetries = 0;
-const MAX_COUCHBASE_RETRIES = 3;
+// Only ONE attempt ever — no retries, no background loops
+let _couchbaseAttempted = false;
 
 // ── Attempt MongoDB connection (10s timeout) ─────────────────────────────────
 async function tryMongoDB() {
@@ -23,9 +23,7 @@ async function tryMongoDB() {
   
   // Ensure database name is 'xtox' — fix URIs that don't specify a DB or specify 'test'
   if (!uri.includes('/xtox')) {
-    // Strip any existing db name after the last '/' before '?' and replace with 'xtox'
     uri = uri.replace(/\/([^/?]+)(\?|$)/, '/xtox$2');
-    // If no db path at all (ends with hostname), append /xtox
     if (!uri.includes('/xtox')) {
       uri = uri.replace(/(\?|$)/, '/xtox$1');
     }
@@ -36,33 +34,37 @@ async function tryMongoDB() {
   return 'mongodb';
 }
 
-// ── Attempt Couchbase connection (5s timeout — reduced, fire-and-forget) ─────
+// ── Attempt Couchbase connection — one shot, completely silent if not configured ──
 async function tryCouchbase() {
   // Couchbase is opt-in — must explicitly set COUCHBASE_ENABLED=true
   if (process.env.COUCHBASE_ENABLED !== 'true') {
-    // Silent skip — no log spam
-    throw new Error('Couchbase not enabled');
-  }
-  // Stop retrying after cap — prevents log spam
-  if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) {
+    // Completely silent — no log, no warning
     return null;
   }
-  // Skip entirely if COUCHBASE_URL is not explicitly set — prevents noisy timeouts on Railway
+
+  // Skip entirely if COUCHBASE_URL is not set — prevents noisy timeouts on Railway
   if (!process.env.COUCHBASE_URL && !process.env.COUCHBASE_HOST) {
-    console.log('[DB] Couchbase skipped — not configured (COUCHBASE_URL not set)');
-    throw new Error('Couchbase not configured');
+    // Completely silent — intentionally not configured
+    return null;
   }
+
+  // Only ever attempt once — no background retries
+  if (_couchbaseAttempted) return null;
+  _couchbaseAttempted = true;
+
   const url = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST;
-  const username = process.env.COUCHBASE_USERNAME || 'xtox';
-  const password = process.env.COUCHBASE_PASSWORD  || '#N^wx+uO^70G';
+  const username = process.env.COUCHBASE_USERNAME || process.env.COUCHBASE_USER || 'xtox';
+  const password = process.env.COUCHBASE_PASSWORD || process.env.COUCHBASE_PASS || '#N^wx+uO^70G';
   const bucketName = process.env.COUCHBASE_BUCKET || 'XTOX';
 
-  // Only reached if COUCHBASE_ENABLED=true — safe to log
   console.log(`[DB] Connecting to Couchbase: ${url} as ${username}`);
 
   // Dynamic import — won't crash if SDK not installed
   const couchbaseMod = await import('couchbase').catch(() => null);
-  if (!couchbaseMod) throw new Error('Couchbase SDK not installed');
+  if (!couchbaseMod) {
+    console.warn('[DB] Couchbase SDK not installed — skipping (non-fatal)');
+    return null;
+  }
 
   const couchbase = couchbaseMod.default || couchbaseMod;
 
@@ -71,33 +73,28 @@ async function tryCouchbase() {
       username,
       password,
       timeouts: {
-        connectTimeout: 5000,  // reduced from 10000
-        kvTimeout: 3000,       // reduced from 5000
+        connectTimeout: 5000,
+        kvTimeout: 3000,
         queryTimeout: 10000,
       },
     });
 
-    // Ping to verify the connection is actually working
-    // Without this, connect() can succeed but queries still fail
     await couchbaseCluster.ping();
 
     couchbaseBucket     = couchbaseCluster.bucket(bucketName);
     couchbaseCollection = couchbaseBucket.defaultCollection();
-
-    // Quick probe to verify the bucket is accessible
     await couchbaseBucket.waitUntilReady(5000);
 
     console.log('[DB] Couchbase connected — available as secondary');
     return 'couchbase';
   } catch (e) {
-    couchbaseRetries++;
+    // Log ONCE at warn level — then permanently done, no retry
     couchbaseError = e.message || String(e);
-    if (couchbaseRetries >= MAX_COUCHBASE_RETRIES) {
-      console.warn('[DB] Couchbase max retries reached — Couchbase disabled. Check COUCHBASE_URL env var and IP whitelist in Couchbase Capella.');
-    } else {
-      console.warn('[DB] Couchbase connection error (non-fatal):', e.message);
-    }
-    throw e;
+    couchbaseCluster = null;
+    couchbaseBucket = null;
+    couchbaseCollection = null;
+    console.warn('[DB] Couchbase unavailable (non-fatal, MongoDB is primary):', couchbaseError);
+    return null;
   }
 }
 
@@ -113,9 +110,8 @@ export async function connectDatabases() {
     activeDB = mongoResult;
     console.log(`[DB] Active database: ${activeDB}`);
     // Fire Couchbase in background — NEVER blocks MongoDB from being primary
-    tryCouchbase().catch(e => {
-      console.warn('[DB] Couchbase background attempt: timeout (non-fatal, will retry later)');
-    });
+    // Silently ignored if not configured; logs ONCE if configured but fails
+    tryCouchbase().catch(() => {});
     return activeDB;
   }
 
