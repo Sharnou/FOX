@@ -212,6 +212,8 @@ export default function NearbyPage() {
   const leafletMap  = useRef(null);
   const clusterGroup= useRef(null);
   const watchId     = useRef(null);
+  const routePolylineRef = useRef(null);
+  const userLocMarkerRef = useRef(null);
 
   const [ads, setAds]                 = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -229,10 +231,79 @@ export default function NearbyPage() {
   const [mapReady, setMapReady]       = useState(false);
   const lastAlertAdId = useRef(null);
 
+  // ── Routing state ──
+  const [route, setRoute]             = useState(null);
+  const [routingTo, setRoutingTo]     = useState(null);
+  const [routeError, setRouteError]   = useState('');
+  const [userLocState, setUserLocState] = useState(null);
+
   // ── Show toast helper ──
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type, id: Date.now() });
   }, []);
+
+  // ── Inline OSRM directions ──
+  const getDirections = useCallback((sellerLat, sellerLng, sellerName) => {
+    if (!navigator.geolocation) {
+      setRouteError('المتصفح لا يدعم تحديد الموقع');
+      return;
+    }
+    setRouteError('');
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const userLat = pos.coords.latitude;
+      const userLng = pos.coords.longitude;
+      setUserLocState({ lat: userLat, lng: userLng });
+      setRoutingTo({ name: sellerName, lat: sellerLat, lng: sellerLng });
+
+      // Draw/update user location marker
+      const L = window.L;
+      if (L && leafletMap.current) {
+        if (userLocMarkerRef.current) { userLocMarkerRef.current.remove(); userLocMarkerRef.current = null; }
+        const userIcon = L.divIcon({
+          html: '<div style="width:14px;height:14px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(59,130,246,0.5)"></div>',
+          className: '', iconSize: [14, 14], iconAnchor: [7, 7],
+        });
+        userLocMarkerRef.current = L.marker([userLat, userLng], { icon: userIcon })
+          .addTo(leafletMap.current)
+          .bindPopup('<div style="font-family:Cairo,sans-serif;direction:rtl;font-weight:700">📍 موقعك الحالي</div>');
+      }
+
+      try {
+        const url =
+          'https://router.project-osrm.org/route/v1/driving/' +
+          userLng + ',' + userLat + ';' + sellerLng + ',' + sellerLat +
+          '?overview=full&geometries=geojson';
+        const res  = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        const data = await res.json();
+        if (data.code === 'Ok' && data.routes?.[0]) {
+          const r = data.routes[0];
+          const coords   = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+          const distKm   = (r.distance / 1000).toFixed(1);
+          const durationMin = Math.round(r.duration / 60);
+
+          if (window.L && leafletMap.current) {
+            if (routePolylineRef.current) { routePolylineRef.current.remove(); routePolylineRef.current = null; }
+            routePolylineRef.current = window.L.polyline(coords, { color: '#6366f1', weight: 5, opacity: 0.85 })
+              .addTo(leafletMap.current);
+            leafletMap.current.fitBounds([[userLat, userLng], [sellerLat, sellerLng]], { padding: [50, 50] });
+          }
+          setRoute({ coordinates: coords, distance: distKm, duration: durationMin });
+        } else {
+          setRouteError('تعذر حساب المسار — حاول مرة أخرى');
+        }
+      } catch (e) {
+        setRouteError('فشل تحميل المسار — تحقق من الإنترنت');
+      }
+    }, () => {
+      setRouteError('يرجى السماح بالوصول إلى موقعك لعرض الاتجاهات');
+    });
+  }, []);
+
+  // Register window callback so Leaflet popup button can call it
+  useEffect(() => {
+    window.__foxGetDirections = getDirections;
+    return () => { try { delete window.__foxGetDirections; } catch (_) {} };
+  }, [getDirections]);
 
   // ── Load saved ads from localStorage ──
   useEffect(() => {
@@ -298,9 +369,9 @@ export default function NearbyPage() {
       });
 
       const waUrl   = 'https://wa.me/?text=' + encodeURIComponent(ad.title + ' - ' + window.location.origin + '/ads/' + ad._id);
-      const mapUrl  = 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng;
 
-      const popupContent = '\n        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;max-width:250px">\n          ' + (img ? '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display=\'none\'" alt="' + (ad.title || 'إعلان') + '" loading="lazy">' + '" loading="lazy">' : '') + '\n          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (ad.title || '') + '">' + (ad.title || 'إعلان') + '</div>\n          ' + ((ad.subsub && ad.subsub !== 'Other') || ad.category ? '<div style="background:#f0f7f4;color:#002f34;font-size:10px;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">' + ((ad.subsub && ad.subsub !== 'Other') ? ad.subsub : ad.category) + '</div>' + '</div>' : '') + '\n          <div style="color:#e74c3c;font-weight:700;font-size:14px;margin-bottom:4px">' + price + '</div>\n          ' + (dist ? '<div style="color:#888;font-size:11px;margin-bottom:8px">📍 ' + dist + '</div>' + '</div>' : '') + '\n          <div style="display:flex;gap:6px;flex-wrap:wrap">\n            <a href="/ads/' + ad._id + '" style="flex:1;min-width:80px;background:#002f34;color:#fff;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">' + LABELS.viewAdFull + '</a>\n            <a href="' + mapUrl + '" target="_blank" rel="noopener" style="background:#4285F4;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="الاتجاهات">' + LABELS.navigate + '</a>\n            <a href="' + waUrl + '" target="_blank" rel="noopener" style="background:#25D366;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="مشاركة واتساب">💬</a>\n          </div>\n        </div>\n      ';
+
+      const popupContent = '\n        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;max-width:250px">\n          ' + (img ? '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display=\'none\'" alt="' + (ad.title || 'إعلان') + '" loading="lazy">' + '" loading="lazy">' : '') + '\n          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (ad.title || '') + '">' + (ad.title || 'إعلان') + '</div>\n          ' + ((ad.subsub && ad.subsub !== 'Other') || ad.category ? '<div style="background:#f0f7f4;color:#002f34;font-size:10px;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">' + ((ad.subsub && ad.subsub !== 'Other') ? ad.subsub : ad.category) + '</div>' + '</div>' : '') + '\n          <div style="color:#e74c3c;font-weight:700;font-size:14px;margin-bottom:4px">' + price + '</div>\n          ' + (dist ? '<div style="color:#888;font-size:11px;margin-bottom:8px">📍 ' + dist + '</div>' + '</div>' : '') + '\n          <div style="display:flex;gap:6px;flex-wrap:wrap">\n            <a href="/ads/' + ad._id + '" style="flex:1;min-width:80px;background:#002f34;color:#fff;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">' + LABELS.viewAdFull + '</a>\n            <button data-lat="' + lat + '" data-lng="' + lng + '" data-name="' + encodeURIComponent(ad.title || '') + '" onclick="window.__foxGetDirections(parseFloat(this.dataset.lat),parseFloat(this.dataset.lng),decodeURIComponent(this.dataset.name))" style="background:#4285F4;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;border:none;cursor:pointer;font-family:Cairo,sans-serif" title="الاتجاهات">' + LABELS.navigate + '</button>\n            <a href="' + waUrl + '" target="_blank" rel="noopener" style="background:#25D366;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="مشاركة واتساب">💬</a>\n          </div>\n        </div>\n      ';
 
       const marker = L.marker([lat, lng], { icon });
       marker.bindPopup(popupContent, { maxWidth: 260, className: 'xtox-popup' });
@@ -720,6 +791,60 @@ export default function NearbyPage() {
         {/* Empty state */}
         {!loading && !fetchError && ads.length === 0 && (
           <EmptyState radius={radius} onExpand={handleExpand} />
+        )}
+
+        {/* ── Inline route info panel ── */}
+        {route && routingTo && (
+          <div style={{
+            position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 1000, background: 'white', borderRadius: 14,
+            padding: '10px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+            display: 'flex', alignItems: 'center', gap: 12, fontSize: 13,
+            direction: 'rtl', minWidth: 220, pointerEvents: 'all',
+            fontFamily: 'Cairo,sans-serif',
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, color: '#374151', marginBottom: 2 }}>
+                🚗 {route.distance} كم
+              </div>
+              <div style={{ color: '#6b7280', fontSize: 12 }}>
+                ⏱ {route.duration} دقيقة تقريباً
+              </div>
+              <div style={{ color: '#6366f1', fontSize: 11, marginTop: 2 }}>
+                إلى: {routingTo.name?.slice(0, 30)}{routingTo.name?.length > 30 ? '…' : ''}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setRoute(null); setRoutingTo(null); setUserLocState(null); setRouteError('');
+                if (routePolylineRef.current) { routePolylineRef.current.remove(); routePolylineRef.current = null; }
+                if (userLocMarkerRef.current) { userLocMarkerRef.current.remove(); userLocMarkerRef.current = null; }
+              }}
+              aria-label="إغلاق المسار"
+              style={{
+                background: '#f3f4f6', border: 'none', borderRadius: 8,
+                padding: '6px 10px', cursor: 'pointer', color: '#374151',
+                fontWeight: 700, fontFamily: 'Cairo,sans-serif',
+              }}>✕</button>
+          </div>
+        )}
+        {routeError && (
+          <div style={{
+            position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 1000, background: '#fee2e2', borderRadius: 14,
+            padding: '8px 16px', color: '#dc2626', fontSize: 13,
+            direction: 'rtl', fontFamily: 'Cairo,sans-serif',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span>{routeError}</span>
+            <button
+              onClick={() => setRouteError('')}
+              aria-label="إغلاق الخطأ"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 700 }}>
+              ✕
+            </button>
+          </div>
         )}
       </div>
 

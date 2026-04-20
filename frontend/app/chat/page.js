@@ -117,8 +117,35 @@ function MessageTick({ status, readBy }) {
   );
 }
 
-// Location message card
+// Location message card — inline OSRM directions (no new tab)
 function LocationCard({ msg }) {
+  const [dirInfo, setDirInfo] = useState(null);
+  const [dirErr, setDirErr]   = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const getInlineDirections = () => {
+    if (!navigator.geolocation) { setDirErr('المتصفح لا يدعم تحديد الموقع'); return; }
+    setLoading(true); setDirErr(''); setDirInfo(null);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude: uLat, longitude: uLng } = pos.coords;
+      try {
+        const url = 'https://router.project-osrm.org/route/v1/driving/' +
+          uLng + ',' + uLat + ';' + msg.lng + ',' + msg.lat +
+          '?overview=false';
+        const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const data = await res.json();
+        if (data.code === 'Ok' && data.routes?.[0]) {
+          const r = data.routes[0];
+          setDirInfo({
+            dist: (r.distance / 1000).toFixed(1),
+            mins: Math.round(r.duration / 60),
+          });
+        } else { setDirErr('تعذر حساب المسار'); }
+      } catch { setDirErr('فشل تحميل المسار'); }
+      setLoading(false);
+    }, () => { setDirErr('يرجى السماح بالوصول إلى موقعك'); setLoading(false); });
+  };
+
   return (
     <div style={{ background: '#f0f7ff', border: '1px solid #4285F4', borderRadius: 12, padding: '10px 14px', minWidth: 200 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -126,15 +153,24 @@ function LocationCard({ msg }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: '#002f34' }}>موقعي الحالي</div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <a href={'https://www.google.com/maps?q=' + msg.lat + ',' + msg.lng} target="_blank" rel="noopener noreferrer"
+        <a href={'https://www.openstreetmap.org/?mlat=' + msg.lat + '&mlon=' + msg.lng + '&zoom=15'}
+          target="_blank" rel="noopener noreferrer"
           style={{ flex: 1, background: '#4285F4', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
           &#128506; عرض
         </a>
-        <a href={'https://www.google.com/maps/dir/?api=1&destination=' + msg.lat + ',' + msg.lng} target="_blank" rel="noopener noreferrer"
-          style={{ flex: 1, background: '#002f34', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
-          &#128663; اتجاهات
-        </a>
+        <button onClick={getInlineDirections} disabled={loading}
+          style={{ flex: 1, background: '#002f34', color: '#fff', textAlign: 'center', padding: '6px', borderRadius: 8, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+          {loading ? '⏳' : '🧭 اتجاهات'}
+        </button>
       </div>
+      {dirInfo && (
+        <div style={{ marginTop: 8, fontSize: 12, color: '#374151', direction: 'rtl', background: '#fff', borderRadius: 8, padding: '6px 10px' }}>
+          🚗 {dirInfo.dist} كم &nbsp;·&nbsp; ⏱ {dirInfo.mins} دقيقة
+        </div>
+      )}
+      {dirErr && (
+        <div style={{ marginTop: 6, fontSize: 11, color: '#dc2626', direction: 'rtl' }}>{dirErr}</div>
+      )}
     </div>
   );
 }
