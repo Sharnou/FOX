@@ -1,14 +1,13 @@
 import express from 'express';
 const router = express.Router();
 
-// ── Metered TURN credentials (hardcoded fallback if env vars missing/wrong) ──
-// App: xtox | API Key: b407qSLzRIoMZMVIlidUC19HPqxyLqLrbmXmL_4-NwyeoM6P
+// ── Metered TURN credentials ─────────────────────────────────────────────────
+// App: xtox | API Key (updated): EuVCcOArr0ADkyICPSBlS149mE9Ieut5
 // URL format: https://{appName}.metered.live/api/v1/turn/credentials?apiKey={key}
 const DEFAULT_METERED_APP = 'xtox';
-const DEFAULT_METERED_KEY = 'b407qSLzRIoMZMVIlidUC19HPqxyLqLrbmXmL_4-NwyeoM6P';
+const DEFAULT_METERED_KEY = 'EuVCcOArr0ADkyICPSBlS149mE9Ieut5';
 
 // Proven static TURN servers — used when Metered not configured or unavailable
-// Updated: 5 reliable servers proven to work from Egypt symmetric NAT (#120)
 const STATIC_ICE = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
@@ -30,7 +29,7 @@ const STATIC_ICE = [
     username: 'webrtc@live.com',
     credential: 'muazkh',
   },
-  // Expressturn free tier (500 MB/month) — updated credentials
+  // Expressturn free tier (500 MB/month)
   {
     urls: 'turn:relay.expressturn.com:3478',
     username: 'efO0SYRH0SGLD8CJPF',
@@ -38,29 +37,61 @@ const STATIC_ICE = [
   },
 ];
 
-router.get('/credentials', async (req, res) => {
-  // Use env vars if set, otherwise fall back to hardcoded correct values
+// Cache Metered credentials for 12 hours to avoid redundant API calls
+let _meteredCache = null;
+let _meteredCacheAt = 0;
+const CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours
+
+async function fetchMeteredCredentials() {
+  const now = Date.now();
+  if (_meteredCache && (now - _meteredCacheAt) < CACHE_TTL) {
+    return _meteredCache;
+  }
+
   const appName = process.env.METERED_APP_NAME || DEFAULT_METERED_APP;
   const apiKey  = process.env.METERED_API_KEY  || DEFAULT_METERED_KEY;
 
-  // Build the correct Metered API URL format: https://{appName}.metered.live/api/v1/...
-  const meteredUrl = `https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
+  // Primary URL: https://{appName}.metered.live/api/v1/turn/credentials?apiKey={key}
+  const primaryUrl  = `https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
+  // Fallback URL: relay.metered.ca standard endpoint
+  const fallbackUrl = `https://relay.metered.ca/api/v1/turn/credentials?apiKey=${apiKey}`;
 
-  try {
-    const resp = await fetch(meteredUrl, { signal: AbortSignal.timeout(4000) });
-    if (!resp.ok) {
-      console.warn(`[ICE] Metered unavailable (${resp.status}) — using static TURN fallback`);
-      return res.json({ iceServers: STATIC_ICE });
+  for (const url of [primaryUrl, fallbackUrl]) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (!resp.ok) {
+        console.warn(`[ICE] Metered ${url} returned ${resp.status}`);
+        continue;
+      }
+      const servers = await resp.json();
+      if (!Array.isArray(servers) || servers.length === 0) {
+        console.warn('[ICE] Metered returned empty server list');
+        continue;
+      }
+      console.log(`[ICE] Metered credentials fetched OK (${servers.length} servers) from ${url}`);
+      _meteredCache = servers;
+      _meteredCacheAt = now;
+      return servers;
+    } catch (e) {
+      console.warn(`[ICE] Metered fetch error (${url}):`, e.message);
     }
-    const servers = await resp.json();
-    if (!Array.isArray(servers) || servers.length === 0) {
-      return res.json({ iceServers: STATIC_ICE });
-    }
-    return res.json({ iceServers: servers });
-  } catch (e) {
-    console.warn('[ICE] Metered fetch error — using static TURN fallback:', e.message);
-    return res.json({ iceServers: STATIC_ICE });
   }
+
+  return null; // both attempts failed
+}
+
+router.get('/credentials', async (req, res) => {
+  try {
+    const servers = await fetchMeteredCredentials();
+    if (servers) {
+      return res.json({ iceServers: servers });
+    }
+  } catch (e) {
+    console.warn('[ICE] fetchMeteredCredentials threw:', e.message);
+  }
+
+  console.warn('[ICE] Metered unavailable — using static TURN fallback');
+  return res.json({ iceServers: STATIC_ICE });
 });
 
 export default router;

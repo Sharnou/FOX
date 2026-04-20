@@ -442,6 +442,114 @@ router.post('/direct', auth, async (req, res) => {
   }
 });
 
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/chat/send — quick message from AdCard mini-chat
+// Creates or resumes a chat and appends the message in one step
+// Must be BEFORE /:chatId routes to avoid route conflict
+// ─────────────────────────────────────────────────────────────
+router.post('/send', auth, async (req, res) => {
+  try {
+    const { receiverId, adId, message } = req.body;
+    if (!receiverId || !message?.trim()) {
+      return res.status(400).json({ error: 'receiverId و message مطلوبان' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+      return res.status(400).json({ error: 'receiverId غير صالح' });
+    }
+    const senderId = req.user._id || req.user.id;
+    if (String(senderId) === String(receiverId)) {
+      return res.status(400).json({ error: 'لا يمكنك مراسلة نفسك' });
+    }
+
+    // Validate adId if provided
+    const validAdId = adId && mongoose.Types.ObjectId.isValid(adId) ? adId : null;
+
+    // Find or create conversation between sender (buyer) and receiver (seller)
+    let chat = await getChat().findOne({
+      $or: [
+        { buyer: senderId, seller: receiverId },
+        { buyer: receiverId, seller: senderId }
+      ],
+      ...(validAdId ? { ad: validAdId } : {})
+    });
+
+    if (!chat) {
+      // Atomic upsert to avoid race conditions
+      try {
+        chat = await getChat().findOneAndUpdate(
+          {
+            buyer: senderId,
+            seller: receiverId,
+            ...(validAdId ? { ad: validAdId } : {}),
+          },
+          {
+            $setOnInsert: {
+              buyer: senderId,
+              seller: receiverId,
+              messages: [],
+              unreadBuyer: 0,
+              unreadSeller: 0,
+              status: 'active',
+              ...(validAdId ? { ad: validAdId } : {}),
+            },
+          },
+          { upsert: true, returnDocument: 'after' }
+        );
+      } catch (createErr) {
+        // Race condition fallback
+        chat = await getChat().findOne({
+          $or: [
+            { buyer: senderId, seller: receiverId },
+            { buyer: receiverId, seller: senderId }
+          ],
+        });
+        if (!chat) throw createErr;
+      }
+    }
+
+    if (chat.status === 'closed') {
+      return res.status(403).json({ error: 'المحادثة مغلقة — الإعلان تم بيعه' });
+    }
+
+    const newMsg = {
+      sender: senderId,
+      text: message.trim(),
+      type: 'text',
+      read: false,
+      createdAt: new Date(),
+    };
+
+    const isBuyer = String(chat.buyer) === String(senderId);
+    const unreadKey = isBuyer ? 'unreadSeller' : 'unreadBuyer';
+
+    await getChat().findOneAndUpdate(
+      { _id: chat._id },
+      {
+        $push: { messages: { $each: [newMsg], $slice: -500 } },
+        $set:  { updatedAt: new Date() },
+        $inc:  { messageCount: 1, [unreadKey]: 1 },
+      }
+    );
+
+    // Emit socket notification to receiver if online
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to('user_' + String(receiverId)).emit('receive_message', {
+          chatId: chat._id,
+          message: { ...newMsg, sender: senderId },
+        });
+      }
+    } catch (_) {}
+
+    res.json({ success: true, chatId: chat._id });
+  } catch (e) {
+    console.error('[Chat/send]', e);
+    res.status(500).json({ error: 'فشل إرسال الرسالة' });
+  }
+});
+
 // DELETE /api/chat/:chatId — soft delete for current user
 // ─────────────────────────────────────────────────────────────
 router.delete('/:chatId', auth, async (req, res) => {
