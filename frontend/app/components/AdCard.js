@@ -266,16 +266,73 @@ export default function AdCard({
   // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
   const adDetailUrl = '/ads/' + adId;
 
+  // #123 — Determine promotion tier styling
+  const promoType = ad.promotion?.type || 'none';
+  const isFeaturedPromo = promoType === 'featured' && new Date(ad.promotion?.expiresAt) > new Date();
+  const isPremiumPromo = promoType === 'premium' && new Date(ad.promotion?.expiresAt) > new Date();
+
+  const cardBorder = isPremiumPromo
+    ? '2px solid #c084fc'
+    : isFeaturedPromo
+    ? '2px solid #facc15'
+    : ad.isFeatured
+    ? '2px solid #FFD700'
+    : '1px solid #eee';
+
+  const cardBoxShadow = isPremiumPromo
+    ? '0 0 20px 4px rgba(168,85,247,0.6), 0 0 40px 8px rgba(168,85,247,0.3)'
+    : isFeaturedPromo
+    ? '0 0 16px 3px rgba(250,204,21,0.55), 0 0 32px 6px rgba(250,204,21,0.25)'
+    : ad.isFeatured
+    ? '0 4px 16px rgba(255,165,0,0.2)'
+    : '0 1px 4px rgba(0,0,0,0.06)';
+
+  const cardBg = isPremiumPromo
+    ? 'linear-gradient(135deg, rgba(88,28,135,0.18) 0%, #0f172a 100%)'
+    : isFeaturedPromo
+    ? 'linear-gradient(135deg, rgba(120,90,0,0.13) 0%, #fff 100%)'
+    : '#fff';
+
   return (
     // FIX 2: Use Next.js Link for correct navigation; normalized adId
     <Link href={adDetailUrl} className="bg-white rounded-xl transition block slide-in relative"
       style={{
-        border: ad.isFeatured ? '2px solid #FFD700' : '1px solid #eee',
-        boxShadow: ad.isFeatured ? '0 4px 16px rgba(255,165,0,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
+        border: cardBorder,
+        boxShadow: cardBoxShadow,
+        background: cardBg,
         textDecoration: 'none',
         color: 'inherit',
       }}>
-      {ad.isFeatured && (
+      {/* #123 — Premium badge (top-right corner, animated pulse) */}
+      {isPremiumPromo && (
+        <span style={{
+          position: 'absolute', top: 8, right: 8, zIndex: 10,
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+          borderRadius: 999, padding: '2px 8px',
+          background: 'linear-gradient(90deg, #9333ea, #d946ef)',
+          color: '#fff', fontSize: 10, fontWeight: 800,
+          boxShadow: '0 2px 12px rgba(168,85,247,0.6)',
+          animation: 'pulse 2s infinite',
+          letterSpacing: '0.03em',
+        }}>
+          ✦ PREMIUM
+        </span>
+      )}
+      {/* #123 — Featured badge (top-right corner) */}
+      {isFeaturedPromo && !isPremiumPromo && (
+        <span style={{
+          position: 'absolute', top: 8, right: 8, zIndex: 10,
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+          borderRadius: 999, padding: '2px 8px',
+          background: 'linear-gradient(90deg, #eab308, #f59e0b)',
+          color: '#000', fontSize: 10, fontWeight: 800,
+          boxShadow: '0 2px 8px rgba(250,204,21,0.5)',
+          letterSpacing: '0.03em',
+        }}>
+          ★ FEATURED
+        </span>
+      )}
+      {ad.isFeatured && !isFeaturedPromo && !isPremiumPromo && (
         <div style={{
           position:'absolute', top:8, left:8, zIndex:5,
           background:'linear-gradient(135deg,#FFD700,#FFA500)',

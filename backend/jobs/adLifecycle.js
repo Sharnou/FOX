@@ -54,6 +54,13 @@ export async function runAdLifecycle() {
       ],
     });
 
+
+    // #123 — Expire promotions that have passed their expiresAt
+    await Ad.updateMany(
+      { 'promotion.type': { $ne: 'none' }, 'promotion.expiresAt': { $lte: now } },
+      { $set: { 'promotion.type': 'none', 'promotion.expiresAt': null } }
+    );
+
     console.log(
       `[adLifecycle] Expired: ${expiredResult.modifiedCount}, Deleted: ${toDelete.deletedCount}`
     );

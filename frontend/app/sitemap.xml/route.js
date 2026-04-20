@@ -1,155 +1,68 @@
+import { NextResponse } from 'next/server';
+
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export const revalidate = 0;
 
-const BASE = 'https://fox-kohl-eight.vercel.app';
-const API  = 'https://xtox-production.up.railway.app';
-const LANGS = ['ar','en','fr','ru','de','es','tr','zh'];
+const BASE_URL = 'https://fox-kohl-eight.vercel.app';
+const API_URL = 'https://xtox-production.up.railway.app';
 
-function esc(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function hreflang(path) {
-  const loc = `${BASE}${path}`;
-  return LANGS.map(l =>
-    `    <xhtml:link rel="alternate" hreflang="${l}" href="${esc(loc)}?lang=${l}"/>`
-  ).join('\n') + `\n    <xhtml:link rel="alternate" hreflang="x-default" href="${esc(loc)}"/>`;
-}
-
-function entry({ path, freq, pri, withHreflang = false, image = null, lastmod = null }) {
-  const loc = esc(`${BASE}${path}`);
-  const date = lastmod || new Date().toISOString().slice(0, 10);
-  const imgBlock = image
-    ? `\n    <image:image>\n      <image:loc>${esc(image.url)}</image:loc>\n      <image:title>${esc(image.title)}</image:title>\n    </image:image>`
-    : '';
-  const altBlock = withHreflang ? '\n' + hreflang(path) : '';
-  return [
-    '  <url>',
-    `    <loc>${loc}</loc>`,
-    `    <lastmod>${date}</lastmod>`,
-    `    <changefreq>${freq}</changefreq>`,
-    `    <priority>${pri}</priority>`,
-    imgBlock,
-    altBlock,
-    '  </url>',
-  ].filter(Boolean).join('\n');
-}
-
-// Country → language map for geo-targeted hreflang (all 8 languages)
-const COUNTRY_LANG_MAP = {
-  // Arabic (ar)
-  'EG': 'ar', 'SA': 'ar', 'AE': 'ar', 'KW': 'ar', 'QA': 'ar', 'BH': 'ar',
-  'OM': 'ar', 'JO': 'ar', 'LB': 'ar', 'IQ': 'ar', 'SY': 'ar', 'LY': 'ar',
-  'TN': 'ar', 'DZ': 'ar', 'MA': 'ar', 'SD': 'ar', 'YE': 'ar', 'PS': 'ar',
-  // English (en)
-  'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en', 'IN': 'en', 'NG': 'en',
-  // French (fr)
-  'FR': 'fr', 'BE': 'fr', 'CH': 'fr', 'SN': 'fr',
-  // Russian (ru)
-  'RU': 'ru', 'UA': 'ru', 'KZ': 'ru', 'BY': 'ru',
-  // German (de)
-  'DE': 'de', 'AT': 'de',
-  // Spanish (es)
-  'ES': 'es', 'MX': 'es', 'AR': 'es', 'CO': 'es',
-  // Turkish (tr)
-  'TR': 'tr', 'AZ': 'tr',
-  // Chinese (zh)
-  'CN': 'zh', 'TW': 'zh', 'HK': 'zh', 'SG': 'zh',
-};
-
-// Build hreflang links for an ad based on its country
-function adHreflang(path, countryCode) {
-  const lang = COUNTRY_LANG_MAP[countryCode] || 'ar';
-  const loc = `${BASE}${path}`;
-  return [
-    `    <xhtml:link rel="alternate" hreflang="${lang}-${countryCode}" href="${esc(loc)}"/>`,
-    `    <xhtml:link rel="alternate" hreflang="${lang}" href="${esc(loc)}"/>`,
-    `    <xhtml:link rel="alternate" hreflang="x-default" href="${esc(loc)}"/>`,
-  ].join('\n');
-}
-
-// entry variant that adds geo hreflang based on ad country
-function entryWithGeoHreflang({ path, freq, pri, lastmod = null, image = null, countryCode = 'EG' }) {
-  const loc = esc(`${BASE}${path}`);
-  const date = lastmod || new Date().toISOString().slice(0, 10);
-  const imgBlock = image
-    ? `\n    <image:image>\n      <image:loc>${esc(image.url)}</image:loc>\n      <image:title>${esc(image.title)}</image:title>\n    </image:image>`
-    : '';
-  const altBlock = '\n' + adHreflang(path, countryCode);
-  return [
-    '  <url>',
-    `    <loc>${loc}</loc>`,
-    `    <lastmod>${date}</lastmod>`,
-    `    <changefreq>${freq}</changefreq>`,
-    `    <priority>${pri}</priority>`,
-    imgBlock,
-    altBlock,
-    '  </url>',
-  ].filter(Boolean).join('\n');
-}
-
+const STATIC_ROUTES = [
+  { url: '/', priority: '1.0', changefreq: 'daily' },
+  { url: '/ads', priority: '0.9', changefreq: 'hourly' },
+  { url: '/login', priority: '0.5', changefreq: 'monthly' },
+  { url: '/register', priority: '0.5', changefreq: 'monthly' },
+  { url: '/sell', priority: '0.8', changefreq: 'weekly' },
+  { url: '/profile', priority: '0.6', changefreq: 'weekly' },
+  { url: '/chat', priority: '0.6', changefreq: 'daily' },
+  { url: '/winner-history', priority: '0.5', changefreq: 'monthly' },
+];
 
 export async function GET() {
-  const today = new Date().toISOString().slice(0, 10);
-
-  const statics = [
-    entry({ path: '/',            freq: 'weekly',  pri: '1.0', withHreflang: true }),
-    entry({ path: '/ads',         freq: 'daily',   pri: '0.9', withHreflang: true }),
-    entry({ path: '/leaderboard', freq: 'weekly',  pri: '0.8', withHreflang: true }),
-    entry({ path: '/honor-roll',  freq: 'weekly',  pri: '0.8', withHreflang: true }),
-    entry({ path: '/login',       freq: 'monthly', pri: '0.5', withHreflang: true }),
-    entry({ path: '/register',    freq: 'monthly', pri: '0.5', withHreflang: true }),
-  ];
-
-  let dynamics = [];
+  let adUrls = [];
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    const r = await fetch(`${API}/api/ads?limit=500&status=active`, {
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
+    const res = await fetch(`${API_URL}/api/ads?limit=500&status=active`, {
+      signal: AbortSignal.timeout(5000),
     });
-    clearTimeout(timer);
-    if (r.ok) {
-      const data = await r.json();
-      const ads = Array.isArray(data) ? data : (data.ads ?? data.data ?? []);
-      dynamics = ads
-        .filter(a => a?._id)
-        .slice(0, 493)
-        .map(a => {
-          const imgUrl = Array.isArray(a.images) && typeof a.images[0] === 'string' && a.images[0].startsWith('http')
-            ? a.images[0] : null;
-          return entryWithGeoHreflang({
-            path: `/ads/${a._id}`,
-            freq: 'weekly',
-            pri: '0.8',
-            lastmod: a.updatedAt ? new Date(a.updatedAt).toISOString().slice(0, 10) : today,
-            image: imgUrl ? { url: imgUrl, title: a.title || '' } : null,
-            countryCode: a.country || 'EG',
-          });
-        });
+    if (res.ok) {
+      const data = await res.json();
+      const ads = data.ads || data.data || data || [];
+      adUrls = ads.map(ad => ({
+        url: `/ads/${ad._id}`,
+        priority: '0.8',
+        changefreq: 'weekly',
+        image: ad.images?.[0] || null,
+        title: ad.title || '',
+      }));
     }
-  } catch { /* fallback to static only */ }
+  } catch (e) {
+    // fallback to static only
+  }
 
-  const xml = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset',
-    '  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"',
-    '  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"',
-    '  xmlns:xhtml="http://www.w3.org/1999/xhtml">',
-    [...statics, ...dynamics].join('\n'),
-    '</urlset>',
-  ].join('\n');
+  const allUrls = [...STATIC_ROUTES, ...adUrls];
+  const lastmod = new Date().toISOString().split('T')[0];
 
-  return new Response(xml, {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${allUrls.map(u => `  <url>
+    <loc>${BASE_URL}${u.url}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${u.changefreq || 'weekly'}</changefreq>
+    <priority>${u.priority || '0.7'}</priority>${u.image ? `
+    <image:image>
+      <image:loc>${u.image}</image:loc>
+      <image:title>${(u.title || '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}</image:title>
+    </image:image>` : ''}
+  </url>`).join('\n')}
+</urlset>`;
+
+  return new NextResponse(xml, {
     status: 200,
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      'X-Robots-Tag': 'noindex',
     },
   });
 }

@@ -10,8 +10,14 @@ const router = express.Router();
 const PLANS = {
   free:     { days: 3,  style: 'normal', price: 0 },
   basic:    { days: 7,  style: 'normal', price: 2 },
-  featured: { days: 14, style: 'gold',   price: 5 },
-  premium:  { days: 30, style: 'banner', price: 15 },
+  featured: { days: 14, style: 'gold',   price: 5,  promoType: 'featured' },
+  premium:  { days: 14, style: 'banner', price: 15, promoType: 'premium'  },
+};
+
+// #123 — Promotion tiers for the new promotion.{type,expiresAt} system
+const PROMO_PLANS = {
+  featured: { label: 'Featured', days: 14, priceUSD: 5,  type: 'featured' },
+  premium:  { label: 'Premium',  days: 14, priceUSD: 15, type: 'premium'  },
 };
 
 // Golden/premium styles are UNLIMITED — only 'normal' style is capped at 16
@@ -224,5 +230,55 @@ router.post('/', auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── #123 — POST /api/promote/:adId — apply promotion after payment confirmed ──
+router.post('/:adId', auth, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.adId))
+      return res.status(400).json({ error: 'Invalid ad ID' });
+
+    const { plan } = req.body; // 'featured' | 'premium'
+    const p = PROMO_PLANS[plan];
+    if (!p) return res.status(400).json({ error: 'Invalid plan. Use: featured | premium' });
+
+    const ad = await Ad.findOne({
+      _id: req.params.adId,
+      $or: [{ userId: req.user.id }, { seller: req.user.id }],
+    });
+    if (!ad && req.user.role !== 'admin') return res.status(404).json({ error: 'Ad not found or not yours' });
+    const targetAd = ad || await Ad.findById(req.params.adId);
+    if (!targetAd) return res.status(404).json({ error: 'Ad not found' });
+
+    const expiresAt = new Date(Date.now() + p.days * 24 * 60 * 60 * 1000);
+    targetAd.promotion = { type: p.type, expiresAt, paidAt: new Date(), amountUSD: p.priceUSD };
+    // Also set legacy isFeatured for backward compat
+    targetAd.isFeatured = true;
+    targetAd.featuredStyle = p.type === 'premium' ? 'banner' : 'gold';
+    targetAd.featuredPlan = plan;
+    targetAd.featuredUntil = expiresAt;
+    targetAd.featuredAt = new Date();
+    await targetAd.save();
+
+    res.json({ success: true, promotion: targetAd.promotion, ad: { _id: targetAd._id, title: targetAd.title } });
+  } catch (err) {
+    console.error('[PROMOTE/:adId] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── #123 — POST /api/promote/expire-all — Admin: expire old promotions ──
+router.post('/expire-all', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    const result = await Ad.updateMany(
+      { 'promotion.type': { $ne: 'none' }, 'promotion.expiresAt': { $lt: new Date() } },
+      { $set: { 'promotion.type': 'none', 'promotion.expiresAt': null } }
+    );
+    res.json({ expired: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 export default router;

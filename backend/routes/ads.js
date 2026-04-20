@@ -247,16 +247,27 @@ router.get('/', async (req, res) => {
     }
 
     // Normalize: ensure both 'images' and 'media' fields exist on every ad
+    // #123: also compute promotionPriority for sorting (Premium=2, Featured=1, none=0)
     function normalizeAd(ad) {
       const obj = ad.toObject ? ad.toObject() : ad;
+      const now = new Date();
+      const promoType = obj.promotion?.type || 'none';
+      const promoExpires = obj.promotion?.expiresAt ? new Date(obj.promotion.expiresAt) : null;
+      const promotionPriority = promoType === 'premium' && promoExpires > now ? 2
+        : promoType === 'featured' && promoExpires > now ? 1
+        : 0;
       return {
         ...obj,
         images: obj.images?.length ? obj.images : (obj.media?.length ? obj.media : []),
         media: obj.media?.length ? obj.media : (obj.images?.length ? obj.images : []),
+        promotionPriority,
       };
     }
     const normalizedFeatured = featuredAds.map(normalizeAd);
     const normalizedRegular = regularAds.map(normalizeAd);
+    // #123: sort by promotion priority (Premium > Featured > regular) within each group
+    normalizedFeatured.sort((a, b) => b.promotionPriority - a.promotionPriority || b.createdAt - a.createdAt);
+    normalizedRegular.sort((a, b) => b.promotionPriority - a.promotionPriority || b.createdAt - a.createdAt);
 
     // PROXIMITY SORT: when lat/lon provided, calculate haversine distance and sort by closeness
     if (!isNaN(_lat) && !isNaN(_lon)) {

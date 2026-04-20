@@ -62,6 +62,13 @@ const AdSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   wpPostId: { type: String, default: null },
   wpPostUrl: { type: String, default: null },
+  // #123 — Featured/Premium ad promotion tiers
+  promotion: {
+    type: { type: String, enum: ['none', 'featured', 'premium'], default: 'none' },
+    expiresAt: { type: Date, default: null },
+    paidAt: { type: Date, default: null },
+    amountUSD: { type: Number, default: 0 },
+  },
 });
 
 // Compound indexes for fast queries — free performance boost
@@ -102,5 +109,16 @@ AdSchema.pre('save', async function() {
     }
   }
 });
+
+// #123 — Virtual: promotion priority for sorting (Premium=2 > Featured=1 > none=0)
+AdSchema.virtual('promotionPriority').get(function() {
+  const now = new Date();
+  if (this.promotion?.type === 'premium' && this.promotion?.expiresAt > now) return 2;
+  if (this.promotion?.type === 'featured' && this.promotion?.expiresAt > now) return 1;
+  return 0;
+});
+
+// Index for promotion queries
+AdSchema.index({ 'promotion.type': 1, 'promotion.expiresAt': 1 });
 
 export default mongoose.model('Ad', AdSchema);
