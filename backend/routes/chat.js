@@ -398,7 +398,7 @@ router.post('/direct', auth, async (req, res) => {
 
     // Find existing chat between the two (any direction, any ad)
     let chat = await getChat().findOne({
-      : [
+      $or: [
         { buyer: req.user.id, seller: targetUserId },
         { buyer: targetUserId, seller: req.user.id },
       ],
@@ -410,7 +410,7 @@ router.post('/direct', auth, async (req, res) => {
         const created = await getChat().findOneAndUpdate(
           { buyer: req.user.id, seller: targetUserId, directMessage: true },
           {
-            : {
+            $setOnInsert: {
               buyer: req.user.id,
               seller: targetUserId,
               messages: [],
@@ -426,7 +426,7 @@ router.post('/direct', auth, async (req, res) => {
       } catch (createErr) {
         // Race condition — find existing
         chat = await getChat().findOne({
-          : [
+          $or: [
             { buyer: req.user.id, seller: targetUserId },
             { buyer: targetUserId, seller: req.user.id },
           ],

@@ -281,6 +281,120 @@ router.post('/:adId', auth, async (req, res) => {
   }
 });
 
+
+// ── #143 — POST /api/promote/:adId/checkout — Stripe checkout session ──────
+router.post('/:adId/checkout', auth, async (req, res) => {
+  try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(503).json({ error: 'Stripe not configured — use manual payment' });
+    }
+    const { default: Stripe } = await import('stripe');
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' });
+
+    const { plan } = req.body;
+    const p = PROMO_PLANS[plan];
+    if (!p) return res.status(400).json({ error: 'Invalid plan. Use: featured | premium' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.adId))
+      return res.status(400).json({ error: 'Invalid ad ID' });
+
+    const ad = await Ad.findOne({
+      _id: req.params.adId,
+      $or: [{ userId: req.user.id }, { seller: req.user.id }],
+    });
+    if (!ad) return res.status(404).json({ error: 'Ad not found or not yours' });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'https://xtox.vercel.app';
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${p.label} — ${ad.title}`,
+            description: `${p.days} days ${p.label} promotion on XTOX`,
+          },
+          unit_amount: Math.round(p.priceUSD * 100),
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${frontendUrl}/promote/success?adId=${req.params.adId}&plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendUrl}/promote?adId=${req.params.adId}&title=${encodeURIComponent(ad.title)}`,
+      metadata: { adId: req.params.adId, plan, userId: req.user.id.toString() },
+    });
+
+    res.json({ url: session.url, sessionId: session.id });
+  } catch (err) {
+    console.error('[PROMOTE/checkout] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── #143 — POST /api/promote/webhook — Stripe webhook auto-applies promotion ──
+// NOTE: This route needs express.raw() body parser — mount in server/index.js BEFORE json()
+router.post('/webhook', async (req, res) => {
+  try {
+    if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+      return res.status(503).json({ error: 'Stripe webhook not configured' });
+    }
+    const { default: Stripe } = await import('stripe');
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' });
+
+    const sig = req.headers['stripe-signature'];
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    } catch (err) {
+      console.error('[STRIPE WEBHOOK] Signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const { adId, plan, userId } = session.metadata || {};
+      const p = PROMO_PLANS[plan];
+      if (p && adId && mongoose.Types.ObjectId.isValid(adId)) {
+        try {
+          const ad = await Ad.findById(adId);
+          if (ad) {
+            const now = new Date();
+            const currentExpiry = ad.expiresAt && ad.expiresAt > now ? ad.expiresAt : now;
+            ad.expiresAt = new Date(currentExpiry.getTime() + p.days * 24 * 60 * 60 * 1000);
+            ad.hardDeleteAt = new Date(ad.expiresAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+            ad.promotion = {
+              type: p.type,
+              expiresAt: new Date(now.getTime() + p.days * 24 * 60 * 60 * 1000),
+              paidAt: now,
+              amountUSD: p.priceUSD,
+            };
+            ad.isFeatured = true;
+            ad.featuredStyle = p.type === 'premium' ? 'banner' : 'gold';
+            ad.featuredPlan = plan;
+            ad.featuredUntil = new Date(now.getTime() + p.days * 24 * 60 * 60 * 1000);
+            ad.featuredAt = now;
+            if (ad.status === 'expired') {
+              ad.status = 'active';
+              ad.isExpired = false;
+              ad.reshareWindowEndsAt = null;
+            }
+            await ad.save();
+            console.log(`[STRIPE WEBHOOK] Promotion applied: adId=${adId} plan=${plan} user=${userId}`);
+          }
+        } catch (applyErr) {
+          console.error('[STRIPE WEBHOOK] Failed to apply promotion:', applyErr.message);
+        }
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('[STRIPE WEBHOOK] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── #123 — POST /api/promote/expire-all — Admin: expire old promotions ──
 router.post('/expire-all', auth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });

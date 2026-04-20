@@ -262,8 +262,19 @@ export default function AdminPage() {
   const handleToggleBan = useCallback(async (u) => {
     const { ok, data } = await patch('/api/admin/users/' + u._id + '/ban', {});
     if (ok) { setUsers(prev => prev.map(x => x._id === u._id ? { ...x, isBanned: data.isBanned } : x)); showToast(data.isBanned ? 'تم حظر المستخدم' : 'تم رفع الحظر'); }
-    else showToast('خطأ: ' + (data.error || 'فشل'));
+    else showToast('خطأ: ' + (data?.error || 'فشل'));
   }, [patch, showToast]);
+
+  // #147 — suspend / unsuspend a user (deactivates their ads)
+  const handleToggleSuspend = useCallback(async (u) => {
+    const action = u.isSuspended ? 'unsuspend' : 'suspend';
+    const reason = u.isSuspended ? '' : (window.prompt('سبب الإيقاف (اختياري):') || 'Violation of terms');
+    const { ok, data } = await apiFetch('/api/admin/users/' + u._id + '/' + action, { method: 'POST', body: JSON.stringify({ reason }) }, token);
+    if (ok) {
+      setUsers(prev => prev.map(x => x._id === u._id ? { ...x, isSuspended: data.suspended } : x));
+      showToast(data.suspended ? '🔇 تم إيقاف المستخدم وإعلاناته' : '✅ تم استعادة المستخدم');
+    } else showToast('خطأ: ' + (data?.error || 'فشل'));
+  }, [apiFetch, token, showToast]);
 
   const handleToggleAdmin = useCallback(async (u) => {
     const { ok, data } = await patch('/api/admin/users/' + u._id + '/make-admin', {});
@@ -523,6 +534,9 @@ export default function AdminPage() {
                           {u.role === 'admin' && (
                             <Btn small onClick={() => handleToggleAdmin(u)} color="#8b949e">👤 سحب</Btn>
                           )}
+                          <Btn small onClick={() => handleToggleSuspend(u)} color={u.isSuspended ? '#00ff41' : '#ff8800'}>
+                            {u.isSuspended ? '▶️ استعادة' : '⏸️ إيقاف'}
+                          </Btn>
                         </div>
                       </td>
                     </tr>

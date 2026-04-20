@@ -308,6 +308,8 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
     }
 
     var updatedUser = await User.findByIdAndUpdate(user._id, updateData, { returnDocument: 'after' });
+    // #148 — compute initial seller score for new users (non-blocking)
+    if (isNew) computeSellerScore(updatedUser?._id || user._id).catch(() => {});
     var token = issueToken(updatedUser);
 
     res.json({
@@ -460,6 +462,8 @@ router.get('/google/callback', async (req, res) => {
         country: 'unknown',
         lastSeen: new Date()
       });
+      // #148 — compute initial seller score for new Google users (non-blocking)
+      computeSellerScore(user._id).catch(() => {});
     } else {
       // Existing user — only update metadata, never reassign _id or xtoxId
       var cbUpd = { lastSeen: new Date(), emailVerified: true };

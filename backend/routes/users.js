@@ -67,17 +67,23 @@ export async function seedSuperAdmin() {
   await User.findOneAndUpdate(
     { email },
     {
-      email,
-      password: hash,
-      name: 'Ahmed Sharnou',
-      country: 'EG',
-      city: 'Cairo',
-      role: 'admin',
-      reputation: 100
+      $set: {
+        email,
+        password: hash,
+        name: 'Ahmed Elsharnouby',
+        country: 'EG',
+        city: 'Cairo',
+        role: 'admin',
+        reputation: 100,
+      },
+      $setOnInsert: {
+        xtoxId: 'XTOX-000002',
+        createdAt: new Date(),
+      },
     },
     { upsert: true, returnDocument: 'after' }
   );
-  console.log('✅ Super admin ready: ahmed_sharnou@yahoo.com / Aa123123');
+  console.log('✅ Super admin ready: ahmed_sharnou@yahoo.com / Aa123123 | name: Ahmed Elsharnouby | XTOX-000002');
 }
 
 // ── Helper: reject after ms ──────────────────────────────────────────────

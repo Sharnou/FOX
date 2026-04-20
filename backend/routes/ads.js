@@ -7,6 +7,7 @@ import { CouchbaseAd } from '../server/couchbaseModels.js';
 
 import User from '../models/User.js';
 import { auth } from '../middleware/auth.js';
+import { computeSellerScore } from '../utils/sellerScore.js';
 import { moderateText, moderateImage } from '../server/moderation.js';
 import { checkDuplicate } from '../server/duplicateDetector.js';
 import { rankAd } from '../server/ranking.js';
@@ -1232,6 +1233,8 @@ router.post('/', auth, multerUpload, async (req, res) => {
 
     await rankAd(ad).catch(() => {});
     await indexAd(ad).catch(() => {});
+    // #148 — update seller score after new ad (non-blocking)
+    computeSellerScore(req.user.id).catch(() => {});
 
     // AUTO-LEARN local language from this ad — wrapped in try/catch
     // to prevent sync crashes (e.g. undefined.media) from reaching the outer
@@ -1584,6 +1587,8 @@ router.put('/:id', auth, async (req, res) => {
     await ad.save();
     await rankAd(ad).catch(() => {});
     await indexAd(ad).catch(() => {});
+    // #148 — update seller score after new ad (non-blocking)
+    computeSellerScore(req.user.id).catch(() => {});
 
     // AI QUALITY SCORE on update — async, non-blocking
     setImmediate(async () => {
