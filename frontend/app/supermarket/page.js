@@ -28,13 +28,31 @@ export default function SupermarketPage() {
   const [items, setItems] = useState([]);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
-  const country = typeof window !== 'undefined' ? localStorage.getItem('country') || 'EG' : 'EG';
+  const [error, setError] = useState(false);
+  const [country, setCountry] = useState('EG');
+
+  // Read country from localStorage only on client to prevent hydration mismatch
   useEffect(() => {
-    axios.get(API + '/api/supermarket', { params: { country } })
-      .then(r => setItems(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    if (typeof window !== 'undefined') {
+      setCountry(localStorage.getItem('country') || 'EG');
+    }
   }, []);
+
+  const fetchItems = () => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(false);
+    axios.get(API + '/api/supermarket', { params: { country }, signal: controller.signal })
+      .then(r => setItems(Array.isArray(r.data) ? r.data : []))
+      .catch(e => { if (!axios.isCancel(e)) setError(true); })
+      .finally(() => setLoading(false));
+    return controller;
+  };
+
+  useEffect(() => {
+    const controller = fetchItems();
+    return () => controller.abort();
+  }, [country]);
   const addToCart = (item) => setCart(c => [...c, item]);
   return (
     <div className="max-w-4xl mx-auto p-4">
@@ -43,6 +61,12 @@ export default function SupermarketPage() {
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
+        </div>
+      ) : error ? (
+        <div className="text-center py-16">
+          <div className="text-5xl mb-3">⚠️</div>
+          <p className="text-lg text-gray-500 mb-4">تعذّر تحميل المنتجات</p>
+          <button onClick={() => fetchItems()} className="bg-brand text-white px-6 py-2 rounded-xl font-bold">إعادة المحاولة</button>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

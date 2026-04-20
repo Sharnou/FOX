@@ -42,14 +42,24 @@ export default function PharmacyPage() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
 
-  const country = typeof window !== 'undefined' ? localStorage.getItem('country') || 'EG' : 'EG';
+  const [country, setCountry] = useState('EG');
+
+  // Read country from localStorage only on client to prevent hydration mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCountry(localStorage.getItem('country') || 'EG');
+    }
+  }, []);
 
   useEffect(() => {
-    axios.get(API + '/api/pharmacy', { params: { country } })
+    const controller = new AbortController();
+    setLoading(true);
+    axios.get(API + '/api/pharmacy', { params: { country }, signal: controller.signal })
       .then(r => setItems(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setItems([]))
+      .catch(e => { if (!axios.isCancel(e)) setItems([]); })
       .finally(() => setLoading(false));
-  }, []);
+    return () => controller.abort();
+  }, [country]);
 
   const filtered = useMemo(() => {
     let result = items;
@@ -82,7 +92,7 @@ export default function PharmacyPage() {
           ←
         </button>
         <h1 className="text-2xl font-bold text-brand">💊 الصيدلية</h1>
-        <span className="mr-auto text-sm text-gray-400">{country}</span>
+        <span className="mr-auto text-sm text-gray-400" suppressHydrationWarning>{country}</span>
       </div>
 
       {/* Warning banner */}

@@ -375,7 +375,7 @@ export default function NotificationsPage() {
                       {n.message}
                     </p>
                     <p style={{ margin: '5px 0 0', color: '#9ca3af', fontSize: 12 }}>
-                      {arabicRelTime(n.createdAt)}
+                      <span suppressHydrationWarning>{arabicRelTime(n.createdAt)}</span>
                     </p>
                   </div>
 

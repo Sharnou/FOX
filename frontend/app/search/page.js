@@ -82,7 +82,14 @@ export default function SearchPage() {
   const [showRecent, setShowRecent] = useState(false);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
-  const country = typeof window !== 'undefined' ? localStorage.getItem('country') || 'EG' : 'EG';
+  const [country, setCountry] = useState('EG');
+
+  // Read country from localStorage only on client to prevent hydration mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCountry(localStorage.getItem('country') || 'EG');
+    }
+  }, []);
 
   useEffect(() => {
     setRecentSearches(loadRecentSearches());

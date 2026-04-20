@@ -29,14 +29,31 @@ export default function FastFoodPage() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
-  const country = typeof window !== 'undefined' ? localStorage.getItem('country') || 'EG' : 'EG';
+  const [error, setError] = useState(false);
+  const [country, setCountry] = useState('EG');
+
+  // Read country from localStorage only on client to prevent hydration mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCountry(localStorage.getItem('country') || 'EG');
+    }
+  }, []);
+
+  const fetchItems = () => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(false);
+    axios.get(API + '/api/fastfood', { params: { country }, signal: controller.signal })
+      .then(r => setItems(Array.isArray(r.data) ? r.data : []))
+      .catch(e => { if (!axios.isCancel(e)) setError(true); })
+      .finally(() => setLoading(false));
+    return controller;
+  };
 
   useEffect(() => {
-    axios.get(API + '/api/fastfood', { params: { country } })
-      .then(r => setItems(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    const controller = fetchItems();
+    return () => controller.abort();
+  }, [country]);
 
   const addToCart = (item) => {
     setCart(prev => {
@@ -85,6 +102,12 @@ export default function FastFoodPage() {
       {loading ? (
         <div className="grid grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
+        </div>
+      ) : error ? (
+        <div className="text-center py-16 text-gray-400">
+          <div className="text-5xl mb-3">⚠️</div>
+          <p className="text-lg mb-4">تعذّر تحميل القائمة</p>
+          <button onClick={() => fetchItems()} className="bg-orange-500 text-white px-6 py-2 rounded-xl font-bold">إعادة المحاولة</button>
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-gray-400">

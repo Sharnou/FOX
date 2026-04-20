@@ -34,7 +34,7 @@ export default function LanguagePage() {
       if (w.status === 'fulfilled') setWords(w.value.data.words || []);
       if (s.status === 'fulfilled') setStats(s.value.data);
       if (p.status === 'fulfilled') setPending(p.value.data || []);
-    } catch {}
+    } catch (err) { console.error('[Language] fetch error:', err); }
     setLoading(false);
   }
 

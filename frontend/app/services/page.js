@@ -48,24 +48,31 @@ export default function ServicesPage() {
   const [error, setError]         = useState(false);
   const [citySearch, setCitySearch] = useState('');
 
-  const country = typeof window !== 'undefined'
-    ? localStorage.getItem('country') || 'EG'
-    : 'EG';
+  const [country, setCountry] = useState('EG');
+
+  // Read country from localStorage only on client to prevent hydration mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCountry(localStorage.getItem('country') || 'EG');
+    }
+  }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
     setError(false);
     Promise.all([
-      axios.get(API + '/api/services', { params: { country } }),
-      axios.get(API + '/api/services/types'),
+      axios.get(API + '/api/services', { params: { country }, signal: controller.signal }),
+      axios.get(API + '/api/services/types', { signal: controller.signal }),
     ])
       .then(([r1, r2]) => {
         setServices(r1.data || []);
         setTypes(r2.data || []);
       })
-      .catch(() => setError(true))
+      .catch(e => { if (!axios.isCancel(e)) setError(true); })
       .finally(() => setLoading(false));
-  }, []);
+    return () => controller.abort();
+  }, [country]);
 
   const filtered = useMemo(() => {
     let list = filter === 'All' ? services : services.filter(s => s.subcategory === filter);

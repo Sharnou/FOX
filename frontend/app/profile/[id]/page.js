@@ -138,9 +138,10 @@ export default function ProfilePage({ params }) {
       return;
     }
     setLoading(true);
+    const controller = new AbortController();
     const loadProfile = async () => {
       try {
-        const r = await fetch(API + '/api/profile/' + id);
+        const r = await fetch(API + '/api/profile/' + id, { signal: controller.signal });
         if (!r.ok) {
           setError('المستخدم غير موجود');
           setLoading(false);
@@ -167,6 +168,7 @@ export default function ProfilePage({ params }) {
       }
     };
     loadProfile();
+    return () => controller.abort();
   }, [params?.id]);
 
   useEffect(() => {

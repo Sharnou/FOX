@@ -154,16 +154,29 @@ export default function JobsPage() {
   const [filter, setFilter]   = useState('all');
   const [citySearch, setCitySearch] = useState('');
 
-  const country = typeof window !== 'undefined'
-    ? localStorage.getItem('country') || 'EG'
-    : 'EG';
+  const [country, setCountry] = useState('EG');
+
+  // Read country from localStorage only on client to prevent hydration mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCountry(localStorage.getItem('country') || 'EG');
+    }
+  }, []);
+
+  const fetchJobs = () => {
+    const controller = new AbortController();
+    setLoading(true);
+    axios.get(API + '/api/jobs', { params: { country }, signal: controller.signal })
+      .then(r => setJobs(Array.isArray(r.data) ? r.data : []))
+      .catch(e => { if (!axios.isCancel(e)) console.warn('[Jobs] fetch error'); })
+      .finally(() => setLoading(false));
+    return controller;
+  };
 
   useEffect(() => {
-    axios.get(API + '/api/jobs', { params: { country } })
-      .then(r => setJobs(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    const controller = fetchJobs();
+    return () => controller.abort();
+  }, [country]);
 
   const filtered = useMemo(() => {
     let list = jobs;
