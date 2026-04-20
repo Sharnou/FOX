@@ -105,6 +105,8 @@ const UserSchema = new mongoose.Schema(
 
     // -- Verification status -------------------------------------------------
     emailVerified: { type: Boolean, default: false },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
     whatsappVerified: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
   },

@@ -367,7 +367,10 @@ cron.schedule('0 * * * *', async () => {
   }
 });
 // Run once on startup to catch any missed windows
-import('../jobs/adLifecycle.js').then(({ runAdLifecycle }) => runAdLifecycle()).catch(() => {});
+import('../jobs/adLifecycle.js').then(({ runAdLifecycle, migrateSellerScores }) => {
+  runAdLifecycle().catch(() => {});
+  migrateSellerScores().catch(() => {});
+}).catch(() => {});
 
 // Auto backup every 24 hours at 3am
 cron.schedule('0 3 * * *', async () => {

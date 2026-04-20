@@ -22,7 +22,7 @@ export default function MyAdsPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const t = localStorage.getItem('token');
+      const t = localStorage.getItem('xtox_token') || localStorage.getItem('token');
       if (!t) { window.location.href = '/login'; return; }
       setToken(t);
       fetchMyAds(t);

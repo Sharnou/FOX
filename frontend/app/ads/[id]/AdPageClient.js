@@ -338,7 +338,7 @@ export default function AdPageClient({ params }) {
       if (!_mounted) return;
       var io = _mod.io;
       // Connect to default namespace only — no custom namespace to avoid "Invalid namespace" errors
-      _s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('token') || 'guest' : 'guest' } });
+      _s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') || 'guest' : 'guest' } });
       // Handle socket connection errors gracefully — must never block UI
       _s.on('connect_error', function(err) { console.warn('[Socket] connect error:', err.message); });
       _s.emit('join', userId);

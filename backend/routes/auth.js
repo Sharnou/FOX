@@ -1127,4 +1127,138 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
+
+// ── Forgot Password (step 1): send OTP to email ─────────────────────────
+// POST /api/auth/forgot-password
+// Body: { email: 'user@example.com' }
+router.post('/forgot-password', async (req, res) => {
+  try {
+    var email = (req.body.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'البريد الإلكتروني مطلوب' });
+
+    var User = await getUserModel();
+    var user = await User.findOne({ email });
+    // Always return 200 to prevent email enumeration
+    if (!user) {
+      return res.json({ success: true, message: 'إذا كان البريد الإلكتروني مسجلاً، سيتم إرسال رمز التحقق.' });
+    }
+
+    var resetOtp = USE_FAKE_API ? '000000' : String(Math.floor(100000 + Math.random() * 900000));
+    var expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+    await User.findByIdAndUpdate(user._id, {
+      whatsappOtp: resetOtp,
+      whatsappOtpExpiry: expiry,
+      whatsappOtpAttempts: 0
+    });
+
+    if (USE_FAKE_API) {
+      return res.json({ success: true, message: 'رمز التحقق (وضع التطوير)', debug_otp: resetOtp });
+    }
+
+    try {
+      await sendOTPEmail(email, resetOtp);
+    } catch (emailErr) {
+      console.error('[AUTH forgot-password] Email failed:', emailErr.message);
+      return res.status(500).json({ error: 'فشل إرسال البريد الإلكتروني. تحقق من إعدادات EMAIL_USER و EMAIL_PASS.' });
+    }
+
+    res.json({ success: true, message: 'تم إرسال رمز التحقق إلى ' + email });
+  } catch (e) {
+    res.status(500).json({ error: 'فشل طلب إعادة تعيين كلمة المرور' });
+  }
+});
+
+// ── Forgot Password (step 2): verify OTP + set new password ─────────────
+// POST /api/auth/reset-password/verify
+// Body: { email, otp, newPassword }
+router.post('/reset-password/verify', async (req, res) => {
+  try {
+    var email = (req.body.email || '').trim().toLowerCase();
+    var otp = (req.body.otp || '').trim();
+    var newPassword = req.body.newPassword || '';
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'البريد الإلكتروني ورمز التحقق وكلمة المرور الجديدة مطلوبة' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' });
+    }
+
+    var User = await getUserModel();
+    var user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: 'رمز التحقق غير صحيح أو منتهي الصلاحية.' });
+
+    // FAKE_API bypass
+    if (!(USE_FAKE_API && otp === '000000')) {
+      if ((user.whatsappOtpAttempts || 0) >= 5) {
+        return res.status(429).json({ error: 'تجاوزت الحد الأقصى للمحاولات. اطلب رمزاً جديداً.' });
+      }
+      if (!user.whatsappOtp || !user.whatsappOtpExpiry) {
+        return res.status(400).json({ error: 'لا يوجد رمز تحقق. اطلب رمزاً جديداً.' });
+      }
+      if (new Date() > user.whatsappOtpExpiry) {
+        return res.status(400).json({ error: 'رمز التحقق منتهي الصلاحية. اطلب رمزاً جديداً.' });
+      }
+      if (user.whatsappOtp !== otp) {
+        await User.findByIdAndUpdate(user._id, { $inc: { whatsappOtpAttempts: 1 } });
+        return res.status(400).json({ error: 'رمز التحقق غير صحيح.' });
+      }
+    }
+
+    // Hash new password
+    var bcrypt;
+    try { bcrypt = (await import('bcryptjs')).default; } catch { bcrypt = (await import('bcrypt')).default; }
+    var hash = await bcrypt.hash(newPassword, 10);
+
+    await User.findByIdAndUpdate(user._id, {
+      password: hash,
+      whatsappOtp: null,
+      whatsappOtpExpiry: null,
+      whatsappOtpAttempts: 0
+    });
+
+    res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح.' });
+  } catch (e) {
+    res.status(500).json({ error: 'فشل إعادة تعيين كلمة المرور' });
+  }
+});
+
+// ── Account Deletion (soft delete) ─────────────────────────────────────
+// DELETE /api/auth/account
+// Header: Authorization: Bearer <token>
+// Soft-deletes account: marks isDeleted=true, anonymizes PII
+import { auth as authMiddleware } from '../middleware/auth.js';
+
+router.delete('/account', authMiddleware, async (req, res) => {
+  try {
+    var User = await getUserModel();
+    var userId = req.user.id;
+    var user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
+
+    // Soft delete: anonymize all PII, mark deleted
+    var anonSuffix = '_del_' + Date.now();
+    await User.findByIdAndUpdate(userId, {
+      isDeleted: true,
+      deletedAt: new Date(),
+      name: 'مستخدم محذوف',
+      email: user.email ? ('deleted' + anonSuffix + '@xtox.deleted') : undefined,
+      whatsappPhone: user.whatsappPhone ? ('del' + anonSuffix) : undefined,
+      googleId: null,
+      appleId: null,
+      avatar: null,
+      bio: null,
+      password: null,
+      whatsappOtp: null,
+      whatsappOtpExpiry: null,
+      blocked: true,     // prevent re-login
+      blockReason: 'account_deleted',
+    });
+
+    res.json({ success: true, message: 'تم حذف الحساب بنجاح.' });
+  } catch (e) {
+    res.status(500).json({ error: 'فشل حذف الحساب' });
+  }
+});
+
 export default router;

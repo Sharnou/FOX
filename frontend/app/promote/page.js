@@ -125,7 +125,7 @@ function PromotePageInner() {
 
   // Fetch free plan status and featured slots on mount
   useEffect(() => {
-    const token = localStorage.getItem('token') || localStorage.getItem('fox_token') || '';
+    const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('fox_token') || '';
     // Fetch featured slots (public endpoint — no auth needed)
     fetch(API + '/api/promote/featured-slots')
       .then(r => r.ok ? r.json() : null)
@@ -151,7 +151,7 @@ function PromotePageInner() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + (localStorage.getItem('token') || localStorage.getItem('fox_token') || '')
+          'Authorization': 'Bearer ' + (localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('fox_token') || '')
         },
         body: JSON.stringify({
           adId,

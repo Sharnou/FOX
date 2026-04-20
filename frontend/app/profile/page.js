@@ -81,16 +81,30 @@ export default function ProfilePage() {
         }).catch(() => {});
       }
     } catch (_) {}
-    // Step 2: Clear all auth state from localStorage
+    // Step 2: Clear all auth state from localStorage (#153)
     try {
       const keysToRemove = [
-        'token', 'xtox_token', 'xtox_admin_token', 'authToken',
+        'xtox_token', 'token', 'fox_token', 'xtox_admin_token', 'authToken',
         'xtoxId', 'xtoxEmail', 'userName', 'userId', 'userAvatar',
-        'user', 'xtox_user', 'xtox_admin_user',
+        'user', 'xtox_user', 'xtox_admin_user', 'country',
       ];
       keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
     } catch {}
-    // Step 3: Redirect to login
+    // Step 3: Clear IndexedDB (SW auth token) (#153)
+    try {
+      if (typeof indexedDB !== 'undefined') indexedDB.deleteDatabase('xtox-auth');
+    } catch (_) {}
+    // Step 4: Unsubscribe push notifications (#153)
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready.catch(() => null);
+        if (reg) {
+          const sub = await reg.pushManager.getSubscription().catch(() => null);
+          if (sub) await sub.unsubscribe().catch(() => {});
+        }
+      }
+    } catch (_) {}
+    // Step 5: Redirect to login
     router.push('/login');
   }
 
@@ -276,11 +290,30 @@ export default function ProfilePage() {
 
   const initials = (user.username || user.name || user.email || '?')[0].toUpperCase();
 
+  // #155: Detect new user (createdAt within 7 days)
+  const isNewUser = user.createdAt
+    ? (Date.now() - new Date(user.createdAt).getTime()) < 7 * 24 * 60 * 60 * 1000
+    : false;
+
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', padding: '0 16px' }}>
       <button onClick={() => router.back()} style={{ marginBottom: 16, background: 'none', border: 'none', color: '#6366f1', fontWeight: 'bold', cursor: 'pointer', fontSize: 16 }}>
         ← رجوع
       </button>
+
+      {/* #155: New user welcome banner (first 7 days) */}
+      {isNewUser && (
+        <div style={{ background: 'linear-gradient(135deg,#FF6B35,#f59e0b)', borderRadius: 16, padding: '16px 20px', marginBottom: 20, color: '#fff', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 4px 18px rgba(255,107,53,0.3)' }}>
+          <span style={{ fontSize: 32 }}>🎉</span>
+          <div>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 16 }}>مرحباً بك في XTOX!</p>
+            <p style={{ margin: '4px 0 0', fontSize: 13, opacity: 0.9 }}>أضف إعلانك الأول الآن وابدأ رحلتك في البيع والشراء</p>
+            <a href="/sell" style={{ display: 'inline-block', marginTop: 10, padding: '6px 16px', background: '#fff', color: '#FF6B35', borderRadius: 20, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+              + أضف إعلانك الأول
+            </a>
+          </div>
+        </div>
+      )}
 
       <div style={{ background: 'white', borderRadius: 20, padding: 32, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
 

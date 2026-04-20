@@ -99,7 +99,7 @@ export default function OffersPage() {
 
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem('token');
+      const storedToken = localStorage.getItem('xtox_token') || localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
       if (!storedToken) { router.push('/login'); return; }
       setToken(storedToken);

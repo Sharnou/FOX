@@ -24,20 +24,28 @@ function storeTokenForSW(token) {
   } catch (e) {}
 }
 
+function clearStoredToken() {
+  try { if (typeof indexedDB !== 'undefined') indexedDB.deleteDatabase('xtox-auth'); } catch (_) {}
+}
+
+// #149: Canonical key = xtox_token; also write 'token' for legacy page compatibility
 function storeSession(data) {
   if (typeof window === 'undefined') return;
+  // PRIMARY key: xtox_token
+  localStorage.setItem('xtox_token', data.token);
+  // LEGACY fallback key: token (so pages not yet migrated still work)
   localStorage.setItem('token', data.token);
-  storeTokenForSW(data.token);  // Store in IDB for SW background sync
-  localStorage.setItem('xtoxId', (data.user && data.user.xtoxId) ? data.user.xtoxId : '');
-  localStorage.setItem('xtoxEmail', (data.user && data.user.xtoxEmail) ? data.user.xtoxEmail : '');
-  localStorage.setItem('userName', (data.user && data.user.name) ? data.user.name : '');
-  localStorage.setItem('userId', (data.user && data.user.id) ? data.user.id : '');
-  localStorage.setItem('userAvatar', (data.user && data.user.avatar) ? data.user.avatar : '');
-  if (data.user) {
-    try {
-      localStorage.setItem('user', JSON.stringify(Object.assign({}, data.user, { token: data.token })));
-    } catch (_) {}
-  }
+  storeTokenForSW(data.token);  // #150: Store in IDB for SW background sync
+  var u = data.user || {};
+  localStorage.setItem('xtoxId',    (u.xtoxId    || ''));
+  localStorage.setItem('xtoxEmail', (u.xtoxEmail || ''));
+  localStorage.setItem('userName',  (u.name      || ''));
+  localStorage.setItem('userId',    (u.id        || ''));
+  localStorage.setItem('userAvatar',(u.avatar    || ''));
+  if (u.country) localStorage.setItem('country', u.country);
+  try {
+    localStorage.setItem('user', JSON.stringify(Object.assign({}, u, { token: data.token })));
+  } catch (_) {}
 }
 
 export default function LoginClient() {
@@ -93,7 +101,7 @@ export default function LoginClient() {
           var pad = b64.length % 4;
           if (pad) b64 += '===='.slice(0, 4 - pad);
           var sessionData = JSON.parse(atob(b64));
-          storeSession(sessionData);
+          storeSession(sessionData);  // uses xtox_token as primary key
           window.location.href = redirectTo;
           return;
         } catch (_) {}
@@ -112,24 +120,40 @@ export default function LoginClient() {
           google_unverified: 'google_unverified',
           db_error: 'db_error',
         };
-        // We use a static fallback because t() is not available in the closure yet
-        // The error will be set after render using the key approach
         setError(errorKeys[errorParam] || 'err_default');
         try { window.history.replaceState({}, '', '/login'); } catch (_) {}
         return;
       }
 
+      // Legacy: ?token=... in URL (#149 fix: also write xtox_token)
       var urlToken = params.get('token');
       if (urlToken) {
+        localStorage.setItem('xtox_token', urlToken);
         localStorage.setItem('token', urlToken);
+        storeTokenForSW(urlToken);   // #150
         window.location.href = redirectTo;
         return;
       }
 
-      var existingToken = localStorage.getItem('token');
+      // #152: Check if existing token is present AND not expired before redirecting
+      var existingToken = localStorage.getItem('xtox_token') || localStorage.getItem('token');
       if (existingToken) {
+        // Basic expiry check — if expired, clear and stay on login page
+        try {
+          var parts = existingToken.split('.');
+          if (parts.length === 3) {
+            var pl = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            if (pl.exp && pl.exp * 1000 < Date.now()) {
+              // Token expired — clean up
+              clearStoredToken();
+              ['xtox_token', 'token', 'fox_token', 'user', 'userId', 'userName', 'userAvatar', 'xtoxId', 'xtoxEmail'].forEach(function(k) {
+                try { localStorage.removeItem(k); } catch (_) {}
+              });
+              return;  // stay on login page
+            }
+          }
+        } catch (_) {}
         window.location.href = redirectTo;
-        return;
       }
     } catch (e) {}
   }, []);
@@ -194,10 +218,15 @@ export default function LoginClient() {
       });
       var data = await res.json();
       if (!res.ok) { setError(data.error || t('login_error_try_again')); return; }
+
+      // #151: Complete onboarding pipeline
+      // 1+2. localStorage (xtox_token + legacy token + user)
       storeSession(data);
+      // 3. IndexedDB already done inside storeSession via storeTokenForSW
+
       var xtoxIdVal = (data.user && data.user.xtoxId) ? data.user.xtoxId : '';
       setSuccess(t('login_welcome') + xtoxIdVal);
-      setTimeout(function() { window.location.href = getRedirectUrl(); }, 1500);
+      setTimeout(function() { window.location.href = getRedirectUrl(); }, 1200);
     } catch (e) {
       setError(t('login_network_err2'));
     } finally {
@@ -350,8 +379,15 @@ export default function LoginClient() {
           )
         ) : null,
 
+        /* Forgot password link */
+        React.createElement('p', { style: { textAlign: 'center', marginTop: 16, fontSize: 13, color: '#6b7280' } },
+          React.createElement(Link, { href: '/forgot-password', style: { color: '#FF6B35', textDecoration: 'none' } },
+            t('login_forgot_password') || 'نسيت كلمة المرور؟'
+          )
+        ),
+
         /* Footer */
-        React.createElement('p', { style: { marginTop: 24, textAlign: 'center', fontSize: 12, color: '#9ca3af' } },
+        React.createElement('p', { style: { marginTop: 16, textAlign: 'center', fontSize: 12, color: '#9ca3af' } },
           t('login_terms_prefix'),
           React.createElement(Link, { href: '/terms', style: { color: '#FF6B35' } }, t('login_terms')),
           t('login_and'),

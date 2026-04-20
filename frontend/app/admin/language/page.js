@@ -17,7 +17,7 @@ export default function LanguagePage() {
   const [teaching, setTeaching] = useState({ word: '', meaning: '', category: '', subcategory: '', dialect: 'Egyptian' });
   const [learnText, setLearnText] = useState('');
   const [loading, setLoading] = useState(false);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+  const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : '';
   const headers = { Authorization: 'Bearer ' + token };
   // CATS moved to module level to avoid TDZ
 

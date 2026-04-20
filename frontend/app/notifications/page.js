@@ -66,7 +66,7 @@ export default function NotificationsPage() {
   /* ── auth token (client-only) ── */
   useEffect(() => {
     try {
-      const t = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+      const t = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : '';
       if (!t) { window.location.href = '/login'; return; }
       setToken(t);
     } catch {

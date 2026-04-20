@@ -116,7 +116,7 @@ export default function WinnerBanner() {
 
   const handleCongratulate = async () => {
     let token;
-    try { token = localStorage.getItem('token'); } catch {}
+    try { token = localStorage.getItem('xtox_token') || localStorage.getItem('token'); } catch {}
     if (!token) { router.push('/login'); return; }
     setSending(true);
     try {

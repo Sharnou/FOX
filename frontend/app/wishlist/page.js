@@ -83,7 +83,7 @@ export default function WishlistPage() {
   /* Read lang + token from localStorage once mounted */
   useEffect(() => {
     const storedLang  = localStorage.getItem('lang')  || 'ar';
-    const storedToken = localStorage.getItem('token') || '';
+    const storedToken = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
     setLang(storedLang);
     setToken(storedToken);
     if (storedToken) {

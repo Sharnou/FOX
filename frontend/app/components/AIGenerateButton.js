@@ -89,7 +89,7 @@ export default function AIGenerateButton({ onResult }) {
 
     // Stage 1: reading
     setStage('reading');
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
 
     const reader = new FileReader();
     reader.onerror = () => {

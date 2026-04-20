@@ -409,6 +409,47 @@ export default function EditProfilePage() {
         <p style={{ textAlign: 'center', color: '#aaa', fontSize: 12, marginTop: 12 }}>
           بياناتك محمية ولن تُشارك مع أي طرف ثالث
         </p>
+
+        {/* #162: Account deletion — soft delete with confirmation */}
+        <div style={{ marginTop: 32, borderTop: '1px solid #fee2e2', paddingTop: 24 }}>
+          <h3 style={{ color: '#dc2626', fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>⚠️ منطقة الخطر</h3>
+          <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 16px' }}>
+            حذف الحساب نهائي ولا يمكن التراجع عنه. ستُحذف جميع بياناتك وإعلاناتك.
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!window.confirm('هل أنت متأكد من حذف حسابك نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
+              if (!window.confirm('تأكيد أخير: سيتم حذف حسابك وجميع بياناتك بشكل دائم.')) return;
+              try {
+                const tok = localStorage.getItem('xtox_token') || localStorage.getItem('token') || token;
+                const res = await fetch(
+                  (process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app') + '/api/auth/account',
+                  { method: 'DELETE', headers: { Authorization: 'Bearer ' + tok } }
+                );
+                const data = await res.json();
+                if (!res.ok) { alert(data.error || 'فشل حذف الحساب'); return; }
+                // Clear all auth state
+                ['xtox_token','token','fox_token','xtox_admin_token','authToken',
+                 'user','xtoxId','xtoxEmail','userName','userId','userAvatar','country'].forEach(k => {
+                  try { localStorage.removeItem(k); } catch (_) {}
+                });
+                try { if (typeof indexedDB !== 'undefined') indexedDB.deleteDatabase('xtox-auth'); } catch (_) {}
+                alert('تم حذف حسابك بنجاح.');
+                window.location.href = '/';
+              } catch (err) {
+                alert('تعذر حذف الحساب. يرجى المحاولة مرة أخرى.');
+              }
+            }}
+            style={{
+              padding: '12px 20px', background: '#fff', border: '1.5px solid #dc2626',
+              color: '#dc2626', borderRadius: 12, fontWeight: 700, fontSize: 14,
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
+            }}
+          >
+            🗑️ حذف حسابي نهائياً
+          </button>
+        </div>
       </div>
     </>
   );

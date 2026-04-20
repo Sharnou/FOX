@@ -23,7 +23,7 @@ function RedirectContent() {
       .catch(() => {});
 
     // Check auth state
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
     const isStandalone = typeof window !== 'undefined' && (
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true

@@ -23,7 +23,7 @@ export default function SwipePage() {
   const autoLoadTriggered = useRef(false);
 
   useEffect(() => {
-    const storedToken = (typeof window !== 'undefined' && (localStorage.getItem('token') || localStorage.getItem('authToken'))) || null;
+    const storedToken = (typeof window !== 'undefined' && (localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken'))) || null;
     setToken(storedToken);
   }, []);
 

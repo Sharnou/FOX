@@ -313,7 +313,7 @@ export default function NearbyPage() {
     setLoading(true);
     setFetchError(null);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
       const res   = await fetch(API + '/api/geo/nearby?lat=' + lat + '&lng=' + lng + '&radius=' + radius, {
         headers: token ? { Authorization: 'Bearer ' + token } : {},
       });

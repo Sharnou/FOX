@@ -175,7 +175,7 @@ export default function ProfilePage({ params }) {
     if (!SOCKET_URL || !myUserId || !params?.id) return;
     let s;
     import('socket.io-client').then(({ io }) => {
-      s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('token') || 'guest' : 'guest' } });
+      s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') || 'guest' : 'guest' } });
       s.emit('join', myUserId);
       s.on('call_offer', async (d) => {
         setCallStatus('مكالمة واردة...');

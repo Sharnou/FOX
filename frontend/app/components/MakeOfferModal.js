@@ -19,7 +19,7 @@ export default function MakeOfferModal({
     setLoading(true);
     setError('');
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
       const res = await fetch(
         (process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app') + '/api/offers',
         {

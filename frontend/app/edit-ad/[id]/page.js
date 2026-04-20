@@ -43,7 +43,7 @@ export default function EditAdPage() {
 
   useEffect(() => {
     if (!adId) return;
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
     if (!token) { router.replace('/'); return; }
 
     fetch(`${API}/api/ads/${adId}`)
@@ -100,7 +100,7 @@ export default function EditAdPage() {
     setSaving(true);
     setError(null);
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
     const allImages = [...images, ...newImages];
 
     try {

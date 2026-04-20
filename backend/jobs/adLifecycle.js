@@ -90,3 +90,27 @@ export async function runAdLifecycle() {
     return { expired: 0, deleted: 0, error: err.message };
   }
 }
+
+// ── #163 sellerScore Migration: one-time batch compute for users with score=0 ──
+// Called from runAdLifecycle() automatically. Processes up to 100 users per run
+// so it doesn't block the event loop.
+export async function migrateSellerScores() {
+  try {
+    const { computeSellerScore } = await import('../utils/sellerScore.js');
+    const { default: User } = await import('../models/User.js');
+
+    const usersToScore = await User.find({
+      $or: [{ sellerScore: 0 }, { sellerScore: null }, { sellerScore: { $exists: false } }],
+      isDeleted: { $ne: true },
+    }).limit(100).select('_id').lean();
+
+    if (usersToScore.length === 0) return;
+
+    for (const u of usersToScore) {
+      await computeSellerScore(u._id).catch(() => {});
+    }
+    console.log(`[adLifecycle] migrateSellerScores: processed ${usersToScore.length} users`);
+  } catch (err) {
+    console.warn('[adLifecycle] migrateSellerScores error:', err.message);
+  }
+}
