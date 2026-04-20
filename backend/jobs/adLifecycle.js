@@ -100,19 +100,17 @@ export async function runAdLifecycle() {
 async function deleteAnonymousAds() {
   try {
     const Ad = await getAdModel();
+    // Use $or with only null/missing checks — no empty string (causes ObjectId cast error)
     const result = await Ad.deleteMany({
       $or: [
         { userId: null, seller: null },
+        { userId: { $exists: false }, seller: { $exists: false } },
         { userId: null, seller: { $exists: false } },
         { userId: { $exists: false }, seller: null },
-        { userId: { $exists: false }, seller: { $exists: false } },
-        { userId: '', seller: '' },
-        { userId: '', seller: null },
-        { userId: null, seller: '' },
       ]
     });
     if (result.deletedCount > 0) {
-      console.log(`[Cleanup] Deleted ${result.deletedCount} anonymous ads (no seller)`);
+      console.log(`[Cleanup] Deleted ${result.deletedCount} anonymous ads`);
     }
     return result.deletedCount;
   } catch (e) {
