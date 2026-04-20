@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: process.env.BUILD_TARGET === 'capacitor' ? 'export' : undefined,
+  ...(process.env.BUILD_TARGET === 'capacitor' ? { output: 'export' } : {}),
   images: {
     unoptimized: true,
     remotePatterns: [

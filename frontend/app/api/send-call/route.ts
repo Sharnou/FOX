@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const { to, data } = await req.json();
   // Forward to Railway backend which has firebase-admin

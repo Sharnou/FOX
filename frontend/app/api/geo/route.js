@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 // English-native countries — no toggle button needed
+export const dynamic = 'force-dynamic';
 const ENGLISH_COUNTRIES = new Set([
   'US','GB','AU','CA','NZ','IE','ZA','SG','PH','IN','PK','NG','GH','KE','JM','TT',
   'BB','BS','BZ','FJ','PG','WS','SB','VU','TO','KI','BW','ZW','ZM','MW','SL','LR',
