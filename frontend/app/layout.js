@@ -12,6 +12,7 @@ import ChatFloat from './components/ChatFloat';
 import WhatsAppFloat from './components/WhatsAppFloat';
 import TranslationLoader from './components/TranslationLoader';
 import PushSubscriber from './components/PushSubscriber';
+import FCMInit from './components/FCMInit';
 import GeoMetaInjector from './components/GeoMetaInjector';
 import HtmlAttributes from './components/HtmlAttributes';
 
@@ -132,6 +133,7 @@ export default function RootLayout({ children }) {
         <LanguageProvider>
       <HtmlAttributes />
       <GeoMetaInjector />
+        <FCMInit />
         <PushSubscriber />
       <ErrorCapture />
         <MarkPoint />
