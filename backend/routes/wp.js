@@ -2,7 +2,7 @@ import express from 'express'
 import Ad from '../models/Ad.js'
 import Setting from '../models/Setting.js'
 import { auth as verifyToken } from '../middleware/auth.js'
-import { getWPTokenStatus } from '../utils/wordpress.js'
+import { getWPTokenStatus, saveWPTokenToDB } from '../utils/wordpress.js'
 
 const router = express.Router()
 
@@ -47,11 +47,24 @@ router.get('/status', async (req, res) => {
 })
 
 // GET /api/wp/token-status — check if WP OAuth token is currently valid
-router.get('/token-status', (req, res) => {
+router.get('/token-status', async (req, res) => {
   try {
     const status = getWPTokenStatus()
+    
+    // Also check DB for saved token
+    let dbToken = null;
+    try {
+      const setting = await Setting.findOne({ key: 'wp_access_token' }).lean();
+      dbToken = setting ? 'present' : 'not found';
+    } catch(e) { dbToken = 'db-error'; }
+    
     res.json({
       ...status,
+      envToken: process.env.WP_ACCESS_TOKEN ? 'present' : 'missing',
+      dbToken,
+      instructions: status.valid
+        ? 'Token is valid. WordPress posting is active.'
+        : 'Token invalid or not yet tested. Visit /api/wp/auth to authenticate.',
       message: status.valid
         ? 'WP token is valid (or has not been tested yet)'
         : `WP token is INVALID since ${status.invalidSince}. Retry after ${status.retryAfter}. Re-auth at /api/wp/auth`,
@@ -94,15 +107,21 @@ router.get('/callback', async (req, res) => {
     })
     const data = await r.json()
     if (data.access_token) {
-      // Save to MongoDB — no special char issues
-      await Setting.set('wp_access_token', data.access_token)
-      res.send(`
-        <html><body style="font-family:Arial;padding:40px;text-align:center">
-          <h1 style="color:green">&#x2705; WordPress Connected!</h1>
-          <p>Token saved to database. You can close this window.</p>
-          <p>Site: ${data.blog_url || WP_SITE}</p>
-        </body></html>
-      `)
+      // Save to MongoDB AND process.env — persists across Railway restarts
+      await saveWPTokenToDB(data.access_token)
+      res.send(`<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="UTF-8"><title>تم الاتصال بـ WordPress</title></head>
+<body style="font-family:Cairo,Arial,sans-serif;text-align:center;padding:60px;background:#f5f5f5;margin:0">
+  <div style="background:white;border-radius:20px;padding:40px;max-width:500px;margin:auto;box-shadow:0 4px 20px rgba(0,0,0,0.1)">
+    <div style="font-size:60px">✅</div>
+    <h1 style="color:#002f34;margin:16px 0">تم الاتصال بـ WordPress</h1>
+    <p style="color:#666;line-height:1.6">تم حفظ رمز OAuth بنجاح في قاعدة البيانات.<br>سيتم الآن نشر الإعلانات على WordPress تلقائياً.</p>
+    <p style="color:#888;font-size:14px">الموقع: ${data.blog_url || WP_SITE}</p>
+    <a href="https://fox-kohl-eight.vercel.app" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#002f34;color:white;border-radius:12px;text-decoration:none;font-size:16px">العودة للتطبيق</a>
+  </div>
+</body>
+</html>`)
     } else {
       res.status(400).send(`<h1>Error</h1><pre>${JSON.stringify(data, null, 2)}</pre>`)
     }

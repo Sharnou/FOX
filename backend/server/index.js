@@ -87,6 +87,7 @@ let _getWPTokenStatus = null;
   } catch {}
 })();
 import wpRouter from "../routes/wp.js";
+import { loadWPTokenFromDB } from '../utils/wordpress.js';
 import translationsRouter from '../routes/translations.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 // Pre-register WinnerHistory model so it is available before first query
@@ -536,6 +537,13 @@ connectDatabases().then(async (db) => {
 
     // ── Run seeds + cleanup ─────────────────────────────────────────────
     await runSeedsOnce();
+
+    // ── Load WP OAuth token from MongoDB on startup (persists across Railway restarts) ──
+    try {
+      await loadWPTokenFromDB();
+    } catch (e) {
+      console.warn('[WP] loadWPTokenFromDB failed (non-fatal):', e.message);
+    }
 
     // ── ONE-TIME: Set password for xtox@xtox.com (idempotent) ──────────────
     // Safe to leave in — runs on every startup but only updates the password field.

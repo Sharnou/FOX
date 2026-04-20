@@ -1,4 +1,5 @@
 // Use global fetch (Node 18+ built-in) — avoids node-fetch ESM import issues
+import Setting from '../models/Setting.js';
 
 const SITE = 'xt0x.wordpress.com';
 const WP_API = `https://public-api.wordpress.com/rest/v1.1/sites/${SITE}`;
@@ -21,6 +22,41 @@ function markWPTokenInvalid() {
   _wpTokenInvalid = true;
   _wpTokenInvalidAt = Date.now();
   console.error('[WP] ⚠️ OAuth token invalid — re-authenticate at /api/wp/auth');
+}
+
+// Load WP OAuth token from MongoDB into process.env on startup (call after DB connects)
+export async function loadWPTokenFromDB() {
+  try {
+    const setting = await Setting.findOne({ key: 'wp_access_token' }).lean();
+    if (setting?.value) {
+      process.env.WP_ACCESS_TOKEN = setting.value;
+      console.info('[WP] ✅ Loaded OAuth token from DB');
+      _wpTokenInvalid = false;
+    }
+  } catch (e) {
+    console.warn('[WP] Could not load token from DB:', e.message);
+  }
+}
+
+// Save WP OAuth token to MongoDB AND process.env (persists across Railway restarts)
+export async function saveWPTokenToDB(token) {
+  try {
+    await Setting.findOneAndUpdate(
+      { key: 'wp_access_token' },
+      { value: token, updatedAt: new Date() },
+      { upsert: true }
+    );
+    process.env.WP_ACCESS_TOKEN = token;
+    _wpTokenInvalid = false;
+    _wpTokenInvalidAt = 0;
+    console.info('[WP] ✅ OAuth token saved to DB and env');
+  } catch (e) {
+    console.error('[WP] Failed to save token to DB:', e.message);
+    // Fallback: at least update the env var so current session works
+    process.env.WP_ACCESS_TOKEN = token;
+    _wpTokenInvalid = false;
+    _wpTokenInvalidAt = 0;
+  }
 }
 
 export function getWPTokenStatus() {
