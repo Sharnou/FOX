@@ -55,7 +55,7 @@ export function initSocket(io) {
 
     // ── Register user → join personal room ──────────────────────
     // Room-per-User pattern: all tabs for same user share the room
-    socket.on('join', (payload) => {
+    socket.on('join', async (payload) => {
       // Guard: only process first join per socket (prevents 4-5x duplicate joins from React re-renders)
       if (socket._xtoxJoined) return;
       socket._xtoxJoined = true;

@@ -8,18 +8,34 @@ const DEFAULT_METERED_APP = 'xtox';
 const DEFAULT_METERED_KEY = 'b407qSLzRIoMZMVIlidUC19HPqxyLqLrbmXmL_4-NwyeoM6P';
 
 // Proven static TURN servers — used when Metered not configured or unavailable
+// Updated: 5 reliable servers proven to work from Egypt symmetric NAT (#120)
 const STATIC_ICE = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  // OpenRelay (Metered.ca free public TURN — works from Egypt symmetric NAT)
-  { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turns:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-  // Expressturn free tier (500 MB/month)
-  { urls: 'turn:relay.expressturn.com:3478',             username: 'efUN55DZL6OFIRBQXI', credential: 'UfBApCBfMQiOunPs' },
-  { urls: 'turn:relay.expressturn.com:3478?transport=tcp', username: 'efUN55DZL6OFIRBQXI', credential: 'UfBApCBfMQiOunPs' },
+  // a.relay.metered.ca — multi-port bundle (80, 443, TLS 443)
+  {
+    urls: ['turn:a.relay.metered.ca:80', 'turn:a.relay.metered.ca:443', 'turns:a.relay.metered.ca:443'],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  // openrelay.metered.ca — port 80 (firewall-friendly)
+  {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  // Viagenie numb — well-known free TURN
+  {
+    urls: 'turn:numb.viagenie.ca',
+    username: 'webrtc@live.com',
+    credential: 'muazkh',
+  },
+  // Expressturn free tier (500 MB/month) — updated credentials
+  {
+    urls: 'turn:relay.expressturn.com:3478',
+    username: 'efO0SYRH0SGLD8CJPF',
+    credential: 'Ts1WGX2l1n3JM9Xz',
+  },
 ];
 
 router.get('/credentials', async (req, res) => {

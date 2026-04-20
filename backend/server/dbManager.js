@@ -48,13 +48,19 @@ async function tryCouchbase() {
     return null;
   }
 
+  // Skip if password is not set — avoids auth-failure timeout on Railway
+  if (!process.env.COUCHBASE_PASS && !process.env.COUCHBASE_PASSWORD) {
+    // Completely silent — password not configured, skip connection
+    return null;
+  }
+
   // Only ever attempt once — no background retries
   if (_couchbaseAttempted) return null;
   _couchbaseAttempted = true;
 
   const url = process.env.COUCHBASE_URL || process.env.COUCHBASE_HOST;
   const username = process.env.COUCHBASE_USERNAME || process.env.COUCHBASE_USER || 'xtox';
-  const password = process.env.COUCHBASE_PASSWORD || process.env.COUCHBASE_PASS || '#N^wx+uO^70G';
+  const password = process.env.COUCHBASE_PASSWORD || process.env.COUCHBASE_PASS;
   const bucketName = process.env.COUCHBASE_BUCKET || 'XTOX';
 
   console.log(`[DB] Connecting to Couchbase: ${url} as ${username}`);
