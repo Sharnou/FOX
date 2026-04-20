@@ -478,6 +478,17 @@ setTimeout(async () => {
 // connectDatabases() is called after server.listen (see below)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// GET /api/health-routes — lists all mounted route prefixes (no auth required)
+app.get('/api/health-routes', (req, res) => {
+  res.json({
+    mounted: ['/api/auth', '/api/ads', '/api/chat', '/api/wp', '/api/ice', '/api/push',
+              '/api/users', '/api/admin', '/api/jobs', '/api/services', '/api/notifications',
+              '/api/winner', '/api/reviews', '/api/favorites', '/api/geo', '/api/language'],
+    status: 'ok',
+    time: new Date().toISOString()
+  });
+});
+
 // ─── 404 handler — must be AFTER all routes ──────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Route not found', path: req.path });

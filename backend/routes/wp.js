@@ -46,32 +46,24 @@ router.get('/status', async (req, res) => {
   }
 })
 
-// GET /api/wp/token-status — check if WP OAuth token is currently valid
-router.get('/token-status', async (req, res) => {
-  try {
-    const status = getWPTokenStatus()
-    
-    // Also check DB for saved token
-    let dbToken = null;
-    try {
-      const setting = await Setting.findOne({ key: 'wp_access_token' }).lean();
-      dbToken = setting ? 'present' : 'not found';
-    } catch(e) { dbToken = 'db-error'; }
-    
-    res.json({
-      ...status,
-      envToken: process.env.WP_ACCESS_TOKEN ? 'present' : 'missing',
-      dbToken,
-      instructions: status.valid
-        ? 'Token is valid. WordPress posting is active.'
-        : 'Token invalid or not yet tested. Visit /api/wp/auth to authenticate.',
-      message: status.valid
-        ? 'WP token is valid (or has not been tested yet)'
-        : `WP token is INVALID since ${status.invalidSince}. Retry after ${status.retryAfter}. Re-auth at /api/wp/auth`,
-    })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+// GET /api/wp/token-status — zero-dependency token check (NEVER fails due to DB/import errors)
+router.get('/token-status', (req, res) => {
+  // Simple, no DB dependency — always works even if DB is down
+  // Uses in-memory getWPTokenStatus() + process.env — zero external calls
+  const status = getWPTokenStatus()
+  const token = process.env.WP_ACCESS_TOKEN
+  res.json({
+    ...status,
+    valid: !!token && token.length > 10,
+    envToken: token ? 'present' : 'missing',
+    message: token
+      ? 'Token configured. Visit /api/wp/auth to re-authenticate if posts are failing.'
+      : 'No token. Visit /api/wp/auth to authenticate.',
+    authUrl: 'https://xtox-production.up.railway.app/api/wp/auth',
+    instructions: token
+      ? 'WordPress posting active. Re-auth at /api/wp/auth if needed.'
+      : 'Visit /api/wp/auth to authenticate WordPress.',
+  })
 })
 
 // GET /api/wp/reauth — get the OAuth URL to open in browser

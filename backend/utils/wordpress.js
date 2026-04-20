@@ -929,7 +929,7 @@ const CITY_TO_COUNTRY = {
   'دمشق':'SY','حلب':'SY','حمص':'SY','اللاذقية':'SY','طرطوس':'SY','حماة':'SY',
   'Damascus':'SY','Aleppo':'SY',
   // Yemen cities
-  'صنعاء':'YE','عدن':'YE','تعز':'YE','الحديدة':'YE','إب':'YE','Sana'a':'YE','Aden':'YE',
+  'صنعاء':'YE','عدن':'YE','تعز':'YE','الحديدة':'YE','إب':'YE',"Sana'a":'YE','Aden':'YE',
   // Sudan cities
   'الخرطوم':'SD','أم درمان':'SD','بحري':'SD','بورتسودان':'SD','كسلا':'SD','Khartoum':'SD',
   // Palestine cities
