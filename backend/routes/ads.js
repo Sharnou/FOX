@@ -1665,13 +1665,50 @@ router.post('/:id/republish', auth, async (req, res) => {
 
     ad.isExpired = false;
     ad.expiredAt = null;
-    ad.expiresAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);
+    ad.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     ad.republishedCount = (ad.republishedCount || 0) + 1;
     ad.createdAt = new Date();
     await ad.save();
 
-    res.json({ ok: true, ad, message: 'Ad republished for 45 more days' });
+    res.json({ ok: true, ad, message: 'Ad republished for 30 more days' });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// RESHARE endpoint: POST /:id/reshare — reactivate an expired ad within 7-day window
+// Business rules: status must be 'expired', reshareCount < 1, reshareWindowEndsAt not passed
+router.post('/:id/reshare', auth, async (req, res) => {
+  try {
+    const mongoose = (await import('mongoose')).default || (await import('mongoose'));
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid ID' });
+
+    const ad = await getAdModel().findOne({ _id: req.params.id, userId: req.user.id });
+    if (!ad) return res.status(404).json({ error: 'Ad not found' });
+
+    const adStatus = ad.status || (ad.isExpired ? 'expired' : 'active');
+    if (adStatus !== 'expired' && !ad.isExpired)
+      return res.status(400).json({ error: 'Ad is not expired' });
+    if ((ad.reshareCount || 0) >= 1)
+      return res.status(400).json({ error: 'Reshare limit reached (max 1 reshare)' });
+
+    const windowEnds = ad.reshareWindowEndsAt || (ad.expiredAt ? new Date(new Date(ad.expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000) : null);
+    if (windowEnds && new Date() > windowEnds)
+      return res.status(400).json({ error: 'Reshare window expired' });
+
+    ad.status = 'active';
+    ad.isExpired = false;
+    ad.reshareCount = (ad.reshareCount || 0) + 1;
+    ad.resharedAt = new Date();
+    ad.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    ad.reshareWindowEndsAt = null;
+    ad.expiredAt = null;
+    await ad.save();
+
+    res.json({ success: true, ad, message: 'Ad reshared and active for 30 days' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── PATCH /:id/view — increment view count (called by AdCard on mount) ──────

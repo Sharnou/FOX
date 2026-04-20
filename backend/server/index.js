@@ -357,6 +357,18 @@ cron.schedule('0 * * * *', async () => {
   }
 });
 
+// Hourly cron: ad lifecycle — expire active ads and hard-delete past deadline (#112)
+cron.schedule('0 * * * *', async () => {
+  try {
+    const { runAdLifecycle } = await import('../jobs/adLifecycle.js');
+    await runAdLifecycle();
+  } catch (e) {
+    logger.error('[adLifecycle cron] Error:', e.message);
+  }
+});
+// Run once on startup to catch any missed windows
+import('../jobs/adLifecycle.js').then(({ runAdLifecycle }) => runAdLifecycle()).catch(() => {});
+
 // Auto backup every 24 hours at 3am
 cron.schedule('0 3 * * *', async () => {
   const { autoBackup } = await import('./archiveManager.js');
