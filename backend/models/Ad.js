@@ -68,7 +68,6 @@ const AdSchema = new mongoose.Schema({
     expiresAt: { type: Date, default: null },
     paidAt: { type: Date, default: null },
     amountUSD: { type: Number, default: 0 },
-    downgradedToFeatured: { type: Boolean, default: false },
   },
 });
 

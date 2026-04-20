@@ -346,14 +346,14 @@ export default function AdCard({
   const premiumStyle = isPremiumPromo ? {
     border: `2px solid ${theme.accent}`,
     boxShadow: `0 0 20px 4px ${theme.glow}, 0 0 50px 8px ${theme.glow.replace('0.5)', '0.2)').replace('0.4)', '0.15)')}`,
-    background: `linear-gradient(135deg, ${theme.accent}15, #0f172a)`,
+    background: theme.glow.replace(/,\s*[\d.]+\)$/, ', 0.06)'),
   } : {};
 
   // Featured: gold glow always
   const featuredStyle = isFeaturedPromo && !isPremiumPromo ? {
     border: '2px solid #fbbf24',
     boxShadow: '0 0 16px 3px rgba(251,191,36,0.55), 0 0 32px 6px rgba(251,191,36,0.2)',
-    background: 'linear-gradient(135deg, #fbbf2415, #0f172a)',
+    background: 'rgba(251,191,36,0.06)',
   } : {};
 
   const legacyFeaturedStyle = !isPremiumPromo && !isFeaturedPromo && ad.isFeatured ? {
@@ -392,13 +392,15 @@ export default function AdCard({
         <span style={{
           position: 'absolute', top: 8, right: 8, zIndex: 10,
           display: 'flex', alignItems: 'center', gap: 4,
-          background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`,
-          color: '#fff', fontSize: 10, fontWeight: 700,
-          padding: '3px 8px', borderRadius: 999,
+          background: theme.accent,
+          color: '#fff', fontSize: 11, fontWeight: 700,
+          padding: '4px 10px', borderRadius: 20,
           boxShadow: `0 2px 8px ${theme.glow}`,
           animation: 'pulse 2s infinite',
+          border: `2px solid ${theme.accent}`,
+          letterSpacing: '0.04em',
         }}>
-          {theme.icon} PREMIUM
+          ✦ PREMIUM
         </span>
       )}
       {/* #125 — Featured badge: gold star */}
@@ -406,10 +408,12 @@ export default function AdCard({
         <span style={{
           position: 'absolute', top: 8, right: 8, zIndex: 10,
           display: 'flex', alignItems: 'center', gap: 4,
-          background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
-          color: '#000', fontSize: 10, fontWeight: 700,
-          padding: '3px 8px', borderRadius: 999,
+          background: '#f59e0b',
+          color: '#fff', fontSize: 11, fontWeight: 700,
+          padding: '4px 10px', borderRadius: 20,
           boxShadow: '0 2px 8px rgba(251,191,36,0.5)',
+          border: '2px solid #f59e0b',
+          letterSpacing: '0.04em',
         }}>
           ★ FEATURED
         </span>

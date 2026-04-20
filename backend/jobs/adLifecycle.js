@@ -61,27 +61,20 @@ export async function runAdLifecycle() {
     });
 
 
-    // #124 — Promotion expiry cascade: Premium → Featured (14d) → none
-    // Step 1: Premium expired → downgrade to Featured (14 more days)
+    // #131 — Unified promotion expiry: Premium OR Featured → 'none' when expired (NO cascade)
+    // Premium had 30d; Featured had 14d — both simply expire cleanly with no downgrade
     await Ad.updateMany(
       {
-        'promotion.type': 'premium',
+        'promotion.type': { $in: ['premium', 'featured'] },
         'promotion.expiresAt': { $lte: now },
-        'promotion.downgradedToFeatured': { $ne: true },
       },
       {
         $set: {
-          'promotion.type': 'featured',
-          'promotion.expiresAt': new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
-          'promotion.downgradedToFeatured': true,
+          'promotion.type': 'none',
+          'promotion.expiresAt': null,
+          'promotion.downgradedToFeatured': false,
         },
       }
-    );
-
-    // Step 2: Featured expired (including downgraded from Premium) → set to 'none'
-    await Ad.updateMany(
-      { 'promotion.type': 'featured', 'promotion.expiresAt': { $lte: now } },
-      { $set: { 'promotion.type': 'none', 'promotion.expiresAt': null, 'promotion.downgradedToFeatured': false } }
     );
 
     console.log(

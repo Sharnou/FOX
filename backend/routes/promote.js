@@ -250,6 +250,16 @@ router.post('/:adId', auth, async (req, res) => {
     if (!targetAd) return res.status(404).json({ error: 'Ad not found' });
 
     const expiresAt = new Date(Date.now() + p.days * 24 * 60 * 60 * 1000);
+
+    // #131 — For premium: extend ad.expiresAt to cover promotion period + 14d buffer (44d total)
+    if (p.type === 'premium') {
+      const minExpiry = new Date(Date.now() + (p.days + 14) * 24 * 60 * 60 * 1000); // 30+14 = 44 days
+      if (!targetAd.expiresAt || targetAd.expiresAt < minExpiry) {
+        targetAd.expiresAt = minExpiry;
+      }
+      targetAd.hardDeleteAt = new Date(targetAd.expiresAt.getTime() + 7 * 24 * 60 * 60 * 1000); // reshare window after
+    }
+
     targetAd.promotion = { type: p.type, expiresAt, paidAt: new Date(), amountUSD: p.priceUSD };
     // Also set legacy isFeatured for backward compat
     targetAd.isFeatured = true;
