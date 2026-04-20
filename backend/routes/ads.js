@@ -770,6 +770,16 @@ router.post('/', auth, multerUpload, async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authentication required' });
     }
 
+    // SELLER BLOCK: Reject any attempt to create an anonymous ad (no valid seller ID)
+    const _sellerId = req.user._id || req.user.id;
+    if (!_sellerId) {
+      return res.status(401).json({
+        success: false,
+        error: 'يجب تسجيل الدخول لنشر إعلان',
+        code: 'NO_SELLER'
+      });
+    }
+
     // GATE 1: Only verified users can post ads
     // Fetch the full user record to check real verification fields (JWT only has id/role/xtoxId)
     {

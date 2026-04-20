@@ -94,6 +94,21 @@ AdSchema.index({ country: 1, condition: 1, createdAt: -1 });     // condition fi
 AdSchema.index({ country: 1, subcategory: 1, createdAt: -1 }); // subcategory filter
 AdSchema.index({ country: 1, subsub: 1, createdAt: -1 });      // subsub filter
 
+
+// ── SELLER VALIDATION: Ensure every ad has a valid seller before saving ───────
+// Prevents anonymous ads from being created. If one field is set, mirror it to the other.
+// Throws if BOTH fields are empty — ad must have an owner.
+AdSchema.pre('save', function(next) {
+  // Mirror userId ↔ seller if only one is set
+  if (!this.userId && this.seller) this.userId = this.seller;
+  if (!this.seller && this.userId) this.seller = this.userId;
+  // Block save if both are empty
+  if (!this.userId && !this.seller) {
+    return next(new Error('Ad must have a seller — userId and seller cannot both be empty'));
+  }
+  next();
+});
+
 // FIX C: Pre-validate hook — strip incomplete location before validation runs
 // Prevents { type: 'Point' } without coordinates from ever reaching the 2dsphere index.
 // NOTE: async function() pattern — Mongoose v7+ does NOT pass `next` to async hooks.

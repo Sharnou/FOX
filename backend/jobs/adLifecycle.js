@@ -21,6 +21,9 @@ export async function runAdLifecycle() {
     const Ad = await getAdModel();
     const now = new Date();
 
+    // Cleanup anonymous ads (no seller/userId) — runs every lifecycle cycle
+    await deleteAnonymousAds().catch(e => console.warn('[adLifecycle] deleteAnonymousAds failed:', e.message));
+
     // #127 — Drop old conflicting text index (one-time migration)
     // New index 'ads_text_search' includes category, subcategory, city with weights
     try {
@@ -90,6 +93,36 @@ export async function runAdLifecycle() {
     return { expired: 0, deleted: 0, error: err.message };
   }
 }
+
+
+// ── Delete anonymous ads on startup and as part of lifecycle cleanup ──────────
+// Called once from runAdLifecycle() to remove any ads without a valid seller.
+async function deleteAnonymousAds() {
+  try {
+    const Ad = await getAdModel();
+    const result = await Ad.deleteMany({
+      $or: [
+        { userId: null, seller: null },
+        { userId: null, seller: { $exists: false } },
+        { userId: { $exists: false }, seller: null },
+        { userId: { $exists: false }, seller: { $exists: false } },
+        { userId: '', seller: '' },
+        { userId: '', seller: null },
+        { userId: null, seller: '' },
+      ]
+    });
+    if (result.deletedCount > 0) {
+      console.log(`[Cleanup] Deleted ${result.deletedCount} anonymous ads (no seller)`);
+    }
+    return result.deletedCount;
+  } catch (e) {
+    console.error('[Cleanup] Failed to delete anonymous ads:', e.message);
+    return 0;
+  }
+}
+
+// Export so server/index.js can call it on startup
+export { deleteAnonymousAds };
 
 // ── #163 sellerScore Migration: one-time batch compute for users with score=0 ──
 // Called from runAdLifecycle() automatically. Processes up to 100 users per run

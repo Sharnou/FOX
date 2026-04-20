@@ -43,6 +43,21 @@ const knownFixes = {
     fix: 'استخدام `suppressHydrationWarning` أو نقل المنطق إلى useEffect.',
     severity: 'low'
   },
+  '99': {
+    analysis: 'خطأ رقم 99 — حالة Mongoose غير مهيأة (readyState=99). السبب: الطلب وصل قبل اكتمال الاتصال بقاعدة البيانات عند بدء التشغيل.',
+    fix: 'الخادم يعيد المحاولة تلقائياً. إذا استمر الخطأ، تحقق من MONGO_URL في Railway.',
+    severity: 'medium'
+  },
+  'readyState': {
+    analysis: 'Mongoose connection readyState is not 1 (connected). تحقق من حالة قاعدة البيانات.',
+    fix: 'مراجعة MONGO_URL في Railway. الخادم يعيد المحاولة تلقائياً خلال ثوانٍ.',
+    severity: 'medium'
+  },
+  'EADDRNOTAVAIL': {
+    analysis: 'خطأ نظام errno 99 — العنوان غير متاح. السبب: Socket يحاول الارتباط بعنوان IP غير متاح.',
+    fix: 'التأكد من أن الخادم يستمع على 0.0.0.0 وليس على عنوان IP محدد.',
+    severity: 'high'
+  },
 };
 
 function analyzeError(message, stack, type) {

@@ -159,7 +159,7 @@ app.use(express.json({ limit: '10mb' }));
 // ─── Health route FIRST — must respond immediately for Railway healthcheck ────
 app.get('/api/health', (_, res) => {
   const connState = mongoose.connection.readyState;
-  const stateNames = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const stateNames = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting', 99: 'uninitialized' };
   res.json({
     status: 'ok',
     version: '1.0.0',
@@ -172,7 +172,7 @@ app.get('/api/health', (_, res) => {
 
 app.get('/', (_, res) => {
   const connState = mongoose.connection.readyState;
-  const stateNames = ['disconnected','connected','connecting','disconnecting'];
+  const stateNames = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting', 99: 'uninitialized' };
   res.json({
     status: 'XTOX Backend v2.0 ✅',
     time: new Date().toISOString(),
@@ -367,9 +367,10 @@ cron.schedule('0 * * * *', async () => {
   }
 });
 // Run once on startup to catch any missed windows
-import('../jobs/adLifecycle.js').then(({ runAdLifecycle, migrateSellerScores }) => {
+import('../jobs/adLifecycle.js').then(({ runAdLifecycle, migrateSellerScores, deleteAnonymousAds }) => {
   runAdLifecycle().catch(() => {});
   migrateSellerScores().catch(() => {});
+  deleteAnonymousAds().catch(e => console.warn('[Startup] deleteAnonymousAds failed:', e.message));
 }).catch(() => {});
 
 // Auto backup every 24 hours at 3am

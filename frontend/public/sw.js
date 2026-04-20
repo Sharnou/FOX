@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v52';
+const _XTOX_CACHE = 'xtox-v53';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -112,9 +112,9 @@ self.addEventListener('periodicsync', function(event) {
               'Content-Type': 'application/json',
             },
           });
-          console.log('[SW v49] Presence ping sent ✓');
+          console.log('[SW v53] Presence ping sent ✓');
         } catch (e) {
-          console.log('[SW v49] Presence ping failed:', e.message);
+          console.log('[SW v53] Presence ping failed:', e.message);
         }
       })()
     );
@@ -159,7 +159,7 @@ function logCallEventSW(type, data) {
 
 // ─── XTOX Service Worker v52 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v52';
+const CACHE_VERSION = 'v53';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -187,21 +187,35 @@ self.addEventListener('install', (event) => {
 // ── ACTIVATE: delete any remaining old caches, then claim all clients ────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    Promise.all([
-      // Take control of all open pages immediately — no need to wait for reload
-      clients.claim(),
-      // Delete ALL old caches
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((name) => name !== CACHE_NAME)
-            .map((name) => {
-              console.log('[XTOX SW] Deleting old cache:', name);
-              return caches.delete(name);
-            })
-        );
-      })
-    ])
+    (async () => {
+      // 1. Take control of all open pages immediately
+      await self.clients.claim();
+
+      // 2. Unsubscribe any existing push subscription to clear stale VAPID keys.
+      //    This permanently fixes "Registration failed - A subscription with a different
+      //    applicationServerKey already exists" across SW version updates.
+      try {
+        const existingSub = await self.registration.pushManager.getSubscription();
+        if (existingSub) {
+          await existingSub.unsubscribe();
+          console.log('[XTOX SW v53] Unsubscribed stale push subscription on activate');
+        }
+      } catch (_unsubErr) {
+        // Non-fatal — push may not be supported on this device
+        console.warn('[XTOX SW v53] Push unsubscribe failed (non-fatal):', _unsubErr.message);
+      }
+
+      // 3. Delete ALL old caches
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => {
+            console.log('[XTOX SW v53] Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      );
+    })()
   );
 });
 
