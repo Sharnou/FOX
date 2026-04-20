@@ -309,3 +309,12 @@ button[data-markpoint-ui] {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+/* ── Scrollbar hide utility (replaces tailwind-scrollbar-hide plugin) ── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

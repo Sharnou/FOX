@@ -75,6 +75,7 @@
     "@types/react": "19.2.14",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.10",
+    "tailwind-scrollbar-hide": "^4.0.0",
     "tailwindcss": "^4.2.2",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "6.0.3"

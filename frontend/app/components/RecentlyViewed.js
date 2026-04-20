@@ -11,6 +11,25 @@ function optimizeImage(url, width = 200) {
   return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
 }
 
+// Category-specific emoji fallback map
+const CATEGORY_EMOJI = {
+  'موبايلات': '📱',
+  'ملاكي': '🚗',
+  'شقق': '🏠',
+  'ملابس': '👗',
+  'خدمات': '🔧',
+  'حيوانات': '🐾',
+  'لابتوب': '💻',
+  'كاميرات': '📷',
+  'أجهزة منزلية': '🏠',
+  'إلكترونيات': '📺',
+  'عقارات': '🏗️',
+  'سيارات': '🚗',
+  'وظائف': '💼',
+  'صيدلية': '💊',
+  'مطاعم': '🍔',
+};
+
 export function recordRecentView(adId) {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -29,7 +48,7 @@ export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
           .filter(id => id !== currentAdId).slice(0, MAX_ITEMS);
         if (!ids.length) return;
         const results = await Promise.allSettled(
-          ids.map(id => fetch(API + '/api/ads/' + id).then(r => r.ok ? r.json() : null))
+          ids.map(id => fetch(API + '/api/ads/' + id, { signal: AbortSignal.timeout(8000) }).then(r => r.ok ? r.json() : null))
         );
         setAds(results.flatMap(r => (r.status === 'fulfilled' && r.value ? [r.value] : [])));
       } catch {}
@@ -45,25 +64,37 @@ export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
   return (
     <section dir={isRtl ? 'rtl' : 'ltr'} className="py-4 px-4">
       <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">{label}</h2>
-      <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
-        {ads.map(ad => (
-          <Link key={ad._id} href={'/ads/' + ad._id}
-            className="flex-shrink-0 w-32 snap-start rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-white hover:shadow-md transition-shadow">
-            <div className="w-full h-20 bg-gray-100 overflow-hidden">
-              {ad.images?.[0]
-                ? <img src={ad.images && ad.images[0] ? optimizeImage(ad.images[0]) : '/placeholder.png'} alt={ad.title} className="w-full h-full object-cover" loading="lazy" />
-                : <div className="w-full h-full flex items-center justify-center text-2xl">🏷️</div>}
-            </div>
-            <div className="p-1.5">
-              <p className="text-xs font-semibold text-gray-800 truncate leading-tight">{ad.title}</p>
-              {ad.price != null && (
-                <p className="text-xs text-emerald-600 font-bold mt-0.5">
-                  {ad.price.toLocaleString(isRtl ? 'ar-EG' : 'en-US')}
-                </p>
-              )}
-            </div>
-          </Link>
-        ))}
+      <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide scroll-smooth" style={{ touchAction: 'pan-x' }}>
+        {ads.map(ad => {
+          const emoji = CATEGORY_EMOJI[ad.subcategory] || CATEGORY_EMOJI[ad.category] || '🏷️';
+          return (
+            <Link key={ad._id} href={'/ads/' + ad._id}
+              className="flex-shrink-0 w-36 snap-start rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-white hover:shadow-md transition-shadow">
+              <div className="w-full h-24 bg-gray-100 overflow-hidden">
+                {ad.images?.[0]
+                  ? <img
+                      src={optimizeImage(ad.images[0])}
+                      alt={ad.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  : <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 gap-1">
+                      <span className="text-3xl">{emoji}</span>
+                      <span className="text-[10px] text-gray-400 font-medium truncate max-w-[90%] text-center">{ad.subcategory || ad.category || ''}</span>
+                    </div>
+                }
+              </div>
+              <div className="p-2">
+                <p className="text-xs font-semibold text-gray-800 line-clamp-1 leading-tight">{ad.title}</p>
+                {ad.price != null && (
+                  <p className="text-xs text-emerald-600 font-bold mt-0.5">
+                    {ad.price === 0 ? (isRtl ? 'مجاني' : 'Free') : ad.price.toLocaleString(isRtl ? 'ar-EG' : 'en-US')}
+                  </p>
+                )}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
