@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v49';
+const _XTOX_CACHE = 'xtox-v50';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -159,7 +159,7 @@ function logCallEventSW(type, data) {
 
 // ─── XTOX Service Worker v49 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v49';
+const CACHE_VERSION = 'v50';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -219,6 +219,28 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
   let data;
   try { data = event.data.json(); } catch { return; }
+
+
+  // FCM-style 'call' push type — Capacitor APK compat (v50)
+  if (data.type === 'call') {
+    event.waitUntil(
+      self.registration.showNotification((data.name || 'Someone') + ' Calling', {
+        body: 'Tap to answer',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        vibrate: [300, 100, 300, 100, 300, 100, 300, 100, 300],
+        requireInteraction: true,
+        tag: 'incoming-call-' + (data.uuid || '1'),
+        renotify: true,
+        actions: [
+          { action: 'answer', title: '📞 Answer' },
+          { action: 'decline', title: '❌ Decline' },
+        ],
+        data,
+      })
+    );
+    return;
+  }
 
   // Fix 7A: track push receipt in IDB for analytics
   logCallEventSW('push_received', { type: data.type || 'unknown' });
