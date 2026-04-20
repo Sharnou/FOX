@@ -539,12 +539,17 @@ router.put('/me', auth, async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const uid = req.user.id;
-    const user = await getUserModel().findById(uid).lean().catch(() => null)
-      || await getUserModel().findById(uid);
+    const UserModel = getUserModel();
+    const user = await UserModel.findById(uid)
+      .select('-password -registrationIp')
+      .lean();
     if (!user) return res.status(404).json({ error: 'User not found' });
-    // Strip password from response
-    const rawUser = user.toObject ? user.toObject() : user;
-    const { password, ...safeUser } = rawUser;
+    // Ensure sellerScore and all trust fields are included
+    const { password: _pw, registrationIp: _ip, ...safeUser } = user;
+    // Compute tier inline for lean objects (virtuals not available on lean())
+    const pts = safeUser.reputationPoints || 0;
+    safeUser.tier = pts >= 500 ? 'Platinum' : pts >= 200 ? 'Gold' : pts >= 50 ? 'Silver' : 'Bronze';
+    safeUser.tierBadge = { Bronze: '🥉 Bronze', Silver: '🥈 Silver', Gold: '🥇 Gold', Platinum: '💎 Platinum' }[safeUser.tier];
     res.json({ user: safeUser });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

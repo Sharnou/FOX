@@ -154,7 +154,7 @@ export default function ProfilePage({ params }) {
         }
         // Check if viewed profile is the current winner
         try {
-          const wr = await fetch(`${API}/api/winner/current`);
+          const wr = await fetch(`${API}/api/winner/current`, { signal: AbortSignal.timeout(5000) });
           if (wr.ok) {
             const wd = await wr.json();
             if (wd.winner && wd.winner._id && id) {
@@ -226,8 +226,10 @@ export default function ProfilePage({ params }) {
   React.useEffect(() => {
     const id = params?.id;
     if (!id || id === 'undefined' || id === 'null') return;
-    fetch(API + '/api/reviews/seller/' + id)
-      .then(r => r.ok ? r.json() : null)
+    const _srCtrl = new AbortController();
+    const _srTimer = setTimeout(() => _srCtrl.abort(), 8000);
+    fetch(API + '/api/reviews/seller/' + id, { signal: _srCtrl.signal })
+      .then(r => { clearTimeout(_srTimer); return r.ok ? r.json() : null; })
       .then(d => {
         if (d) {
           setSellerReviews(d.reviews || []);
@@ -290,12 +292,13 @@ export default function ProfilePage({ params }) {
 
   if (!data) return null;
 
-  const { user, ads } = data;
+  const user = data?.user || {};
+  const ads = Array.isArray(data?.ads) ? data.ads : [];
   const isOwnProfile = myUserId === params?.id;
 
   // Renamed to lowercase to avoid TDZ risk after minification (depends on state)
   const tabs = [
-    { key: 'ads',     labelAr: 'الإعلانات', icon: '📋', count: ads.length },
+    { key: 'ads',     labelAr: 'الإعلانات', icon: '📋', count: ads?.length ?? 0 },
     { key: 'reviews', labelAr: 'التقييمات', icon: '⭐', count: sellerReviewCount },
   ];
 
@@ -332,7 +335,7 @@ export default function ProfilePage({ params }) {
               <img loading="lazy" src={avatarUrl || user.avatar} style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid #002f34' }} alt="" />
             ) : (
               <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: 'white' }}>
-                {user.name?.[0]?.toUpperCase()}
+                {(user?.name || user?.username || '?')[0]?.toUpperCase()}
               </div>
             )}
             {/* Change 4: Camera overlay on own profile */}
@@ -385,7 +388,7 @@ export default function ProfilePage({ params }) {
           </div>
 
           <div style={{ flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 'bold' }}>{user.name}</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 'bold' }}>{user.name || user.username || '...'}</h1>
             <p style={{ color: '#666', margin: '4px 0', fontSize: 14 }}>
               📍 {user.city}
               {user.country && (

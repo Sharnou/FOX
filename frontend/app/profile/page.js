@@ -175,8 +175,10 @@ export default function ProfilePage() {
   // Load received reviews
   React.useEffect(() => {
     if (!user || !user._id) return;
-    fetch(`${API}/api/reviews/seller/${user._id}`)
-      .then(r => r.ok ? r.json() : null)
+    const _revCtrl = new AbortController();
+    const _revTimer = setTimeout(() => _revCtrl.abort(), 8000);
+    fetch(`${API}/api/reviews/seller/${user._id}`, { signal: _revCtrl.signal })
+      .then(r => { clearTimeout(_revTimer); return r.ok ? r.json() : null; })
       .then(d => {
         if (d) {
           setMyReviews(d.reviews || []);
@@ -186,7 +188,7 @@ export default function ProfilePage() {
         setMyReviewsLoaded(true);
       })
       .catch(() => setMyReviewsLoaded(true));
-  }, [user && user._id]);
+    }, [user?._id]);
 
   // FIX Bug 2: use stable primitive userId string as dep, not the whole user object
   const userId = (user?._id || user?.id) ?? null;
@@ -194,18 +196,24 @@ export default function ProfilePage() {
     if (!userId || typeof userId !== 'string' || userId.length < 5) return;
     let cancelled = false;
     setAdsLoading(true);
-    fetch(API + '/api/ads?userId=' + userId, {
-      headers: { Authorization: 'Bearer ' + getToken() }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    // Use /api/ads/my/all which correctly matches both userId and seller fields
+    fetch(API + '/api/ads/my/all', {
+      headers: { Authorization: 'Bearer ' + getToken() },
+      signal: ctrl.signal,
     })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : { active: [], expired: [] })
       .then(data => {
         if (cancelled) return;
-        const ads = Array.isArray(data) ? data : (data.ads || data.regularAds || []);
-        setMyAds(ads);
+        // /api/ads/my/all returns { active, expired } — combine both for display
+        const active = Array.isArray(data.active) ? data.active : [];
+        const expired = Array.isArray(data.expired) ? data.expired : [];
+        setMyAds([...active, ...expired]);
       })
       .catch(() => {})
-      .finally(() => { if (!cancelled) setAdsLoading(false); });
-    return () => { cancelled = true; };
+      .finally(() => { clearTimeout(timer); if (!cancelled) setAdsLoading(false); });
+    return () => { cancelled = true; ctrl.abort(); };
   }, [userId]);
 
   // ── Initialize soundMuted from localStorage ───────────────────────────

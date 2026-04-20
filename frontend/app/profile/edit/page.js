@@ -81,7 +81,7 @@ export default function EditProfilePage() {
   /* ── boot: load token + profile ── */
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const t = localStorage.getItem('token');
+    const t = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
     if (!t) { router.replace('/login'); return; }
     setToken(t);
 
@@ -90,8 +90,10 @@ export default function EditProfilePage() {
     if (cached) hydrateForm(cached);
 
     // Then fetch fresh data from server
-    fetch(API + '/api/users/me', { headers: { Authorization: 'Bearer ' + t } })
-      .then(r => r.ok ? r.json() : null)
+    const _editCtrl = new AbortController();
+    const _editTimer = setTimeout(() => _editCtrl.abort(), 8000);
+    fetch(API + '/api/users/me', { headers: { Authorization: 'Bearer ' + t }, signal: _editCtrl.signal })
+      .then(r => { clearTimeout(_editTimer); return r.ok ? r.json() : null; })
       .then(data => { if (data) { const u = data.user || data; hydrateForm(u); try { localStorage.setItem('user', JSON.stringify(Object.assign({}, u, { token: t }))); } catch (_) {} } })
       .catch(() => {})
       .finally(() => setFetching(false));
@@ -109,7 +111,7 @@ export default function EditProfilePage() {
     const wa  = splitPhone(u.whatsapp || '');
     setForm(f => ({
       ...f,
-      name:         u.name        || '',
+      name:         u.name        || u.username || '',
       city:         u.city        || '',
       avatar:       u.avatar      || '',
       bio:          u.bio         || '',

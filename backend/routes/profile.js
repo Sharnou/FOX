@@ -93,10 +93,14 @@ router.put('/me', auth, async (req, res) => {
     }
 
     if (avatar !== undefined) {
-      if (typeof avatar !== 'string' || (!avatar.startsWith('http://') && !avatar.startsWith('https://'))) {
-        return res.status(400).json({ error: 'Avatar must be a valid URL' });
+      if (typeof avatar !== 'string') {
+        return res.status(400).json({ error: 'Avatar must be a string' });
       }
-      update.avatar = avatar.trim().slice(0, 500);
+      const _isValidAvatar = avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:');
+      if (!_isValidAvatar) {
+        return res.status(400).json({ error: 'Avatar must be a valid URL or data URI' });
+      }
+      update.avatar = avatar.trim().slice(0, 2000000); // allow base64 data URIs
     }
 
     // Phone / WhatsApp number — used on all ads from this seller

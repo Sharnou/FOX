@@ -172,10 +172,11 @@ router.get('/', async (req, res) => {
       visibilityScore: { $gte: 0 }
     };
     // If userId specified, show that user's own ads (including deleted/expired for owner viewing)
+    // FIX: use $or to match both userId AND seller fields — older ads may only have seller set
     if (userId) {
       delete filter.isDeleted;
       delete filter.isExpired;
-      filter.userId = userId;
+      filter.$or = [{ userId: userId }, { seller: userId }];
     }
 
     // Country filter is OPTIONAL — only apply if a country param was provided (not when filtering by userId)
