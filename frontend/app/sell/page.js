@@ -377,7 +377,7 @@ export default function SellPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token');
+    const t = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token');
     if (!t) { window.location.href = '/login'; return; }
     setToken(t);
     const detectedCountry = localStorage.getItem('country') || localStorage.getItem('xtox_country') || 'EG';
@@ -410,7 +410,7 @@ export default function SellPage() {
       const _editId = _params.get('edit');
       if (_editId) {
         setEditAdId(_editId);
-        const _editT = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || '';
+        const _editT = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || '';
         fetch((process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app') + '/api/ads/' + _editId, {
           headers: _editT ? { Authorization: 'Bearer ' + _editT } : {}
         }).then(r => r.json()).then(adData => {
@@ -622,7 +622,7 @@ export default function SellPage() {
       } else if (mediaType === 'video' && videoFile) {
         formData.append('video', videoFile);
       }
-      const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
+      const t = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
       const _isEdit = !!editAdId;
       const _url = _isEdit ? (API + '/api/ads/' + editAdId) : (API + '/api/ads');
       const _method = _isEdit ? 'PUT' : 'POST';
@@ -697,7 +697,7 @@ export default function SellPage() {
       } else if (mediaType === 'video' && videoFile) {
         formData.append('video', videoFile);
       }
-      const t = localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
+      const t = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('fox_token') || localStorage.getItem('auth_token') || token;
       const res = await fetch(API + '/api/ads', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + t },
@@ -853,7 +853,7 @@ export default function SellPage() {
                   const timeout = setTimeout(async () => {
                     if (value.length < 5) return;
                     try {
-                      const tok = localStorage.getItem('token') || localStorage.getItem('fox_token') || '';
+                      const tok = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('fox_token') || '';
                       const r = await fetch(API + '/api/ads/ai-generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },

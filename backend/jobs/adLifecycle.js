@@ -23,6 +23,8 @@ export async function runAdLifecycle() {
 
     // Cleanup anonymous ads (no seller/userId) — runs every lifecycle cycle
     await deleteAnonymousAds().catch(e => console.warn('[adLifecycle] deleteAnonymousAds failed:', e.message));
+    // FIX BUG2B: Backfill missing seller/userId for existing ads
+    await backfillSellerField().catch(e => console.warn('[adLifecycle] backfillSellerField failed:', e.message));
 
     // #127 — Drop old conflicting text index (one-time migration)
     // New index 'ads_text_search' includes category, subcategory, city with weights
@@ -121,6 +123,33 @@ async function deleteAnonymousAds() {
 
 // Export so server/index.js can call it on startup
 export { deleteAnonymousAds };
+
+
+// ── FIX BUG2B: Backfill missing seller/userId fields ─────────────────────────
+// Some older ads have userId but no seller (or vice versa). This ensures both
+// fields are always in sync so queries using either field find all user ads.
+export async function backfillSellerField() {
+  try {
+    const Ad = await getAdModel();
+    // Backfill seller from userId where seller is missing
+    const r1 = await Ad.updateMany(
+      { userId: { $exists: true, $ne: null }, $or: [{ seller: null }, { seller: { $exists: false } }] },
+      [{ $set: { seller: '$userId' } }]
+    );
+    // Backfill userId from seller where userId is missing
+    const r2 = await Ad.updateMany(
+      { seller: { $exists: true, $ne: null }, $or: [{ userId: null }, { userId: { $exists: false } }] },
+      [{ $set: { userId: '$seller' } }]
+    );
+    if (r1.modifiedCount > 0 || r2.modifiedCount > 0) {
+      console.log(`[Cleanup] Backfilled seller: ${r1.modifiedCount}, userId: ${r2.modifiedCount}`);
+    }
+    return { seller: r1.modifiedCount, userId: r2.modifiedCount };
+  } catch (e) {
+    console.error('[Cleanup] backfillSellerField failed:', e.message);
+    return { seller: 0, userId: 0 };
+  }
+}
 
 // ── #163 sellerScore Migration: one-time batch compute for users with score=0 ──
 // Called from runAdLifecycle() automatically. Processes up to 100 users per run

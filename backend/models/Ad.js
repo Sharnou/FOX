@@ -17,7 +17,13 @@ const AdSchema = new mongoose.Schema({
   featuredAt: { type: Date },
   bubble: { type: Boolean, default: false },
   bubbleUntil: { type: Date, default: null },
-  status: { type: String, enum: ['active', 'expired', 'deleted'], default: 'active' },
+  // FIX BUG2: Expanded status enum to include 'sold', 'pending', 'paused', 'suspended', 'removed'
+  // This allows PATCH /:id/sold to set status='sold' without ValidationError
+  status: {
+    type: String,
+    enum: ['active', 'expired', 'deleted', 'sold', 'pending', 'paused', 'suspended', 'removed', 'pending_review'],
+    default: 'active'
+  },
   resharedAt: { type: Date, default: null },
   reshareCount: { type: Number, default: 0 },
   reshareWindowEndsAt: { type: Date, default: null },
@@ -41,11 +47,8 @@ const AdSchema = new mongoose.Schema({
     },
     placeName: String
   },
-  // ── Run 84: Item condition & negotiable price ──────────────────────────────
   // FIX: Removed enum restriction — frontend sends values like 'for_sale', 'for_rent',
   // 'refurbished', 'available', 'open', 'cracked', 'installment', etc.
-  // The old enum ['new','used','excellent','rent'] caused ValidationError → 500 for ALL
-  // real frontend condition values. Now accepts any string up to 50 chars.
   condition: {
     type: String,
     default: null
@@ -58,7 +61,6 @@ const AdSchema = new mongoose.Schema({
   phone: { type: String, default: null },
   whatsapp: { type: String, default: null }, // separate WhatsApp contact
   tags: [String], // searchable tags array
-  // ──────────────────────────────────────────────────────────────────────────
   createdAt: { type: Date, default: Date.now },
   wpPostId: { type: String, default: null },
   wpPostUrl: { type: String, default: null },
@@ -98,15 +100,18 @@ AdSchema.index({ country: 1, subsub: 1, createdAt: -1 });      // subsub filter
 // ── SELLER VALIDATION: Ensure every ad has a valid seller before saving ───────
 // Prevents anonymous ads from being created. If one field is set, mirror it to the other.
 // Throws if BOTH fields are empty — ad must have an owner.
-AdSchema.pre('save', function(next) {
+//
+// FIX BUG1: Using pure async style (no `next` parameter) — Mongoose v7+/v9 does NOT
+// pass `next` to async hooks. Using `async function(next)` would cause "next is not a
+// function" when next() is called. Use `throw` instead of next(err).
+AdSchema.pre('save', async function() {
   // Mirror userId ↔ seller if only one is set
   if (!this.userId && this.seller) this.userId = this.seller;
   if (!this.seller && this.userId) this.seller = this.userId;
   // Block save if both are empty
   if (!this.userId && !this.seller) {
-    return next(new Error('Ad must have a seller — userId and seller cannot both be empty'));
+    throw new Error('Ad must have a seller — userId and seller cannot both be empty');
   }
-  next();
 });
 
 // FIX C: Pre-validate hook — strip incomplete location before validation runs

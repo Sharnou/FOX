@@ -437,8 +437,25 @@ router.get('/my/all', auth, async (req, res) => {
     // Older ads may have only 'seller' set; newer ads have both. The $or ensures all
     // of the user's ads are returned regardless of which field was used at creation time.
     const _userFilter = { $or: [{ userId: req.user.id }, { seller: req.user.id }] };
-    const active = await getAdModel().find({ ..._userFilter, isDeleted: { $ne: true }, isExpired: { $ne: true } }).lean();
-    const expired = await getAdModel().find({ ..._userFilter, isDeleted: { $ne: true }, isExpired: true }).lean();
+
+    // FIX BUG2A: Active tab only shows truly active ads (not sold/expired/deleted/paused/suspended)
+    // An ad with status='sold' should NOT appear in the active list even if isExpired is false.
+    const active = await getAdModel().find({
+      ..._userFilter,
+      status: { $in: ['active', 'pending', 'paused', 'pending_review'] },
+      isDeleted: { $ne: true },
+    }).lean();
+
+    // FIX BUG2A: Expired tab shows expired OR sold ads (so users can see what they sold)
+    const expired = await getAdModel().find({
+      ..._userFilter,
+      $or: [
+        { status: { $in: ['expired', 'sold', 'suspended', 'removed'] } },
+        { isExpired: true },
+      ],
+      isDeleted: { $ne: true },
+    }).lean();
+
     const expiredWithDeadline = expired.map(ad => {
       const expiredAt = ad.expiredAt || ad.expiresAt;
       const deadlineMs = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
