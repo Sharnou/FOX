@@ -72,6 +72,15 @@ const UserSchema = new mongoose.Schema(
     // -- Free plan tracking ------------------------------------------------
     lastFreePlanUsed: { type: Date, default: null },
 
+    // -- Seller trust fields (#128) -----------------------------------------
+    sellerScore: { type: Number, default: 0 },           // 0-100 trust score
+    isVerifiedSeller: { type: Boolean, default: false }, // manually verified by admin
+    phoneVerified: { type: Boolean, default: false },    // phone number verified
+    totalSales: { type: Number, default: 0 },            // completed sales count
+    reportCount: { type: Number, default: 0 },           // number of reports received
+    isSuspended: { type: Boolean, default: false },      // account suspended
+    suspendReason: { type: String, default: '' },        // reason for suspension
+
     // -- Reputation points (gamification) -----------------------------------
     reputationPoints: { type: Number, default: 0 },
     monthlyPoints: { type: Number, default: 0 },

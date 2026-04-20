@@ -21,6 +21,12 @@ export async function runAdLifecycle() {
     const Ad = await getAdModel();
     const now = new Date();
 
+    // #127 — Drop old conflicting text index (one-time migration)
+    // New index 'ads_text_search' includes category, subcategory, city with weights
+    try {
+      await Ad.collection.dropIndex('title_text_description_text_title_original_text').catch(() => {});
+    } catch (_dropErr) { /* index may not exist — safe to ignore */ }
+
     // 1. Expire active ads past their expiresAt
     const expiredResult = await Ad.updateMany(
       { status: 'active', expiresAt: { $lte: now } },
@@ -55,10 +61,27 @@ export async function runAdLifecycle() {
     });
 
 
-    // #123 — Expire promotions that have passed their expiresAt
+    // #124 — Promotion expiry cascade: Premium → Featured (14d) → none
+    // Step 1: Premium expired → downgrade to Featured (14 more days)
     await Ad.updateMany(
-      { 'promotion.type': { $ne: 'none' }, 'promotion.expiresAt': { $lte: now } },
-      { $set: { 'promotion.type': 'none', 'promotion.expiresAt': null } }
+      {
+        'promotion.type': 'premium',
+        'promotion.expiresAt': { $lte: now },
+        'promotion.downgradedToFeatured': { $ne: true },
+      },
+      {
+        $set: {
+          'promotion.type': 'featured',
+          'promotion.expiresAt': new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+          'promotion.downgradedToFeatured': true,
+        },
+      }
+    );
+
+    // Step 2: Featured expired (including downgraded from Premium) → set to 'none'
+    await Ad.updateMany(
+      { 'promotion.type': 'featured', 'promotion.expiresAt': { $lte: now } },
+      { $set: { 'promotion.type': 'none', 'promotion.expiresAt': null, 'promotion.downgradedToFeatured': false } }
     );
 
     console.log(

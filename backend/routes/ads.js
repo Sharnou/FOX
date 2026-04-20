@@ -185,13 +185,10 @@ router.get('/', async (req, res) => {
     if (city) filter.city = city;
     if (querySubcategory) filter.subcategory = querySubcategory;
     if (querySubsub) filter.subsub = querySubsub;
-    // Full-text search using $or regex (works even without text index)
-    if (searchQuery && searchQuery.trim()) {
-      filter.$or = [
-        { title: { $regex: searchQuery.trim(), $options: 'i' } },
-        { description: { $regex: searchQuery.trim(), $options: 'i' } }
-      ];
-    }
+    // #127 — $text search (MongoDB full-text with relevance scoring)
+    // $regex removed: $text is faster, supports Arabic, and enables relevance ranking
+    // Note: handled below as early-return aggregation when searchQuery is present
+    // Fallback to $regex is kept in a try-catch in case the text index is missing
 
     // GEO FILTER: if lat/lon/radius params provided, filter by location proximity
     // Uses $geoWithin/$centerSphere (no 2dsphere index required)
@@ -208,6 +205,77 @@ router.get('/', async (req, res) => {
       } catch (_geoErr) {
         console.warn('[GET /api/ads] Geo filter build failed (skipped):', _geoErr.message);
       }
+    }
+
+    // #127 — SEARCH: early-return aggregation with $text + relevance + promotion sort
+    // When a search query is present, use full MongoDB text search and return immediately,
+    // bypassing the featured-ads logic (search results are sorted by relevance + promotion)
+    if (searchQuery && searchQuery.trim()) {
+      const _q = searchQuery.trim();
+      const _now = new Date();
+      const _pageSize = Number(limit) > 0 ? Math.min(Number(limit), 100) : 20;
+      const _skip = Number(page) * _pageSize;
+      let searchResults = [];
+      try {
+        // Try $text search with relevance + promotion composite score
+        searchResults = await Ad.aggregate([
+          {
+            $match: {
+              ...filter,
+              $text: { $search: _q },
+            },
+          },
+          {
+            $addFields: {
+              _textScore: { $meta: 'textScore' },
+              _promotionScore: {
+                $switch: {
+                  branches: [
+                    { case: { $and: [{ $eq: ['$promotion.type', 'premium'] }, { $gt: ['$promotion.expiresAt', _now] }] }, then: 20 },
+                    { case: { $and: [{ $eq: ['$promotion.type', 'featured'] }, { $gt: ['$promotion.expiresAt', _now] }] }, then: 10 },
+                  ],
+                  default: 0,
+                },
+              },
+            },
+          },
+          { $sort: { _promotionScore: -1, _textScore: -1, createdAt: -1 } },
+          { $skip: _skip },
+          { $limit: _pageSize },
+        ]);
+      } catch (_textErr) {
+        console.warn('[GET /api/ads] $text search failed, falling back to $regex:', _textErr.message);
+        // Fallback: $regex (slower but works without text index)
+        try {
+          const _regexFilter = {
+            ...filter,
+            $or: [
+              { title: { $regex: _q, $options: 'i' } },
+              { description: { $regex: _q, $options: 'i' } },
+              { subcategory: { $regex: _q, $options: 'i' } },
+              { category: { $regex: _q, $options: 'i' } },
+            ],
+          };
+          searchResults = await Ad.find(_regexFilter)
+            .sort({ isFeatured: -1, createdAt: -1 })
+            .skip(_skip)
+            .limit(_pageSize)
+            .lean();
+        } catch (_regexErr) {
+          console.warn('[GET /api/ads] $regex fallback also failed:', _regexErr.message);
+          searchResults = [];
+        }
+      }
+      // Normalize search results
+      const normalizedSearch = searchResults.map(ad => {
+        const obj = ad.toObject ? ad.toObject() : ad;
+        return {
+          ...obj,
+          images: obj.images?.length ? obj.images : (obj.media?.length ? obj.media : []),
+          media: obj.media?.length ? obj.media : (obj.images?.length ? obj.images : []),
+        };
+      });
+      return res.json({ success: true, ads: normalizedSearch, total: normalizedSearch.length, page: Number(page) });
     }
 
     // FEATURED FIRST: max 16, newest featured → top (only on page 0)
@@ -232,15 +300,44 @@ router.get('/', async (req, res) => {
     const regularFilter = { ...filter };
     if (featuredIds.length) regularFilter._id = { $nin: featuredIds };
 
-    // MAIN QUERY — wrapped in try/catch so a MongoDB timeout or disconnect
-    // returns empty results instead of crashing the entire response with 500
+    // #126 — MAIN QUERY: aggregation pipeline with promotion sort
+    // Premium (score=2) > Featured (score=1) > none (score=0), then by recency
+    // This ensures promotion priority is applied BEFORE pagination (skip/limit)
     let regularAds = [];
     try {
-      regularAds = await getAdModel().find(regularFilter)
-        .sort({ isFeatured: -1, featuredUntil: -1, subsub: 1, visibilityScore: -1, createdAt: -1 })
-        .skip(Number(page) * (Number(limit) || 20))
-        .limit(Number(limit) > 0 ? Math.min(Number(limit), 100) : 20)
-        .lean();
+      const _pageSize = Number(limit) > 0 ? Math.min(Number(limit), 100) : 20;
+      const _skip = Number(page) * _pageSize;
+      const _now = new Date();
+      // Use aggregation for MongoDB (promotion-aware sort + correct pagination)
+      // Fall back to .find() for non-MongoDB stores (Couchbase, MemAd)
+      const _model = getAdModel();
+      if (typeof _model.aggregate === 'function') {
+        regularAds = await _model.aggregate([
+          { $match: regularFilter },
+          {
+            $addFields: {
+              _promotionScore: {
+                $switch: {
+                  branches: [
+                    { case: { $and: [{ $eq: ['$promotion.type', 'premium'] }, { $gt: ['$promotion.expiresAt', _now] }] }, then: 2 },
+                    { case: { $and: [{ $eq: ['$promotion.type', 'featured'] }, { $gt: ['$promotion.expiresAt', _now] }] }, then: 1 },
+                  ],
+                  default: 0,
+                },
+              },
+            },
+          },
+          { $sort: { _promotionScore: -1, isFeatured: -1, visibilityScore: -1, createdAt: -1 } },
+          { $skip: _skip },
+          { $limit: _pageSize },
+        ]);
+      } else {
+        regularAds = await _model.find(regularFilter)
+          .sort({ isFeatured: -1, visibilityScore: -1, createdAt: -1 })
+          .skip(_skip)
+          .limit(_pageSize)
+          .lean();
+      }
     } catch (_queryErr) {
       console.warn('[GET /api/ads] Main query failed (non-fatal):', _queryErr.message);
       regularAds = []; // Return empty list instead of crashing
@@ -302,7 +399,7 @@ router.get('/', async (req, res) => {
       const sellerIds = [...new Set(allAds.map(a => a.userId?.toString()).filter(Boolean))];
       if (sellerIds.length > 0) {
         const sellers = await User.find({ _id: { $in: sellerIds } })
-          .select('name avatar emailVerified whatsappVerified')
+          .select('name avatar emailVerified whatsappVerified sellerScore isVerifiedSeller isSuspended reputationPoints')
           .lean();
         const sellerMap = Object.fromEntries(sellers.map(s => [s._id.toString(), s]));
         allAds = allAds.map(a => {
@@ -713,6 +810,21 @@ router.post('/', auth, multerUpload, async (req, res) => {
         }
       }
     }
+    // #128 — SUSPENSION CHECK: blocked users cannot post ads
+    try {
+      const _suspendCheck = await User.findById(req.user.id).select('isSuspended suspendReason').lean();
+      if (_suspendCheck?.isSuspended) {
+        return res.status(403).json({
+          error: 'حسابك موقوف. تواصل مع الدعم.',
+          suspended: true,
+          reason: _suspendCheck.suspendReason || 'Violation',
+        });
+      }
+    } catch (_suspendErr) {
+      // Non-fatal: if check fails, allow the user (fail open)
+      console.warn('[ADS POST] Suspension check failed (non-fatal):', _suspendErr.message);
+    }
+
     // ── DB CONNECTION CHECK — return 503 if no DB is ready yet ──────────────
     const _activeDB = getActiveDB();
     console.log('[ADS POST] 2: activeDB=', _activeDB, 'mongoState=', mongoose.connection.readyState);

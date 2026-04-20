@@ -17,7 +17,7 @@ const PLANS = {
 // #123 — Promotion tiers for the new promotion.{type,expiresAt} system
 const PROMO_PLANS = {
   featured: { label: 'Featured', days: 14, priceUSD: 5,  type: 'featured' },
-  premium:  { label: 'Premium',  days: 14, priceUSD: 15, type: 'premium'  },
+  premium:  { label: 'Premium',  days: 30, priceUSD: 15, type: 'premium'  },
 };
 
 // Golden/premium styles are UNLIMITED — only 'normal' style is capped at 16

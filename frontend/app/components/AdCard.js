@@ -31,13 +31,25 @@ function getDaysLeft(createdAt) {
 }
 // ──────────────────────────────────────────────────────────────────────────
 
+// #128 — Dynamic seller trust badge based on sellerScore
+function SellerTrustBadge({ ad }) {
+  const sellerScore = ad?.sellerScore || ad?.seller?.sellerScore || ad?.userId?.sellerScore || 0;
+  const badge = sellerScore >= 70
+    ? { label: '✓ بائع موثوق', bg: '#dcfce7', color: '#166534' }
+    : sellerScore >= 40
+    ? { label: '◑ بائع نشط', bg: '#fef9c3', color: '#854d0e' }
+    : { label: '⚠ بائع جديد', bg: '#fee2e2', color: '#991b1b' };
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, background: badge.bg, color: badge.color }}>
+      {badge.label}
+    </span>
+  );
+}
+
 function StarRating({ rating, count }) {
   if (rating === null || rating === undefined) {
-    return (
-      <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
-        بائع جديد
-      </span>
-    );
+    // StarRating will return null — SellerTrustBadge handles the no-rating case
+    return null;
   }
   const filled = Math.round(rating);
   return (
@@ -91,6 +103,64 @@ function ConditionBadge({ condition }) {
     </span>
   );
 }
+
+
+// ── #125 — Subcategory-themed card designs ─────────────────────────────────
+// Keys match actual DB values (English autodetect + Arabic frontend submissions)
+const SUBCAT_THEMES = {
+  // Electronics — English keys (from auto-detect)
+  'mobile':        { accent: '#3b82f6', glow: 'rgba(59,130,246,0.5)',   icon: '📱', bg: 'from-blue-950/30' },
+  'laptop':        { accent: '#6366f1', glow: 'rgba(99,102,241,0.5)',   icon: '💻', bg: 'from-indigo-950/30' },
+  'tablet':        { accent: '#8b5cf6', glow: 'rgba(139,92,246,0.5)',   icon: '📟', bg: 'from-violet-950/30' },
+  'camera':        { accent: '#f59e0b', glow: 'rgba(245,158,11,0.5)',   icon: '📷', bg: 'from-amber-950/30' },
+  'tv':            { accent: '#10b981', glow: 'rgba(16,185,129,0.5)',   icon: '📺', bg: 'from-emerald-950/30' },
+  // Electronics — Arabic keys (from frontend)
+  'موبايل':        { accent: '#3b82f6', glow: 'rgba(59,130,246,0.5)',   icon: '📱', bg: 'from-blue-950/30' },
+  'لابتوب':        { accent: '#6366f1', glow: 'rgba(99,102,241,0.5)',   icon: '💻', bg: 'from-indigo-950/30' },
+  'تابلت':         { accent: '#8b5cf6', glow: 'rgba(139,92,246,0.5)',   icon: '📟', bg: 'from-violet-950/30' },
+  'كاميرا':        { accent: '#f59e0b', glow: 'rgba(245,158,11,0.5)',   icon: '📷', bg: 'from-amber-950/30' },
+  'تلفزيون':       { accent: '#10b981', glow: 'rgba(16,185,129,0.5)',   icon: '📺', bg: 'from-emerald-950/30' },
+  // Cars & Vehicles — English
+  'car':           { accent: '#ef4444', glow: 'rgba(239,68,68,0.5)',    icon: '🚗', bg: 'from-red-950/30' },
+  'motorcycle':    { accent: '#f97316', glow: 'rgba(249,115,22,0.5)',   icon: '🏍', bg: 'from-orange-950/30' },
+  'truck':         { accent: '#78716c', glow: 'rgba(120,113,108,0.5)',  icon: '🚚', bg: 'from-stone-950/30' },
+  // Cars & Vehicles — Arabic
+  'ملاكي':         { accent: '#ef4444', glow: 'rgba(239,68,68,0.5)',    icon: '🚗', bg: 'from-red-950/30' },
+  'دراجات':        { accent: '#f97316', glow: 'rgba(249,115,22,0.5)',   icon: '🏍', bg: 'from-orange-950/30' },
+  'تجاري':         { accent: '#78716c', glow: 'rgba(120,113,108,0.5)',  icon: '🚚', bg: 'from-stone-950/30' },
+  // Real Estate — English
+  'apartment':     { accent: '#0ea5e9', glow: 'rgba(14,165,233,0.5)',   icon: '🏠', bg: 'from-sky-950/30' },
+  'villa':         { accent: '#d97706', glow: 'rgba(217,119,6,0.5)',    icon: '🏡', bg: 'from-yellow-950/30' },
+  'land':          { accent: '#84cc16', glow: 'rgba(132,204,22,0.5)',   icon: '🌍', bg: 'from-lime-950/30' },
+  // Real Estate — Arabic
+  'شقق':           { accent: '#0ea5e9', glow: 'rgba(14,165,233,0.5)',   icon: '🏠', bg: 'from-sky-950/30' },
+  'شقة':           { accent: '#0ea5e9', glow: 'rgba(14,165,233,0.5)',   icon: '🏠', bg: 'from-sky-950/30' },
+  'فيلا':          { accent: '#d97706', glow: 'rgba(217,119,6,0.5)',    icon: '🏡', bg: 'from-yellow-950/30' },
+  'أراضي':         { accent: '#84cc16', glow: 'rgba(132,204,22,0.5)',   icon: '🌍', bg: 'from-lime-950/30' },
+  'أرض':           { accent: '#84cc16', glow: 'rgba(132,204,22,0.5)',   icon: '🌍', bg: 'from-lime-950/30' },
+  // Fashion — English + Arabic
+  'clothes':       { accent: '#ec4899', glow: 'rgba(236,72,153,0.5)',   icon: '👗', bg: 'from-pink-950/30' },
+  'shoes':         { accent: '#f43f5e', glow: 'rgba(244,63,94,0.5)',    icon: '👟', bg: 'from-rose-950/30' },
+  'accessories':   { accent: '#a855f7', glow: 'rgba(168,85,247,0.5)',   icon: '💎', bg: 'from-purple-950/30' },
+  'ملابس':         { accent: '#ec4899', glow: 'rgba(236,72,153,0.5)',   icon: '👗', bg: 'from-pink-950/30' },
+  'أحذية':         { accent: '#f43f5e', glow: 'rgba(244,63,94,0.5)',    icon: '👟', bg: 'from-rose-950/30' },
+  'اكسسوار':       { accent: '#a855f7', glow: 'rgba(168,85,247,0.5)',   icon: '💎', bg: 'from-purple-950/30' },
+  // Services
+  'services':      { accent: '#14b8a6', glow: 'rgba(20,184,166,0.5)',   icon: '🔧', bg: 'from-teal-950/30' },
+  'خدمات':         { accent: '#14b8a6', glow: 'rgba(20,184,166,0.5)',   icon: '🔧', bg: 'from-teal-950/30' },
+  // Animals & Pets
+  'pets':          { accent: '#22c55e', glow: 'rgba(34,197,94,0.5)',    icon: '🐾', bg: 'from-green-950/30' },
+  'حيوان':         { accent: '#22c55e', glow: 'rgba(34,197,94,0.5)',    icon: '🐾', bg: 'from-green-950/30' },
+  // Default fallback
+  'default':       { accent: '#64748b', glow: 'rgba(100,116,139,0.4)',  icon: '📦', bg: 'from-slate-950/20' },
+};
+
+function getTheme(ad) {
+  const cat = (ad.subcategory || ad.category || '').toLowerCase();
+  const found = Object.entries(SUBCAT_THEMES).find(([k]) => k !== 'default' && cat.includes(k.toLowerCase()));
+  return found ? found[1] : SUBCAT_THEMES.default;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function AdCard({
   ad, eager = false }) {
@@ -266,31 +336,44 @@ export default function AdCard({
   // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
   const adDetailUrl = '/ads/' + adId;
 
-  // #123 — Determine promotion tier styling
+  // #123/#125 — Determine promotion tier + subcategory theme
   const promoType = ad.promotion?.type || 'none';
   const isFeaturedPromo = promoType === 'featured' && new Date(ad.promotion?.expiresAt) > new Date();
   const isPremiumPromo = promoType === 'premium' && new Date(ad.promotion?.expiresAt) > new Date();
+  const theme = getTheme(ad);
 
-  const cardBorder = isPremiumPromo
-    ? '2px solid #c084fc'
-    : isFeaturedPromo
-    ? '2px solid #facc15'
-    : ad.isFeatured
-    ? '2px solid #FFD700'
+  // Premium: subcategory-colored ultra-glow
+  const premiumStyle = isPremiumPromo ? {
+    border: `2px solid ${theme.accent}`,
+    boxShadow: `0 0 20px 4px ${theme.glow}, 0 0 50px 8px ${theme.glow.replace('0.5)', '0.2)').replace('0.4)', '0.15)')}`,
+    background: `linear-gradient(135deg, ${theme.accent}15, #0f172a)`,
+  } : {};
+
+  // Featured: gold glow always
+  const featuredStyle = isFeaturedPromo && !isPremiumPromo ? {
+    border: '2px solid #fbbf24',
+    boxShadow: '0 0 16px 3px rgba(251,191,36,0.55), 0 0 32px 6px rgba(251,191,36,0.2)',
+    background: 'linear-gradient(135deg, #fbbf2415, #0f172a)',
+  } : {};
+
+  const legacyFeaturedStyle = !isPremiumPromo && !isFeaturedPromo && ad.isFeatured ? {
+    border: '2px solid #FFD700',
+    boxShadow: '0 4px 16px rgba(255,165,0,0.2)',
+    background: '#fff',
+  } : {};
+
+  const cardBorder = isPremiumPromo ? premiumStyle.border
+    : isFeaturedPromo ? featuredStyle.border
+    : ad.isFeatured ? legacyFeaturedStyle.border
     : '1px solid #eee';
 
-  const cardBoxShadow = isPremiumPromo
-    ? '0 0 20px 4px rgba(168,85,247,0.6), 0 0 40px 8px rgba(168,85,247,0.3)'
-    : isFeaturedPromo
-    ? '0 0 16px 3px rgba(250,204,21,0.55), 0 0 32px 6px rgba(250,204,21,0.25)'
-    : ad.isFeatured
-    ? '0 4px 16px rgba(255,165,0,0.2)'
+  const cardBoxShadow = isPremiumPromo ? premiumStyle.boxShadow
+    : isFeaturedPromo ? featuredStyle.boxShadow
+    : ad.isFeatured ? legacyFeaturedStyle.boxShadow
     : '0 1px 4px rgba(0,0,0,0.06)';
 
-  const cardBg = isPremiumPromo
-    ? 'linear-gradient(135deg, rgba(88,28,135,0.18) 0%, #0f172a 100%)'
-    : isFeaturedPromo
-    ? 'linear-gradient(135deg, rgba(120,90,0,0.13) 0%, #fff 100%)'
+  const cardBg = isPremiumPromo ? premiumStyle.background
+    : isFeaturedPromo ? featuredStyle.background
     : '#fff';
 
   return (
@@ -304,30 +387,29 @@ export default function AdCard({
         color: 'inherit',
       }}>
       {/* #123 — Premium badge (top-right corner, animated pulse) */}
+      {/* #125 — Premium badge: subcategory-colored icon + PREMIUM */}
       {isPremiumPromo && (
         <span style={{
           position: 'absolute', top: 8, right: 8, zIndex: 10,
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          borderRadius: 999, padding: '2px 8px',
-          background: 'linear-gradient(90deg, #9333ea, #d946ef)',
-          color: '#fff', fontSize: 10, fontWeight: 800,
-          boxShadow: '0 2px 12px rgba(168,85,247,0.6)',
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`,
+          color: '#fff', fontSize: 10, fontWeight: 700,
+          padding: '3px 8px', borderRadius: 999,
+          boxShadow: `0 2px 8px ${theme.glow}`,
           animation: 'pulse 2s infinite',
-          letterSpacing: '0.03em',
         }}>
-          ✦ PREMIUM
+          {theme.icon} PREMIUM
         </span>
       )}
-      {/* #123 — Featured badge (top-right corner) */}
+      {/* #125 — Featured badge: gold star */}
       {isFeaturedPromo && !isPremiumPromo && (
         <span style={{
           position: 'absolute', top: 8, right: 8, zIndex: 10,
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          borderRadius: 999, padding: '2px 8px',
-          background: 'linear-gradient(90deg, #eab308, #f59e0b)',
-          color: '#000', fontSize: 10, fontWeight: 800,
-          boxShadow: '0 2px 8px rgba(250,204,21,0.5)',
-          letterSpacing: '0.03em',
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+          color: '#000', fontSize: 10, fontWeight: 700,
+          padding: '3px 8px', borderRadius: 999,
+          boxShadow: '0 2px 8px rgba(251,191,36,0.5)',
         }}>
           ★ FEATURED
         </span>
@@ -518,6 +600,7 @@ export default function AdCard({
               </span>
             );
           })()}
+          <SellerTrustBadge ad={ad} />
           <StarRating rating={rating} count={ratingCount} />
           {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
         </div>

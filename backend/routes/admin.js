@@ -878,4 +878,45 @@ router.post('/backfill-countries', adminAuth, async (req, res) => {
 });
 
 
+// ── #128 — POST /api/admin/users/:id/suspend — suspend a user + deactivate their ads ──
+router.post('/users/:id/suspend', adminAuth, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    await User.findByIdAndUpdate(req.params.id, {
+      isSuspended: true,
+      suspendReason: reason || 'Violation of terms',
+    });
+    // Deactivate all their ads
+    await Ad.updateMany(
+      { userId: req.params.id, isDeleted: { $ne: true } },
+      { $set: { status: 'suspended', visibilityScore: 0 } }
+    );
+    console.log('[ADMIN] User suspended:', req.params.id, 'reason:', reason);
+    res.json({ success: true, suspended: true });
+  } catch (err) {
+    console.error('[ADMIN suspend] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── #128 — POST /api/admin/users/:id/unsuspend — restore a suspended user ──
+router.post('/users/:id/unsuspend', adminAuth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.params.id, {
+      isSuspended: false,
+      suspendReason: '',
+    });
+    // Reactivate their ads
+    await Ad.updateMany(
+      { userId: req.params.id, status: 'suspended' },
+      { $set: { status: 'active', visibilityScore: 10 } }
+    );
+    console.log('[ADMIN] User unsuspended:', req.params.id);
+    res.json({ success: true, suspended: false });
+  } catch (err) {
+    console.error('[ADMIN unsuspend] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
