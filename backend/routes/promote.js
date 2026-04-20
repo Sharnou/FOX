@@ -249,23 +249,28 @@ router.post('/:adId', auth, async (req, res) => {
     const targetAd = ad || await Ad.findById(req.params.adId);
     if (!targetAd) return res.status(404).json({ error: 'Ad not found' });
 
-    const expiresAt = new Date(Date.now() + p.days * 24 * 60 * 60 * 1000);
+    // #132 — Extend ad lifetime from its CURRENT expiry (or from now if already expired)
+    const now = new Date();
+    const currentExpiry = targetAd.expiresAt && targetAd.expiresAt > now ? targetAd.expiresAt : now;
+    const newExpiry = new Date(currentExpiry.getTime() + p.days * 24 * 60 * 60 * 1000);
+    targetAd.expiresAt = newExpiry;
+    targetAd.hardDeleteAt = new Date(newExpiry.getTime() + 7 * 24 * 60 * 60 * 1000); // reshare window after
 
-    // #131 — For premium: extend ad.expiresAt to cover promotion period + 14d buffer (44d total)
-    if (p.type === 'premium') {
-      const minExpiry = new Date(Date.now() + (p.days + 14) * 24 * 60 * 60 * 1000); // 30+14 = 44 days
-      if (!targetAd.expiresAt || targetAd.expiresAt < minExpiry) {
-        targetAd.expiresAt = minExpiry;
-      }
-      targetAd.hardDeleteAt = new Date(targetAd.expiresAt.getTime() + 7 * 24 * 60 * 60 * 1000); // reshare window after
+    // Reset status to active if it was expired
+    if (targetAd.status === 'expired') {
+      targetAd.status = 'active';
+      targetAd.isExpired = false;
+      targetAd.reshareWindowEndsAt = null;
     }
 
-    targetAd.promotion = { type: p.type, expiresAt, paidAt: new Date(), amountUSD: p.priceUSD };
+    // promotion.expiresAt = now + plan.days (badge/glow duration)
+    // ad.expiresAt = currentExpiry + plan.days (when ad disappears) — set above
+    targetAd.promotion = { type: p.type, expiresAt: new Date(now.getTime() + p.days * 24 * 60 * 60 * 1000), paidAt: now, amountUSD: p.priceUSD };
     // Also set legacy isFeatured for backward compat
     targetAd.isFeatured = true;
     targetAd.featuredStyle = p.type === 'premium' ? 'banner' : 'gold';
     targetAd.featuredPlan = plan;
-    targetAd.featuredUntil = expiresAt;
+    targetAd.featuredUntil = new Date(now.getTime() + p.days * 24 * 60 * 60 * 1000);
     targetAd.featuredAt = new Date();
     await targetAd.save();
 

@@ -301,3 +301,11 @@ img {
   }
 }
 /* ============================================================ */
+
+/* #133 — Hide browser extension injected buttons + legacy MarkPoint debug UI */
+[data-markpoint-ui],
+button[data-markpoint-ui] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

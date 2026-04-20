@@ -7,7 +7,6 @@ import UnifiedNotificationPrompt from './components/UnifiedNotificationPrompt';
 import BottomNav from './components/BottomNav';
 import FloatingSearchBar from './components/FloatingSearchBar';
 import ErrorCapture from './components/ErrorCapture';
-import MarkPoint from './components/MarkPoint';
 import ChatFloat from './components/ChatFloat';
 import WhatsAppFloat from './components/WhatsAppFloat';
 import TranslationLoader from './components/TranslationLoader';
@@ -136,7 +135,6 @@ export default function RootLayout({ children }) {
         <FCMInit />
         <PushSubscriber />
       <ErrorCapture />
-        <MarkPoint />
         {children}
         <FloatingSearchBar />
         <ScrollToTop />

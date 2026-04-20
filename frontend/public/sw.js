@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v51';
+const _XTOX_CACHE = 'xtox-v52';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -157,9 +157,9 @@ function logCallEventSW(type, data) {
   } catch (e) { /* non-fatal */ }
 }
 
-// ─── XTOX Service Worker v49 ────────────────────────────────────────────────
+// ─── XTOX Service Worker v52 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v50';
+const CACHE_VERSION = 'v51';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -211,7 +211,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', event => {
   if (event.data === 'SKIP_WAITING' || (event.data && event.data.type === 'SKIP_WAITING')) {
     self.skipWaiting();
+    return; // #134 — always return after handling to prevent postMessage cascade
   }
+  // Do not postMessage back unconditionally — would cause loop if main thread listens
 });
 
 // ── PUSH: handle incoming push notifications ─────────────────────────────────

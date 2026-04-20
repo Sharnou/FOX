@@ -178,7 +178,9 @@ export default function Home() {
     if (code) params.append('country', code);
     setLoading(true);
     setError(null);
-    fetch(API + '/api/ads?' + params)
+    // #134 — AbortController prevents stale fetch responses causing cascade state updates
+    const controller = new AbortController();
+    fetch(API + '/api/ads?' + params, { signal: controller.signal })
       .then(r => r.json())
       .then(data => {
         const rawList = Array.isArray(data) ? data : (data.ads || data.data || data.results || []);
@@ -192,9 +194,11 @@ export default function Home() {
         setAds(uniqueList);
         setError(null);
       })
-      .catch(() => {
-        setAds([]);
-        setError(t('err_loading'));
+      .catch(e => {
+        if (e.name !== 'AbortError') {
+          setAds([]);
+          setError(t('err_loading'));
+        }
       })
       .finally(() => setLoading(false));
   }
