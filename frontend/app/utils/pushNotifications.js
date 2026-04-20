@@ -29,7 +29,19 @@ export async function registerPushNotifications(token) {
       return;
     }
 
-    // Subscribe to push
+    // Always unsubscribe any existing subscription before resubscribing.
+    // This prevents the "A subscription with a different applicationServerKey already exists"
+    // error that occurs when the VAPID key changes between deployments.
+    const existingSub = await reg.pushManager.getSubscription();
+    if (existingSub) {
+      try {
+        await existingSub.unsubscribe();
+      } catch (e) {
+        console.warn('[Push] Failed to unsubscribe old sub:', e);
+      }
+    }
+
+    // Subscribe fresh with current VAPID key
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),

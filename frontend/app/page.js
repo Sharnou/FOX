@@ -433,7 +433,7 @@ export default function Home() {
         {/* User / Login */}
         {user ? (
           <a
-            href={(user._id || user.id) ? '/profile/' + (user._id || user.id) : '/profile'}
+            href="/profile"
             aria-label={t('nav_profile') + ' - ' + user.name}
             style={{
               width: 38,
