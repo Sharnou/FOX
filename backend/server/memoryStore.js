@@ -245,13 +245,25 @@ export const MemAd = {
     };
     return q;
   },
-  async findById(id) {
+  findById(id) {
+    // FIX: Return a chainable query object (NOT an async Promise) so .lean() can be
+    // chained before await, exactly like Mongoose Query objects work.
+    // Previously: async findById → returned Promise → .lean() called on Promise → TypeError → 500
     const doc = store.ads.get(String(id));
-    if (!doc) return null;
-    const d = makeAdDoc(doc);
-    // .populate() is a no-op in memory store
-    d.populate = () => d;
-    return d;
+    const resolvedDoc = doc ? makeAdDoc(doc) : null;
+    let isLean = false;
+    const q = {
+      lean()    { isLean = true; return this; },
+      select()  { return this; },
+      populate(){ return this; },
+      sort()    { return this; },
+      then(resolve, reject) {
+        const val = isLean && resolvedDoc ? resolvedDoc.toObject() : resolvedDoc;
+        return Promise.resolve(val).then(resolve, reject);
+      },
+      catch(onRejected) { return Promise.resolve(resolvedDoc).catch(onRejected); }
+    };
+    return q;
   },
   async countDocuments(filter = {}) {
     return [...store.ads.values()].filter(d => match(d, filter)).length;

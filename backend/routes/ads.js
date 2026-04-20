@@ -432,8 +432,12 @@ router.get('/', async (req, res) => {
 // GET user's own ads (active + expired)
 router.get('/my/all', auth, async (req, res) => {
   try {
-    const active = await getAdModel().find({ userId: req.user.id, isDeleted: { $ne: true }, isExpired: { $ne: true } }).lean();
-    const expired = await getAdModel().find({ userId: req.user.id, isDeleted: { $ne: true }, isExpired: true }).lean();
+    // FIX #164: Use $or to match ads stored under either userId OR seller field.
+    // Older ads may have only 'seller' set; newer ads have both. The $or ensures all
+    // of the user's ads are returned regardless of which field was used at creation time.
+    const _userFilter = { $or: [{ userId: req.user.id }, { seller: req.user.id }] };
+    const active = await getAdModel().find({ ..._userFilter, isDeleted: { $ne: true }, isExpired: { $ne: true } }).lean();
+    const expired = await getAdModel().find({ ..._userFilter, isDeleted: { $ne: true }, isExpired: true }).lean();
     const expiredWithDeadline = expired.map(ad => {
       const expiredAt = ad.expiredAt || ad.expiresAt;
       const deadlineMs = new Date(expiredAt).getTime() + 7 * 24 * 60 * 60 * 1000;
