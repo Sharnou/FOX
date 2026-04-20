@@ -77,6 +77,21 @@ export default function FastFoodPage() {
   const totalPrice = cart.reduce((s, c) => s + (parseFloat(c.price) || 0) * c.qty, 0);
   const currency = cart[0]?.currency || '';
 
+  // Smart retry: clear stale SW cache + backoff before re-fetching
+  async function smartRetry(fetchFn) {
+    setError(false);
+    if (typeof setLoading === 'function') setLoading(true);
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter(k => k.includes('xtox')).map(k => caches.delete(k)));
+      }
+    } catch(e) {}
+    await new Promise(r => setTimeout(r, 500));
+    fetchFn();
+  }
+
+
   return (
     <div className="max-w-3xl mx-auto p-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -107,7 +122,7 @@ export default function FastFoodPage() {
         <div className="text-center py-16 text-gray-400">
           <div className="text-5xl mb-3">⚠️</div>
           <p className="text-lg mb-4">تعذّر تحميل القائمة</p>
-          <button onClick={() => fetchItems()} className="bg-orange-500 text-white px-6 py-2 rounded-xl font-bold">إعادة المحاولة</button>
+          <button onClick={() => smartRetry(fetchItems)} className="bg-orange-500 text-white px-6 py-2 rounded-xl font-bold">إعادة المحاولة</button>
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-gray-400">

@@ -100,6 +100,21 @@ export default function ServicesPage() {
     },
   };
 
+  // Smart retry: clear stale SW cache + backoff before re-fetching
+  async function smartRetry(fetchFn) {
+    setError(false);
+    setLoading(true);
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter(k => k.includes('xtox')).map(k => caches.delete(k)));
+      }
+    } catch(e) {}
+    await new Promise(r => setTimeout(r, 500));
+    if (fetchFn) fetchFn();
+  }
+
+
   return (
     <div dir="rtl" lang="ar" className="min-h-screen bg-gray-50">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -175,7 +190,7 @@ export default function ServicesPage() {
             <p className="text-gray-600 text-lg font-semibold">حدث خطأ في التحميل</p>
             <p className="text-gray-400 text-sm mt-1">تحقق من اتصالك وأعد المحاولة</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => smartRetry(() => window.location.reload())}
               className="mt-4 px-6 py-2 bg-[#002f34] text-white rounded-xl text-sm font-medium hover:opacity-90 transition"
             >
               إعادة المحاولة

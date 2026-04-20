@@ -54,6 +54,21 @@ export default function SupermarketPage() {
     return () => controller.abort();
   }, [country]);
   const addToCart = (item) => setCart(c => [...c, item]);
+  // Smart retry: clear stale SW cache + backoff before re-fetching
+  async function smartRetry(fetchFn) {
+    setError(false);
+    if (typeof setLoading === 'function') setLoading(true);
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter(k => k.includes('xtox')).map(k => caches.delete(k)));
+      }
+    } catch(e) {}
+    await new Promise(r => setTimeout(r, 500));
+    fetchFn();
+  }
+
+
   return (
     <div className="max-w-4xl mx-auto p-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -66,7 +81,7 @@ export default function SupermarketPage() {
         <div className="text-center py-16">
           <div className="text-5xl mb-3">⚠️</div>
           <p className="text-lg text-gray-500 mb-4">تعذّر تحميل المنتجات</p>
-          <button onClick={() => fetchItems()} className="bg-brand text-white px-6 py-2 rounded-xl font-bold">إعادة المحاولة</button>
+          <button onClick={() => smartRetry(fetchItems)} className="bg-brand text-white px-6 py-2 rounded-xl font-bold">إعادة المحاولة</button>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

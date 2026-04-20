@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CallManager from '../components/CallManager';
 import { playNotificationSound } from '../utils/notificationSound';
+import { useLanguage } from '../context/LanguageContext';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
@@ -142,6 +143,7 @@ function LocationCard({ msg }) {
 function ChatPageInner() {
   var router = useRouter();
   var searchParams = useSearchParams();
+  var { t } = useLanguage();
   var [myId, setMyId]                   = useState('');
   var [currentUser, setCurrentUser]     = useState(null);
   var [targetId, setTargetId]           = useState('');
@@ -416,10 +418,13 @@ function ChatPageInner() {
       return;
     }
     setLoginRequired(false);
-    fetch(API_URL + '/api/chat', { headers: { Authorization: 'Bearer ' + token } })
+    var _chatFetchController = new AbortController();
+    var _chatFetchTimeout = setTimeout(function() { _chatFetchController.abort(); }, 10000);
+    fetch(API_URL + '/api/chat', { headers: { Authorization: 'Bearer ' + token }, signal: _chatFetchController.signal })
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(async function(data) {
-        if (!data) { setChatError('فشل تحميل المحادثات'); setHistoryLoaded(true); return; }
+        clearTimeout(_chatFetchTimeout);
+        if (!data) { setChatError('chat_load_failed'); setHistoryLoaded(true); return; }
         var chatList = data.chats || (Array.isArray(data) ? data : []);
         setApiChats(chatList);
         var apiConvs = chatList.map(function(c) {
@@ -508,7 +513,16 @@ function ChatPageInner() {
         }
         setHistoryLoaded(true);
       })
-      .catch(function() { setChatError('فشل تحميل المحادثات'); setHistoryLoaded(true); });
+      .catch(function(e) {
+        clearTimeout(_chatFetchTimeout);
+        if (e && e.name === 'AbortError') {
+          setChatError('error_network');
+        } else {
+          setChatError('chat_load_failed');
+        }
+        setHistoryLoaded(true);
+      });
+    return function() { _chatFetchController.abort(); };
   }, [myId]);
 
   // Socket setup
@@ -520,9 +534,19 @@ function ChatPageInner() {
     var s = io(SOCKET_URL, { auth: { token: token }, transports: ['websocket', 'polling'], withCredentials: true });
     socketRef.current = s;
     setSocketInstance(s);
+    // Mobile fix: add connection timeout — disconnect if no connect after 8s
+    var _socketConnectTimeout = setTimeout(function() {
+      if (s && !s.connected) {
+        console.warn('[XTOX] Socket connection timed out on mobile');
+        s.disconnect();
+        // Try reconnect with polling fallback
+        setTimeout(function() { if (s) s.connect(); }, 1000);
+      }
+    }, 8000);
     // Fix A: emit join only after socket is connected (ensures server marks us online
     // before any user:status listeners have a chance to check the value)
     s.on('connect', function() {
+      clearTimeout(_socketConnectTimeout);
       s.emit('join', myId);
       // BUG7 FIX: emit pending push-notification reject now that socket is ready
       if (pendingRejectRef.current) {
@@ -775,7 +799,7 @@ function ChatPageInner() {
     // Guard: prevent sending messages to archived/sold/closed chats
     if (isCurrentChatClosed || chatStatus === 'archived' || adStatus === 'sold') return;
     if (!socketRef.current || !socketRef.current.connected) {
-      setChatError('انقطع الاتصال — يرجى الانتظار قليلاً ثم المحاولة مجدداً');
+      setChatError('chat_disconnected');
       setTimeout(function() { setChatError(''); }, 4000);
       return;
     }
@@ -820,6 +844,20 @@ function ChatPageInner() {
       if (socketRef.current && targetId) socketRef.current.emit('send_message', Object.assign({ from: myId, to: targetId }, locationMsg));
       setMessages(function(prev) { return prev.concat([locationMsg]); });
     });
+  }
+
+  // Smart retry: flush SW cache + small backoff before reload
+  async function smartRetry() {
+    setChatError('');
+    setHistoryLoaded(false);
+    try {
+      if ('caches' in window) {
+        var keys = await caches.keys();
+        await Promise.all(keys.filter(function(k) { return k.includes('xtox'); }).map(function(k) { return caches.delete(k); }));
+      }
+    } catch(e) {}
+    await new Promise(function(r) { setTimeout(r, 500); });
+    window.location.reload();
   }
 
   // Derived: is the currently open chat closed (ad sold/deleted)?
@@ -951,14 +989,14 @@ function ChatPageInner() {
           {loginRequired ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 14, gap: 8, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 36 }}>&#128274;</div>
-              <p style={{ margin: 0 }}>سجّل الدخول للمحادثات</p>
+              <p style={{ margin: 0 }}>{t('chat_no_auth')}</p>
               <a href="/login" style={{ color: '#23e5db', fontSize: 13, marginTop: 4 }}>تسجيل الدخول</a>
             </div>
           ) : chatError && historyLoaded ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 14, gap: 10, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 36 }}>⚠️</div>
-              <p style={{ margin: 0 }}>{chatError}</p>
-              <button onClick={function() { setChatError(''); setHistoryLoaded(false); window.location.reload(); }} style={{ color: '#23e5db', background: 'none', border: '1px solid #23e5db', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>إعادة المحاولة</button>
+              <p style={{ margin: 0 }}>{t(chatError)}</p>
+              <button onClick={smartRetry} style={{ color: '#23e5db', background: 'none', border: '1px solid #23e5db', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>{t('btn_retry')}</button>
             </div>
           ) : !historyLoaded && apiChats.length === 0 ? (
             <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1221,7 +1259,7 @@ function ChatPageInner() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div style={{textAlign:'center',padding:60,fontSize:20}}>⏳ جارٍ التحميل...</div>}>
+    <Suspense fallback={<div style={{textAlign:'center',padding:60,fontSize:20,fontFamily:"'Cairo',system-ui"}}>⏳ ...</div>}>
       <ChatPageInner />
     </Suspense>
   );
