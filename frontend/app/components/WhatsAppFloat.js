@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 
 // Module-level constants to avoid TDZ (Temporal Dead Zone) crash after minification
-const WHATSAPP_NUMBER = '213555000000'; // country code + number, no '+' or spaces
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT || '201000000000'; // country code + number, no '+' or spaces — set NEXT_PUBLIC_WHATSAPP_SUPPORT in env
 const WA_MESSAGE = encodeURIComponent('مرحبا، أحتاج مساعدة في XTOX 👋');
 const WA_URL = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + WA_MESSAGE;
 

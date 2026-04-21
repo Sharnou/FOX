@@ -335,6 +335,13 @@ export default function AdPageClient({ params }) {
     // Set userId from localStorage (avoids hydration mismatch)
     const uid = localStorage.getItem('userId') || '';
     setUserId(uid);
+    // Auto-open phone modal if ?showPhone=1 (e.g. from AdCard call button)
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('showPhone') === '1') {
+        setShowPhoneModal(true);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -457,7 +464,7 @@ export default function AdPageClient({ params }) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] });
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
-    pc.ontrack = e => { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = e.streams[0]; };
+    pc.ontrack = e => { if (remoteAudioRef.current) { remoteAudioRef.current.srcObject = e.streams[0]; remoteAudioRef.current.play().catch(() => {}); } };
     pc.onicecandidate = e => { if (e.candidate) s.emit('ice_candidate', { to: targetId, candidate: e.candidate }); };
     pcRef.current = pc;
     return pc;
@@ -547,7 +554,8 @@ export default function AdPageClient({ params }) {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
-      <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
+      {/* Remote audio for WebRTC voice calls — rendered always so ref is available; plays via srcObject in ontrack handler */}
+      <audio ref={remoteAudioRef} style={{ display: 'none' }} />
       <button onClick={() => history.back()} style={{ background: 'none', border: 'none', color: '#002f34', fontWeight: 'bold', fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>← رجوع</button>
       {ad.video ? (
         <video src={ad.video} controls autoPlay style={{ width: '100%', borderRadius: 12, maxHeight: 360, objectFit: 'cover' }} />

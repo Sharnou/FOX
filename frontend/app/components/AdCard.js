@@ -720,31 +720,57 @@ export default function AdCard({
           {loadingAd ? '...' : expanded ? '▲ إخفاء' : '▼ عرض الإعلان'}
         </button>
 
-        {/* Circular contact button — only on other people\'s ads */}
+        {/* Contact buttons row — only on other people's ads */}
         {!isOwnAd && (
-          <button
-            title="تواصل مع البائع"
-            onClick={(e) => {
-              e.stopPropagation();
-              const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
-              if (!token) { window.location.href = '/login'; return; }
-              setChatOpen(o => !o);
-            }}
-            style={{
-              background: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))',
-              border: 'none',
-              borderRadius: '50%',
-              width: '36px',
-              height: '36px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: 'rgba(99, 102, 241, 0.4) 0px 2px 8px',
-              fontSize: '16px',
-              flexShrink: 0,
-            }}
-          >💬</button>
+          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+            {/* Chat button — opens inline mini chat box */}
+            <button
+              title="راسل البائع"
+              onClick={(e) => {
+                e.stopPropagation();
+                const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
+                if (!token) { window.location.href = '/login'; return; }
+                setChatOpen(o => !o);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: 'rgba(99, 102, 241, 0.4) 0px 2px 8px',
+                fontSize: '16px',
+                flexShrink: 0,
+              }}
+            >💬</button>
+            {/* Call button — navigates to ad page phone modal */}
+            <button
+              title="اتصل بالبائع"
+              onClick={(e) => {
+                e.stopPropagation();
+                // Navigate to ad page which has full phone modal + WebRTC call
+                window.location.href = '/ads/' + adId + '?showPhone=1';
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #00aa44, #00cc55)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,170,68,0.4)',
+                fontSize: '16px',
+                flexShrink: 0,
+              }}
+            >📞</button>
+          </div>
         )}
       </div>
 

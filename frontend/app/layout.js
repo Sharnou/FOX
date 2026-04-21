@@ -39,11 +39,11 @@ export const metadata = {
   description: 'أكبر سوق محلي عربي - نشر إعلانات مجاني، بيع وشراء في مصر والدول العربية، محادثة فورية، مكالمات صوتية، تطبيق PWA',
   keywords: ['سوق محلي', 'إعلانات مبوبة', 'بيع وشراء', 'مصر', 'السعودية', 'الإمارات', 'XTOX', 'marketplace', 'Arabic marketplace', 'OLX مصر', 'Dubizzle عربي', 'إعلانات مجانية'],
   openGraph: {
-    type: 'website', locale: 'ar_EG', url: 'https://fox-kohl-eight.vercel.app',
+    type: 'website', locale: 'ar_EG', url: 'https://xtox.app',
     siteName: 'XTOX - سوق محلي عربي',
     title: 'XTOX - سوق محلي عربي | بيع واشتري مجاناً',
     description: 'أكبر سوق محلي عربي - نشر إعلانات مجاني، بيع وشراء في مصر والدول العربية',
-    images: [{ url: 'https://fox-kohl-eight.vercel.app/icon-512.png', width: 512, height: 512 }],
+    images: [{ url: 'https://xtox.app/icon-512.png', width: 512, height: 512 }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -51,14 +51,14 @@ export const metadata = {
     creator: '@XTOXapp',
     title: 'XTOX - سوق محلي عربي | بيع واشتري مجاناً',
     description: 'أكبر سوق محلي عربي - نشر إعلانات مجاني، بيع وشراء في مصر والدول العربية',
-    images: ['https://fox-kohl-eight.vercel.app/icon-512.png'],
+    images: ['https://xtox.app/icon-512.png'],
   },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-video-preview': -1, 'max-image-preview': 'large', 'max-snippet': -1 } },
   alternates: {
-    canonical: 'https://fox-kohl-eight.vercel.app',
-    languages: { 'ar': 'https://fox-kohl-eight.vercel.app', 'ar-EG': 'https://fox-kohl-eight.vercel.app' }
+    canonical: 'https://xtox.app',
+    languages: { 'ar': 'https://xtox.app', 'ar-EG': 'https://xtox.app' }
   },
-  verification: { google: 'xtox-google-verify', yandex: 'xtox-yandex-verify' },
+  verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || 'xtox-google-verify', yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFY || 'xtox-yandex-verify' },
   manifest: '/manifest.json',
   // OFFICIAL XTOX ICON — DO NOT CHANGE
   icons: {

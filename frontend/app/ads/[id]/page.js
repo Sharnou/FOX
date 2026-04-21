@@ -27,8 +27,8 @@ export async function generateMetadata({ params }) {
 
     const title = `${ad.title || 'إعلان'} | ${ad.category || ''} في ${ad.city || ad.location || ''} | XTOX`;
     const desc = `${(ad.description || '').slice(0, 155)} — السعر: ${ad.price || ''} | XTOX سوق محلي`;
-    const img = ad.images?.[0] || ad.media?.[0] || 'https://fox-kohl-eight.vercel.app/icon-512.png';
-    const url = `https://fox-kohl-eight.vercel.app/ads/${id}`;
+    const img = ad.images?.[0] || ad.media?.[0] || DEFAULT_OG_IMAGE;
+    const url = SITE_URL + '/ads/' + id;
     return {
       title,
       description: desc,
@@ -42,7 +42,7 @@ export async function generateMetadata({ params }) {
           'ar-EG': url,
         }
       },
-      keywords: [ad.title, ad.category, ad.city, ad.location, 'XTOX', 'إعلانات مبوبة', 'بيع وشراء', 'سوق محلي'].filter(Boolean).join(', '),
+      keywords: [ad.title, typeof ad.category === 'string' ? ad.category : (ad.category?.name || ''), typeof ad.city === 'string' ? ad.city : (ad.city?.name || ''), ad.location, 'XTOX', 'إعلانات مبوبة', 'بيع وشراء', 'سوق محلي'].filter(Boolean).join(', '),
       robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
     };
   } catch {
@@ -78,7 +78,7 @@ async function getAdJsonLd(id) {
     if (!ad || !ad._id) return null;
 
     const url = SITE_URL + '/ads/' + id;
-    const images = ad.media && ad.media.length > 0 ? ad.media : [DEFAULT_OG_IMAGE];
+    const images = (ad.images?.length > 0 ? ad.images : null) || (ad.media?.length > 0 ? ad.media : null) || [DEFAULT_OG_IMAGE];
 
     return {
       '@context': 'https://schema.org',
@@ -98,7 +98,7 @@ async function getAdJsonLd(id) {
       ...(ad.userId && {
         seller: {
           '@type': 'Person',
-          name: (ad.userId.name) || 'XTOX Seller',
+          name: ad.userId?.name || ad.seller?.name || 'XTOX Seller',
         },
       }),
     };
@@ -136,9 +136,9 @@ export default async function AdPage({ params }) {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "XTOX", "item": "https://fox-kohl-eight.vercel.app" },
-      { "@type": "ListItem", "position": 2, "name": ad.category || 'إعلانات', "item": `https://fox-kohl-eight.vercel.app/?category=${encodeURIComponent(ad.category || '')}` },
-      { "@type": "ListItem", "position": 3, "name": ad.title || 'إعلان', "item": `https://fox-kohl-eight.vercel.app/ads/${id}` }
+      { "@type": "ListItem", "position": 1, "name": "XTOX", "item": SITE_URL },
+      { "@type": "ListItem", "position": 2, "name": (typeof ad.category === 'string' ? ad.category : ad.category?.name) || 'إعلانات', "item": `${SITE_URL}/?category=${encodeURIComponent(typeof ad.category === 'string' ? ad.category : (ad.category?.name || ''))}` },
+      { "@type": "ListItem", "position": 3, "name": ad.title || 'إعلان', "item": `${SITE_URL}/ads/${id}` }
     ]
   } : null;
 
