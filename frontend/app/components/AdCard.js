@@ -354,6 +354,20 @@ export default function AdCard({
     } finally { setLoadingAd(false); }
   }
 
+  // ── Notify seller when contact info is viewed (from AdCard) ──────────────
+  async function notifySellerContactViewed(type) {
+    try {
+      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
+      await fetch(BACKEND + '/api/ads/' + adId + '/contact-viewed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+        body: JSON.stringify({ type }),
+      });
+    } catch {}
+  }
+
+
+
   // Feature 3: send a quick message from the inline mini-chat
   async function sendQuickMessage(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -704,6 +718,38 @@ export default function AdCard({
       </div>{/* closes p-3 */}
       </Link>{/* Link only covers navigable card content */}
 
+      {/* Seller profile link — OUTSIDE Link to avoid nested anchor bug */}
+      {_sellerId && (
+        <a
+          href={'/profile/' + _sellerId}
+          onClick={e => e.stopPropagation()}
+          style={{ display: 'block', margin: '4px 12px 0', background: '#f8f8f8', border: '1px solid #eee', borderRadius: 10, padding: '8px 10px', textDecoration: 'none', color: '#002f34' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {(ad.userId?.avatar || ad.seller?.avatar) ? (
+              <img
+                src={ad.userId?.avatar || ad.seller?.avatar}
+                alt=""
+                style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+              />
+            ) : (
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#ff6b35,#f7c59f)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 14, flexShrink: 0 }}>
+                {((ad.userId?.name || ad.seller?.name || ad.sellerName || 'ب')[0] || 'ب').toUpperCase()}
+              </div>
+            )}
+            <div>
+              <p style={{ margin: 0, fontWeight: 'bold', fontSize: 12, display: 'flex', alignItems: 'center', gap: 3 }}>
+                {ad.userId?.name || ad.seller?.name || ad.sellerName || 'البائع'}
+                {(ad.userId?.emailVerified || ad.seller?.emailVerified || ad.userId?.whatsappVerified || ad.seller?.whatsappVerified) && (
+                  <span style={{ color: '#23e5db', fontSize: 10 }}>✓</span>
+                )}
+              </p>
+              <p style={{ margin: 0, color: '#666', fontSize: 10 }}>عرض الملف الشخصي والتقييمات →</p>
+            </div>
+          </div>
+        </a>
+      )}
+
       {/* Action row: expand button + circular contact button — OUTSIDE Link */}
       {/* This prevents the invalid <button inside <a> HTML which breaks onClick */}
       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', padding: '0 12px 4px', marginTop: '4px' }}>
@@ -752,6 +798,7 @@ export default function AdCard({
               title="اتصل بالبائع"
               onClick={(e) => {
                 e.stopPropagation();
+                notifySellerContactViewed('call');
                 // Navigate to ad page which has full phone modal + WebRTC call
                 window.location.href = '/ads/' + adId + '?showPhone=1';
               }}
