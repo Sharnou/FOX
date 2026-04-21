@@ -638,3 +638,93 @@ router.get('/me/points-history', auth, async (req, res) => {
 });
 
 export default router;
+
+// ── POST /api/users/:id/rate — Rate a seller (1-5 stars + optional comment) ─
+router.post('/:id/rate', auth, async (req, res) => {
+  try {
+    const sellerId = req.params.id;
+    const raterId  = req.user.id || req.user._id;
+
+    if (!sellerId || sellerId === String(raterId)) {
+      return res.status(400).json({ error: 'لا يمكنك تقييم نفسك' });
+    }
+
+    const { rating, comment } = req.body;
+    const ratingNum = Number(rating);
+    if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      return res.status(400).json({ error: 'التقييم يجب أن يكون بين 1 و 5 نجوم' });
+    }
+    if (comment !== undefined && typeof comment === 'string' && comment.trim().length > 500) {
+      return res.status(400).json({ error: 'التعليق لا يتجاوز 500 حرف' });
+    }
+
+    const UserModel = getUserModel();
+    const seller = await UserModel.findById(sellerId);
+    if (!seller) return res.status(404).json({ error: 'البائع غير موجود' });
+
+    // Upsert rating in the seller's embedded ratings array (or use Review model)
+    // Simple approach: track per-user ratings in a Map field or compute from Review model
+    let ReviewModel;
+    try { ReviewModel = (await import('../models/Review.js')).default; } catch (e) {}
+
+    if (ReviewModel) {
+      await ReviewModel.findOneAndUpdate(
+        { seller: sellerId, reviewer: raterId },
+        { seller: sellerId, reviewer: raterId, rating: ratingNum, comment: (comment || '').trim(), updatedAt: new Date() },
+        { upsert: true, runValidators: false }
+      );
+      // Recalculate average rating
+      const all = await ReviewModel.find({ seller: sellerId });
+      if (all.length > 0) {
+        const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
+        await UserModel.findByIdAndUpdate(sellerId, { reputation: Math.round(avg * 20) });
+      }
+    } else {
+      // Fallback: update reputation directly (1 star = 20 points, 5 stars = 100)
+      await UserModel.findByIdAndUpdate(sellerId, { reputation: Math.min(100, Math.round(ratingNum * 20)) });
+    }
+
+    res.json({ success: true, message: 'تم إرسال تقييمك بنجاح', rating: ratingNum });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/users/:id/report — Report a seller ────────────────────────────
+router.post('/:id/report', auth, async (req, res) => {
+  try {
+    const sellerId = req.params.id;
+    const reporterId = req.user.id || req.user._id;
+
+    if (sellerId === String(reporterId)) {
+      return res.status(400).json({ error: 'لا يمكنك الإبلاغ عن نفسك' });
+    }
+
+    const { reason, details, sellerName } = req.body;
+    if (!reason || typeof reason !== 'string' || reason.trim().length < 2) {
+      return res.status(400).json({ error: 'سبب الإبلاغ مطلوب' });
+    }
+
+    let ReportModel;
+    try { ReportModel = (await import('../models/Report.js')).default; } catch (e) {}
+
+    if (ReportModel) {
+      // Check for duplicate report
+      const existing = await ReportModel.findOne({ reporterId, targetId: sellerId });
+      if (existing) {
+        return res.status(409).json({ error: 'لقد أبلغت عن هذا البائع بالفعل' });
+      }
+      await ReportModel.create({
+        reporterId,
+        targetId: sellerId,
+        type: 'other',
+        reason: (reason + (details ? ' — ' + details : '')).trim().slice(0, 500),
+        resolved: false,
+      });
+    }
+
+    res.json({ success: true, message: 'تم إرسال البلاغ بنجاح، سيراجعه فريقنا قريباً' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});

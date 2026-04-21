@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { detectLang } from '../../../lib/lang';
 import AdDetailSkeleton from '../../components/AdDetailSkeleton';
 import RecentlyViewed, { recordRecentView } from '../../components/RecentlyViewed';
@@ -13,9 +14,19 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://xtox-production.up.railway.app';
 
 // Auto-optimize Cloudinary images — free (f_auto=best format, q_auto=best quality)
+// Also handles raw Cloudinary public_ids (not full URLs) by constructing full URL
+const CLOUDINARY_BASE = 'https://res.cloudinary.com/dni9wcvx3/image/upload';
 function optimizeImage(url, width = 400) {
-  if (!url || !url.includes('cloudinary.com')) return url;
-  return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
+  if (!url) return url;
+  // Already a full Cloudinary URL — just add optimization params
+  if (url.includes('cloudinary.com')) {
+    return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + width + ',c_limit/');
+  }
+  // Raw public_id (no http/data prefix) — construct full Cloudinary URL
+  if (!url.startsWith('http') && !url.startsWith('data:') && !url.startsWith('blob:')) {
+    return CLOUDINARY_BASE + '/f_auto,q_auto,w_' + width + ',c_limit/' + url;
+  }
+  return url;
 }
 function AITranslate({ title, description }) {
   const [translated, setTranslated] = useState(null);
@@ -170,7 +181,18 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
     if (!sellerId || typeof sellerId !== 'string' || sellerId === 'undefined' || sellerId === 'null' || sellerId.length < 5) return;
     fetch(API + '/api/profile/' + sellerId)
       .then(r => r.ok ? r.json() : null)
-      .then(data => { setSeller(data); setLoading(false); })
+      .then(data => {
+        if (data) {
+          // Profile API returns {user, ads, avgRating, reviewCount} — extract user object
+          const userObj = (data.user && data.user._id) ? data.user : data;
+          setSeller({
+            ...userObj,
+            avgRating: data.avgRating != null ? data.avgRating : userObj.avgRating,
+            reviewCount: data.reviewCount != null ? data.reviewCount : (userObj.reviewCount || 0),
+          });
+        }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [sellerId]);
 
@@ -195,7 +217,11 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
 
   if (!seller) return null;
 
-  const stars = Math.min(5, Math.max(0, Math.round(seller.reputation || seller.rating || 0)));
+  // avgRating is 1-5 scale; reputation is 0-100 scale (100 = 5 stars)
+  const starRating = parseFloat(seller.avgRating) ||
+    (seller.reputationPoints ? Math.min(5, seller.reputationPoints / 20) : 0) ||
+    (seller.reputation ? Math.min(5, seller.reputation / 20) : 0) || 0;
+  const stars = Math.min(5, Math.max(0, Math.round(starRating)));
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} style={{
@@ -229,6 +255,9 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
             ))}
           </div>
           <div style={{ fontSize: 12, color: '#999' }}>
+            <span style={{ display: 'block', marginBottom: 2 }}>
+              {seller.reviewCount > 0 ? `(${seller.reviewCount} تقييم)` : 'لا توجد تقييمات بعد'}
+            </span>
             {seller.totalAds != null && <span style={{ marginInlineEnd: 6 }}>{seller.totalAds} {label.ads}</span>}
             {seller.createdAt && <span>{label.memberSince} {new Date(seller.createdAt).getFullYear()}</span>}
           </div>
@@ -253,6 +282,8 @@ function SellerMiniCard({ sellerId, sellerName, lang = 'ar' }) {
 }
 
 export default function AdPageClient({ params }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [lang, setLang] = useState('ar');
   const [ad, setAd] = useState(null);
   const [callActive, setCallActive] = useState(false);
@@ -277,6 +308,10 @@ export default function AdPageClient({ params }) {
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [adNotFound, setAdNotFound] = useState(false);
 
+  // ── Rate seller modal state ────────────────────────────────────────────
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
   // ── Review state (declare before useEffect that uses them) ──────────
   const [reviewChecked, setReviewChecked]       = useState(false);
   const [existingReview, setExistingReview]     = useState(null);
@@ -340,6 +375,8 @@ export default function AdPageClient({ params }) {
       const sp = new URLSearchParams(window.location.search);
       if (sp.get('showPhone') === '1') {
         setShowPhoneModal(true);
+        // Strip ?showPhone=1 so refreshing doesn't re-open the modal
+        try { router.replace(pathname, { scroll: false }); } catch (e) {}
       }
     }
   }, []);
@@ -423,6 +460,25 @@ export default function AdPageClient({ params }) {
       alert('خطأ في الاتصال');
     }
     setReviewSubmitting(false);
+  }
+
+  async function submitRating() {
+    const tok = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null;
+    if (!tok) return alert('يجب تسجيل الدخول أولاً');
+    if (!ratingValue) return alert('اختر عدد النجوم أولاً');
+    try {
+      const res = await fetch(API + '/api/users/' + sellerId + '/rate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+        body: JSON.stringify({ rating: ratingValue, comment: ratingComment }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'خطأ في الإرسال'); return; }
+      setShowRateModal(false);
+      setRatingValue(0);
+      setRatingComment('');
+      alert('✅ تم إرسال تقييمك للبائع بنجاح!');
+    } catch (e) { alert('خطأ في الاتصال بالخادم'); }
   }
 
     useEffect(() => {
@@ -652,7 +708,7 @@ export default function AdPageClient({ params }) {
       )}
       {sellerId && (<a href={'/profile/' + sellerId} style={{ display: 'block', marginTop: 16, background: '#f8f8f8', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textDecoration: 'none', color: '#002f34' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>{((ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || 'ب')[0].toUpperCase()}</div>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#ff6b35,#f7c59f)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>{((ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || 'ب')[0].toUpperCase()}</div>
           <div>
             <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14, display: 'flex', alignItems: 'center', gap: 4 }}>
               {(ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || 'البائع'}
@@ -767,7 +823,7 @@ export default function AdPageClient({ params }) {
             </div>
           ) : !showReviewForm ? (
             <button
-              onClick={() => setShowReviewForm(true)}
+              onClick={() => { if (!userId) { const rp = typeof window !== 'undefined' ? window.location.pathname : '/'; window.location.href = '/login?redirect=' + encodeURIComponent(rp); return; } setShowRateModal(true); }}
               style={{ width: '100%', padding: '12px 16px', background: '#f8f4ff', border: 'none', cursor: 'pointer', textAlign: 'right', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", fontSize: 14, fontWeight: 'bold', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: 8 }}
             >
               <span style={{ fontSize: 20 }}>⭐</span>
@@ -835,6 +891,28 @@ export default function AdPageClient({ params }) {
         <span>🚩</span>
         <span>{lang === 'ar' ? 'الإبلاغ عن البائع' : 'Report Seller'}</span>
       </button>
+      {showRateModal && (
+        <div style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}
+          onClick={() => setShowRateModal(false)}>
+          <div dir="rtl" style={{background:'white',borderRadius:'20px',padding:'28px 24px',maxWidth:'320px',width:'100%',textAlign:'center',fontFamily:"'Cairo','Tajawal',system-ui,sans-serif",boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}
+            onClick={e => e.stopPropagation()}>
+            <div style={{fontSize:'40px',marginBottom:'8px'}}>⭐</div>
+            <h3 style={{margin:'0 0 16px',fontSize:'18px',color:'#002f34',fontWeight:'bold'}}>قيّم البائع</h3>
+            <div style={{display:'flex',justifyContent:'center',gap:'8px',marginBottom:'16px',fontSize:'32px'}}>
+              {[1,2,3,4,5].map(i => (
+                <span key={i} onClick={() => setRatingValue(i)} style={{color: ratingValue >= i ? '#f59e0b' : '#ddd',cursor:'pointer',userSelect:'none'}}>★</span>
+              ))}
+            </div>
+            <textarea
+              placeholder="اكتب تعليقك (اختياري)"
+              style={{width:'100%',padding:'10px',borderRadius:'8px',border:'1px solid #eee',fontFamily:'inherit',fontSize:'14px',marginBottom:'12px',boxSizing:'border-box',direction:'rtl'}}
+              rows={3} value={ratingComment} onChange={e => setRatingComment(e.target.value)}
+            />
+            <button onClick={submitRating} style={{width:'100%',background:'#f59e0b',color:'white',border:'none',padding:'12px',borderRadius:'10px',fontWeight:'bold',fontSize:'15px',cursor:'pointer',fontFamily:'inherit',marginBottom:'8px'}}>إرسال التقييم</button>
+            <button onClick={() => setShowRateModal(false)} style={{background:'#f0f0f0',border:'none',padding:'10px 28px',borderRadius:'10px',cursor:'pointer',fontSize:'14px',color:'#555',fontFamily:'inherit'}}>إلغاء</button>
+          </div>
+        </div>
+      )}
       {showPhoneModal && (() => {
         const phoneNum = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone) || '';
         const waNum = phoneNum.replace(/\D/g, '').replace(/^0/, '20');
@@ -868,7 +946,7 @@ export default function AdPageClient({ params }) {
                 </a>
               )}
               <button
-                onClick={() => setShowPhoneModal(false)}
+                onClick={() => { setShowPhoneModal(false); try { router.replace(pathname, { scroll: false }); } catch (e) {} }}
                 style={{ background: '#f0f0f0', border: 'none', padding: '10px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, color: '#555', fontFamily: 'inherit' }}
               >
                 إغلاق
