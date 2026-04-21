@@ -135,6 +135,9 @@ export async function storeSession(data) {
       if (user.xtoxEmail) localStorage.setItem('xtoxEmail', user.xtoxEmail);
       if (user.name)      localStorage.setItem('userName',  user.name);
       if (user.id)        localStorage.setItem('userId',    user.id);
+      // TASK 2: Also store as xtox_user_id for frontend own-ad filtering
+      if (user.id)        localStorage.setItem('xtox_user_id', user.id);
+      if (user._id)       localStorage.setItem('xtox_user_id', user._id);
       if (user.avatar)    localStorage.setItem('userAvatar',user.avatar);
       if (user.country)   localStorage.setItem('country',   user.country);
     } catch (_) {}
@@ -158,7 +161,7 @@ export async function fullLogout(apiBase) {
 
   // 2. Clear localStorage
   clearToken();
-  ['xtoxId', 'xtoxEmail', 'userName', 'userId', 'userAvatar', 'user',
+  ['xtoxId', 'xtoxEmail', 'userName', 'userId', 'xtox_user_id', 'userAvatar', 'user',
    'xtox_user', 'xtox_admin_user', 'country'].forEach(k => {
     try { localStorage.removeItem(k); } catch (_) {}
   });

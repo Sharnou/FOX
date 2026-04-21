@@ -919,4 +919,53 @@ router.post('/users/:id/unsuspend', adminAuth, async (req, res) => {
   }
 });
 
+// ── TASK 3: Anonymous Seller Admin Endpoints ──────────────────────────────────
+// Root causes of anonymous seller ads:
+// 1. Old creation paths before auth was enforced on POST /api/ads
+// 2. Google OAuth + WhatsApp OTP early sessions with bad _id population
+// 3. AI-generated listings (/sell/ai-generate) submitted without valid token
+// 4. Direct MongoDB inserts (debug/admin scripts) without seller field
+// 5. Import/migration from WordPress or other sources without seller mapping
+//
+// All are now blocked by:
+//   A) Pre-save hook in Ad.js — throws if userId AND seller are both empty
+//   B) POST handler SELLER BLOCK in ads.js — rejects if no sellerId in JWT
+//   C) adLifecycle.js cleanup — deleteAnonymousAds() runs on startup + every cycle
+
+// GET /api/admin/anonymous-ads — list ads with no valid seller
+router.get('/anonymous-ads', adminAuth, async (req, res) => {
+  try {
+    const ads = await Ad.find({
+      $or: [
+        { userId: null, seller: null },
+        { userId: { $exists: false }, seller: { $exists: false } },
+        { userId: null, seller: { $exists: false } },
+        { userId: { $exists: false }, seller: null },
+      ]
+    }).select('_id title createdAt category').lean();
+    res.json({ count: ads.length, ads });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/anonymous-ads — delete all anonymous ads
+router.delete('/anonymous-ads', adminAuth, async (req, res) => {
+  try {
+    const result = await Ad.deleteMany({
+      $or: [
+        { userId: null, seller: null },
+        { userId: { $exists: false }, seller: { $exists: false } },
+        { userId: null, seller: { $exists: false } },
+        { userId: { $exists: false }, seller: null },
+      ]
+    });
+    console.log(`[ADMIN] Deleted ${result.deletedCount} anonymous ads`);
+    res.json({ deleted: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 export default router;

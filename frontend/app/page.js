@@ -152,7 +152,17 @@ export default function Home() {
         seen.add(id);
         return true;
       });
-      setAds(uniqueList);
+      // TASK 2: Frontend backup filter — hide own ads from listing
+      // Backend already excludes them; this is a safety net for cached/stale responses.
+      const _currentUserId = typeof window !== 'undefined'
+        ? (localStorage.getItem('userId') || '') : '';
+      const filteredList = _currentUserId
+        ? uniqueList.filter(ad => {
+            const sellerId = ad.userId?._id || ad.userId || ad.seller?._id || ad.seller;
+            return String(sellerId) !== String(_currentUserId);
+          })
+        : uniqueList;
+      setAds(filteredList);
       setError(null);
     } catch (e) {
       clearTimeout(timeoutId);
@@ -191,7 +201,15 @@ export default function Home() {
           seen.add(id);
           return true;
         });
-        setAds(uniqueList);
+        // TASK 2: Frontend backup filter — hide own ads
+        const _uid = localStorage.getItem('userId') || '';
+        const filteredList = _uid
+          ? uniqueList.filter(ad => {
+              const sid = ad.userId?._id || ad.userId || ad.seller?._id || ad.seller;
+              return String(sid) !== String(_uid);
+            })
+          : uniqueList;
+        setAds(filteredList);
         setError(null);
       })
       .catch(e => {

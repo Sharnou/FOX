@@ -179,6 +179,22 @@ router.get('/', async (req, res) => {
       filter.$or = [{ userId: userId }, { seller: userId }];
     }
 
+    // TASK 2: Exclude logged-in user's own ads from public listing
+    // When a user is browsing, they should NOT see their own ads in results.
+    // Exception: when viewing ads BY a specific userId (my-ads / profile view).
+    if (!userId && req.user) {
+      const currentUserId = req.user._id || req.user.id;
+      if (currentUserId) {
+        filter.$and = filter.$and || [];
+        filter.$and.push({
+          $and: [
+            { userId: { $ne: currentUserId } },
+            { seller: { $ne: currentUserId } },
+          ]
+        });
+      }
+    }
+
     // Country filter is OPTIONAL — only apply if a country param was provided (not when filtering by userId)
     if (countryParam && !userId) filter.country = countryParam;
     if (category && category !== 'الكل' && category !== 'All') {

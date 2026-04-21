@@ -1,6 +1,21 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import Ad from '../models/Ad.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET_GEO = process.env.JWT_SECRET || 'fox-default-secret';
+
+// Optional auth for geo routes — extracts userId if token present
+function geoOptionalAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return next();
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) return next();
+    req.user = jwt.verify(token, JWT_SECRET_GEO);
+  } catch {}
+  next();
+}
 
 const router = express.Router();
 
@@ -130,7 +145,7 @@ router.get('/detect', async (req, res) => {
 });
 
 // GET ads near a GPS coordinate (within radius km)
-router.get('/nearby', async (req, res) => {
+router.get('/nearby', geoOptionalAuth, async (req, res) => {
   try {
     const { lat, lng, radius = 20, country } = req.query;
     if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
@@ -152,6 +167,17 @@ router.get('/nearby', async (req, res) => {
     };
 
     if (country) filter.country = country;
+
+    // TASK 2: Exclude logged-in user's own ads from nearby listing
+    if (req.user) {
+      const currentUserId = req.user._id || req.user.id;
+      if (currentUserId) {
+        filter.$and = [
+          { userId: { $ne: currentUserId } },
+          { seller: { $ne: currentUserId } },
+        ];
+      }
+    }
 
     const ads = await Ad.find(filter).limit(100);
 

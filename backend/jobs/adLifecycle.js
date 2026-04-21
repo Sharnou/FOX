@@ -26,6 +26,26 @@ export async function runAdLifecycle() {
     // FIX BUG2B: Backfill missing seller/userId for existing ads
     await backfillSellerField().catch(e => console.warn('[adLifecycle] backfillSellerField failed:', e.message));
 
+    // TASK 3: Ensure partial index on userId — prevents DB-level anonymous ads
+    // This index only covers documents WHERE userId exists and is not null.
+    // Runs once-per-lifecycle (createIndex is idempotent).
+    try {
+      await Ad.collection.createIndex(
+        { userId: 1 },
+        {
+          partialFilterExpression: { userId: { $exists: true, $ne: null } },
+          sparse: true,
+          background: true,
+          name: 'idx_userId_nonanonymous'
+        }
+      );
+    } catch (_idxErr) {
+      // Index creation is non-fatal — may already exist or DB may be read-only
+      if (!_idxErr.message?.includes('already exists') && !_idxErr.message?.includes('IndexOptionsConflict')) {
+        console.warn('[adLifecycle] Partial index creation skipped:', _idxErr.message);
+      }
+    }
+
     // #127 — Drop old conflicting text index (one-time migration)
     // New index 'ads_text_search' includes category, subcategory, city with weights
     try {

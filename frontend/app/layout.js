@@ -60,20 +60,28 @@ export const metadata = {
   },
   verification: { google: 'xtox-google-verify', yandex: 'xtox-yandex-verify' },
   manifest: '/manifest.json',
+  // OFFICIAL XTOX ICON — DO NOT CHANGE
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon-16.png', sizes: '16x16', type: 'image/png' },
       { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/icon-96.png', sizes: '96x96', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
     shortcut: '/favicon.svg',
     apple: [
-      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-180.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icon-152.png', sizes: '152x152', type: 'image/png' },
+      { url: '/icon-144.png', sizes: '144x144', type: 'image/png' },
     ],
   },
 };
 
 export const viewport = {
-  themeColor: '#FF6B35',
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -84,17 +92,20 @@ export default function RootLayout({ children }) {
     <html lang="ar" dir="rtl">
       <head>
         {/* Icon links managed via Next.js metadata.icons above */}
+        {/* OFFICIAL XTOX ICON — DO NOT CHANGE */}
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="icon" href="/icon-32.png" sizes="32x32" type="image/png" />
-        <link rel="apple-touch-icon" href="/icon-192.png" sizes="192x192" />
+        <link rel="icon" href="/icon-16.png" sizes="16x16" type="image/png" />
+        <link rel="apple-touch-icon" href="/icon-180.png" sizes="180x180" />
+        <link rel="apple-touch-icon" href="/icon-152.png" sizes="152x152" />
         {/* Viewport — maximum-scale=5 prevents iOS auto-zoom while allowing user zoom */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         {/* PWA / mobile web app */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="XTOX" />
-        <meta name="theme-color" content="#FF6B35" />
+        <meta name="apple-mobile-web-app-title" content="XtoX" />
+        <meta name="theme-color" content="#ffffff" />
         {/* PWA manifest */}
         <link rel="manifest" href="/manifest.json" />
         {/* dns-prefetch as fallback for browsers that don't support preconnect */}
@@ -116,7 +127,7 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://ipapi.co" />
         <link rel="dns-prefetch" href="https://public-api.wordpress.com" />
         {/* Theme color for browser UI */}
-        <meta name="msapplication-TileColor" content="#FF6B35" />
+        <meta name="msapplication-TileColor" content="#ffffff" />
         {/* Mobile optimization — mobile-web-app-capable already set above */}
         {/* Geo */}
         <meta name="geo.placename" content="Arab World" />
