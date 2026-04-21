@@ -700,6 +700,21 @@ router.get('/:id', async (req, res) => {
 
     if (!ad) return res.status(404).json({ message: 'الإعلان غير موجود' });
 
+    // ── FIX #181: Populate seller info so ad.userId.name is available ──────────
+    // Without this, ad.userId is a raw ObjectId → name is undefined → card shows '?' / 'البائع'
+    try {
+      const _sellerObjId = ad.userId || ad.seller;
+      if (_sellerObjId) {
+        const _sellerDoc = await User.findById(_sellerObjId)
+          .select('name avatar emailVerified whatsappVerified reputationPoints createdAt')
+          .lean();
+        if (_sellerDoc) {
+          ad.userId = _sellerDoc;
+          ad.seller = _sellerDoc;
+        }
+      }
+    } catch (_sellerPopErr) { /* non-fatal */ }
+
     // ── Layer 1: Bot detection ──────────────────────────────────────────────────
     const ua = req.headers['user-agent'] || '';
     const isBot = /bot|crawler|spider|slurp|baiduspider|facebookexternalhit|twitterbot|googlebot|bingbot|yandex|semrush|ahrefsbot|ia_archiver/i.test(ua);

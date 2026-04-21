@@ -644,10 +644,10 @@ export default function AdPageClient({ params }) {
       )}
       {sellerId && (<a href={'/profile/' + sellerId} style={{ display: 'block', marginTop: 16, background: '#f8f8f8', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textDecoration: 'none', color: '#002f34' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>{(ad.userId && ad.userId.name && ad.userId.name[0] && ad.userId.name[0].toUpperCase()) || '?'}</div>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#002f34', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 18 }}>{((ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || 'ب')[0].toUpperCase()}</div>
           <div>
             <p style={{ margin: 0, fontWeight: 'bold', fontSize: 14, display: 'flex', alignItems: 'center', gap: 4 }}>
-              {(ad.userId && ad.userId.name) || 'البائع'}
+              {(ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || 'البائع'}
               <VerifiedBadge
                 emailVerified={(ad.userId && ad.userId.emailVerified) || (ad.seller && ad.seller.emailVerified)}
                 whatsappVerified={(ad.userId && ad.userId.whatsappVerified) || (ad.seller && ad.seller.whatsappVerified)}
