@@ -1046,7 +1046,16 @@ export default function AdminPage() {
                       <tr key={rv._id} style={{ borderBottom: '1px solid #21262d', background: rv.deletedByAdmin ? 'rgba(255,0,0,0.05)' : 'transparent' }}>
                         <td style={ADMIN_S.td}>{rv.reviewer?.name || '—'}</td>
                         <td style={ADMIN_S.td}>{rv.seller?.name || '—'}</td>
-                        <td style={ADMIN_S.td}>{rv.ad?.title || rv.adSnapshot?.title || '—'}</td>
+                        <td style={ADMIN_S.td}>{(() => {
+                          const adTitle = rv.ad?.title || rv.adSnapshot?.title || null;
+                          const adId = rv.ad?._id || rv.ad || null;
+                          if (adTitle) {
+                            return adId
+                              ? <a href={`/ads/${adId}`} target="_blank" rel="noopener noreferrer" style={{color:'#00d4ff',textDecoration:'none',fontWeight:500}}>{adTitle}</a>
+                              : <span>{adTitle}</span>;
+                          }
+                          return <span style={{color:'#6b7280',fontStyle:'italic'}}>بدون إعلان</span>;
+                        })()}</td>
                         <td style={ADMIN_S.td}>
                           <span style={{ color: '#ffd700' }}>{'★'.repeat(rv.rating)}{'☆'.repeat(5 - rv.rating)}</span>
                           <span style={{ color: '#8b949e', marginRight: 4 }}>{rv.rating}/5</span>

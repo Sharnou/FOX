@@ -3,8 +3,12 @@
 /**
  * Register the user for Web Push notifications.
  * Call this after the user logs in and the auth token is available.
- * Requires NEXT_PUBLIC_VAPID_PUBLIC_KEY to be set in .env.local
+ * Uses NEXT_PUBLIC_VAPID_PUBLIC_KEY env var with hardcoded fallback.
  */
+
+// Hardcoded fallback VAPID key — matches backend VAPID_PUBLIC_KEY
+const VAPID_FALLBACK = 'BCTRfwu1JjM-5_-xGHauSSiVOBd6dkyEJJp3L57_-C6B-oDQW2IAmcnEVpwsGAsvmhBsvWLu9tMHe29zmcOn0UU';
+
 export async function registerPushNotifications(token) {
   if (typeof window === 'undefined') return; // SSR guard
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -23,32 +27,17 @@ export async function registerPushNotifications(token) {
       return;
     }
 
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!vapidPublicKey) {
-      console.warn('[Push] NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set — skipping push registration');
-      return;
-    }
+    // Use env var with hardcoded fallback so push always works even if env not set
+    const vapidPublicKey =
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || VAPID_FALLBACK;
 
-    // Always unsubscribe any existing subscription before resubscribing.
-    // This prevents the "A subscription with a different applicationServerKey already exists"
-    // error that occurs when the VAPID key changes between deployments.
-    const existingSub = await reg.pushManager.getSubscription();
-    if (existingSub) {
-      try {
-        await existingSub.unsubscribe();
-      } catch (e) {
-        console.warn('[Push] Failed to unsubscribe old sub:', e);
-      }
-    }
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
-    // Subscribe fresh with current VAPID key
-    const subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    });
+    // Try to subscribe; on VAPID key mismatch, unsubscribe + retry once
+    const subscription = await subscribePush(reg, applicationServerKey);
 
     // Send subscription to backend
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
     const response = await fetch(`${apiUrl}/api/push/subscribe`, {
       method: 'POST',
       headers: {
@@ -65,6 +54,58 @@ export async function registerPushNotifications(token) {
     }
   } catch (e) {
     console.error('[Push] Registration failed:', e.message);
+  }
+}
+
+/**
+ * Subscribe to push, auto-retrying once if we get a VAPID key mismatch error.
+ * The mismatch happens when the browser has an old subscription with a different
+ * applicationServerKey. We detect the error, force-unsubscribe, and retry once.
+ */
+async function subscribePush(reg, applicationServerKey) {
+  // Always unsubscribe any existing subscription before resubscribing.
+  // This is the primary guard against key mismatch errors.
+  const existingSub = await reg.pushManager.getSubscription();
+  if (existingSub) {
+    try {
+      await existingSub.unsubscribe();
+      console.log('[Push] Unsubscribed stale subscription before resubscribing');
+    } catch (e) {
+      console.warn('[Push] Failed to unsubscribe old sub (will retry on error):', e.message);
+    }
+  }
+
+  try {
+    return await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey,
+    });
+  } catch (err) {
+    // Key mismatch — the unsubscribe above might have failed silently.
+    // Detect and retry: unsubscribe + subscribe once more.
+    const isKeyMismatch =
+      err.name === 'InvalidStateError' ||
+      (err.message && err.message.toLowerCase().includes('applicationserverkey'));
+
+    if (isKeyMismatch) {
+      console.log('[Push] Key mismatch detected — force unsubscribing and retrying...');
+      try {
+        const staleSub = await reg.pushManager.getSubscription();
+        if (staleSub) {
+          await staleSub.unsubscribe();
+          console.log('[Push] Force-unsubscribed stale push subscription ✓');
+        }
+      } catch (_unsubErr) {
+        console.warn('[Push] Force-unsubscribe failed:', _unsubErr.message);
+      }
+      // Retry subscribe once — should succeed now
+      return await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+    }
+
+    throw err; // re-throw unexpected errors
   }
 }
 

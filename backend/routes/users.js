@@ -649,7 +649,7 @@ router.post('/:id/rate', auth, async (req, res) => {
       return res.status(400).json({ error: 'لا يمكنك تقييم نفسك' });
     }
 
-    const { rating, comment } = req.body;
+    const { rating, comment, adId } = req.body;
     const ratingNum = Number(rating);
     if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
       return res.status(400).json({ error: 'التقييم يجب أن يكون بين 1 و 5 نجوم' });
@@ -662,15 +662,40 @@ router.post('/:id/rate', auth, async (req, res) => {
     const seller = await UserModel.findById(sellerId);
     if (!seller) return res.status(404).json({ error: 'البائع غير موجود' });
 
+    // Fetch ad snapshot if adId was provided
+    let adRef = null;
+    let adSnapshot = {};
+    if (adId) {
+      try {
+        const AdModel = (await import('../models/Ad.js')).default;
+        const adDoc = await AdModel.findById(adId).lean();
+        if (adDoc) {
+          adRef = adId;
+          adSnapshot = {
+            title:    adDoc.title || '',
+            price:    adDoc.price || 0,
+            image:    (adDoc.images && adDoc.images[0]) || (adDoc.media && adDoc.media[0]) || '',
+            category: adDoc.category || '',
+          };
+        }
+      } catch (_adErr) { /* non-fatal — proceed without ad ref */ }
+    }
+
     // Upsert rating in the seller's embedded ratings array (or use Review model)
     // Simple approach: track per-user ratings in a Map field or compute from Review model
     let ReviewModel;
     try { ReviewModel = (await import('../models/Review.js')).default; } catch (e) {}
 
     if (ReviewModel) {
+      const updateFields = {
+        seller: sellerId, reviewer: raterId,
+        rating: ratingNum, comment: (comment || '').trim(),
+        updatedAt: new Date(),
+        ...(adRef ? { ad: adRef, adSnapshot } : {}),
+      };
       await ReviewModel.findOneAndUpdate(
         { seller: sellerId, reviewer: raterId },
-        { seller: sellerId, reviewer: raterId, rating: ratingNum, comment: (comment || '').trim(), updatedAt: new Date() },
+        updateFields,
         { upsert: true, runValidators: false }
       );
       // Recalculate average rating

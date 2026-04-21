@@ -517,7 +517,7 @@ export default function AdPageClient({ params }) {
       const res = await fetch(API + '/api/users/' + sellerId + '/rate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-        body: JSON.stringify({ rating: ratingValue, comment: ratingComment }),
+        body: JSON.stringify({ rating: ratingValue, comment: ratingComment, adId: ad?._id || null }),
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'خطأ في الإرسال'); return; }
