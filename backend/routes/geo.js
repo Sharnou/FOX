@@ -158,6 +158,7 @@ router.get('/nearby', geoOptionalAuth, async (req, res) => {
       isExpired: { $ne: true },
       isDeleted: { $ne: true },
       visibilityScore: { $gt: 0 },
+      status: { $in: ['active', 'pending'] },
       location: {
         $nearSphere: {
           $geometry: { type: 'Point', coordinates: [parsedLng, parsedLat] },
@@ -168,14 +169,23 @@ router.get('/nearby', geoOptionalAuth, async (req, res) => {
 
     if (country) filter.country = country;
 
-    // TASK 2: Exclude logged-in user's own ads from nearby listing
+    // FIX: Exclude logged-in user's own ads — use ObjectId for proper comparison
     if (req.user) {
       const currentUserId = req.user._id || req.user.id;
       if (currentUserId) {
-        filter.$and = [
-          { userId: { $ne: currentUserId } },
-          { seller: { $ne: currentUserId } },
-        ];
+        let userObjId;
+        try { userObjId = new mongoose.Types.ObjectId(String(currentUserId)); } catch (_) {}
+        if (userObjId) {
+          filter.$and = [
+            { userId: { $ne: userObjId } },
+            { seller: { $ne: userObjId } },
+          ];
+        } else {
+          filter.$and = [
+            { userId: { $ne: currentUserId } },
+            { seller: { $ne: currentUserId } },
+          ];
+        }
       }
     }
 

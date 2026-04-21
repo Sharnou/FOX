@@ -207,11 +207,23 @@ export default function AdCard({
     setCurrentUserId(uid || null);
   }, []);
 
-  // ── Increment view count when card mounts (non-blocking, silent fail) ──
+  // ── Increment view count when card mounts — Layer 4: session deduplication ──
   useEffect(() => {
     if (!adId) return;
+    // Layer 4: Check session storage to prevent double-counting from re-renders/prefetch
+    try {
+      const sessionKey = 'xtox_viewed_' + adId;
+      if (sessionStorage.getItem(sessionKey)) return; // Already counted this session
+      sessionStorage.setItem(sessionKey, '1');
+    } catch (_) { /* sessionStorage unavailable — proceed anyway */ }
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-    fetch(apiUrl + '/api/ads/' + adId + '/view', { method: 'PATCH' })
+    const token = (typeof window !== 'undefined')
+      ? localStorage.getItem('xtox_token') || localStorage.getItem('token') || ''
+      : '';
+    fetch(apiUrl + '/api/ads/' + adId + '/view', {
+      method: 'PATCH',
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+    })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.views != null) setViewCount(data.views); })
       .catch(() => {}); // silent — view count is non-critical

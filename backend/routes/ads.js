@@ -38,6 +38,18 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
+// ── IP-based view deduplication: 30 min cooldown per ad+IP ──────────────────
+// Key: "${adId}:${ip}", value: timestamp
+const viewCooldown = new Map();
+const VIEW_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+// Clean old entries every hour
+setInterval(() => {
+  const cutoff = Date.now() - VIEW_COOLDOWN_MS;
+  for (const [k, v] of viewCooldown.entries()) {
+    if (v < cutoff) viewCooldown.delete(k);
+  }
+}, 60 * 60 * 1000);
+
 // Smart model selector: MongoDB → Couchbase → in-memory
 function getAdModel() {
   const db = getActiveDB();
@@ -688,11 +700,39 @@ router.get('/:id', async (req, res) => {
 
     if (!ad) return res.status(404).json({ message: 'الإعلان غير موجود' });
 
-    // Increment views safely — never block the response on this
-    try {
-      await AdModel.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
-      ad.views = (ad.views || 0) + 1;
-    } catch {}
+    // ── Layer 1: Bot detection ──────────────────────────────────────────────────
+    const ua = req.headers['user-agent'] || '';
+    const isBot = /bot|crawler|spider|slurp|baiduspider|facebookexternalhit|twitterbot|googlebot|bingbot|yandex|semrush|ahrefsbot|ia_archiver/i.test(ua);
+
+    // ── Layer 2: Seller own-view exclusion ──────────────────────────────────────
+    const viewerId = req.user?._id || req.user?.id || null;
+    const adSellerId = (ad.userId || ad.seller)?.toString() || null;
+    const isOwnAd = viewerId && adSellerId && String(viewerId) === String(adSellerId);
+
+    // ── Layer 3: IP-based deduplication with 30-min cooldown ───────────────────
+    const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.headers['x-real-ip']
+      || req.ip
+      || 'unknown';
+    const viewKey = `${ad._id}:${clientIp}`;
+    const lastView = viewCooldown.get(viewKey);
+    const shouldCountView = !isBot && !isOwnAd && (!lastView || Date.now() - lastView > VIEW_COOLDOWN_MS);
+
+    // Increment views safely — only when all layers pass
+    if (shouldCountView) {
+      try {
+        viewCooldown.set(viewKey, Date.now());
+        // Prevent memory leak: trim if too large
+        if (viewCooldown.size > 10000) {
+          const cutoff = Date.now() - VIEW_COOLDOWN_MS;
+          for (const [k, v] of viewCooldown.entries()) {
+            if (v < cutoff) viewCooldown.delete(k);
+          }
+        }
+        await AdModel.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+        ad.views = (ad.views || 0) + 1;
+      } catch {}
+    }
 
     // Award 1 reputation point to the ad seller — throttled: 1 point per viewer per 24h
     try {
@@ -1890,6 +1930,35 @@ router.post('/:id/reshare', auth, async (req, res) => {
 // ── PATCH /:id/view — increment view count (called by AdCard on mount) ──────
 router.patch('/:id/view', async (req, res) => {
   try {
+    // Layer 1: Bot detection
+    const patchUa = req.headers['user-agent'] || '';
+    const patchIsBot = /bot|crawler|spider|slurp|baiduspider|facebookexternalhit|twitterbot|googlebot|bingbot|yandex|semrush|ahrefsbot|ia_archiver/i.test(patchUa);
+    if (patchIsBot) return res.json({ views: 0 });
+
+    // Layer 2: IP deduplication
+    const patchIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.headers['x-real-ip'] || req.ip || 'unknown';
+    const patchViewKey = `${req.params.id}:${patchIp}`;
+    const patchLastView = viewCooldown.get(patchViewKey);
+    if (patchLastView && Date.now() - patchLastView < VIEW_COOLDOWN_MS) {
+      // Already counted within cooldown — return current count without incrementing
+      const existingAd = await getAdModel().findById(req.params.id).select('views').lean();
+      return res.json({ views: existingAd?.views || 0 });
+    }
+
+    // Layer 3: Seller own-view exclusion
+    const patchViewerId = req.user?._id || req.user?.id || null;
+
+    // Fetch the ad to check seller
+    const adForView = await getAdModel().findById(req.params.id).select('userId seller views').lean();
+    if (!adForView) return res.status(404).json({ error: 'Ad not found' });
+
+    const patchAdSellerId = (adForView.userId || adForView.seller)?.toString() || null;
+    const patchIsOwnAd = patchViewerId && patchAdSellerId && String(patchViewerId) === String(patchAdSellerId);
+    if (patchIsOwnAd) return res.json({ views: adForView.views || 0 });
+
+    // All layers passed — increment
+    viewCooldown.set(patchViewKey, Date.now());
     const ad = await getAdModel().findByIdAndUpdate(
       req.params.id,
       { $inc: { views: 1 } },
