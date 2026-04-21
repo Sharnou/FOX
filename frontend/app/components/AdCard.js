@@ -25,7 +25,6 @@ const CATEGORY_DISPLAY = {
 
 
 import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AIQualityBadge from './AIQualityBadge';
 import { useLanguage } from '../context/LanguageContext';
@@ -194,10 +193,7 @@ export default function AdCard({
   const [saved, setSaved] = useState(false);
   const [savingBookmark, setSavingBookmark] = useState(false);
   const [viewCount, setViewCount] = useState(ad?.views || 0);
-  // Feature 2: inline ad expand
-  const [expanded, setExpanded] = useState(false);
-  const [fullAd, setFullAd] = useState(null);
-  const [loadingAd, setLoadingAd] = useState(false);
+  // BUG 3 FIX: Removed expanded/fullAd/loadingAd states — description always visible
   // Feature 3: mini chat box
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
@@ -362,21 +358,11 @@ export default function AdCard({
 
   const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
-  // ── Token + myId helpers ────────────────────────────────────────────────────
-  function getToken() {
-    return typeof window !== 'undefined'
-      ? (localStorage.getItem('xtox_token') || localStorage.getItem('token'))
-      : null;
-  }
-  function getMyId() {
-    const t = getToken();
-    if (!t) return null;
-    try { return JSON.parse(atob(t.split('.')[1]))?.id || null; } catch { return null; }
-  }
-
   // ── handleSendChat: send a message and append to chatMessages ──────────────
   const handleSendChat = async () => {
-    const token = getToken();
+    const token = typeof window !== 'undefined'
+      ? (localStorage.getItem('xtox_token') || localStorage.getItem('token'))
+      : null;
     if (!chatInput.trim() || chatLoading) return;
     if (!token) { alert('سجل دخولك أولاً'); return; }
     const msg = chatInput.trim();
@@ -398,49 +384,43 @@ export default function AdCard({
     }
   };
 
-  // ── handleOpenChat: open chatbox, load history on first open ───────────────
+  // ── BUG 1 FIX: handleOpenChat — toggle chatbox, redirect to login if unauthenticated ──
   const handleOpenChat = async (e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    const token = getToken();
-    const myId = getMyId();
-    if (!token) { alert('سجل دخولك أولاً'); return; }
+    const tok = typeof window !== 'undefined'
+      ? (localStorage.getItem('xtox_token') || localStorage.getItem('token'))
+      : null;
+    if (!tok) {
+      if (typeof window !== 'undefined') window.location.href = '/login';
+      return;
+    }
+    const myId = (() => { try { return JSON.parse(atob(tok.split('.')[1]))?.id; } catch { return null; } })();
     const sellerId = ad.seller?._id || ad.seller || ad.userId?._id || ad.userId;
-    if (myId && sellerId && String(myId) === String(sellerId)) { alert('لا يمكنك مراسلة نفسك'); return; }
-    setChatOpen(true);
-    if (chatMessages.length === 0) {
+    if (myId && sellerId && String(sellerId) === String(myId)) {
+      alert('لا يمكنك مراسلة نفسك');
+      return;
+    }
+    // Toggle: clicking again closes the chatbox
+    setChatOpen(prev => !prev);
+    // Load history only on first open (when chatOpen is currently false = we're opening)
+    if (!chatOpen && chatMessages.length === 0) {
       try {
-        const res = await fetch(BACKEND + '/api/chat/history?with=' + sellerId + (adId ? '&adId=' + adId : ''), {
-          headers: { Authorization: 'Bearer ' + token },
+        const r = await fetch(`${BACKEND}/api/chat/history?with=${sellerId}&adId=${adId}`, {
+          headers: { Authorization: `Bearer ${tok}` }
         });
-        if (res.ok) {
-          const data = await res.json();
-          const myId2 = getMyId();
-          const msgs = (data.messages || []).map(m => ({
-            from: String(m.sender) === String(myId2) ? 'me' : 'them',
-            text: m.text || m.message || m.content || '',
-            time: new Date(m.createdAt || m.timestamp),
+        if (r.ok) {
+          const d = await r.json();
+          const myIdStr = String(myId);
+          const msgs = (d.messages || []).map(m => ({
+            from: String(m.sender) === myIdStr ? 'me' : 'them',
+            text: m.message || m.text || m.content || '',
+            time: new Date(m.createdAt || m.timestamp)
           }));
           if (msgs.length > 0) setChatMessages(msgs);
         }
-      } catch { /* ignore — start fresh */ }
+      } catch { /* start fresh */ }
     }
   };
-
-  // Feature 2: load full ad details inline
-  async function showAdDetails(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (fullAd) { setExpanded(prev => !prev); return; }
-    setLoadingAd(true);
-    try {
-      const res = await fetch(BACKEND + '/api/ads/' + adId, { signal: AbortSignal.timeout(8000) });
-      const data = await res.json();
-      setFullAd(data);
-      setExpanded(true);
-    } catch (err) {
-      console.error('Failed to load ad details', err);
-    } finally { setLoadingAd(false); }
-  }
 
   // ── Notify seller when contact info is viewed (from AdCard) ──────────────
   async function notifySellerContactViewed(type) {
@@ -453,10 +433,6 @@ export default function AdCard({
       });
     } catch {}
   }
-
-
-
-
 
   // ── FIX: Comprehensive image resolution — try ALL field names, handle base64 ─
   // Get all available images from any field name the API might return
@@ -483,8 +459,6 @@ export default function AdCard({
     }
     touchStartX.current = null;
   };
-  // ──────────────────────────────────────────────────────────────────────────
-  // ──────────────────────────────────────────────────────────────────────────
 
   // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
   const adDetailUrl = '/ads/' + adId;
@@ -534,77 +508,18 @@ export default function AdCard({
     : '#fff';
 
   return (
-    // FIX: Wrap card in div so the contact button is NOT inside <a> (invalid HTML)
-    // The <Link> only wraps navigable content; interactive elements live outside it
+    // BUG 1 FIX: Card wrapper is a plain div (NOT a Link/anchor).
+    // Navigation is handled via onClick→router.push on the inner navigable div.
+    // This eliminates the invalid-HTML issue (anchors/buttons nested inside <Link>/<a>)
+    // that was corrupting the browser DOM and breaking click events.
     <div className="bg-white rounded-xl slide-in relative"
       style={{
         border: cardBorder,
         boxShadow: cardBoxShadow,
         background: cardBg,
       }}>
-      <Link href={adDetailUrl} className="transition block"
-        style={{
-          textDecoration: 'none',
-          color: 'inherit',
-          display: 'block',
-        }}>
-      {/* #123 — Premium badge (top-right corner, animated pulse) */}
-      {/* #125 — Premium badge: subcategory-colored icon + PREMIUM */}
-      {isPremiumPromo && (
-        <span style={{
-          position: 'absolute', top: 8, right: 8, zIndex: 10,
-          display: 'flex', alignItems: 'center', gap: 4,
-          background: theme.accent,
-          color: '#fff', fontSize: 11, fontWeight: 700,
-          padding: '4px 10px', borderRadius: 20,
-          boxShadow: `0 2px 8px ${theme.glow}`,
-          animation: 'pulse 2s infinite',
-          border: `2px solid ${theme.accent}`,
-          letterSpacing: '0.04em',
-        }}>
-          ✦ PREMIUM
-        </span>
-      )}
-      {/* #125 — Featured badge: gold star */}
-      {isFeaturedPromo && !isPremiumPromo && (
-        <span style={{
-          position: 'absolute', top: 8, right: 8, zIndex: 10,
-          display: 'flex', alignItems: 'center', gap: 4,
-          background: '#f59e0b',
-          color: '#fff', fontSize: 11, fontWeight: 700,
-          padding: '4px 10px', borderRadius: 20,
-          boxShadow: '0 2px 8px rgba(251,191,36,0.5)',
-          border: '2px solid #f59e0b',
-          letterSpacing: '0.04em',
-        }}>
-          ★ FEATURED
-        </span>
-      )}
-      {ad.isFeatured && !isFeaturedPromo && !isPremiumPromo && (
-        <div style={{
-          position:'absolute', top:8, left:8, zIndex:5,
-          background:'linear-gradient(135deg,#FFD700,#FFA500)',
-          color:'#000', fontSize:11, fontWeight:700,
-          padding:'3px 10px', borderRadius:10,
-          boxShadow:'0 2px 8px rgba(255,165,0,0.4)',
-          display:'flex', alignItems:'center', gap:4,
-        }}>
-          ⭐ مميز
-        </div>
-      )}
-      {viewCount > 100 && (
-        <div style={{
-          position:'absolute', top:8, left: ad.isFeatured ? 72 : 8, zIndex:5,
-          background:'linear-gradient(135deg,#ff4500,#ff6b35)',
-          color:'#fff', fontSize:11, fontWeight:700,
-          padding:'3px 10px', borderRadius:10,
-          boxShadow:'0 2px 8px rgba(255,69,0,0.4)',
-          display:'flex', alignItems:'center', gap:4,
-        }}>
-          🔥 رائج
-        </div>
-      )}
-      {/* Share button */}
+
+      {/* Share button — absolute overlay, sibling to navigable div (valid HTML) */}
       <button
         onClick={handleShare}
         aria-label={tr('ad_share')}
@@ -612,7 +527,7 @@ export default function AdCard({
       >
         {shared ? '✓' : '📤'}
       </button>
-      {/* Bookmark / Wishlist button */}
+      {/* Bookmark / Wishlist button — absolute overlay */}
       <button
         onClick={handleBookmark}
         aria-label={saved ? 'إزالة من المحفوظات' : 'حفظ في المحفوظات'}
@@ -623,164 +538,264 @@ export default function AdCard({
         {saved ? '❤️' : '🤍'}
       </button>
 
-      {/* ── Media Carousel: video > multiple images > single image > placeholder ── */}
-      <div style={{ position: 'relative', width: '100%', paddingBottom: '65%', background: '#f0f0f0', borderRadius: '12px 12px 0 0', overflow: 'hidden' }}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}>
-        {hasVideo ? (
-          <video src={videoUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            muted loop autoPlay playsInline />
-        ) : firstImage ? (
-          <img
-            loading={eager ? 'eager' : 'lazy'}
-            fetchPriority={eager ? 'high' : 'auto'}
-            decoding={eager ? 'sync' : 'async'}
-            src={optimizeImage(allImages[imgIndex] || firstImage)}
-            alt={ad?.title || 'إعلان'}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = getAdDefaultImage(ad);
-            }}
-          />
-        ) : (
-          <img
-            src={getAdDefaultImage(ad)}
-            alt={ad?.title || 'إعلان'}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+      {/* ── NAVIGABLE AREA: clicking anywhere here navigates to ad detail ─────── */}
+      {/* Using plain div + onClick instead of <Link> to prevent invalid HTML    */}
+      {/* (no more nested anchors or buttons-inside-anchor issues)                */}
+      <div
+        onClick={() => router.push(adDetailUrl)}
+        style={{ cursor: 'pointer', display: 'block', textDecoration: 'none', color: 'inherit' }}
+      >
+        {/* #123 — Premium badge (top-right corner, animated pulse) */}
+        {isPremiumPromo && (
+          <span style={{
+            position: 'absolute', top: 8, right: 8, zIndex: 10,
+            display: 'flex', alignItems: 'center', gap: 4,
+            background: theme.accent,
+            color: '#fff', fontSize: 11, fontWeight: 700,
+            padding: '4px 10px', borderRadius: 20,
+            boxShadow: `0 2px 8px ${theme.glow}`,
+            animation: 'pulse 2s infinite',
+            border: `2px solid ${theme.accent}`,
+            letterSpacing: '0.04em',
+          }}>
+            ✦ PREMIUM
+          </span>
         )}
-
-        {/* Navigation dots for multiple images */}
-        {hasMultipleImages && (
-          <div style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 4 }}>
-            {allImages.map((_, i) => (
-              <div key={i} onClick={e => { e.stopPropagation(); setImgIndex(i); }}
-                style={{ width: 8, height: 8, borderRadius: '50%', background: i === imgIndex ? 'white' : 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: 4, boxSizing: 'content-box', WebkitTapHighlightColor: 'transparent' }} />
-            ))}
+        {/* #125 — Featured badge: gold star */}
+        {isFeaturedPromo && !isPremiumPromo && (
+          <span style={{
+            position: 'absolute', top: 8, right: 8, zIndex: 10,
+            display: 'flex', alignItems: 'center', gap: 4,
+            background: '#f59e0b',
+            color: '#fff', fontSize: 11, fontWeight: 700,
+            padding: '4px 10px', borderRadius: 20,
+            boxShadow: '0 2px 8px rgba(251,191,36,0.5)',
+            border: '2px solid #f59e0b',
+            letterSpacing: '0.04em',
+          }}>
+            ★ FEATURED
+          </span>
+        )}
+        {ad.isFeatured && !isFeaturedPromo && !isPremiumPromo && (
+          <div style={{
+            position:'absolute', top:8, left:8, zIndex:5,
+            background:'linear-gradient(135deg,#FFD700,#FFA500)',
+            color:'#000', fontSize:11, fontWeight:700,
+            padding:'3px 10px', borderRadius:10,
+            boxShadow:'0 2px 8px rgba(255,165,0,0.4)',
+            display:'flex', alignItems:'center', gap:4,
+          }}>
+            ⭐ مميز
+          </div>
+        )}
+        {viewCount > 100 && (
+          <div style={{
+            position:'absolute', top:8, left: ad.isFeatured ? 72 : 8, zIndex:5,
+            background:'linear-gradient(135deg,#ff4500,#ff6b35)',
+            color:'#fff', fontSize:11, fontWeight:700,
+            padding:'3px 10px', borderRadius:10,
+            boxShadow:'0 2px 8px rgba(255,69,0,0.4)',
+            display:'flex', alignItems:'center', gap:4,
+          }}>
+            🔥 رائج
           </div>
         )}
 
-        {/* Prev/Next arrows for multiple images */}
-        {hasMultipleImages && (
-          <>
-            <button onClick={e => { e.stopPropagation(); setImgIndex(prev => (prev - 1 + allImages.length) % allImages.length); }}
-              style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}>‹</button>
-            <button onClick={e => { e.stopPropagation(); setImgIndex(prev => (prev + 1) % allImages.length); }}
-              style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}>›</button>
-          </>
-        )}
-
-        {/* Video badge */}
-        {hasVideo && (
-          <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', color: 'white', borderRadius: 6, padding: '2px 6px', fontSize: 11 }}>🎥 فيديو</div>
-        )}
-
-        {/* Ad Expiry Countdown Badge */}
-        {(() => {
-          const daysLeft = getDaysLeft(ad.createdAt);
-          if (daysLeft === null) return null;
-          const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
-          const label = daysLeft <= 0 ? tr('ad_expired') : daysLeft + ' ' + tr('ad_days_left');
-          return (
-            <span style={{
-              position: 'absolute', bottom: '8px', left: '8px',
-              background: color, color: '#fff', fontSize: '10px',
-              fontWeight: '700', padding: '2px 7px', borderRadius: '999px',
-              zIndex: 10, letterSpacing: '0.02em',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.18)', pointerEvents: 'none',
-            }}>
-              {label}
-            </span>
-          );
-        })()}
-      </div>
-
-      <div className="p-3">
-        <p className="font-bold text-sm line-clamp-2">{ad.title}</p>
-        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-          <ConditionBadge condition={ad.condition} />
-          {ad.negotiable && (
-            <span
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 2,
-                padding: '2px 7px', borderRadius: 8,
-                background: '#fff7ed', color: '#c2410c',
-                fontSize: 11, fontWeight: 700,
+        {/* ── Media Carousel: video > multiple images > single image > placeholder ── */}
+        <div style={{ position: 'relative', width: '100%', paddingBottom: '65%', background: '#f0f0f0', borderRadius: '12px 12px 0 0', overflow: 'hidden' }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}>
+          {hasVideo ? (
+            <video src={videoUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              muted loop autoPlay playsInline />
+          ) : firstImage ? (
+            <img
+              loading={eager ? 'eager' : 'lazy'}
+              fetchPriority={eager ? 'high' : 'auto'}
+              decoding={eager ? 'sync' : 'async'}
+              src={optimizeImage(allImages[imgIndex] || firstImage)}
+              alt={ad?.title || 'إعلان'}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = getAdDefaultImage(ad);
               }}
-              aria-label="السعر قابل للتفاوض"
-            >
-              💬 قابل للتفاوض
-            </span>
+            />
+          ) : (
+            <img
+              src={getAdDefaultImage(ad)}
+              alt={ad?.title || 'إعلان'}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           )}
-          {ad.phone && (
-            <a
-              href={'https://wa.me/' + ad.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent('مرحبا، رأيت إعلانك على XTOX')}
-              target="_blank"
-              rel="noopener noreferrer"
-              dir="auto"
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-500 hover:bg-green-600 active:bg-green-700 px-3 py-1 text-xs font-semibold text-white shadow transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.528 5.845L.057 23.448a.75.75 0 0 0 .916.948l5.84-1.53A11.946 11.946 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.7 9.7 0 0 1-4.99-1.378l-.357-.214-3.705.971.989-3.614-.233-.371A9.718 9.718 0 0 1 2.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/>
-              </svg>
-              <span>واتساب</span>
-            </a>
+
+          {/* Navigation dots for multiple images */}
+          {hasMultipleImages && (
+            <div style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 4 }}>
+              {allImages.map((_, i) => (
+                <div key={i} onClick={e => { e.stopPropagation(); setImgIndex(i); }}
+                  style={{ width: 8, height: 8, borderRadius: '50%', background: i === imgIndex ? 'white' : 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: 4, boxSizing: 'content-box', WebkitTapHighlightColor: 'transparent' }} />
+              ))}
+            </div>
           )}
-        </div>
-        {/* Price with drop badge */}
-        <div className="mt-1 flex items-center gap-2 flex-wrap">
-          <p className="text-brand font-bold m-0">{ad.price} {ad.currency}</p>
-          {ad.originalPrice && ad.originalPrice > ad.price && (() => {
-            const discountPercent = Math.round((1 - ad.price / ad.originalPrice) * 100);
-            return (
-              <>
-                <span style={{ textDecoration: 'line-through', color: '#9ca3af', fontSize: 12 }}>
-                  {ad.originalPrice} {ad.currency}
-                </span>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center',
-                  padding: '2px 7px', borderRadius: 8,
-                  background: '#fee2e2', color: '#dc2626',
-                  fontSize: 11, fontWeight: 700, marginInlineStart: 2,
-                }}>
-                  خصم {toArabicNumerals(discountPercent)}٪
-                </span>
-              </>
-            );
-          })()}
-        </div>
-        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-          {(ad.seller?.verified || ad.userId?.verified) && (
-            <span style={{color:'#23e5db',fontSize:'0.72rem',fontWeight:700,marginInlineEnd:'4px',display:'inline-flex',alignItems:'center'}}>
-              موثق ✓
-            </span>
+
+          {/* Prev/Next arrows for multiple images */}
+          {hasMultipleImages && (
+            <>
+              <button onClick={e => { e.stopPropagation(); setImgIndex(prev => (prev - 1 + allImages.length) % allImages.length); }}
+                style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}>‹</button>
+              <button onClick={e => { e.stopPropagation(); setImgIndex(prev => (prev + 1) % allImages.length); }}
+                style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', color: 'white', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}>›</button>
+            </>
           )}
-          {/* Tier badge based on seller reputation */}
+
+          {/* Video badge */}
+          {hasVideo && (
+            <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', color: 'white', borderRadius: 6, padding: '2px 6px', fontSize: 11 }}>🎥 فيديو</div>
+          )}
+
+          {/* Ad Expiry Countdown Badge */}
           {(() => {
-            const pts = ad.seller?.reputationPoints || ad.userId?.reputationPoints || 0;
-            if (pts < 50) return null;
-            const tier = pts >= 500 ? {emoji:'💎',label:'Platinum',bg:'#e8f4fd',color:'#1e40af'} : pts >= 200 ? {emoji:'🥇',label:'Gold',bg:'#fefce8',color:'#a16207'} : {emoji:'🥈',label:'Silver',bg:'#f1f5f9',color:'#475569'};
+            const daysLeft = getDaysLeft(ad.createdAt);
+            if (daysLeft === null) return null;
+            const color = daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f97316' : '#22c55e';
+            const label = daysLeft <= 0 ? tr('ad_expired') : daysLeft + ' ' + tr('ad_days_left');
             return (
-              <span style={{background:tier.bg,color:tier.color,fontSize:'0.65rem',fontWeight:700,padding:'1px 5px',borderRadius:6,whiteSpace:'nowrap'}}>
-                {tier.emoji} {tier.label}
+              <span style={{
+                position: 'absolute', bottom: '8px', left: '8px',
+                background: color, color: '#fff', fontSize: '10px',
+                fontWeight: '700', padding: '2px 7px', borderRadius: '999px',
+                zIndex: 10, letterSpacing: '0.02em',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.18)', pointerEvents: 'none',
+              }}>
+                {label}
               </span>
             );
           })()}
-          <SellerTrustBadge ad={ad} />
-          <StarRating rating={rating} count={ratingCount} />
-          {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
         </div>
-        {/* Stats row */}
-        <div className="mt-2">
-          <p className="text-xs text-gray-500 m-0">👁 {viewCount} | {ad.city}</p>
-        </div>
-      </div>{/* closes p-3 */}
-      </Link>{/* Link only covers navigable card content */}
 
-      {/* Seller profile link — OUTSIDE Link to avoid nested anchor bug */}
+        <div className="p-3">
+          <p className="font-bold text-sm line-clamp-2">{ad.title}</p>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <ConditionBadge condition={ad.condition} />
+            {ad.negotiable && (
+              <span
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 2,
+                  padding: '2px 7px', borderRadius: 8,
+                  background: '#fff7ed', color: '#c2410c',
+                  fontSize: 11, fontWeight: 700,
+                }}
+                aria-label="السعر قابل للتفاوض"
+              >
+                💬 قابل للتفاوض
+              </span>
+            )}
+            {/* BUG 1 FIX: WhatsApp <a> moved OUTSIDE navigable div below — no longer a nested anchor */}
+          </div>
+          {/* Price with drop badge */}
+          <div className="mt-1 flex items-center gap-2 flex-wrap">
+            <p className="text-brand font-bold m-0">{ad.price} {ad.currency}</p>
+            {ad.originalPrice && ad.originalPrice > ad.price && (() => {
+              const discountPercent = Math.round((1 - ad.price / ad.originalPrice) * 100);
+              return (
+                <>
+                  <span style={{ textDecoration: 'line-through', color: '#9ca3af', fontSize: 12 }}>
+                    {ad.originalPrice} {ad.currency}
+                  </span>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    padding: '2px 7px', borderRadius: 8,
+                    background: '#fee2e2', color: '#dc2626',
+                    fontSize: 11, fontWeight: 700, marginInlineStart: 2,
+                  }}>
+                    خصم {toArabicNumerals(discountPercent)}٪
+                  </span>
+                </>
+              );
+            })()}
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+            {(ad.seller?.verified || ad.userId?.verified) && (
+              <span style={{color:'#23e5db',fontSize:'0.72rem',fontWeight:700,marginInlineEnd:'4px',display:'inline-flex',alignItems:'center'}}>
+                موثق ✓
+              </span>
+            )}
+            {/* Tier badge based on seller reputation */}
+            {(() => {
+              const pts = ad.seller?.reputationPoints || ad.userId?.reputationPoints || 0;
+              if (pts < 50) return null;
+              const tier = pts >= 500 ? {emoji:'💎',label:'Platinum',bg:'#e8f4fd',color:'#1e40af'} : pts >= 200 ? {emoji:'🥇',label:'Gold',bg:'#fefce8',color:'#a16207'} : {emoji:'🥈',label:'Silver',bg:'#f1f5f9',color:'#475569'};
+              return (
+                <span style={{background:tier.bg,color:tier.color,fontSize:'0.65rem',fontWeight:700,padding:'1px 5px',borderRadius:6,whiteSpace:'nowrap'}}>
+                  {tier.emoji} {tier.label}
+                </span>
+              );
+            })()}
+            <SellerTrustBadge ad={ad} />
+            <StarRating rating={rating} count={ratingCount} />
+            {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
+          </div>
+          {/* Stats row */}
+          <div className="mt-2">
+            <p className="text-xs text-gray-500 m-0">👁 {viewCount} | {ad.city}</p>
+          </div>
+        </div>
+      </div>{/* end navigable div */}
+
+      {/* WhatsApp button — OUTSIDE navigable div (valid HTML: no nested anchors) */}
+      {ad.phone && (
+        <div style={{ padding: '0 12px 4px' }} onClick={e => e.stopPropagation()}>
+          <a
+            href={'https://wa.me/' + ad.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent('مرحبا، رأيت إعلانك على XTOX')}
+            target="_blank"
+            rel="noopener noreferrer"
+            dir="auto"
+            className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-500 hover:bg-green-600 active:bg-green-700 px-3 py-1 text-xs font-semibold text-white shadow transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.528 5.845L.057 23.448a.75.75 0 0 0 .916.948l5.84-1.53A11.946 11.946 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.7 9.7 0 0 1-4.99-1.378l-.357-.214-3.705.971.989-3.614-.233-.371A9.718 9.718 0 0 1 2.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/>
+            </svg>
+            <span>واتساب</span>
+          </a>
+        </div>
+      )}
+
+      {/* BUG 3 FIX: Description — always visible, no expand/collapse needed */}
+      {ad.description && (
+        <p
+          onClick={e => e.stopPropagation()}
+          style={{
+            fontSize: 12,
+            color: '#6b7280',
+            lineHeight: 1.5,
+            margin: '4px 12px 6px',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            direction: 'rtl',
+            fontFamily: 'Cairo, Tajawal, sans-serif',
+          }}
+        >
+          {ad.description}
+        </p>
+      )}
+
+      {/* Price + city — always visible below description */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, padding: '0 12px 4px' }}
+      >
+        <span style={{ fontWeight: 700, color: '#002f34', fontSize: 14 }}>
+          {ad.price ? `${Number(ad.price).toLocaleString('ar-EG')} ج.م` : 'السعر عند التواصل'}
+        </span>
+        {ad.city && <span style={{ fontSize: 11, color: '#9ca3af' }}>📍 {ad.city}</span>}
+      </div>
+
+      {/* Seller profile link — OUTSIDE navigable div, no nested anchor issue */}
       {_sellerId && (
         <a
           href={'/profile/' + _sellerId}
@@ -812,29 +827,14 @@ export default function AdCard({
         </a>
       )}
 
-      {/* Action row: expand button — OUTSIDE Link */}
-      {/* This prevents the invalid <button inside <a> HTML which breaks onClick */}
-      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', padding: '0 12px 4px', marginTop: '4px' }}>
-        {/* Expand button */}
-        <button
-          onClick={showAdDetails}
-          style={{
-            flex: 1, padding: '7px',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            color: 'white', border: 'none', borderRadius: '10px',
-            fontWeight: 'bold', fontSize: '12px', cursor: 'pointer',
-          }}
-        >
-          {loadingAd ? '...' : expanded ? '▲ إخفاء' : '▼ عرض الإعلان'}
-        </button>
-      </div>
+      {/* BUG 3 FIX: Removed "▼ عرض الإعلان" expand button — description always visible above */}
 
       {/* Two full-width contact buttons — only on other people's ads */}
       {!isOwnAd && (
-        <div style={{ padding: '0 12px 4px' }}>
-          {/* Button 1 — Message seller */}
+        <div onClick={e => e.stopPropagation()} style={{ padding: '0 12px 4px' }}>
+          {/* Button 1 — Message seller (toggle chatbox open/closed) */}
           <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (chatOpen) setChatOpen(false); else handleOpenChat(e); }}
+            onClick={handleOpenChat}
             style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',width:'100%',padding:'13px 20px',borderRadius:'14px',border:'none',background:'linear-gradient(135deg,#7c3aed,#4f46e5)',color:'#fff',fontSize:'15px',fontWeight:700,cursor:'pointer',boxShadow:'0 4px 15px rgba(124,58,237,0.35)',marginTop:'8px',fontFamily:'inherit'}}
           >💬 راسل البائع</button>
 
@@ -846,7 +846,7 @@ export default function AdCard({
         </div>
       )}
 
-      {/* Feature 3 — Full inline mini-chatbox */}
+      {/* BUG 1 FIX: Inline chatbox — outside navigable div, with zIndex:100 so it's never clipped */}
       {chatOpen && !isOwnAd && (
         <div
           onClick={e => e.stopPropagation()}
@@ -858,6 +858,8 @@ export default function AdCard({
             boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
             overflow: 'hidden',
             direction: 'rtl',
+            position: 'relative',
+            zIndex: 100,
           }}
         >
           {/* Chat header */}
@@ -947,79 +949,6 @@ export default function AdCard({
           </div>
         </div>
       )}
-      {/* Inline expanded ad details — OUTSIDE Link */}
-      {expanded && (
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            margin: '0 12px 8px',
-            padding: '12px 14px',
-            background: '#f9fafb',
-            borderRadius: 10,
-            border: '1px solid #f3f4f6',
-            direction: 'rtl',
-            fontFamily: 'Cairo, Tajawal, sans-serif',
-          }}
-        >
-          {/* Price + city row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontWeight: 700, color: '#002f34', fontSize: 15 }}>
-              {(fullAd?.price || ad.price)
-                ? (Number(fullAd?.price || ad.price).toLocaleString('ar-EG') + ' ' + (ad.currency || 'ج.م'))
-                : 'السعر عند التواصل'}
-            </span>
-            <span style={{ color: '#6b7280', fontSize: 12 }}>📍 {fullAd?.city || ad.city || ad.location || ''}</span>
-          </div>
-          {/* Category */}
-          {(fullAd?.category || ad.category || fullAd?.subcategory || ad.subcategory) && (
-            <div style={{ marginBottom: 8, fontSize: 12, color: '#6b7280' }}>
-              {fullAd?.category || ad.category}{(fullAd?.subcategory || ad.subcategory) ? ` › ${fullAd?.subcategory || ad.subcategory}` : ''}
-            </div>
-          )}
-          {/* Description */}
-          {(fullAd?.description || ad.description) && (
-            <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: '0 0 10px' }}>
-              {(() => {
-                const desc = fullAd?.description || ad.description || '';
-                return desc.length > 200 ? desc.slice(0, 200) + '...' : desc;
-              })()}
-            </p>
-          )}
-          {/* Extra images from fullAd if available */}
-          {fullAd?.images?.length > 1 && (
-            <div style={{ display: 'flex', gap: 4, overflowX: 'auto', marginBottom: 8 }}>
-              {fullAd.images.slice(1, 5).map((img, i) => (
-                <img key={i} src={img} alt="" style={{ width: 70, height: 55, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
-              ))}
-            </div>
-          )}
-          {/* Seller row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 8, borderTop: '1px solid #f3f4f6' }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: '50%',
-              background: 'linear-gradient(135deg,#002f34,#23e5db)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 13,
-            }}>
-              {(ad.seller?.name || ad.userId?.name || ad.sellerName || 'ب')[0]}
-            </div>
-            <span style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
-              {ad.seller?.name || ad.userId?.name || ad.sellerName || 'البائع'}
-            </span>
-            {(ad.seller?.sellerScore || ad.userId?.sellerScore || 0) >= 70 && (
-              <span style={{ fontSize: 10, color: '#22c55e', marginInlineStart: 'auto' }}>✓ بائع موثوق</span>
-            )}
-          </div>
-          <a
-            href={'/ads/' + adId}
-            onClick={e => e.stopPropagation()}
-            style={{ display: 'block', textAlign: 'center', color: '#6366f1', textDecoration: 'none', fontSize: 12, marginTop: 8 }}
-          >
-            فتح الصفحة الكاملة ←
-          </a>
-        </div>
-      )}
-
 
     </div>
   );
