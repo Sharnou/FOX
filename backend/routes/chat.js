@@ -450,7 +450,8 @@ router.post('/direct', auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.post('/send', auth, async (req, res) => {
   try {
-    const { receiverId, adId, message } = req.body;
+    const { receiverId: _rid, toUserId, adId, message } = req.body;
+    const receiverId = _rid || toUserId;
     if (!receiverId || !message?.trim()) {
       return res.status(400).json({ error: 'receiverId و message مطلوبان' });
     }
@@ -547,6 +548,48 @@ router.post('/send', auth, async (req, res) => {
   } catch (e) {
     console.error('[Chat/send]', e);
     res.status(500).json({ error: 'فشل إرسال الرسالة' });
+  }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/chat/history?with=userId&adId=adId
+// Returns message history between current user and another user
+// Must be BEFORE /:chatId routes
+// ─────────────────────────────────────────────────────────────
+router.get('/history', auth, async (req, res) => {
+  try {
+    const { with: withUserId, adId } = req.query;
+    if (!withUserId || !mongoose.Types.ObjectId.isValid(withUserId)) {
+      return res.status(400).json({ error: 'with param is required and must be valid' });
+    }
+    const myId = req.user._id || req.user.id;
+    const validAdId = adId && mongoose.Types.ObjectId.isValid(adId) ? adId : null;
+
+    // Find the chat between the two users (in either direction), optionally filtered by adId
+    const query = {
+      $or: [
+        { buyer: myId, seller: withUserId },
+        { buyer: withUserId, seller: myId },
+      ],
+      ...(validAdId ? { ad: validAdId } : {}),
+    };
+
+    const chat = await getChat()
+      .findOne(query)
+      .select({ messages: { $slice: -50 } })
+      .lean();
+
+    if (!chat) {
+      return res.json({ messages: [] });
+    }
+
+    // Return messages sorted oldest first (slice -50 already returns newest 50, reverse for chronological)
+    const messages = (chat.messages || []).slice().reverse();
+    res.json({ messages, chatId: chat._id });
+  } catch (e) {
+    console.error('[GET /chat/history]', e.message);
+    res.status(500).json({ error: 'خطأ في الخادم' });
   }
 });
 

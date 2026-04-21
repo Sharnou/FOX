@@ -200,10 +200,10 @@ export default function AdCard({
   const [loadingAd, setLoadingAd] = useState(false);
   // Feature 3: mini chat box
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatMsg, setChatMsg] = useState('');
-  const [chatSent, setChatSent] = useState(false);
-  const [chatSending, setChatSending] = useState(false);
-  const [chatError, setChatError] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
   // ── Current user id (for own-ad check) ───────────────────────────────────
   const [currentUserId, setCurrentUserId] = useState(null);
 
@@ -230,6 +230,13 @@ export default function AdCard({
     const uid = localStorage.getItem('userId') || localStorage.getItem('xtox_user_id') || localStorage.getItem('xtox_userId');
     setCurrentUserId(uid || null);
   }, []);
+
+  // ── Auto-scroll chatbox to bottom when new messages arrive ───────────────────
+  useEffect(() => {
+    if (chatOpen && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, chatOpen]);
 
   // ── Increment view count when card mounts — Layer 4: session deduplication ──
   useEffect(() => {
@@ -353,14 +360,71 @@ export default function AdCard({
     }
   };
 
-  // ── Chat button handler: deep-link to ad page where full chat flow is handled ──
-  const handleChat = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    window.location.href = '/ads/' + adId + '#chat';
+  const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+
+  // ── Token + myId helpers ────────────────────────────────────────────────────
+  function getToken() {
+    return typeof window !== 'undefined'
+      ? (localStorage.getItem('xtox_token') || localStorage.getItem('token'))
+      : null;
+  }
+  function getMyId() {
+    const t = getToken();
+    if (!t) return null;
+    try { return JSON.parse(atob(t.split('.')[1]))?.id || null; } catch { return null; }
+  }
+
+  // ── handleSendChat: send a message and append to chatMessages ──────────────
+  const handleSendChat = async () => {
+    const token = getToken();
+    if (!chatInput.trim() || chatLoading) return;
+    if (!token) { alert('سجل دخولك أولاً'); return; }
+    const msg = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { from: 'me', text: msg, time: new Date() }]);
+    setChatLoading(true);
+    try {
+      const sellerId = ad.seller?._id || ad.seller || ad.userId?._id || ad.userId;
+      const res = await fetch(BACKEND + '/api/chat/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ receiverId: sellerId, adId, message: msg }),
+      });
+      if (!res.ok) throw new Error('failed');
+    } catch {
+      setChatMessages(prev => [...prev, { from: 'system', text: 'فشل إرسال الرسالة، حاول مجدداً', time: new Date() }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
-  const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+  // ── handleOpenChat: open chatbox, load history on first open ───────────────
+  const handleOpenChat = async (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const token = getToken();
+    const myId = getMyId();
+    if (!token) { alert('سجل دخولك أولاً'); return; }
+    const sellerId = ad.seller?._id || ad.seller || ad.userId?._id || ad.userId;
+    if (myId && sellerId && String(myId) === String(sellerId)) { alert('لا يمكنك مراسلة نفسك'); return; }
+    setChatOpen(true);
+    if (chatMessages.length === 0) {
+      try {
+        const res = await fetch(BACKEND + '/api/chat/history?with=' + sellerId + (adId ? '&adId=' + adId : ''), {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const myId2 = getMyId();
+          const msgs = (data.messages || []).map(m => ({
+            from: String(m.sender) === String(myId2) ? 'me' : 'them',
+            text: m.text || m.message || m.content || '',
+            time: new Date(m.createdAt || m.timestamp),
+          }));
+          if (msgs.length > 0) setChatMessages(msgs);
+        }
+      } catch { /* ignore — start fresh */ }
+    }
+  };
 
   // Feature 2: load full ad details inline
   async function showAdDetails(e) {
@@ -392,36 +456,7 @@ export default function AdCard({
 
 
 
-  // Feature 3: send a quick message from the inline mini-chat
-  async function sendQuickMessage(e) {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    if (!chatMsg.trim()) return;
-    const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
-    if (!token) { setChatError('يجب تسجيل الدخول أولاً'); return; }
-    setChatSending(true);
-    setChatError('');
-    try {
-      const receiverId = ad.userId?._id || ad.userId || ad.seller?._id || ad.seller;
-      const res = await fetch(BACKEND + '/api/chat/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ receiverId, adId, message: chatMsg.trim() }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (res.ok) {
-        setChatSent(true);
-        setChatMsg('');
-        setTimeout(() => setChatSent(false), 3000);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setChatError(err.error || 'فشل الإرسال');
-      }
-    } catch (err) {
-      setChatError('تحقق من اتصالك');
-    } finally {
-      setChatSending(false);
-    }
-  }
+
 
   // ── FIX: Comprehensive image resolution — try ALL field names, handle base64 ─
   // Get all available images from any field name the API might return
@@ -799,12 +834,7 @@ export default function AdCard({
         <div style={{ padding: '0 12px 4px' }}>
           {/* Button 1 — Message seller */}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
-              if (!token) { window.location.href = '/login'; return; }
-              setChatOpen(o => !o);
-            }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (chatOpen) setChatOpen(false); else handleOpenChat(e); }}
             style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',width:'100%',padding:'13px 20px',borderRadius:'14px',border:'none',background:'linear-gradient(135deg,#7c3aed,#4f46e5)',color:'#fff',fontSize:'15px',fontWeight:700,cursor:'pointer',boxShadow:'0 4px 15px rgba(124,58,237,0.35)',marginTop:'8px',fontFamily:'inherit'}}
           >💬 راسل البائع</button>
 
@@ -816,80 +846,179 @@ export default function AdCard({
         </div>
       )}
 
-      {/* Feature 3 — Mini chat box panel (toggled by circular button above) */}
+      {/* Feature 3 — Full inline mini-chatbox */}
       {chatOpen && !isOwnAd && (
-        <div style={{ marginTop: '0', padding: '0 12px 8px' }} onClick={e => e.stopPropagation()}>
-            <div style={{ marginTop: '6px', padding: '8px', background: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
-              {chatSent ? (
-                <div style={{ color: '#22c55e', textAlign: 'center', fontWeight: 'bold', fontSize: '13px' }}>✓ تم إرسال رسالتك!</div>
-              ) : (
-                <>
-                  <textarea
-                    value={chatMsg}
-                    onChange={e => setChatMsg(e.target.value)}
-                    placeholder="اكتب رسالتك للبائع..."
-                    rows={2}
-                    style={{
-                      width: '100%', padding: '6px 8px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px', fontSize: '13px',
-                      resize: 'none', fontFamily: 'inherit',
-                      direction: 'rtl', boxSizing: 'border-box',
-                    }}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuickMessage(); } }}
-                  />
-                  {chatError && <div style={{ color: '#ef4444', fontSize: '11px', margin: '2px 0' }}>{chatError}</div>}
-                  <button
-                    onClick={sendQuickMessage}
-                    disabled={chatSending || !chatMsg.trim()}
-                    style={{
-                      marginTop: '4px', width: '100%', padding: '6px',
-                      background: chatSending ? '#9ca3af' : '#6366f1',
-                      color: 'white', border: 'none', borderRadius: '8px',
-                      fontSize: '13px', fontWeight: 'bold',
-                      cursor: chatSending ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {chatSending ? 'جارٍ الإرسال...' : 'إرسال ←'}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      {/* Inline expanded ad details — OUTSIDE Link */}
-      {expanded && fullAd && (
         <div
           onClick={e => e.stopPropagation()}
-            style={{ borderTop: '1px solid #e5e7eb', padding: '10px 12px 2px', marginTop: '2px', fontSize: '13px', color: '#374151', textAlign: 'right' }}
-          >
-            {fullAd.images?.length > 0 && (
-              <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', marginBottom: '8px' }}>
-                {fullAd.images.slice(0, 5).map((img, i) => (
-                  <img key={i} src={img} alt="" style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }} />
-                ))}
+          style={{
+            margin: '0 12px 8px',
+            borderRadius: 12,
+            border: '1px solid rgba(99,102,241,0.3)',
+            background: '#fff',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+            overflow: 'hidden',
+            direction: 'rtl',
+          }}
+        >
+          {/* Chat header */}
+          <div style={{
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            padding: '10px 14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: '50%',
+                background: 'rgba(255,255,255,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 14, color: '#fff', fontWeight: 700,
+              }}>
+                {(ad.seller?.name || ad.userId?.name || ad.sellerName || 'ب')[0]}
               </div>
-            )}
-            {fullAd.description && (
-              <p style={{ margin: '0 0 6px', lineHeight: '1.5', color: '#4b5563' }}>{fullAd.description}</p>
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: '8px' }}>
-              {fullAd.category && <span>{(CATEGORY_DISPLAY[fullAd.category] || CATEGORY_DISPLAY[fullAd.category?.toLowerCase()] || { name: fullAd.category, emoji: '📦' }).emoji} {(CATEGORY_DISPLAY[fullAd.category] || CATEGORY_DISPLAY[fullAd.category?.toLowerCase()] || { name: fullAd.category, emoji: '📦' }).name}</span>}
-              {fullAd.subcategory && <span>🏷 {fullAd.subcategory}</span>}
-              {fullAd.city && <span>📍 {fullAd.city}</span>}
-              {fullAd.condition && <span>✨ {fullAd.condition}</span>}
-              {fullAd.price && <span style={{ color: '#6366f1', fontWeight: 'bold' }}>💰 {fullAd.price} جنيه</span>}
-              {fullAd.phone && <span>📞 {fullAd.phone}</span>}
+              <span style={{ color: '#fff', fontWeight: 600, fontSize: 13 }}>
+                {ad.seller?.name || ad.userId?.name || ad.sellerName || 'البائع'}
+              </span>
             </div>
-            <a
-              href={'/ads/' + fullAd._id}
-              onClick={e => e.stopPropagation()}
-              style={{ display: 'block', textAlign: 'center', color: '#6366f1', textDecoration: 'none', fontSize: '12px', marginTop: '4px' }}
-            >
-              فتح الصفحة الكاملة ←
-            </a>
+            <button
+              onClick={e => { e.stopPropagation(); setChatOpen(false); }}
+              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+            >✕</button>
           </div>
-        )}
+
+          {/* Messages */}
+          <div style={{ height: 180, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {chatMessages.length === 0 && (
+              <p style={{ color: '#9ca3af', fontSize: 12, textAlign: 'center', margin: 'auto' }}>
+                ابدأ المحادثة مع البائع
+              </p>
+            )}
+            {chatMessages.map((m, i) => (
+              <div key={i} style={{
+                alignSelf: m.from === 'me' ? 'flex-end' : m.from === 'system' ? 'center' : 'flex-start',
+                maxWidth: '80%',
+              }}>
+                <div style={{
+                  background: m.from === 'me' ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : m.from === 'system' ? '#f3f4f6' : '#f9fafb',
+                  color: m.from === 'me' ? '#fff' : '#374151',
+                  padding: '6px 10px',
+                  borderRadius: m.from === 'me' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                  fontSize: 12,
+                  lineHeight: 1.4,
+                }}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input */}
+          <div style={{
+            borderTop: '1px solid #f3f4f6',
+            padding: '8px 12px',
+            display: 'flex', gap: 8, alignItems: 'center',
+          }}>
+            <input
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
+              placeholder="اكتب رسالة..."
+              onClick={e => e.stopPropagation()}
+              style={{
+                flex: 1, border: '1px solid #e5e7eb', borderRadius: 20,
+                padding: '6px 14px', fontSize: 12, outline: 'none',
+                direction: 'rtl', fontFamily: 'Cairo, Tajawal, sans-serif',
+              }}
+            />
+            <button
+              onClick={e => { e.stopPropagation(); handleSendChat(); }}
+              disabled={chatLoading || !chatInput.trim()}
+              style={{
+                background: (chatLoading || !chatInput.trim()) ? '#e5e7eb' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                border: 'none', borderRadius: '50%',
+                width: 32, height: 32,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: (chatLoading || !chatInput.trim()) ? 'not-allowed' : 'pointer',
+                fontSize: 14, color: '#fff', flexShrink: 0,
+              }}
+            >
+              {chatLoading ? '⏳' : '➤'}
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Inline expanded ad details — OUTSIDE Link */}
+      {expanded && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            margin: '0 12px 8px',
+            padding: '12px 14px',
+            background: '#f9fafb',
+            borderRadius: 10,
+            border: '1px solid #f3f4f6',
+            direction: 'rtl',
+            fontFamily: 'Cairo, Tajawal, sans-serif',
+          }}
+        >
+          {/* Price + city row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontWeight: 700, color: '#002f34', fontSize: 15 }}>
+              {(fullAd?.price || ad.price)
+                ? (Number(fullAd?.price || ad.price).toLocaleString('ar-EG') + ' ' + (ad.currency || 'ج.م'))
+                : 'السعر عند التواصل'}
+            </span>
+            <span style={{ color: '#6b7280', fontSize: 12 }}>📍 {fullAd?.city || ad.city || ad.location || ''}</span>
+          </div>
+          {/* Category */}
+          {(fullAd?.category || ad.category || fullAd?.subcategory || ad.subcategory) && (
+            <div style={{ marginBottom: 8, fontSize: 12, color: '#6b7280' }}>
+              {fullAd?.category || ad.category}{(fullAd?.subcategory || ad.subcategory) ? ` › ${fullAd?.subcategory || ad.subcategory}` : ''}
+            </div>
+          )}
+          {/* Description */}
+          {(fullAd?.description || ad.description) && (
+            <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: '0 0 10px' }}>
+              {(() => {
+                const desc = fullAd?.description || ad.description || '';
+                return desc.length > 200 ? desc.slice(0, 200) + '...' : desc;
+              })()}
+            </p>
+          )}
+          {/* Extra images from fullAd if available */}
+          {fullAd?.images?.length > 1 && (
+            <div style={{ display: 'flex', gap: 4, overflowX: 'auto', marginBottom: 8 }}>
+              {fullAd.images.slice(1, 5).map((img, i) => (
+                <img key={i} src={img} alt="" style={{ width: 70, height: 55, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+              ))}
+            </div>
+          )}
+          {/* Seller row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 8, borderTop: '1px solid #f3f4f6' }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: 'linear-gradient(135deg,#002f34,#23e5db)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontWeight: 700, fontSize: 13,
+            }}>
+              {(ad.seller?.name || ad.userId?.name || ad.sellerName || 'ب')[0]}
+            </div>
+            <span style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
+              {ad.seller?.name || ad.userId?.name || ad.sellerName || 'البائع'}
+            </span>
+            {(ad.seller?.sellerScore || ad.userId?.sellerScore || 0) >= 70 && (
+              <span style={{ fontSize: 10, color: '#22c55e', marginInlineStart: 'auto' }}>✓ بائع موثوق</span>
+            )}
+          </div>
+          <a
+            href={'/ads/' + adId}
+            onClick={e => e.stopPropagation()}
+            style={{ display: 'block', textAlign: 'center', color: '#6366f1', textDecoration: 'none', fontSize: 12, marginTop: 8 }}
+          >
+            فتح الصفحة الكاملة ←
+          </a>
+        </div>
+      )}
 
 
     </div>
