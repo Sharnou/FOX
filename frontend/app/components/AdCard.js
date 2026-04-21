@@ -750,7 +750,7 @@ export default function AdCard({
         </a>
       )}
 
-      {/* Action row: expand button + circular contact button — OUTSIDE Link */}
+      {/* Action row: expand button — OUTSIDE Link */}
       {/* This prevents the invalid <button inside <a> HTML which breaks onClick */}
       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', padding: '0 12px 4px', marginTop: '4px' }}>
         {/* Expand button */}
@@ -765,95 +765,29 @@ export default function AdCard({
         >
           {loadingAd ? '...' : expanded ? '▲ إخفاء' : '▼ عرض الإعلان'}
         </button>
-
-        {/* Contact buttons row — only on other people's ads */}
-        {!isOwnAd && (
-          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-            {/* Chat button — opens inline mini chat box */}
-            <button
-              title="راسل البائع"
-              onClick={(e) => {
-                e.stopPropagation();
-                const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
-                if (!token) { window.location.href = '/login'; return; }
-                setChatOpen(o => !o);
-              }}
-              style={{
-                background: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))',
-                border: 'none',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: 'rgba(99, 102, 241, 0.4) 0px 2px 8px',
-                fontSize: '16px',
-                flexShrink: 0,
-              }}
-            >💬</button>
-            {/* Call button — navigates to ad page phone modal */}
-            <button
-              title="اتصل بالبائع"
-              onClick={(e) => {
-                e.stopPropagation();
-                notifySellerContactViewed('call');
-                // Navigate to ad page which has full phone modal + WebRTC call
-                window.location.href = '/ads/' + adId + '?showPhone=1';
-              }}
-              style={{
-                background: 'linear-gradient(135deg, #00aa44, #00cc55)',
-                border: 'none',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,170,68,0.4)',
-                fontSize: '16px',
-                flexShrink: 0,
-              }}
-            >📞</button>
-          </div>
-        )}
       </div>
 
-      {/* Inline expanded ad details — OUTSIDE Link */}
-      {expanded && fullAd && (
-        <div
-          onClick={e => e.stopPropagation()}
-            style={{ borderTop: '1px solid #e5e7eb', padding: '10px 12px 2px', marginTop: '2px', fontSize: '13px', color: '#374151', textAlign: 'right' }}
-          >
-            {fullAd.images?.length > 0 && (
-              <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', marginBottom: '8px' }}>
-                {fullAd.images.slice(0, 5).map((img, i) => (
-                  <img key={i} src={img} alt="" style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }} />
-                ))}
-              </div>
-            )}
-            {fullAd.description && (
-              <p style={{ margin: '0 0 6px', lineHeight: '1.5', color: '#4b5563' }}>{fullAd.description}</p>
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: '8px' }}>
-              {fullAd.category && <span>📂 {fullAd.category}</span>}
-              {fullAd.subcategory && <span>🏷 {fullAd.subcategory}</span>}
-              {fullAd.city && <span>📍 {fullAd.city}</span>}
-              {fullAd.condition && <span>✨ {fullAd.condition}</span>}
-              {fullAd.price && <span style={{ color: '#6366f1', fontWeight: 'bold' }}>💰 {fullAd.price} جنيه</span>}
-              {fullAd.phone && <span>📞 {fullAd.phone}</span>}
-            </div>
-            <a
-              href={'/ads/' + fullAd._id}
-              onClick={e => e.stopPropagation()}
-              style={{ display: 'block', textAlign: 'center', color: '#6366f1', textDecoration: 'none', fontSize: '12px', marginTop: '4px' }}
-            >
-              فتح الصفحة الكاملة ←
-            </a>
-          </div>
-        )}
+      {/* Two full-width contact buttons — only on other people's ads */}
+      {!isOwnAd && (
+        <div style={{ padding: '0 12px 4px' }}>
+          {/* Button 1 — Message seller */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
+              if (!token) { window.location.href = '/login'; return; }
+              setChatOpen(o => !o);
+            }}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',width:'100%',padding:'13px 20px',borderRadius:'14px',border:'none',background:'linear-gradient(135deg,#7c3aed,#4f46e5)',color:'#fff',fontSize:'15px',fontWeight:700,cursor:'pointer',boxShadow:'0 4px 15px rgba(124,58,237,0.35)',marginTop:'8px',fontFamily:'inherit'}}
+          >💬 راسل البائع</button>
+
+          {/* Button 2 — Direct call */}
+          <button
+            onClick={(e) => { e.stopPropagation(); notifySellerContactViewed('call'); router.push(`/ads/${ad._id}?showPhone=1`); }}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',width:'100%',padding:'14px',borderRadius:'12px',border:'none',background:'rgb(0,170,68)',color:'white',fontWeight:'bold',fontSize:'15px',cursor:'pointer',marginTop:'6px',fontFamily:'inherit'}}
+          >📞 مكالمة مباشرة</button>
+        </div>
+      )}
 
       {/* Feature 3 — Mini chat box panel (toggled by circular button above) */}
       {chatOpen && !isOwnAd && (
@@ -896,6 +830,41 @@ export default function AdCard({
             </div>
           </div>
         )}
+      {/* Inline expanded ad details — OUTSIDE Link */}
+      {expanded && fullAd && (
+        <div
+          onClick={e => e.stopPropagation()}
+            style={{ borderTop: '1px solid #e5e7eb', padding: '10px 12px 2px', marginTop: '2px', fontSize: '13px', color: '#374151', textAlign: 'right' }}
+          >
+            {fullAd.images?.length > 0 && (
+              <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', marginBottom: '8px' }}>
+                {fullAd.images.slice(0, 5).map((img, i) => (
+                  <img key={i} src={img} alt="" style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }} />
+                ))}
+              </div>
+            )}
+            {fullAd.description && (
+              <p style={{ margin: '0 0 6px', lineHeight: '1.5', color: '#4b5563' }}>{fullAd.description}</p>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: '8px' }}>
+              {fullAd.category && <span>📂 {fullAd.category}</span>}
+              {fullAd.subcategory && <span>🏷 {fullAd.subcategory}</span>}
+              {fullAd.city && <span>📍 {fullAd.city}</span>}
+              {fullAd.condition && <span>✨ {fullAd.condition}</span>}
+              {fullAd.price && <span style={{ color: '#6366f1', fontWeight: 'bold' }}>💰 {fullAd.price} جنيه</span>}
+              {fullAd.phone && <span>📞 {fullAd.phone}</span>}
+            </div>
+            <a
+              href={'/ads/' + fullAd._id}
+              onClick={e => e.stopPropagation()}
+              style={{ display: 'block', textAlign: 'center', color: '#6366f1', textDecoration: 'none', fontSize: '12px', marginTop: '4px' }}
+            >
+              فتح الصفحة الكاملة ←
+            </a>
+          </div>
+        )}
+
+
     </div>
   );
 }
