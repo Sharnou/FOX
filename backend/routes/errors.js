@@ -137,14 +137,22 @@ router.get('/', adminAuth, async (req, res) => {
 
 // POST /api/errors/:id/resolve — mark as fixed
 router.post('/:id/resolve', adminAuth, async (req, res) => {
-  await ErrorLog.findByIdAndUpdate(req.params.id, { resolved: true, aiFixApplied: true });
-  res.json({ ok: true });
+  try {
+    await ErrorLog.findByIdAndUpdate(req.params.id, { resolved: true, aiFixApplied: true });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Keep PATCH for backwards compatibility with existing admin panel
 router.patch('/:id/resolve', adminAuth, async (req, res) => {
-  await ErrorLog.findByIdAndUpdate(req.params.id, { resolved: true });
-  res.json({ ok: true });
+  try {
+    await ErrorLog.findByIdAndUpdate(req.params.id, { resolved: true });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST /api/errors/:id/analyze — re-analyze with AI (Gemini if available)

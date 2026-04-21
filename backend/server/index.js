@@ -156,6 +156,10 @@ if (compression) app.use(compression());
 // Security headers (helmet) — free hardening
 if (helmet) app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: false }));
 
+// Raw body parser for Stripe webhook signature verification — MUST be before express.json()
+// Stripe's constructEvent() requires the raw buffer, not parsed JSON
+app.use('/api/promote/webhook', express.raw({ type: '*/*' }));
+
 app.use(express.json({ limit: '10mb' }));
 
 // ─── Health route FIRST — must respond immediately for Railway healthcheck ────
