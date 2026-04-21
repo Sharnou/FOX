@@ -605,7 +605,7 @@ export default function AdPageClient({ params }) {
   function handleWebRTCCall() {
     setShowPhoneModal(false);
     notifySellerContactViewed('call');
-    router.push(`/call?sellerId=${sellerId}&adId=${ad._id}`);
+    router.push(`/call?to=${sellerId}&name=${encodeURIComponent(sellerName)}&adId=${ad._id}`);
   }
 
   // ── CHANGE 1: WhatsApp via backend (hides phone number from DOM) ──────────
@@ -644,6 +644,7 @@ export default function AdPageClient({ params }) {
     (ad.seller && typeof ad.seller === 'object' ? (ad.seller._id || ad.seller.id) : ad.seller) ||
     ad.sellerId || ''
   )?.toString?.() || '';
+  const sellerName = (ad.userId && ad.userId.name) || (ad.seller && ad.seller.name) || ad.sellerName || 'البائع';
   const phone = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone);
 
   return (
@@ -692,7 +693,7 @@ export default function AdPageClient({ params }) {
         <button onClick={() => {
           if (!sellerId) { alert('لا يمكن الاتصال الآن'); return; }
           notifySellerContactViewed('call');
-          router.push(`/call?sellerId=${sellerId}&adId=${ad._id}`);
+          router.push(`/call?to=${sellerId}&name=${encodeURIComponent(sellerName)}&adId=${ad._id}`);
         }} style={{ background: '#00aa44', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>📞 مكالمة مباشرة</button>
       </div>
       {showChatBox && ad && (
