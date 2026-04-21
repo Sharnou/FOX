@@ -1295,7 +1295,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
     } catch (_detectErr) {
       console.warn('[ADS POST] detectCategoryOffline failed (non-fatal):', _detectErr.message);
     }
-    const finalCategory = category || detected.main;
+    let finalCategory = category || detected.main;
     let finalSubcategory = detected.sub || subcategory || '';
     // Auto-assign subcategory via keyword matching if not provided or is 'Other'
     if (!finalSubcategory || finalSubcategory === 'Other') {

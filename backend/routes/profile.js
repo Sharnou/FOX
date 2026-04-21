@@ -22,7 +22,7 @@ router.get('/:id', async (req, res) => {
     const user = await User.findById(id).select('-password -registrationIp -fcmToken');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const ads = await Ad.find({ userId: id, isDeleted: { $ne: true }, isExpired: { $ne: true } }).sort({ createdAt: -1 }).limit(20).lean();
+    const ads = await Ad.find({ $or: [{ userId: id }, { seller: id }], isDeleted: { $ne: true }, isExpired: { $ne: true } }).sort({ createdAt: -1 }).limit(20).lean();
     const reviews = await Review.find({ seller: id }).populate('reviewer', 'name avatar').sort({ createdAt: -1 }).limit(20);
 
     const avgRating = reviews.length > 0

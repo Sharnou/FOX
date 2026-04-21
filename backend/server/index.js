@@ -90,6 +90,7 @@ import wpRouter from "../routes/wp.js";
 import { loadWPTokenFromDB } from '../utils/wordpress.js';
 import translationsRouter from '../routes/translations.js';
 import translateRouter from '../routes/translate.js';
+import callsRouter from '../routes/calls.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 // Pre-register WinnerHistory model so it is available before first query
 import('../models/WinnerHistory.js').catch(e => console.warn('[WinnerHistory] model load failed:', e.message));
@@ -271,7 +272,8 @@ app.use('/api/ice', iceRoutes);
 app.use('/api/winner', winnerRouter);
 app.use('/api/wp', wpRouter); // WordPress.com OAuth2 + auto-sync
 app.use('/api/translations', translationsRouter); // Auto-generate translations via OpenAI + MongoDB cache
-app.use('/api/translate', translateRouter); // Ad content translation — Groq+OpenAI+LibreTranslate fallback
+app.use('/api/translate', translateRouter);
+app.use('/api/calls', callsRouter);     // WebRTC call push notifications
 
 // GET /api/metrics — admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {
@@ -333,12 +335,13 @@ async function runSeedsOnce() {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['https://fox-kohl-eight.vercel.app', 'http://localhost:3000', /\.vercel\.app$/, /\.railway\.app$/],
+    origin: ['https://fox-kohl-eight.vercel.app', 'https://xtox.app', 'http://localhost:3000', /.vercel.app$/, /.railway.app$/],
     methods: ['GET', 'POST'],
     credentials: true,
   },
   transports: ['websocket', 'polling'],
 });
+app.set('io', io); // expose io to routes via req.app.get('io')
 initSocket(io);
 
 // Daily cron: archive expired ads, cleanup old

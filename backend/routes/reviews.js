@@ -32,6 +32,10 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'التقييم يجب أن يكون بين 1 و 5' });
     }
 
+    // Validate adId
+    if (!mongoose.Types.ObjectId.isValid(adId))
+      return res.status(400).json({ error: 'معرّف الإعلان غير صالح' });
+
     // Find the ad
     const ad = await Ad.findById(adId);
     if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });

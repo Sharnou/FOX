@@ -91,6 +91,8 @@ router.get('/', adminAuth, async (req, res) => {
 // PATCH /api/reports/:id/resolve — Admin: mark a report as resolved
 router.patch('/:id/resolve', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid report ID' });
     const report = await Report.findByIdAndUpdate(
       req.params.id,
       { resolved: true },

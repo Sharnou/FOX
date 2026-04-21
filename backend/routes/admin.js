@@ -900,14 +900,16 @@ router.post('/backfill-countries', adminAuth, async (req, res) => {
 // ── #128 — POST /api/admin/users/:id/suspend — suspend a user + deactivate their ads ──
 router.post('/users/:id/suspend', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'معرّف غير صالح' });
     const { reason } = req.body;
     await User.findByIdAndUpdate(req.params.id, {
       isSuspended: true,
       suspendReason: reason || 'Violation of terms',
     });
-    // Deactivate all their ads
+    // Deactivate all their ads — use $or to cover both userId and seller fields
     await Ad.updateMany(
-      { userId: req.params.id, isDeleted: { $ne: true } },
+      { $or: [{ userId: req.params.id }, { seller: req.params.id }], isDeleted: { $ne: true } },
       { $set: { status: 'suspended', visibilityScore: 0 } }
     );
     console.log('[ADMIN] User suspended:', req.params.id, 'reason:', reason);
@@ -921,13 +923,15 @@ router.post('/users/:id/suspend', adminAuth, async (req, res) => {
 // ── #128 — POST /api/admin/users/:id/unsuspend — restore a suspended user ──
 router.post('/users/:id/unsuspend', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'معرّف غير صالح' });
     await User.findByIdAndUpdate(req.params.id, {
       isSuspended: false,
       suspendReason: '',
     });
-    // Reactivate their ads
+    // Reactivate their ads — use $or to cover both userId and seller fields
     await Ad.updateMany(
-      { userId: req.params.id, status: 'suspended' },
+      { $or: [{ userId: req.params.id }, { seller: req.params.id }], status: 'suspended' },
       { $set: { status: 'active', visibilityScore: 10 } }
     );
     console.log('[ADMIN] User unsuspended:', req.params.id);

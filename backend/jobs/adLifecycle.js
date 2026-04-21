@@ -61,6 +61,9 @@ export async function runAdLifecycle() {
           isExpired: true,
           expiredAt: now,
           reshareWindowEndsAt: new Date(now.getTime() + RESHARE_WINDOW_DAYS * 24 * 60 * 60 * 1000),
+          // Set hardDeleteAt = 37 days from now (7-day reshare window + 30-day reshare active period)
+          // Total lifetime: 30 (active) + 7 (expired window) + 30 (reshared) = 67 days
+          hardDeleteAt: new Date(now.getTime() + (HARD_DELETE_DAYS - AD_LIFETIME_DAYS) * 24 * 60 * 60 * 1000),
         },
       }
     );
@@ -70,11 +73,11 @@ export async function runAdLifecycle() {
       $or: [
         // Passed hard-delete deadline (67 days from creation)
         { hardDeleteAt: { $lte: now } },
-        // Expired window closed AND ad was never reshared (reshareCount = 0 or absent)
+        // Expired window closed — delete regardless of reshareCount
+        // Covers both: never-reshared ads (reshareCount=0) AND reshared-then-expired ads (reshareCount>=1)
         {
           status: 'expired',
           reshareWindowEndsAt: { $lte: now },
-          reshareCount: { $lt: 1 },
         },
         // Also clean up very old expired ads with no reshare window set (legacy)
         {
