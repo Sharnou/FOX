@@ -979,21 +979,30 @@ function ChatPageInner() {
           </p>
         </div>
         {targetId && (
-          <>
-            <button
-              onClick={function() { callManagerRef.current?.initiateCall(targetId, sellerName || targetId); }}
+          <button
               title="مكالمة صوتية"
-              aria-label="مكالمة صوتية عبر WebRTC"
-              style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', marginRight: 8, flexShrink: 0 }}>
-              📞
-            </button>
-            <button
+              aria-label="بدء مكالمة صوتية عبر WebRTC"
               onClick={function() { callManagerRef.current?.initiateCall(targetId, sellerName || targetId); }}
-              aria-label="بدء مكالمة صوتية"
-              style={{ background: '#16a34a', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 'bold', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              مكالمة
+              style={{
+                background: 'rgb(22,163,74)',
+                color: 'white',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>📞</span>
+              <span>مكالمة</span>
             </button>
-          </>
         )}
       </header>
 

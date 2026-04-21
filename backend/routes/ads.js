@@ -2131,4 +2131,108 @@ router.post('/debug-create', async (req, res) => {
   }
 });
 
+
+// ── POST /api/ads/:id/contact-viewed — notify seller when buyer views contact info ──
+router.post('/:id/contact-viewed', auth, async (req, res) => {
+  try {
+    const ad = await Ad.findById(req.params.id).populate('userId', 'name _id').lean();
+    if (!ad) return res.status(404).json({ error: 'Ad not found' });
+
+    const viewer = await User.findById(req.user.id).select('name _id').lean();
+    if (!viewer) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Determine seller ID — handle both populated and unpopulated userId
+    const sellerId = (ad.userId && typeof ad.userId === 'object' ? ad.userId._id : ad.userId) ||
+                     (ad.seller && typeof ad.seller === 'object' ? ad.seller._id : ad.seller);
+
+    if (!sellerId || sellerId.toString() === req.user.id) {
+      return res.json({ ok: true }); // don't notify self
+    }
+
+    const typeLabel = { call: 'رقم هاتفك', whatsapp: 'واتساب', copy: 'رقم هاتفك' }[req.body.type] || 'معلومات التواصل';
+    const msg = `📢 تنبيه: المستخدم "${viewer.name}" (معرف الملف: ${viewer._id}) شاهد ${typeLabel} في إعلانك "${ad.title}".
+
+رابط الملف الشخصي: https://xtox.app/profile/${viewer._id}`;
+
+    // Send as system chat message to seller (self-chat notification pattern)
+    try {
+      const Chat = (await import('../models/Chat.js')).default;
+      // Use findOneAndUpdate with upsert to atomically find or create the self-notification chat
+      const chat = await Chat.findOneAndUpdate(
+        { buyer: sellerId, seller: sellerId },
+        {
+          $setOnInsert: {
+            buyer: sellerId,
+            seller: sellerId,
+            adTitle: 'إشعارات النظام',
+            status: 'active',
+          }
+        },
+        { upsert: true, new: true }
+      );
+      await Chat.findByIdAndUpdate(chat._id, {
+        $push: {
+          messages: {
+            $each: [{ sender: null, text: msg, type: 'system', createdAt: new Date() }],
+            $slice: -500,
+          }
+        },
+        $inc: { messageCount: 1 },
+        $set: { updatedAt: new Date() }
+      });
+    } catch (_chatErr) {
+      console.warn('[contact-viewed] Chat notification failed (non-fatal):', _chatErr.message);
+    }
+
+    // Also send socket notification if io is available
+    try {
+      const _io = req.app?.get ? req.app.get('io') : null;
+      if (_io) {
+        _io.to('user_' + sellerId.toString()).emit('contact_viewed', {
+          type: req.body.type,
+          viewerName: viewer.name,
+          viewerId: viewer._id.toString(),
+          adTitle: ad.title,
+          adId: ad._id.toString(),
+        });
+      }
+    } catch (_socketErr) { /* non-fatal */ }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('contact-viewed error:', err);
+    res.json({ ok: true }); // non-fatal — always return 200
+  }
+});
+
+// ── GET /api/ads/:id/contact-link — return WA or call URL without exposing phone in frontend ──
+router.get('/:id/contact-link', auth, async (req, res) => {
+  try {
+    const ad = await Ad.findById(req.params.id).lean();
+    if (!ad) return res.status(404).json({ error: 'Not found' });
+
+    // Get phone from ad or from seller profile
+    let phone = ad.phone || ad.whatsapp;
+    if (!phone) {
+      // Try to get from seller profile
+      const sellerId = ad.userId || ad.seller;
+      if (sellerId) {
+        const seller = await User.findById(sellerId).select('phone whatsappPhone').lean();
+        phone = seller?.phone || seller?.whatsappPhone;
+      }
+    }
+    if (!phone) return res.status(404).json({ error: 'No phone' });
+
+    const normalized = phone.replace(/^0/, '20').replace(/[^0-9]/g, '');
+    const type = req.query.type;
+    if (type === 'whatsapp') {
+      const text = encodeURIComponent(`مرحبا، رأيت إعلانك "${ad.title}" على XTOX`);
+      return res.json({ url: `https://wa.me/${normalized}?text=${text}` });
+    }
+    return res.json({ url: `tel:${phone}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

@@ -588,6 +588,44 @@ export default function AdPageClient({ params }) {
     setShowChatBox(true);
   }
 
+  // ── CHANGE 2: Notify seller when buyer views contact info ─────────────────
+  async function notifySellerContactViewed(type) {
+    const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
+    if (!token) return; // only notify if viewer is logged in
+    try {
+      await fetch(`${API}/api/ads/${ad._id}/contact-viewed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ type }) // type: 'call' | 'whatsapp' | 'copy'
+      });
+    } catch (e) { /* non-fatal */ }
+  }
+
+  // ── CHANGE 1: WebRTC call handler — navigate to /call page ────────────────
+  function handleWebRTCCall() {
+    setShowPhoneModal(false);
+    notifySellerContactViewed('call');
+    router.push(`/call?sellerId=${sellerId}&adId=${ad._id}`);
+  }
+
+  // ── CHANGE 1: WhatsApp via backend (hides phone number from DOM) ──────────
+  async function handleWAClick() {
+    notifySellerContactViewed('whatsapp');
+    try {
+      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch(`${API}/api/ads/${ad._id}/contact-link?type=whatsapp`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) { window.open(data.url, '_blank', 'noopener,noreferrer'); return; }
+      }
+    } catch (e) { /* fallback below */ }
+    // Fallback: construct WA URL client-side if backend fails
+    const _phone = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone) || '';
+    const _waNum = _phone.replace(/\D/g, '').replace(/^0/, '20');
+    if (_waNum) window.open('https://wa.me/' + _waNum, '_blank', 'noopener,noreferrer');
+  }
+
   if (adNotFound) return (
     <div style={{ textAlign: 'center', padding: 40, fontFamily: "'Cairo', system-ui, sans-serif" }}>
       <p style={{ fontSize: 24 }}>😕</p>
@@ -652,9 +690,9 @@ export default function AdPageClient({ params }) {
           <a href="/" style={{ background: '#e2e8f0', color: '#64748b', textAlign: 'center', padding: '14px', borderRadius: 12, textDecoration: 'none', fontWeight: 'bold', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🏠 الرئيسية</a>
         )}
         <button onClick={() => {
-          const phone = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone);
-          if (!phone) { alert('رقم الهاتف غير متاح للاتصال'); return; }
-          setShowPhoneModal(true);
+          if (!sellerId) { alert('لا يمكن الاتصال الآن'); return; }
+          notifySellerContactViewed('call');
+          router.push(`/call?sellerId=${sellerId}&adId=${ad._id}`);
         }} style={{ background: '#00aa44', color: 'white', border: 'none', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>📞 مكالمة مباشرة</button>
       </div>
       {showChatBox && ad && (
@@ -667,24 +705,10 @@ export default function AdPageClient({ params }) {
           />
         </div>
       )}
-      {phone && (<button onClick={copyPhone} dir="rtl" style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: copied ? '2px solid #00aa44' : '2px solid #e0e0e0', background: copied ? '#e8f8e8' : '#f8f8f8', color: copied ? '#00aa44' : '#002f34', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
-        {copied ? (<><span style={{ fontSize: 18 }}>✓</span><span>تم النسخ</span></>) : (<><span style={{ fontSize: 16 }}>📋</span><span>نسخ الرقم</span><span style={{ color: '#666', fontWeight: 'normal', fontSize: 13 }}>{phone}</span></>)}
+      {phone && (<button onClick={() => { notifySellerContactViewed('copy'); copyPhone(); }} dir="rtl" style={{ width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, border: copied ? '2px solid #00aa44' : '2px solid #e0e0e0', background: copied ? '#e8f8e8' : '#f8f8f8', color: copied ? '#00aa44' : '#002f34', fontWeight: 'bold', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.25s ease', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}>
+        {copied ? (<><span style={{ fontSize: 18 }}>✓</span><span>تم النسخ</span></>) : (<><span style={{ fontSize: 16 }}>📋</span><span>نسخ الرقم</span><span style={{ color: '#666', fontWeight: 'normal', fontSize: '13px' }}>اضغط للاتصال بالبائع</span></>)}
       </button>)}
-      {phone && (<button onClick={function() {
-        // Notify seller via system message (non-blocking)
-        var _tok = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        var _adId = ad && ad._id ? String(ad._id) : '';
-        if (_tok && _adId) {
-          fetch(API + '/api/chat/whatsapp-notify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + _tok },
-            body: JSON.stringify({ adId: _adId }),
-          }).catch(function() {});
-        }
-        // Open WhatsApp
-        var waNum = (phone || '').replace(/\D/g, '').replace(/^0/, '20');
-        window.open('https://wa.me/' + waNum, '_blank', 'noopener,noreferrer');
-      }} dir="rtl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, background: '#25D366', color: 'white', fontWeight: 'bold', fontSize: 15, border: 'none', cursor: 'pointer', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", boxSizing: 'border-box' }}>
+      {phone && (<button onClick={() => handleWAClick()} dir="rtl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 10, padding: '13px 16px', borderRadius: 12, background: '#25D366', color: 'white', fontWeight: 'bold', fontSize: 15, border: 'none', cursor: 'pointer', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif", boxSizing: 'border-box' }}>
         <span style={{ fontSize: 18 }}>💬</span><span>واتساب</span>
       </button>)}
       <button onClick={async () => { if (navigator.share) { try { await navigator.share({ title: (ad && ad.title) || 'إعلان XTOX', text: (ad && ad.description) || '', url: window.location.href }); } catch (e) {} } else { navigator.clipboard.writeText(window.location.href); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); } }} style={{ display: 'block', width: '100%', padding: '12px', marginTop: '8px', background: shareCopied ? '#16a34a' : '#1877F2', color: '#fff', fontWeight: 'bold', fontSize: '16px', borderRadius: '10px', border: 'none', cursor: 'pointer', transition: 'background 0.3s' }}>
@@ -914,8 +938,6 @@ export default function AdPageClient({ params }) {
         </div>
       )}
       {showPhoneModal && (() => {
-        const phoneNum = (ad && ad.phone) || (ad && ad.userId && ad.userId.phone) || '';
-        const waNum = phoneNum.replace(/\D/g, '').replace(/^0/, '20');
         return (
           <div
             style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
@@ -927,24 +949,20 @@ export default function AdPageClient({ params }) {
               onClick={e => e.stopPropagation()}
             >
               <div style={{ fontSize: 52, marginBottom: 12 }}>📞</div>
-              <h3 style={{ margin: '0 0 8px', fontSize: 20, color: '#002f34', fontWeight: 'bold' }}>اتصل بالبائع</h3>
-              <p style={{ margin: '0 0 20px', color: '#777', fontSize: 14 }}>انقر على الرقم للاتصال مباشرة</p>
-              <a
-                href={'tel:' + phoneNum}
-                style={{ display: 'block', background: '#00aa44', color: 'white', padding: '14px', borderRadius: 12, fontWeight: 'bold', fontSize: 17, textDecoration: 'none', marginBottom: 10 }}
+              <h3 style={{ margin: '0 0 8px', fontSize: 20, color: '#002f34', fontWeight: 'bold' }}>تواصل مع البائع</h3>
+              <p style={{ margin: '0 0 20px', color: '#777', fontSize: 14 }}>اختر طريقة التواصل</p>
+              <button
+                onClick={handleWebRTCCall}
+                style={{display:'block',background:'rgb(0,170,68)',color:'white',padding:'14px',borderRadius:'12px',fontWeight:'bold',fontSize:'17px',width:'100%',border:'none',cursor:'pointer',marginBottom:'10px',fontFamily:"'Cairo','Tajawal',system-ui,sans-serif"}}
               >
-                اتصل الآن: {phoneNum}
-              </a>
-              {waNum && (
-                <a
-                  href={'https://wa.me/' + waNum}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'block', background: '#25D366', color: 'white', padding: '12px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, textDecoration: 'none', marginBottom: 14 }}
-                >
-                  💬 واتساب
-                </a>
-              )}
+                📞 مكالمة صوتية مباشرة
+              </button>
+              <button
+                onClick={() => { setShowPhoneModal(false); handleWAClick(); }}
+                style={{ display: 'block', background: '#25D366', color: 'white', padding: '12px', borderRadius: 12, fontWeight: 'bold', fontSize: 15, marginBottom: 14, border: 'none', cursor: 'pointer', width: '100%', fontFamily: "'Cairo', 'Tajawal', system-ui, sans-serif" }}
+              >
+                💬 واتساب
+              </button>
               <button
                 onClick={() => { setShowPhoneModal(false); try { router.replace(pathname, { scroll: false }); } catch (e) {} }}
                 style={{ background: '#f0f0f0', border: 'none', padding: '10px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, color: '#555', fontFamily: 'inherit' }}
