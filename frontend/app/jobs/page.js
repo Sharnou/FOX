@@ -111,7 +111,7 @@ function JobCard({ job }) {
           href={'/chat?target=' + (job.userId?._id || job.userId?.id || (typeof job.userId === 'string' ? job.userId : ''))}
           aria-label={'محادثة بخصوص وظيفة ' + job.title}
           onClick={(e) => {
-            const token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+            const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
             if (!token) {
               e.preventDefault();
               window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);

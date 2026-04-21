@@ -65,8 +65,8 @@ export default function ProfilePage() {
 
 
   const getToken = () =>
-    localStorage.getItem('token') ||
     localStorage.getItem('xtox_token') ||
+    localStorage.getItem('token') ||
     localStorage.getItem('xtox_admin_token') ||
     localStorage.getItem('authToken') || '';
 
@@ -438,7 +438,7 @@ export default function ProfilePage() {
             const newVal = !soundMuted;
             setSoundMuted(newVal);
             localStorage.setItem('xtox_mute_sounds', newVal ? 'true' : 'false');
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
             if (token) {
               fetch(`${API}/api/chat/sound-settings`, {
                 method: 'PATCH',

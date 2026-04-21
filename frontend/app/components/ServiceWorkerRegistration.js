@@ -23,7 +23,7 @@ export default function ServiceWorkerRegistration() {
             // ── Register push notifications after SW is ready ──────────────
             // Give SW a moment to fully activate before subscribing
             setTimeout(() => {
-              const token = localStorage.getItem('token') || localStorage.getItem('xtox_token') || '';
+              const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
               if (token) {
                 registerPushNotifications(token).catch(() => {});
               }

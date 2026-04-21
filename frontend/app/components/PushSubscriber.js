@@ -18,7 +18,7 @@ export default function PushSubscriber() {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-    const token = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('xtox_token')) : null;
+    const token = typeof localStorage !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null;
     if (!token) return;
 
     let cancelled = false;

@@ -236,7 +236,7 @@ export default function AdComparisonWidget({ ads = [], lang = "ar", onClose }) {
                       <th key={ad._id} style={thStyle(isBest)}>
                         {/* Thumbnail */}
                         {ad.images?.[0] ? (
-                          <img src={ad.images && ad.images[0] ? ad.images[0] : '/placeholder.png'} alt={ad.title} style={imgStyle} />
+                          <img src={ad.images && ad.images[0] ? ad.images[0] : '/no-image.svg'} alt={ad.title} style={imgStyle} />
                         ) : (
                           <div style={noImgStyle}>🏷️</div>
                         )}

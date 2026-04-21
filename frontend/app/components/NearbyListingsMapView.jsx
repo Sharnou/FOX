@@ -242,7 +242,7 @@ export default function NearbyListingsMapView({
                 className="flex gap-3 bg-white border border-gray-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
               >
                 <img
-                  src={ad.images?.[0] || "/placeholder.jpg"}
+                  src={ad.images?.[0] || "/no-image.svg"}
                   alt={ad.title}
                   className="w-20 h-20 rounded-lg object-cover flex-shrink-0 bg-gray-100"
                   loading="lazy"
@@ -277,7 +277,7 @@ export default function NearbyListingsMapView({
           <div className="w-8 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
           <div className={'flex gap-3 ' + (isRTL ? 'flex-row-reverse text-right' : '')}>
             <img
-              src={selectedAd.images?.[0] || "/placeholder.jpg"}
+              src={selectedAd.images?.[0] || "/no-image.svg"}
               alt={selectedAd.title}
               className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
             />

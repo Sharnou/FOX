@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useLanguage } from '../context/LanguageContext';
 
 // Module-level to avoid TDZ after SWC minification
 const MAX_CHARS = 500;

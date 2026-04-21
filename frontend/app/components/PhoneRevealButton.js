@@ -8,8 +8,8 @@ import { useLanguage } from '../context/LanguageContext';
  * Supports Arabic RTL + English LTR
  * Run 118 — XTOX Auto-Upgrade
  */
-export default function PhoneRevealButton({
-  const { t: tr, language, isRTL } = useLanguage(); phone, lang = 'ar' }) {
+export default function PhoneRevealButton({ phone, lang = 'ar' }) {
+  const { t: tr } = useLanguage();
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -86,8 +86,8 @@ export default function PhoneRevealButton({
             justifyContent: 'center',
             transition: 'background 0.2s',
           }}
-          onMouseEnter={e => (e.target.style.backgroundColor = '#1ebe57')}
-          onMouseLeave={e => (e.target.style.backgroundColor = '#25D366')}
+          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#1ebe57')}
+          onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#25D366')}
         >
           {t.show}
         </button>

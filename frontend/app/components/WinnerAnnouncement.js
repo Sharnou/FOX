@@ -39,7 +39,7 @@ export default function WinnerAnnouncement() {
 
     import('socket.io-client').then(({ io }) => {
       if (cancelled) return;
-      const token = localStorage.getItem('token') || localStorage.getItem('xtox_token') || '';
+      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
       const socket = io(SOCKET_URL, {
         auth: { token },
         transports: ['websocket', 'polling'],
@@ -60,7 +60,7 @@ export default function WinnerAnnouncement() {
   useEffect(() => {
     async function checkLatest() {
       try {
-        const token = localStorage.getItem('token') || localStorage.getItem('xtox_token') || '';
+        const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
         const r = await fetch(`${API}/api/winner/latest`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });

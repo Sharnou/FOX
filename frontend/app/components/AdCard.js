@@ -33,7 +33,7 @@ import { useLanguage } from '../context/LanguageContext';
 // Fix D: Added null guard — prevents src={undefined} when url is falsy
 function optimizeImage(url, width) {
   var w = width || 400;
-  if (!url || typeof url !== 'string') return '/placeholder.png';
+  if (!url || typeof url !== 'string') return '/no-image.svg';
   if (!url.includes('cloudinary.com')) return url;
   return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + w + ',c_limit/');
 }
@@ -297,7 +297,7 @@ export default function AdCard({
     e.stopPropagation();
 
     const token =
-      localStorage.getItem('token') || localStorage.getItem('authToken');
+      localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
 
     const adIdStr = String(adId);
 

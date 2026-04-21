@@ -383,7 +383,7 @@ function ChatPageInner() {
     try {
       var stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
       var userObj = stored ? safeParse(stored, null) : null;
-      token = (userObj && userObj.token) || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+      token = (userObj && userObj.token) || (typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null);
     } catch(e) {}
     if (!token) return;
     // Clear stale messages before loading new ones
@@ -446,7 +446,7 @@ function ChatPageInner() {
     try {
       var stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
       var userObj = stored ? safeParse(stored, null) : null;
-      token = (userObj && userObj.token) || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+      token = (userObj && userObj.token) || (typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null);
     } catch(e) {}
     if (!token) {
       setLoginRequired(true);
@@ -799,7 +799,7 @@ function ChatPageInner() {
         try {
           var stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
           var userObj = stored ? JSON.parse(stored) : null;
-          tok = (userObj && userObj.token) || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+          tok = (userObj && userObj.token) || (typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null);
         } catch(e) {}
         if (tok) {
           fetch(API_URL + '/api/chat/' + pid + '/messages?limit=50', { headers: { Authorization: 'Bearer ' + tok } })
@@ -856,7 +856,7 @@ function ChatPageInner() {
       return upd;
     });
     var currentChatId = chatIdRef.current;
-    var token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    var token = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null;
     if (token && currentChatId) {
       fetch(API_URL + '/api/chat/' + currentChatId + '/messages', {
         method: 'POST',

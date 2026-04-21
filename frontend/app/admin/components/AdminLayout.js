@@ -25,6 +25,7 @@ export default function AdminLayout({ children, title }) {
       try {
         const tok =
           localStorage.getItem('xtox_admin_token') ||
+          localStorage.getItem('xtox_token') ||
           localStorage.getItem('token') ||
           localStorage.getItem('authToken') || '';
 

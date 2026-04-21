@@ -467,7 +467,7 @@ export default function AdPageClient({ params }) {
   // ── Check existing review for this ad ─────────────────────────────
   React.useEffect(() => {
     if (!ad || !ad._id) return;
-    const tok = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const tok = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null;
     if (!tok) { setReviewChecked(true); return; }
     fetch(API + '/api/reviews/check/' + ad._id, {
       headers: { Authorization: 'Bearer ' + tok },
@@ -481,7 +481,7 @@ export default function AdPageClient({ params }) {
   }, [ad && ad._id]);
 
   async function submitReview() {
-    const tok = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const tok = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null;
     if (!tok) return alert('يجب تسجيل الدخول أولاً');
     if (!reviewRating) return alert('اختر عدد النجوم');
     if (!reviewComment.trim() || reviewComment.trim().length < 5) {

@@ -13,6 +13,7 @@ function getAdminToken() {
   if (typeof window === 'undefined') return '';
   return (
     localStorage.getItem('xtox_admin_token') ||
+    localStorage.getItem('xtox_token') ||
     localStorage.getItem('token') ||
     localStorage.getItem('authToken') || ''
   );

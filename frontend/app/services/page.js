@@ -243,7 +243,7 @@ export default function ServicesPage() {
                     href={'/chat?target=' + (s.userId?._id || s.userId?.id || (typeof s.userId === 'string' ? s.userId : ''))}
                     className="flex-1 bg-[#002f34] text-white text-center py-2 rounded-xl text-sm font-medium hover:opacity-90 transition"
                     onClick={(e) => {
-                      const token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+                      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
                       if (!token) {
                         e.preventDefault();
                         window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);

@@ -8,6 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 function getToken() {
   return (
     localStorage.getItem('xtox_admin_token') ||
+    localStorage.getItem('xtox_token') ||
     localStorage.getItem('token') ||
     localStorage.getItem('authToken') || ''
   );

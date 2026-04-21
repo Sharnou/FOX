@@ -81,7 +81,7 @@ export default function ProfilePage({ params }) {
   useEffect(() => {
     // Initialize from localStorage (avoids hydration mismatch)
     if (typeof window !== 'undefined') {
-      setToken(localStorage.getItem('token') || '');
+      setToken(localStorage.getItem('xtox_token') || localStorage.getItem('token') || '');
       setMyUserId(localStorage.getItem('userId') || '');
     }
   }, []);
@@ -107,7 +107,7 @@ export default function ProfilePage({ params }) {
 
   // sendDirect: create or find direct message chat and navigate
   async function sendDirectMessage() {
-    const tok = token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+    const tok = token || (typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null);
     if (!tok) { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
     setDmLoading(true);
     try {
@@ -250,7 +250,7 @@ export default function ProfilePage({ params }) {
   async function handleAvatarUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const tok = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const tok = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null;
     if (!tok) return;
     setAvatarUploading(true);
     try {
@@ -456,7 +456,7 @@ export default function ProfilePage({ params }) {
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
             <a href={'/chat?target=' + params.id}
               onClick={(e) => {
-                const tok = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+                const tok = localStorage.getItem('xtox_token') || localStorage.getItem('token');
                 if (!tok) {
                   e.preventDefault();
                   window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);

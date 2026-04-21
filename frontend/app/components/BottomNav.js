@@ -12,7 +12,7 @@ export default function BottomNav() {
   // Detect login state on client only
   useEffect(() => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
       setIsLoggedIn(!!token);
     } catch {}
   }, [pathname]); // re-check on every route change

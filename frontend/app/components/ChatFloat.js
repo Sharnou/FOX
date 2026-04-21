@@ -35,7 +35,7 @@ export default function ChatFloat() {
         const u = JSON.parse(stored);
         // If user object has no token (old format), attach it from standalone key
         if (!u.token) {
-          const t = localStorage.getItem('token') || '';
+          const t = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
           if (t) u.token = t;
         }
         setUser(u);

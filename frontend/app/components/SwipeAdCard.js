@@ -91,7 +91,7 @@ export default function SwipeAdCard({ ads = [], token, onWishlistUpdate }) {
           style={{ transform: 'scale(0.95) translateY(12px)', zIndex: 1 }}
         >
           <img
-            src={secondAd.images?.[0] || '/placeholder.jpg'}
+            src={secondAd.images?.[0] || '/no-image.svg'}
             alt={secondAd.title}
             className="w-full h-60 object-cover"
           />
@@ -123,7 +123,7 @@ export default function SwipeAdCard({ ads = [], token, onWishlistUpdate }) {
           )}
 
           <img
-            src={topAd.images?.[0] || '/placeholder.jpg'}
+            src={topAd.images?.[0] || '/no-image.svg'}
             alt={topAd.title}
             className="w-full h-60 object-cover pointer-events-none"
           />
