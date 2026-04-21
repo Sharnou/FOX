@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "postbuild": "node scripts/generate-sitemap.js"
+    "postbuild": "node scripts/generate-sitemap.js",
+    "build:capacitor": "bash scripts/capacitor-build.sh"
   },
   "dependencies": {
     "@capacitor-community/fcm": "^8.1.0",

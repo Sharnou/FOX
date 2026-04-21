@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">XTOX</string>
+    <string name="title_activity_main">XTOX</string>
+    <string name="package_name">com.xtox.voicecall</string>
+    <string name="custom_url_scheme">com.xtox.voicecall</string>
+</resources>

@@ -1,4 +1,7 @@
-export const dynamic = 'force-dynamic';
+// Capacitor static export: use force-static; data fetched at runtime by AdPageClient
+export const dynamic = 'force-static';
+
+export async function generateStaticParams() { return [{ id: "placeholder" }]; }
 import { notFound } from 'next/navigation';
 import AdPageClient from './AdPageClient';
 
