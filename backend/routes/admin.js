@@ -968,4 +968,74 @@ router.delete('/anonymous-ads', adminAuth, async (req, res) => {
 });
 
 
+
+// ─────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────
+// GET /api/admin/analytics — ads/users per day, top categories & cities
+// ─────────────────────────────────────────────────────────
+router.get('/analytics', adminAuth, async (req, res) => {
+  try {
+    const days  = Math.min(parseInt(req.query.days) || 30, 365);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [adsByDay, usersByDay, topCategories, topCities] = await Promise.all([
+      // Ads created per day
+      Ad.aggregate([
+        { $match: { createdAt: { $gte: since }, isDeleted: { $ne: true } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ]),
+      // New users per day
+      User.aggregate([
+        { $match: { createdAt: { $gte: since } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ]),
+      // Top 10 categories by active ads
+      Ad.aggregate([
+        { $match: { isDeleted: { $ne: true }, status: 'active', category: { $exists: true, $nin: [null, ''] } } },
+        { $group: { _id: '$category', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+      // Top 10 cities by active ads
+      Ad.aggregate([
+        { $match: { isDeleted: { $ne: true }, status: 'active', city: { $exists: true, $nin: [null, ''] } } },
+        { $group: { _id: '$city', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+    ]);
+
+    res.json({ adsByDay, usersByDay, topCategories, topCities, days, since });
+  } catch (e) {
+    console.error('[Admin analytics] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// GET /api/admin/categories/stats — all categories with ad counts
+// ─────────────────────────────────────────────────────────
+router.get('/categories/stats', adminAuth, async (req, res) => {
+  try {
+    const stats = await Ad.aggregate([
+      { $match: { isDeleted: { $ne: true } } },
+      {
+        $group: {
+          _id: { $ifNull: ['$category', 'غير مصنف'] },
+          total:  { $sum: 1 },
+          active: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+        },
+      },
+      { $sort: { total: -1 } },
+    ]);
+    res.json({ stats, total: stats.reduce((s, c) => s + c.total, 0) });
+  } catch (e) {
+    console.error('[Admin categories/stats] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

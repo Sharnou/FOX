@@ -8,20 +8,58 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railw
 // Module-level to avoid TDZ after minification
 const CATS = ['Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion', 'General'];
 
+// ── auth helper (matches admin/page.js localStorage keys) ──
+function getAdminToken() {
+  if (typeof window === 'undefined') return '';
+  return (
+    localStorage.getItem('xtox_admin_token') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('authToken') || ''
+  );
+}
+
+function getAdminUser() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw =
+      localStorage.getItem('xtox_admin_user') ||
+      localStorage.getItem('user') ||
+      localStorage.getItem('currentUser') || '';
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 export default function LanguagePage() {
-  const [words, setWords] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [pending, setPending] = useState([]);
-  const [tab, setTab] = useState('dictionary');
-  const [search, setSearch] = useState('');
+  // ── admin auth gate ─────────────────────────────────────
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAdmin, setIsAdmin]         = useState(false);
+
+  useEffect(() => {
+    const tok  = getAdminToken();
+    const user = getAdminUser();
+    if (tok && ['admin', 'sub_admin', 'superadmin'].includes(user?.role)) {
+      setIsAdmin(true);
+    }
+    setAuthChecked(true);
+  }, []);
+
+  // ── state ───────────────────────────────────────────────
+  const [words, setWords]       = useState([]);
+  const [stats, setStats]       = useState(null);
+  const [pending, setPending]   = useState([]);
+  const [tab, setTab]           = useState('dictionary');
+  const [search, setSearch]     = useState('');
   const [teaching, setTeaching] = useState({ word: '', meaning: '', category: '', subcategory: '', dialect: 'Egyptian' });
   const [learnText, setLearnText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : '';
-  const headers = { Authorization: 'Bearer ' + token };
-  // CATS moved to module level to avoid TDZ
+  const [loading, setLoading]   = useState(false);
 
-  useEffect(() => { fetchAll(); }, [search]);
+  const token   = authChecked ? getAdminToken() : '';
+  const headers = { Authorization: 'Bearer ' + token };
+
+  useEffect(() => {
+    if (isAdmin) fetchAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, isAdmin]);
 
   async function fetchAll() {
     setLoading(true);
@@ -67,6 +105,26 @@ export default function LanguagePage() {
     if (!confirm('حذف هذه الكلمة؟')) return;
     await axios.delete(API + '/api/language/' + id, { headers });
     fetchAll();
+  }
+
+  // ── auth gate UI ─────────────────────────────────────────
+  if (!authChecked) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: '#00ff41', fontFamily: 'monospace' }}>⏳ جارٍ التحقق...</span>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ color: '#ff4444', marginBottom: 12 }}>غير مصرح بالوصول</h2>
+        <p style={{ color: '#8b949e', marginBottom: 24 }}>يجب أن تكون مشرفاً للوصول إلى هذه الصفحة</p>
+        <a href="/admin" style={{ color: '#00ff41', textDecoration: 'none', border: '1px solid #00ff41', padding: '8px 20px', borderRadius: 8 }}>← العودة للوحة الإدارة</a>
+      </div>
+    );
   }
 
   return (
