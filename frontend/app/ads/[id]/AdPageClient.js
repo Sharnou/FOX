@@ -29,53 +29,77 @@ function optimizeImage(url, width = 400) {
   return url;
 }
 function AITranslate({ title, description }) {
-  const [translated, setTranslated] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [lang, setLang] = useState('en');
+  // Bug 2: All required state vars (translateLang, translatedText, isTranslating, translateError)
+  const [translateLang, setTranslateLang] = useState('en');
+  const [translatedText, setTranslatedText] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState(null);
 
-  async function translate() {
-    setLoading(true);
+  // Bug 1: Use backend proxy instead of direct OpenAI call (no key exposure)
+  async function handleTranslate() {
+    if (!translateLang) return;
+    setIsTranslating(true);
+    setTranslateError(null);
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const textToTranslate = [title, description].filter(Boolean).join('\n\n');
+      const res = await fetch(`${API}/api/translate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (process.env.NEXT_PUBLIC_OPENAI_KEY || '') },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: 'Translate this marketplace ad to ' + (lang === 'en' ? 'English' : lang === 'ar' ? 'Arabic' : lang === 'fr' ? 'French' : 'German') + '. Title: ' + title + '. Description: ' + description + '. Return only JSON: {"title":"...","description":"..."}' }],
-          max_tokens: 300
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToTranslate, targetLang: translateLang }),
       });
       const data = await res.json();
-      const parsed = JSON.parse(data.choices[0].message.content);
-      setTranslated(parsed);
-    } catch { setTranslated({ title: 'Translation failed — add OpenAI key to env', description: '' }); }
-    setLoading(false);
+      if (!res.ok) throw new Error(data.error || 'فشل الترجمة');
+      // Bug 3: Set translated text so it displays
+      setTranslatedText(data.translated);
+    } catch (err) {
+      setTranslateError(err.message || 'فشل الترجمة. حاول مرة أخرى.');
+    } finally {
+      setIsTranslating(false);
+    }
   }
 
-  if (translated) return (
-    <div style={{ marginTop: 12, background: '#f0f8ff', border: '1px solid #b3d9ff', borderRadius: 12, padding: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 12, color: '#0066cc', fontWeight: 'bold' }}>🌐 ترجمة</span>
-        <button onClick={() => setTranslated(null)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 18 }}>×</button>
-      </div>
-      <p dir="auto" style={{ fontWeight: 'bold', margin: '0 0 4px', fontSize: 15 }}>{translated.title}</p>
-      <p dir="auto" style={{ color: '#555', margin: 0, fontSize: 13 }}>{translated.description}</p>
-    </div>
-  );
-
   return (
-    <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-      <select value={lang} onChange={e => setLang(e.target.value)}
-        style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, background: 'white' }}>
-        <option value="en">English</option>
-        <option value="ar">العربية</option>
-        <option value="fr">Français</option>
-        <option value="de">Deutsch</option>
-      </select>
-      <button onClick={translate} disabled={loading}
-        style={{ padding: '6px 16px', background: loading ? '#ccc' : '#0066cc', color: 'white', border: 'none', borderRadius: 8, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
-        {loading ? '...' : '🌐 ترجم'}
-      </button>
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Bug 4: Language selector with proper onChange + added es, tr options */}
+        <select
+          value={translateLang}
+          onChange={e => { setTranslateLang(e.target.value); setTranslatedText(''); setTranslateError(null); }}
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, background: 'white' }}
+        >
+          <option value="en">English</option>
+          <option value="ar">العربية</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+          <option value="tr">Türkçe</option>
+        </select>
+        <button
+          onClick={handleTranslate}
+          disabled={isTranslating}
+          style={{ padding: '6px 16px', background: isTranslating ? '#ccc' : '#0066cc', color: 'white', border: 'none', borderRadius: 8, cursor: isTranslating ? 'not-allowed' : 'pointer', fontSize: 13, fontFamily: 'inherit' }}
+        >
+          {/* Bug 1/3: Show proper Arabic loading text */}
+          {isTranslating ? '⏳ جارٍ الترجمة...' : (translatedText ? '✕ إخفاء الترجمة' : '🌐 ترجم')}
+        </button>
+        {translatedText && (
+          <button
+            onClick={() => { setTranslatedText(''); setTranslateError(null); }}
+            style={{ padding: '6px 12px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#555' }}
+          >✕</button>
+        )}
+      </div>
+      {/* Bug 3: Display translated text block */}
+      {translatedText && (
+        <div dir="auto" style={{ marginTop: 12, padding: '14px 16px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 12, fontSize: 14, lineHeight: 1.7, color: '#0c4a6e', position: 'relative' }}>
+          <span style={{ fontSize: 12, color: '#0066cc', fontWeight: 'bold', display: 'block', marginBottom: 6 }}>🌐 ترجمة</span>
+          <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{translatedText}</p>
+        </div>
+      )}
+      {/* Bug 3: Display error in Arabic */}
+      {translateError && (
+        <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8, textAlign: 'center' }}>{translateError}</p>
+      )}
     </div>
   );
 }
