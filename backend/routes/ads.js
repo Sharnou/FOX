@@ -692,6 +692,7 @@ router.get('/subsub-options', async (req, res) => {
 // ── POST /api/ads/admin/auto-categorize-all ─────────────────────────────────
 // Batch-fix all ads where category is "General"/missing (admin only)
 // Must be BEFORE /:id to avoid ID capture
+// Fixes: reduced limit(200), added subcategory: {$exists:false}, 80ms rate limit buffer, better logging
 router.post('/admin/auto-categorize-all', async (req, res) => {
   const adminKey = req.headers['x-admin-key'] || req.query.adminKey;
   if (adminKey !== (process.env.ADMIN_KEY || 'xtox-admin-2026')) {
@@ -699,22 +700,24 @@ router.post('/admin/auto-categorize-all', async (req, res) => {
   }
 
   try {
+    const batchLimit = parseInt(req.query.limit) || 200;
     const ads = await getAdModel().find({
       $or: [
-        { category: { $in: ['General', 'general', '', null] } },
-        { subcategory: { $in: ['General', 'general', 'Other', 'other', '', null] } },
+        { category: { $in: ['General', 'general', 'Other', 'other', '', null] } },
         { category: { $exists: false } },
+        { subcategory: { $in: ['General', 'general', 'Other', 'other', '', null] } },
+        { subcategory: { $exists: false } },
       ]
-    }).select('_id title description category subcategory').limit(500).lean();
+    }).select('_id title description category subcategory').limit(batchLimit).lean();
 
-    console.log(`[BatchCategorize] Found ${ads.length} ads to classify`);
+    console.log(`[BatchCategorize] Found ${ads.length} ads to classify (limit=${batchLimit})`);
 
     let fixed = 0, errors = 0;
     const results = [];
 
     for (const ad of ads) {
       try {
-        const classified = await autoCategorize(ad.title, ad.description || '');
+        const classified = await autoCategorize(ad.title || '', ad.description || '');
         await getAdModel().findByIdAndUpdate(ad._id, {
           category: classified.category,
           subcategory: classified.subcategory,
@@ -724,20 +727,45 @@ router.post('/admin/auto-categorize-all', async (req, res) => {
         fixed++;
         results.push({
           id: ad._id,
-          title: ad.title,
+          title: (ad.title || '').slice(0, 40),
           old: `${ad.category}/${ad.subcategory}`,
           new: `${classified.category}/${classified.subcategory}`,
           provider: classified.provider
         });
-        // Small delay to avoid rate limiting
-        await new Promise(r => setTimeout(r, 100));
+        // Rate limit buffer — avoids hitting Groq/OpenAI quota too fast
+        await new Promise(r => setTimeout(r, 80));
       } catch (err) {
         errors++;
         console.error(`[BatchCategorize] Error on ad ${ad._id}:`, err.message);
+        results.push({ id: ad._id, title: (ad.title || '').slice(0, 40), error: err.message });
       }
     }
 
     res.json({ ok: true, total: ads.length, fixed, errors, results });
+  } catch (err) {
+    console.error('[auto-categorize-all]', err);
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
+// ── POST /api/ads/admin/regenerate-translations ──────────────────────────────
+// Regenerates category translations using Groq AI (admin only)
+// Must be BEFORE /:id to avoid ID capture
+router.post('/admin/regenerate-translations', async (req, res) => {
+  const adminKey = req.headers['x-admin-key'] || req.query.adminKey;
+  if (adminKey !== (process.env.ADMIN_KEY || 'xtox-admin-2026')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const { execFile } = await import('child_process');
+    const scriptPath = (await import('path')).join(
+      (await import('url')).fileURLToPath(new URL('.', import.meta.url)),
+      '../scripts/generateCategoryTranslations.js'
+    );
+    execFile('node', [scriptPath], { timeout: 120000 }, (err, stdout, stderr) => {
+      if (err) return res.status(500).json({ error: err.message, stderr });
+      res.json({ ok: true, output: stdout });
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

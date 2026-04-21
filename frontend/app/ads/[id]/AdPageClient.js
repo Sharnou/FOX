@@ -1,6 +1,9 @@
 'use client';
 
-// Category display map — converts API category IDs to Arabic labels + emoji
+import { getCategoryLabel, getSubcategoryLabel, detectUserLang } from '@/lib/categoryTranslations';
+
+// Legacy CATEGORY_DISPLAY map — kept for backward compatibility
+// Dynamic lookups now use getCategoryLabel(categoryId, userLang) from categoryTranslations
 const CATEGORY_DISPLAY = {
   electronics: { name: 'إلكترونيات', emoji: '📱' },
   cars: { name: 'سيارات', emoji: '🚗' },

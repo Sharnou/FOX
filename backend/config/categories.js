@@ -2,6 +2,10 @@
  * XTOX Full Category Taxonomy
  * Arabic marketplace — Egypt + Arab world
  * Used for AI classification and UI display
+ *
+ * When adding new categories here, regenerate translations:
+ *   node backend/scripts/generateCategoryTranslations.js
+ * Or call: POST /api/ads/admin/regenerate-translations (x-admin-key: xtox-admin-2026)
  */
 const CATEGORIES = [
   {
