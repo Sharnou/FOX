@@ -61,14 +61,19 @@ export const metadata = {
   verification: { google: 'xtox-google-verify', yandex: 'xtox-yandex-verify' },
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    shortcut: '/favicon.svg',
+    apple: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
   },
 };
 
 export const viewport = {
-  themeColor: '#002f34',
+  themeColor: '#FF6B35',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -78,9 +83,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
       <head>
-        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+        {/* Icon links managed via Next.js metadata.icons above */}
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/icon-32.png" sizes="32x32" type="image/png" />
+        <link rel="apple-touch-icon" href="/icon-192.png" sizes="192x192" />
         {/* Viewport — maximum-scale=5 prevents iOS auto-zoom while allowing user zoom */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         {/* PWA / mobile web app */}
@@ -88,7 +94,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="XTOX" />
-        <meta name="theme-color" content="#002f34" />
+        <meta name="theme-color" content="#FF6B35" />
         {/* PWA manifest */}
         <link rel="manifest" href="/manifest.json" />
         {/* dns-prefetch as fallback for browsers that don't support preconnect */}
@@ -110,10 +116,8 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://ipapi.co" />
         <link rel="dns-prefetch" href="https://public-api.wordpress.com" />
         {/* Theme color for browser UI */}
-        <meta name="theme-color" content="#0f172a" />
-        <meta name="msapplication-TileColor" content="#2563eb" />
-        {/* Mobile optimization */}
-        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-TileColor" content="#FF6B35" />
+        {/* Mobile optimization — mobile-web-app-capable already set above */}
         {/* Geo */}
         <meta name="geo.placename" content="Arab World" />
         <meta name="coverage" content="Worldwide" />
