@@ -1061,4 +1061,61 @@ router.get('/categories/stats', adminAuth, async (req, res) => {
   }
 });
 
+
+// POST /api/admin/categories/generate-image
+// Body: { category, subcategory, slug, prompt (optional) }
+// Auth: adminAuth
+// Generates category image via OpenAI DALL-E 3 and uploads to Cloudinary
+router.post('/categories/generate-image', adminAuth, async (req, res) => {
+  try {
+    const { category, subcategory, slug, prompt: customPrompt } = req.body;
+    if (!category || !slug) return res.status(400).json({ error: 'category and slug required' });
+
+    const name = subcategory || category;
+    const prompt = customPrompt ||
+      `Professional marketplace product photo for "${name}" category, clean white background, photorealistic, e-commerce listing, high quality. Arabic marketplace context.`;
+
+    // Call OpenAI DALL-E 3
+    const openaiRes = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'dall-e-3',
+        prompt,
+        n: 1,
+        size: '1024x1024',
+        quality: 'standard',
+        response_format: 'url',
+      }),
+    });
+    const openaiData = await openaiRes.json();
+    if (!openaiData.data?.[0]?.url) {
+      throw new Error('OpenAI image generation failed: ' + JSON.stringify(openaiData));
+    }
+
+    const imageUrl = openaiData.data[0].url;
+
+    // Upload to Cloudinary
+    const { v2: cloudinary } = await import('cloudinary');
+    const uploadResult = await cloudinary.uploader.upload(imageUrl, {
+      public_id: `category-images/${slug}`,
+      folder: 'xtox/categories',
+      overwrite: true,
+      transformation: [{ width: 800, height: 800, crop: 'fill', quality: 'auto', fetch_format: 'auto' }],
+    });
+
+    res.json({
+      imageUrl: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+      slug,
+    });
+  } catch (err) {
+    console.error('[Admin] Category image generation error:', err);
+    res.status(500).json({ error: 'فشل توليد الصورة', details: err.message });
+  }
+});
+
 export default router;

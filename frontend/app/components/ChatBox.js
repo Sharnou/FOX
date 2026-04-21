@@ -393,10 +393,10 @@ export default function ChatBox({
       });
       const data = await msgRes.json();
       if (data.url) {
-        const token2 = localStorage.getItem('xtox_token') || localStorage.getItem('token');
+
         const saveRes = await fetch(API + '/api/chat/' + chatId + '/messages', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token2 },
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
           body: JSON.stringify({ text: data.url, type: 'voice', duration: dur || 0 }),
         });
         const saved = await saveRes.json();

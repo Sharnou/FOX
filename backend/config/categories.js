@@ -10,6 +10,7 @@
 const CATEGORIES = [
   {
     id: 'electronics', name: 'إلكترونيات', nameEn: 'Electronics', emoji: '📱',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/electronics',
     keywords: ['موبايل', 'هاتف', 'آيفون', 'سامسونج', 'لابتوب', 'كمبيوتر', 'تابلت', 'آيباد', 'كاميرا', 'طابعة', 'شاشة', 'سماعة', 'راوتر', 'بلايستيشن', 'xbox', 'phone', 'laptop', 'camera', 'computer'],
     subcategories: [
       { id: 'mobile', name: 'موبايلات وهواتف', nameEn: 'Mobile Phones', emoji: '📱' },
@@ -24,6 +25,7 @@ const CATEGORIES = [
   },
   {
     id: 'cars', name: 'سيارات ومركبات', nameEn: 'Cars & Vehicles', emoji: '🚗',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/cars',
     keywords: ['سيارة', 'عربية', 'موتوسيكل', 'دراجة', 'توك توك', 'شاحنة', 'ميكروباص', 'car', 'motor', 'bike', 'truck', 'يوسف', 'هيونداي', 'تويوتا', 'بيجو', 'رينو', 'مرسيدس', 'بي ام', 'فيات', 'كيا', 'هوندا', 'نيسان'],
     subcategories: [
       { id: 'passenger_car', name: 'سيارات ملاكي', nameEn: 'Passenger Cars', emoji: '🚗' },
@@ -36,6 +38,7 @@ const CATEGORIES = [
   },
   {
     id: 'real_estate', name: 'عقارات', nameEn: 'Real Estate', emoji: '🏠',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/real_estate',
     keywords: ['شقة', 'فيلا', 'دوبلكس', 'أرض', 'محل', 'مكتب', 'استوديو', 'غرفة', 'apartment', 'villa', 'land', 'office', 'shop', 'إيجار', 'بيع', 'تمليك'],
     subcategories: [
       { id: 'apartment_rent', name: 'شقق للإيجار', nameEn: 'Apartments for Rent', emoji: '🏢' },
@@ -48,6 +51,7 @@ const CATEGORIES = [
   },
   {
     id: 'fashion', name: 'أزياء وملابس', nameEn: 'Fashion & Clothing', emoji: '👗',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/fashion',
     keywords: ['ملابس', 'فستان', 'جلابية', 'بنطلون', 'جاكيت', 'حذاء', 'شنطة', 'حقيبة', 'ساعة', 'خاتم', 'عباية', 'حجاب', 'clothes', 'dress', 'shoes', 'bag', 'watch'],
     subcategories: [
       { id: 'mens_clothing', name: 'ملابس رجالي', nameEn: "Men's Clothing", emoji: '👔' },
@@ -61,6 +65,7 @@ const CATEGORIES = [
   },
   {
     id: 'furniture', name: 'أثاث ومنزل', nameEn: 'Furniture & Home', emoji: '🛋️',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/furniture',
     keywords: ['أثاث', 'كنبة', 'سرير', 'دولاب', 'مطبخ', 'غرفة نوم', 'نيم', 'غسالة', 'ثلاجة', 'بوتاجاز', 'مكيف', 'ديكور', 'سجادة', 'furniture', 'sofa', 'bed', 'fridge', 'washing'],
     subcategories: [
       { id: 'living_room', name: 'أثاث صالون وريسبشن', nameEn: 'Living Room Furniture', emoji: '🛋️' },
@@ -73,6 +78,7 @@ const CATEGORIES = [
   },
   {
     id: 'services', name: 'خدمات', nameEn: 'Services', emoji: '🔧',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/services',
     keywords: ['خدمة', 'صيانة', 'تصميم', 'برمجة', 'نقل', 'تعليم', 'دروس', 'مدرس', 'دكتور', 'طب', 'قانوني', 'محاسبة', 'تنظيف', 'حراسة', 'service', 'repair', 'lesson', 'tutor', 'cleaning'],
     subcategories: [
       { id: 'education', name: 'تعليم ودروس', nameEn: 'Education & Tutoring', emoji: '📚' },
@@ -87,6 +93,7 @@ const CATEGORIES = [
   },
   {
     id: 'jobs', name: 'وظائف', nameEn: 'Jobs', emoji: '💼',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/jobs',
     keywords: ['وظيفة', 'شغل', 'عمل', 'مطلوب', 'مرتب', 'راتب', 'توظيف', 'job', 'work', 'hiring', 'vacancy', 'career', 'مبيعات', 'محاسب', 'مهندس', 'طبيب'],
     subcategories: [
       { id: 'job_offered', name: 'وظائف متاحة', nameEn: 'Jobs Available', emoji: '📋' },
@@ -96,6 +103,7 @@ const CATEGORIES = [
   },
   {
     id: 'pets', name: 'حيوانات أليفة', nameEn: 'Pets', emoji: '🐾',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/pets',
     keywords: ['قطة', 'كلب', 'طير', 'أرنب', 'سمكة', 'حصان', 'حيوان', 'بغبغان', 'كناري', 'cat', 'dog', 'bird', 'rabbit', 'fish', 'pet', 'hamster'],
     subcategories: [
       { id: 'cats', name: 'قطط', nameEn: 'Cats', emoji: '🐱' },
@@ -108,6 +116,7 @@ const CATEGORIES = [
   },
   {
     id: 'sports', name: 'رياضة وترفيه', nameEn: 'Sports & Leisure', emoji: '⚽',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/sports',
     keywords: ['رياضة', 'جيم', 'دراجة', 'سكوتر', 'كرة', 'مضرب', 'سباحة', 'صيد', 'سنارة', 'قصبة', 'شبكة', 'صنارة', 'sport', 'gym', 'bike', 'scooter', 'fishing', 'football', 'tennis'],
     subcategories: [
       { id: 'gym_fitness', name: 'جيم ولياقة', nameEn: 'Gym & Fitness', emoji: '🏋️' },
@@ -121,6 +130,7 @@ const CATEGORIES = [
   },
   {
     id: 'kids', name: 'أطفال ومستلزماتهم', nameEn: 'Kids & Baby', emoji: '👶',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/kids',
     keywords: ['طفل', 'أطفال', 'عربية أطفال', 'لعبة', 'مهد', 'سرير أطفال', 'لبس أطفال', 'حفاضات', 'baby', 'kids', 'toy', 'stroller', 'diaper'],
     subcategories: [
       { id: 'toys', name: 'ألعاب أطفال', nameEn: 'Toys', emoji: '🧸' },
@@ -130,6 +140,7 @@ const CATEGORIES = [
   },
   {
     id: 'hobbies', name: 'هوايات وترفيه', nameEn: 'Hobbies', emoji: '🎨',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/hobbies',
     keywords: ['كتاب', 'موسيقى', 'جيتار', 'عود', 'ناي', 'تصوير', 'رسم', 'فن', 'كولكشن', 'تحف', 'عملات', 'book', 'music', 'guitar', 'art', 'collection', 'stamp', 'coin'],
     subcategories: [
       { id: 'books', name: 'كتب ومجلات', nameEn: 'Books & Magazines', emoji: '📚' },
@@ -141,6 +152,7 @@ const CATEGORIES = [
   },
   {
     id: 'agriculture', name: 'زراعة ومواشي', nameEn: 'Agriculture & Livestock', emoji: '🌾',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/agriculture',
     keywords: ['زراعة', 'مواشي', 'أبقار', 'خراف', 'دواجن', 'فراخ', 'بط', 'محصول', 'أرض زراعية', 'معدات زراعة', 'agriculture', 'livestock', 'cattle', 'poultry', 'crops'],
     subcategories: [
       { id: 'livestock', name: 'مواشي وأبقار', nameEn: 'Livestock & Cattle', emoji: '🐄' },
@@ -151,6 +163,7 @@ const CATEGORIES = [
   },
   {
     id: 'food', name: 'أكل وشرب', nameEn: 'Food & Drinks', emoji: '🍕',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/food',
     keywords: ['أكل', 'طعام', 'طبخ', 'وجبة', 'حلويات', 'مخبز', 'عصير', 'قهوة', 'food', 'meal', 'restaurant', 'sweets', 'bakery', 'juice'],
     subcategories: [
       { id: 'homemade_food', name: 'أكل بيتي وحلويات', nameEn: 'Homemade Food & Sweets', emoji: '🍰' },
@@ -160,6 +173,7 @@ const CATEGORIES = [
   },
   {
     id: 'tools', name: 'أدوات ومعدات', nameEn: 'Tools & Equipment', emoji: '🔨',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/tools',
     keywords: ['أداة', 'معدة', 'ماكينة', 'مولد', 'لحام', 'كهرباء', 'سباكة', 'نجارة', 'tool', 'machine', 'generator', 'welding', 'plumbing', 'drill', 'equipment'],
     subcategories: [
       { id: 'power_tools', name: 'أدوات كهربائية', nameEn: 'Power Tools', emoji: '🔌' },
@@ -170,6 +184,7 @@ const CATEGORIES = [
   },
   {
     id: 'general', name: 'متفرقات', nameEn: 'General', emoji: '📦',
+    imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/general',
     keywords: [],
     subcategories: [
       { id: 'other', name: 'أخرى', nameEn: 'Other', emoji: '📦' },

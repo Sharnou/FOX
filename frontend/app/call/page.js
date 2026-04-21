@@ -112,12 +112,15 @@ function CallPageInner() {
     const token = getToken(user);
     if (!token) { router.push('/login'); return; }
 
-    // Fetch Metered TURN creds
+    // Fetch TURN credentials from backend (keeps API key server-side)
     let iceServers = [...ICE_SERVERS_STATIC];
     try {
-      const meteredKey = process.env.NEXT_PUBLIC_METERED_API_KEY || 'EuVCcOArr0ADkyICPSBlS149mE9Ieut5';
-      const res = await fetch(`https://xtox.metered.live/api/v1/turn/credentials?apiKey=${meteredKey}`);
-      if (res.ok) iceServers = [...iceServers, ...(await res.json())];
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production-c2a0.up.railway.app';
+      const res = await fetch(`${apiBase}/api/ice/credentials`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.iceServers) iceServers = [...iceServers, ...data.iceServers];
+      }
     } catch {}
 
     // Get microphone

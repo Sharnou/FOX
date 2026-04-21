@@ -2,10 +2,10 @@ import express from 'express';
 const router = express.Router();
 
 // ── Metered TURN credentials ─────────────────────────────────────────────────
-// App: xtox | API Key (updated): EuVCcOArr0ADkyICPSBlS149mE9Ieut5
+// App: xtox | API Key (updated): b407qSLzRIoMZMVIlidUC19HPqxyLqLrbmXmL_4-NwyeoM6P
 // URL format: https://{appName}.metered.live/api/v1/turn/credentials?apiKey={key}
 const DEFAULT_METERED_APP = 'xtox';
-const DEFAULT_METERED_KEY = 'EuVCcOArr0ADkyICPSBlS149mE9Ieut5';
+const DEFAULT_METERED_KEY = 'b407qSLzRIoMZMVIlidUC19HPqxyLqLrbmXmL_4-NwyeoM6P';
 
 // Proven static TURN servers — used when Metered not configured or unavailable
 const STATIC_ICE = [
