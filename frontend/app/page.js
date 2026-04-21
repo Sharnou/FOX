@@ -957,6 +957,37 @@ export default function Home() {
                       ✏️ تعديل
                     </a>
                   )}
+                  {/* Circular contact button — hide on own ads */}
+                  {!(user && (user._id || user.id) && (
+                    (ad.seller?._id || ad.seller || ad.userId?._id || ad.userId)?.toString() === (user._id || user.id)?.toString()
+                  )) && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                      <button
+                        title="تواصل مع البائع"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
+                          if (!token) { window.location.href = '/login'; return; }
+                          window.location.href = '/ads/' + ad._id + '#chat';
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '36px',
+                          height: '36px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          boxShadow: 'rgba(99, 102, 241, 0.4) 0px 2px 8px',
+                          fontSize: '16px',
+                          flexShrink: 0,
+                        }}
+                      >💬</button>
+                    </div>
+                  )}
                 </div>
               </a>
             ))}

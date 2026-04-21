@@ -299,10 +299,79 @@ export default function NearbyPage() {
     });
   }, []);
 
-  // Register window callback so Leaflet popup button can call it
+  // Register window callbacks so Leaflet popup buttons can call them
   useEffect(() => {
     window.__foxGetDirections = getDirections;
-    return () => { try { delete window.__foxGetDirections; } catch (_) {} };
+
+    // Contact button in map popup — opens mini modal or redirects to login
+    window.__foxContact = function(adId, sellerId, adTitle) {
+      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
+      if (!token) {
+        window.location.href = '/login?redirect=/nearby';
+        return;
+      }
+      const myId = localStorage.getItem('userId') || localStorage.getItem('xtox_user_id') || '';
+      if (myId && sellerId && myId === sellerId) {
+        alert('هذا إعلانك الخاص');
+        return;
+      }
+      const existing = document.getElementById('__foxChatModal');
+      if (existing) existing.remove();
+      const modal = document.createElement('div');
+      modal.id = '__foxChatModal';
+      modal.innerHTML = `
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center;">
+          <div style="background:white;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:500px;direction:rtl;font-family:Cairo,sans-serif;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <strong style="font-size:15px;">💬 راسل البائع</strong>
+              <button onclick="document.getElementById('__foxChatModal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button>
+            </div>
+            <div style="font-size:13px;color:#6b7280;margin-bottom:10px;">${adTitle}</div>
+            <textarea id="__foxChatMsg" placeholder="اكتب رسالتك للبائع..." rows="3" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px;font-size:14px;direction:rtl;resize:none;box-sizing:border-box;font-family:inherit;"></textarea>
+            <div id="__foxChatErr" style="color:#ef4444;font-size:12px;margin:4px 0;display:none;"></div>
+            <button onclick="window.__foxSendMsg('${adId}','${sellerId}')" style="margin-top:8px;width:100%;padding:12px;background:linear-gradient(135deg,rgb(99,102,241),rgb(139,92,246));color:white;border:none;border-radius:10px;font-size:14px;font-weight:bold;cursor:pointer;font-family:inherit;">إرسال ←</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    };
+
+    window.__foxSendMsg = async function(adId, sellerId) {
+      const msg = document.getElementById('__foxChatMsg')?.value?.trim();
+      const errEl = document.getElementById('__foxChatErr');
+      if (!msg) { if (errEl) { errEl.style.display='block'; errEl.textContent='اكتب رسالة أولاً'; } return; }
+      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
+      const btn = document.querySelector('#__foxChatModal button:last-child');
+      if (btn) { btn.disabled=true; btn.textContent='جارٍ الإرسال...'; }
+      try {
+        const res = await fetch('https://xtox-production.up.railway.app/api/chat/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ receiverId: sellerId, adId, message: msg }),
+        });
+        if (res.ok) {
+          document.getElementById('__foxChatModal').remove();
+          const toast = document.createElement('div');
+          toast.textContent = '✓ تم إرسال رسالتك!';
+          toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:10px 20px;border-radius:20px;z-index:9999;font-weight:bold;font-size:14px;font-family:Cairo,sans-serif;';
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          if (errEl) { errEl.style.display='block'; errEl.textContent=err.error||'فشل الإرسال'; }
+          if (btn) { btn.disabled=false; btn.textContent='إرسال ←'; }
+        }
+      } catch(e) {
+        if (errEl) { errEl.style.display='block'; errEl.textContent='تحقق من اتصالك'; }
+        if (btn) { btn.disabled=false; btn.textContent='إرسال ←'; }
+      }
+    };
+
+    return () => {
+      try { delete window.__foxGetDirections; } catch (_) {}
+      try { delete window.__foxContact; } catch (_) {}
+      try { delete window.__foxSendMsg; } catch (_) {}
+    };
   }, [getDirections]);
 
   // ── Load saved ads from localStorage ──
@@ -371,7 +440,9 @@ export default function NearbyPage() {
       const waUrl   = 'https://wa.me/?text=' + encodeURIComponent(ad.title + ' - ' + window.location.origin + '/ads/' + ad._id);
 
 
-      const popupContent = '\n        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;max-width:250px">\n          ' + (img ? '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display=\'none\'" alt="' + (ad.title || 'إعلان') + '" loading="lazy">' + '" loading="lazy">' : '') + '\n          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (ad.title || '') + '">' + (ad.title || 'إعلان') + '</div>\n          ' + ((ad.subsub && ad.subsub !== 'Other') || ad.category ? '<div style="background:#f0f7f4;color:#002f34;font-size:10px;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">' + ((ad.subsub && ad.subsub !== 'Other') ? ad.subsub : ad.category) + '</div>' + '</div>' : '') + '\n          <div style="color:#e74c3c;font-weight:700;font-size:14px;margin-bottom:4px">' + price + '</div>\n          ' + (dist ? '<div style="color:#888;font-size:11px;margin-bottom:8px">📍 ' + dist + '</div>' + '</div>' : '') + '\n          <div style="display:flex;gap:6px;flex-wrap:wrap">\n            <a href="/ads/' + ad._id + '" style="flex:1;min-width:80px;background:#002f34;color:#fff;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">' + LABELS.viewAdFull + '</a>\n            <button data-lat="' + lat + '" data-lng="' + lng + '" data-name="' + encodeURIComponent(ad.title || '') + '" onclick="window.__foxGetDirections(parseFloat(this.dataset.lat),parseFloat(this.dataset.lng),decodeURIComponent(this.dataset.name))" style="background:#4285F4;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;border:none;cursor:pointer;font-family:Cairo,sans-serif" title="الاتجاهات">' + LABELS.navigate + '</button>\n            <a href="' + waUrl + '" target="_blank" rel="noopener" style="background:#25D366;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;text-decoration:none" title="مشاركة واتساب">💬</a>\n          </div>\n        </div>\n      ';
+      const adSellerId = (ad.userId?._id || ad.userId || ad.seller?._id || ad.seller || '').toString();
+      const adTitleSafe = (ad.title || '').replace(/'/g, '').replace(/"/g, '');
+      const popupContent = '\n        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;max-width:250px">\n          ' + (img ? '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display=\'none\'" alt="' + (ad.title || 'إعلان') + '" loading="lazy">' : '') + '\n          <div style="font-weight:700;font-size:14px;color:#002f34;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (ad.title || '') + '">' + (ad.title || 'إعلان') + '</div>\n          ' + ((ad.subsub && ad.subsub !== 'Other') || ad.category ? '<div style="background:#f0f7f4;color:#002f34;font-size:10px;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">' + ((ad.subsub && ad.subsub !== 'Other') ? ad.subsub : ad.category) + '</div>' : '') + '\n          <div style="color:#e74c3c;font-weight:700;font-size:14px;margin-bottom:4px">' + price + '</div>\n          ' + (dist ? '<div style="color:#888;font-size:11px;margin-bottom:8px">📍 ' + dist + '</div>' : '') + '\n          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">\n            <a href="/ads/' + ad._id + '" style="flex:1;min-width:80px;background:#002f34;color:#fff;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">' + LABELS.viewAdFull + '</a>\n            <button data-lat="' + lat + '" data-lng="' + lng + '" data-name="' + encodeURIComponent(ad.title || '') + '" onclick="window.__foxGetDirections(parseFloat(this.dataset.lat),parseFloat(this.dataset.lng),decodeURIComponent(this.dataset.name))" style="background:#4285F4;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;border:none;cursor:pointer;font-family:Cairo,sans-serif" title="الاتجاهات">' + LABELS.navigate + '</button>\n            <button onclick="window.__foxContact(\'' + ad._id + '\',\'' + adSellerId + '\',\'' + adTitleSafe + '\')" title="تواصل مع البائع" style="background:linear-gradient(135deg,rgb(99,102,241),rgb(139,92,246));border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:rgba(99,102,241,0.4) 0px 2px 8px;font-size:16px;flex-shrink:0;">💬</button>\n          </div>\n        </div>\n      ';
 
       const marker = L.marker([lat, lng], { icon });
       marker.bindPopup(popupContent, { maxWidth: 260, className: 'xtox-popup' });

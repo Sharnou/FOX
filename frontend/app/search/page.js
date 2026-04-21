@@ -360,12 +360,39 @@ export default function SearchPage() {
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ fontWeight: 'bold', fontSize: 13, margin: 0 }}>{ad.title?.slice(0, 30)}</p>
                   <p style={{ color: '#002f34', fontWeight: 'bold', fontSize: 14, margin: '4px 0' }}>{ad.price} {ad.currency}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <VerifiedBadge
-                      emailVerified={ad.userId?.emailVerified || ad.seller?.emailVerified}
-                      whatsappVerified={ad.userId?.whatsappVerified || ad.seller?.whatsappVerified}
-                    />
-                    <p style={{ color: '#999', fontSize: 11, margin: 0 }}>👁 {ad.views} · {ad.city}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <VerifiedBadge
+                        emailVerified={ad.userId?.emailVerified || ad.seller?.emailVerified}
+                        whatsappVerified={ad.userId?.whatsappVerified || ad.seller?.whatsappVerified}
+                      />
+                      <p style={{ color: '#999', fontSize: 11, margin: 0 }}>👁 {ad.views} · {ad.city}</p>
+                    </div>
+                    {/* Circular contact button */}
+                    <button
+                      title="تواصل مع البائع"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
+                        if (!token) { window.location.href = '/login'; return; }
+                        window.location.href = '/ads/' + ad._id + '#chat';
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '36px',
+                        height: '36px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: 'rgba(99, 102, 241, 0.4) 0px 2px 8px',
+                        fontSize: '16px',
+                        flexShrink: 0,
+                      }}
+                    >💬</button>
                   </div>
                 </div>
               </a>

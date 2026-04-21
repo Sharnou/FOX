@@ -180,6 +180,9 @@ export default function AdCard({
   const [chatSent, setChatSent] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState('');
+  // ── Current user id (for own-ad check) ───────────────────────────────────
+  const [currentUserId, setCurrentUserId] = useState(null);
+
   // ── Media carousel state ──────────────────────────────────────────────────
   const [imgIndex, setImgIndex] = useState(0);
   const touchStartX = useRef(null);
@@ -197,6 +200,12 @@ export default function AdCard({
       // ignore parse errors
     }
   }, [adId]);
+
+  // Load current user id for own-ad detection
+  useEffect(() => {
+    const uid = localStorage.getItem('userId') || localStorage.getItem('xtox_user_id') || localStorage.getItem('xtox_userId');
+    setCurrentUserId(uid || null);
+  }, []);
 
   // ── Increment view count when card mounts (non-blocking, silent fail) ──
   useEffect(() => {
@@ -394,6 +403,10 @@ export default function AdCard({
 
   // ── FIX 2: Correct ad detail URL using normalized adId ──────────────────
   const adDetailUrl = '/ads/' + adId;
+
+  // Own-ad detection: hide contact button on own ads
+  const _sellerId = ad.userId?._id || ad.userId || ad.seller?._id || ad.seller;
+  const isOwnAd = !!(currentUserId && _sellerId && String(currentUserId) === String(_sellerId));
 
   // #123/#125 — Determine promotion tier + subcategory theme
   const promoType = ad.promotion?.type || 'none';
@@ -667,39 +680,54 @@ export default function AdCard({
           <StarRating rating={rating} count={ratingCount} />
           {ad.aiQualityScore != null && <AIQualityBadge score={ad.aiQualityScore} />}
         </div>
-        {/* ── FIX 3: Chat button — bottom left of card info ────────────────── */}
-        <div className="mt-2 flex items-center justify-between">
+        {/* Stats row */}
+        <div className="mt-2">
           <p className="text-xs text-gray-500 m-0">👁 {viewCount} | {ad.city}</p>
-          {/* Chat button — always visible on every AdCard */}
-          <button
-            onClick={handleChat}
-            title="تواصل مع البائع"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              border: 'none', borderRadius: '50%', width: 36, height: 36,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
-              fontSize: 16, flexShrink: 0,
-            }}
-          >
-            💬
-          </button>
         </div>
 
-        {/* Feature 2 — "عرض الإعلان" inline expand button */}
-        <button
-          onClick={showAdDetails}
-          style={{
-            width: '100%', padding: '8px',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            color: 'white', border: 'none', borderRadius: '10px',
-            fontWeight: 'bold', fontSize: '13px',
-            cursor: 'pointer', marginBottom: '6px', marginTop: '8px',
-            display: 'block',
-          }}
-        >
-          {loadingAd ? '...' : expanded ? '▲ إخفاء' : '▼ عرض الإعلان'}
-        </button>
+        {/* Action row: expand button + circular contact button */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '8px' }}>
+          {/* Expand button */}
+          <button
+            onClick={showAdDetails}
+            style={{
+              flex: 1, padding: '7px',
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              color: 'white', border: 'none', borderRadius: '10px',
+              fontWeight: 'bold', fontSize: '12px', cursor: 'pointer',
+            }}
+          >
+            {loadingAd ? '...' : expanded ? '▲ إخفاء' : '▼ عرض الإعلان'}
+          </button>
+
+          {/* Circular contact button — only on other people\'s ads */}
+          {!isOwnAd && (
+            <button
+              title="تواصل مع البائع"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
+                if (!token) { window.location.href = '/login'; return; }
+                setChatOpen(o => !o);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: 'rgba(99, 102, 241, 0.4) 0px 2px 8px',
+                fontSize: '16px',
+                flexShrink: 0,
+              }}
+            >💬</button>
+          )}
+        </div>
 
         {/* Inline expanded ad details */}
         {expanded && fullAd && (
@@ -735,23 +763,9 @@ export default function AdCard({
           </div>
         )}
 
-        {/* Feature 3 — Mini chat box */}
-        <div style={{ marginTop: '6px' }} onClick={e => e.stopPropagation()}>
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setChatOpen(o => !o); }}
-            style={{
-              width: '100%', padding: '7px',
-              background: chatOpen ? '#f3f4f6' : 'white',
-              color: '#374151', border: '1px solid #e5e7eb',
-              borderRadius: '10px', fontWeight: 'bold', fontSize: '12px',
-              cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', gap: '6px',
-            }}
-          >
-            💬 {chatOpen ? 'إغلاق الرسالة' : 'راسل البائع'}
-          </button>
-
-          {chatOpen && (
+        {/* Feature 3 — Mini chat box panel (toggled by circular button above) */}
+        {chatOpen && !isOwnAd && (
+          <div style={{ marginTop: '6px' }} onClick={e => e.stopPropagation()}>
             <div style={{ marginTop: '6px', padding: '8px', background: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
               {chatSent ? (
                 <div style={{ color: '#22c55e', textAlign: 'center', fontWeight: 'bold', fontSize: '13px' }}>✓ تم إرسال رسالتك!</div>
@@ -788,8 +802,8 @@ export default function AdCard({
                 </>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Link>
   );
