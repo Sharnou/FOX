@@ -4,11 +4,8 @@ import ScrollToTop from './components/ScrollToTop';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 import UnifiedNotificationPrompt from './components/UnifiedNotificationPrompt';
-import BottomNav from './components/BottomNav';
-import FloatingSearchBar from './components/FloatingSearchBar';
 import ErrorCapture from './components/ErrorCapture';
-import ChatFloat from './components/ChatFloat';
-import WhatsAppFloat from './components/WhatsAppFloat';
+import ConditionalLayout from './components/ConditionalLayout';
 import TranslationLoader from './components/TranslationLoader';
 import PushSubscriber from './components/PushSubscriber';
 import FCMInit from './components/FCMInit';
@@ -151,14 +148,11 @@ export default function RootLayout({ children }) {
         <PushSubscriber />
       <ErrorCapture />
         {children}
-        <FloatingSearchBar />
+        <ConditionalLayout />
         <ScrollToTop />
         <PWAInstallPrompt />
         <ServiceWorkerRegistration />
         <UnifiedNotificationPrompt />
-        <BottomNav />
-        <ChatFloat />
-        <WhatsAppFloat />
         <TranslationLoader />
       </LanguageProvider>
       </body>
