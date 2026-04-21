@@ -57,6 +57,9 @@ const AdSchema = new mongoose.Schema({
   // AI quality scoring
   aiQualityScore: { type: Number, default: null },
   aiQualityTips: [String],
+  // AI auto-categorization tracking
+  categoryAutoClassified: { type: Boolean, default: false },
+  classificationProvider: { type: String, default: null },
   // Contact phone number (optional, provided by seller)
   phone: { type: String, default: null },
   whatsapp: { type: String, default: null }, // separate WhatsApp contact

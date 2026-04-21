@@ -26,6 +26,7 @@ import { moderateAdContent } from '../utils/adModeration.js';
 import { createWPPost, deleteWPPost, updateWPPost } from '../utils/wordpress.js';
 import { addPointsToUser } from '../utils/points.js';
 import { locationToCountry, countryFromIP } from '../utils/geoCountry.js';
+import { autoCategorize } from '../services/autoCategorize.js';
 
 // ── Anti-gaming: 1 view point per user per ad per 24h ───────────────────────
 // Key: "${adId}-${userId}", value: timestamp of last point award
@@ -688,6 +689,60 @@ router.get('/subsub-options', async (req, res) => {
   }
 });
 
+// ── POST /api/ads/admin/auto-categorize-all ─────────────────────────────────
+// Batch-fix all ads where category is "General"/missing (admin only)
+// Must be BEFORE /:id to avoid ID capture
+router.post('/admin/auto-categorize-all', async (req, res) => {
+  const adminKey = req.headers['x-admin-key'] || req.query.adminKey;
+  if (adminKey !== (process.env.ADMIN_KEY || 'xtox-admin-2026')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  try {
+    const ads = await getAdModel().find({
+      $or: [
+        { category: { $in: ['General', 'general', '', null] } },
+        { subcategory: { $in: ['General', 'general', 'Other', 'other', '', null] } },
+        { category: { $exists: false } },
+      ]
+    }).select('_id title description category subcategory').limit(500).lean();
+
+    console.log(`[BatchCategorize] Found ${ads.length} ads to classify`);
+
+    let fixed = 0, errors = 0;
+    const results = [];
+
+    for (const ad of ads) {
+      try {
+        const classified = await autoCategorize(ad.title, ad.description || '');
+        await getAdModel().findByIdAndUpdate(ad._id, {
+          category: classified.category,
+          subcategory: classified.subcategory,
+          categoryAutoClassified: true,
+          classificationProvider: classified.provider
+        });
+        fixed++;
+        results.push({
+          id: ad._id,
+          title: ad.title,
+          old: `${ad.category}/${ad.subcategory}`,
+          new: `${classified.category}/${classified.subcategory}`,
+          provider: classified.provider
+        });
+        // Small delay to avoid rate limiting
+        await new Promise(r => setTimeout(r, 100));
+      } catch (err) {
+        errors++;
+        console.error(`[BatchCategorize] Error on ad ${ad._id}:`, err.message);
+      }
+    }
+
+    res.json({ ok: true, total: ads.length, fixed, errors, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET single ad ──
 router.get('/:id', async (req, res) => {
   // Fix E: Validate ObjectId before DB query to avoid CastError and return clean 404
@@ -1210,6 +1265,29 @@ router.post('/', auth, multerUpload, async (req, res) => {
       } catch (_dbDetErr) { /* non-fatal */ }
     }
 
+    // AI AUTO-CATEGORIZATION — runs when category is missing, "General", or subcategory is missing
+    // Priority: Groq → OpenAI → keyword fallback (non-fatal — any failure keeps existing values)
+    const _needsAICategory = !finalCategory ||
+      finalCategory === 'General' ||
+      finalCategory === 'general' ||
+      !finalSubcategory ||
+      finalSubcategory === 'Other' ||
+      finalSubcategory === 'other';
+
+    if (_needsAICategory && title) {
+      try {
+        const _classified = await autoCategorize(title, description || '');
+        finalCategory = _classified.category;
+        finalSubcategory = _classified.subcategory;
+        console.log(`[AutoCategorize] "${title}" → ${_classified.category}/${_classified.subcategory} (${_classified.provider})`);
+        // Store provider info so we can track it on the ad document
+        // (injected into create payload below via _autoClassifyMeta)
+        req._autoClassifyMeta = { categoryAutoClassified: true, classificationProvider: _classified.provider };
+      } catch (_aiErr) {
+        console.warn('[AutoCategorize] Failed on create, keeping existing category:', _aiErr.message);
+      }
+    }
+
     // CHANGE 2: Prevent same user posting duplicate title or description
     // Skip if client sends forceDuplicate=true (user confirmed they want to post anyway)
     const _forceDuplicate = body.forceDuplicate === 'true' || body.forceDuplicate === true;
@@ -1268,6 +1346,8 @@ router.post('/', auth, multerUpload, async (req, res) => {
         subcategory: finalSubcategory,
         subsub: finalSubsub,
         level4: level4 || null,
+        categoryAutoClassified: req._autoClassifyMeta?.categoryAutoClassified || false,
+        classificationProvider: req._autoClassifyMeta?.classificationProvider || null,
         price,
         city,
         currency: currency || 'EGP',
@@ -2131,6 +2211,26 @@ router.post('/debug-create', async (req, res) => {
   }
 });
 
+
+// ── POST /api/ads/:id/auto-categorize — re-classify a single ad ──────────────
+router.post('/:id/auto-categorize', auth, async (req, res) => {
+  try {
+    const ad = await Ad.findById(req.params.id);
+    if (!ad) return res.status(404).json({ error: 'Ad not found' });
+
+    const classified = await autoCategorize(ad.title, ad.description || '');
+
+    ad.category = classified.category;
+    ad.subcategory = classified.subcategory;
+    ad.categoryAutoClassified = true;
+    ad.classificationProvider = classified.provider;
+    await ad.save();
+
+    res.json({ ok: true, category: classified.category, subcategory: classified.subcategory, provider: classified.provider });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── POST /api/ads/:id/contact-viewed — notify seller when buyer views contact info ──
 router.post('/:id/contact-viewed', auth, async (req, res) => {

@@ -1,4 +1,24 @@
 'use client';
+
+// Category display map — converts API category IDs to Arabic labels + emoji
+const CATEGORY_DISPLAY = {
+  electronics: { name: 'إلكترونيات', emoji: '📱' },
+  cars: { name: 'سيارات', emoji: '🚗' },
+  real_estate: { name: 'عقارات', emoji: '🏠' },
+  fashion: { name: 'أزياء', emoji: '👗' },
+  furniture: { name: 'أثاث ومنزل', emoji: '🛋️' },
+  services: { name: 'خدمات', emoji: '🔧' },
+  jobs: { name: 'وظائف', emoji: '💼' },
+  pets: { name: 'حيوانات', emoji: '🐾' },
+  sports: { name: 'رياضة', emoji: '⚽' },
+  kids: { name: 'أطفال', emoji: '👶' },
+  hobbies: { name: 'هوايات', emoji: '🎨' },
+  agriculture: { name: 'زراعة', emoji: '🌾' },
+  food: { name: 'أكل وشرب', emoji: '🍕' },
+  tools: { name: 'أدوات', emoji: '🔨' },
+  general: { name: 'متفرقات', emoji: '📦' },
+};
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { detectLang } from '../../../lib/lang';
@@ -688,7 +708,7 @@ export default function AdPageClient({ params }) {
       <p dir="auto" style={{ color: '#555', lineHeight: 1.6, marginBottom: 12 }}>{ad.description}</p>
       <div style={{ display: 'flex', gap: 16, color: '#999', fontSize: 13, marginBottom: 8, flexWrap: 'wrap' }}>
         <span>📍 {ad.city}</span><span>👁 {displayedViews} مشاهدة</span>
-        <span>📁 {ad.category}</span>
+        <span>{(CATEGORY_DISPLAY[ad.category] || CATEGORY_DISPLAY[ad.category?.toLowerCase()] || { name: ad.category || 'متفرقات', emoji: '📦' }).emoji} {(CATEGORY_DISPLAY[ad.category] || CATEGORY_DISPLAY[ad.category?.toLowerCase()] || { name: ad.category || 'متفرقات', emoji: '📦' }).name}</span>
         <span style={{ color: '#e44' }}>⏰ ينتهي {ad.expiresAt ? new Date(ad.expiresAt).toLocaleDateString('ar-EG') : ''}</span>
       </div>
       {callStatus && (

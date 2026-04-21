@@ -1,5 +1,25 @@
 'use client';
 
+// Category display map — converts API category IDs to Arabic labels + emoji
+const CATEGORY_DISPLAY = {
+  electronics: { name: 'إلكترونيات', emoji: '📱' },
+  cars: { name: 'سيارات', emoji: '🚗' },
+  real_estate: { name: 'عقارات', emoji: '🏠' },
+  fashion: { name: 'أزياء', emoji: '👗' },
+  furniture: { name: 'أثاث ومنزل', emoji: '🛋️' },
+  services: { name: 'خدمات', emoji: '🔧' },
+  jobs: { name: 'وظائف', emoji: '💼' },
+  pets: { name: 'حيوانات', emoji: '🐾' },
+  sports: { name: 'رياضة', emoji: '⚽' },
+  kids: { name: 'أطفال', emoji: '👶' },
+  hobbies: { name: 'هوايات', emoji: '🎨' },
+  agriculture: { name: 'زراعة', emoji: '🌾' },
+  food: { name: 'أكل وشرب', emoji: '🍕' },
+  tools: { name: 'أدوات', emoji: '🔨' },
+  general: { name: 'متفرقات', emoji: '📦' },
+};
+
+
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -847,7 +867,7 @@ export default function AdCard({
               <p style={{ margin: '0 0 6px', lineHeight: '1.5', color: '#4b5563' }}>{fullAd.description}</p>
             )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: '8px' }}>
-              {fullAd.category && <span>📂 {fullAd.category}</span>}
+              {fullAd.category && <span>{(CATEGORY_DISPLAY[fullAd.category] || CATEGORY_DISPLAY[fullAd.category?.toLowerCase()] || { name: fullAd.category, emoji: '📦' }).emoji} {(CATEGORY_DISPLAY[fullAd.category] || CATEGORY_DISPLAY[fullAd.category?.toLowerCase()] || { name: fullAd.category, emoji: '📦' }).name}</span>}
               {fullAd.subcategory && <span>🏷 {fullAd.subcategory}</span>}
               {fullAd.city && <span>📍 {fullAd.city}</span>}
               {fullAd.condition && <span>✨ {fullAd.condition}</span>}
