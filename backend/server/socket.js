@@ -573,6 +573,44 @@ export function initSocket(io) {
       io.to(callerSocketId).emit('call:answered_ready', { responderSocketId: socket.id });
     });
 
+
+    // ── Presence: check multiple users online status ─────────────
+    // Frontend emits this to get initial presence for all conversation partners
+    socket.on('presence:check', async ({ userIds }, callback) => {
+      if (!Array.isArray(userIds) || typeof callback !== 'function') return;
+      const statuses = {};
+      try {
+        await Promise.all(userIds.map(async (uid) => {
+          try {
+            const socks = await io.in('user_' + String(uid)).fetchSockets();
+            statuses[String(uid)] = socks.length > 0 ? 'online' : 'offline';
+          } catch {
+            statuses[String(uid)] = 'offline';
+          }
+        }));
+      } catch {}
+      callback(statuses);
+    });
+
+    // ── user:online — alternative join alias used by ChatFloat ────
+    socket.on('user:online', (userId) => {
+      if (!userId || typeof userId !== 'string') return;
+      socket.data.userId = userId;
+      socket.join('user_' + userId);
+      console.log('[Socket] user:online alias joined room:', 'user_' + userId);
+    });
+
+    // ── call:decline — callee explicitly declines via ChatFloat banner ──
+    socket.on('call:decline', ({ callId, callerSocketId, callerId }) => {
+      if (callerSocketId) {
+        io.to(callerSocketId).emit('call:rejected');
+        console.log('[Socket] call:decline → callerSocketId:', callerSocketId);
+      } else if (callerId) {
+        io.to('user_' + String(callerId)).emit('call:rejected');
+        console.log('[Socket] call:decline → user room:', callerId);
+      }
+    });
+
     // ── Disconnect ───────────────────────────────────────────────
     socket.on('disconnect', async () => {
       const userId = socket.data.userId;
