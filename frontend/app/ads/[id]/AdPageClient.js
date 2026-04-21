@@ -643,7 +643,7 @@ export default function AdPageClient({ params }) {
   }
 
   function handleStartChat() {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? (localStorage.getItem("xtox_token") || localStorage.getItem("token")) : null;
     if (!token) {
       const returnUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
       window.location.href = '/login?redirect=' + encodeURIComponent(returnUrl);

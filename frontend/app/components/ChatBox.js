@@ -313,14 +313,14 @@ export default function ChatBox({
   // Action functions
   async function deleteChat() {
     if (!chatId) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
     if (!token) return;
     await fetch(`${API}/api/chat/${chatId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
     setOpen(false);
   }
 
   async function muteChat() {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
     if (!chatId || !token) return;
     const r = await fetch(`${API}/api/chat/${chatId}/mute`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => ({}));
     const d = await r.json?.() || {};
@@ -329,14 +329,14 @@ export default function ChatBox({
   }
 
   async function ignoreChat() {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
     if (!chatId || !token) return;
     await fetch(`${API}/api/chat/${chatId}/ignore`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
     setOpen(false);
   }
 
   async function reportChat() {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
     if (!chatId || !token) return;
     const reason = prompt('سبب الإبلاغ') || '';
     await fetch(`${API}/api/chat/${chatId}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason }) }).catch(() => {});
@@ -410,7 +410,7 @@ export default function ChatBox({
     const sendMessage = useCallback(async (msgText) => {
     const textToSend = msgText || text;
     if (!textToSend.trim() || !chatId || sending) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
     if (!token) return;
     if (!msgText) setText('');
     setSending(true);
@@ -461,7 +461,7 @@ export default function ChatBox({
   if (myId && targetId && String(myId) === String(targetId)) return null;
 
   async function handleOpen() {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
     if (!token) {
       window.location.href = '/login';
       return;

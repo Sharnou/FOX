@@ -3,7 +3,7 @@
 // Adapted from XTOX for Next.js (App Router) — uses NEXT_PUBLIC_* env vars.
 
 const API_URL = (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : '') || '';
-const tokenKey = 'fox_token';
+const tokenKey = 'xtox_token';
 
 const getToken = () => (typeof localStorage !== 'undefined' ? localStorage.getItem(tokenKey) : null);
 const getStoredCountry = () => (typeof localStorage !== 'undefined' ? localStorage.getItem('fox_country') : null);

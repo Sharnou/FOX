@@ -227,7 +227,7 @@ function ChatPageInner() {
 
   // Immediate auth check — redirect to login if no token
   useEffect(function() {
-    var token = localStorage.getItem('token') || localStorage.getItem('xtox_token');
+    var token = localStorage.getItem('xtox_token') || localStorage.getItem('token');
     if (!token) { router.push('/login'); return; }
   }, []);
 
@@ -297,7 +297,7 @@ function ChatPageInner() {
       }
       // Via REST fallback (ensures DB is updated even if socket fails):
       var token = null;
-      try { token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('xtox_token')) : null; } catch(e) {}
+      try { token = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null; } catch(e) {}
       if (token) {
         fetch(API_URL + '/api/chat/' + cid + '/read', {
           method: 'POST',
@@ -566,7 +566,7 @@ function ChatPageInner() {
     if (!myId) return;
     var ioModule = await import('socket.io-client');
     var io = ioModule.io || ioModule.default;
-    var token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('xtox_token') || '') : '';
+    var token = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token') || '') : '';
     var s = io(SOCKET_URL, { auth: { token: token }, transports: ['websocket', 'polling'], withCredentials: true });
     socketRef.current = s;
     setSocketInstance(s);
