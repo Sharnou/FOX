@@ -1,6 +1,7 @@
 'use client';
 
 import { getCategoryLabel, getSubcategoryLabel, detectUserLang } from '@/lib/categoryTranslations';
+import { getAdDefaultImage } from '@/lib/categoryImages';
 
 // Legacy CATEGORY_DISPLAY map — kept for backward compatibility
 // Dynamic lookups now use getCategoryLabel(categoryId, userLang) from categoryTranslations
@@ -721,7 +722,7 @@ export default function AdPageClient({ params }) {
       ) : media.length > 0 ? (
         <ImageCarousel images={media} title={ad.title} />
       ) : (
-        <div style={{ height: 200, background: '#f0f0f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 60 }}>📦</div>
+        <img src={getAdDefaultImage(ad)} alt={ad.title} style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 12 }} />
       )}
       <h1 dir="auto" style={{ fontSize: 22, fontWeight: 'bold', marginTop: 16, marginBottom: 4 }}>{ad.title}</h1>
       <p style={{ fontSize: 26, color: '#002f34', fontWeight: 'bold', margin: '4px 0 8px' }}>{ad.price} {ad.currency}</p>
@@ -865,12 +866,9 @@ export default function AdPageClient({ params }) {
                   <a key={item._id} href={'/ads/' + item._id} style={{ textDecoration: 'none', color: 'inherit', borderRadius: 10, overflow: 'hidden', border: '1px solid #eee', background: 'white', display: 'block', transition: 'box-shadow 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.12)'}
                     onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                    {itemImg ? (
-                      <img src={optimizeImage(itemImg, 200)} alt={item.title} loading="lazy"
-                        style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }} />
-                    ) : (
-                      <div style={{ height: 100, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>
-                    )}
+                    <img src={itemImg ? optimizeImage(itemImg, 200) : getAdDefaultImage(item)} alt={item.title} loading="lazy"
+                        style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
+                        onError={e => { e.target.onerror = null; e.target.src = getAdDefaultImage(item); }} />
                     <div style={{ padding: '8px 10px' }}>
                       <p dir="auto" style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 'bold', color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
                       <p style={{ margin: 0, fontSize: 13, color: '#002f34', fontWeight: 'bold' }}>{item.price} {item.currency}</p>

@@ -1,6 +1,7 @@
 'use client';
 
 import { getCategoryLabel, getSubcategoryLabel, detectUserLang } from '@/lib/categoryTranslations';
+import { getAdDefaultImage } from '@/lib/categoryImages';
 
 // Legacy CATEGORY_DISPLAY map — kept for backward compatibility
 // New code should use getCategoryLabel(categoryId, lang) from categoryTranslations
@@ -604,12 +605,15 @@ export default function AdCard({
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             onError={(e) => {
               e.target.onerror = null;
-              e.target.style.display = 'none';
-              e.target.parentElement.innerHTML += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;color:#ccc">📷</div>';
+              e.target.src = getAdDefaultImage(ad);
             }}
           />
         ) : (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 40 }}>📷</div>
+          <img
+            src={getAdDefaultImage(ad)}
+            alt={ad?.title || 'إعلان'}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
         )}
 
         {/* Navigation dots for multiple images */}

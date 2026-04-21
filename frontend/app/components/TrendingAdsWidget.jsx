@@ -4,6 +4,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.r
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { detectLang } from '../../lib/lang';
+import { getAdDefaultImage } from '@/lib/categoryImages';
 
 const LABELS = {
   ar: { title: 'الإعلانات الرائجة', hot: '🔥 رائج', noAds: 'لا توجد إعلانات رائجة حالياً', error: 'تعذّر تحميل الإعلانات' },
@@ -86,18 +87,15 @@ export default function TrendingAdsWidget({ lang = 'ar', countryCode = 'EG', cur
 
               {/* Ad image */}
               <div className="relative w-full h-32 bg-gray-50">
-                {ad.images?.[0] ? (
-                  <Image
-                    src={ad.images && ad.images[0] ? ad.images[0] : '/no-image.svg'}
+                <Image
+                    src={getAdDefaultImage(ad)}
                     alt={ad.title || ''}
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 50vw, 33vw"
                     unoptimized
+                    onError={e => { e.target.src = getAdDefaultImage(ad); }}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">🖼️</div>
-                )}
               </div>
 
               {/* Ad info */}

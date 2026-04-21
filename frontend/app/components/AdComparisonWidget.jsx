@@ -1,5 +1,6 @@
 "use client";
 import { useState, useCallback } from "react";
+import { getAdDefaultImage } from "@/lib/categoryImages";
 
 /**
  * AdComparisonWidget — XTOX Marketplace
@@ -235,11 +236,8 @@ export default function AdComparisonWidget({ ads = [], lang = "ar", onClose }) {
                     return (
                       <th key={ad._id} style={thStyle(isBest)}>
                         {/* Thumbnail */}
-                        {ad.images?.[0] ? (
-                          <img src={ad.images && ad.images[0] ? ad.images[0] : '/no-image.svg'} alt={ad.title} style={imgStyle} />
-                        ) : (
-                          <div style={noImgStyle}>🏷️</div>
-                        )}
+                        <img src={getAdDefaultImage(ad)} alt={ad.title} style={imgStyle}
+                            onError={e => { e.target.onerror = null; e.target.src = getAdDefaultImage(ad); }} />
                         <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
                           {ad.title?.slice(0, 30) || "—"}
                         </div>
