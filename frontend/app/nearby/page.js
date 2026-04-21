@@ -476,7 +476,11 @@ export default function NearbyPage() {
     setFetchError(null);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
-      const res   = await fetch(API + '/api/geo/nearby?lat=' + lat + '&lng=' + lng + '&radius=' + radius, {
+      // BUG 2 FIX: pass excludeSeller so backend excludes own ads even for non-JWT requests
+      let _nearbyMyId = '';
+      try { if (token) _nearbyMyId = JSON.parse(atob(token.split('.')[1]))?.id || ''; } catch {}
+      const _excludeParam = _nearbyMyId ? '&excludeSeller=' + _nearbyMyId : '';
+      const res   = await fetch(API + '/api/geo/nearby?lat=' + lat + '&lng=' + lng + '&radius=' + radius + _excludeParam, {
         headers: token ? { Authorization: 'Bearer ' + token } : {},
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);

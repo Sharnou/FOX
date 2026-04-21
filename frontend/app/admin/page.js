@@ -55,9 +55,9 @@ function StatCard({ label, value, icon, color }) {
   );
 }
 
-function Badge({ children, color = '#8b949e', bg = '#21262d' }) {
+function Badge({ children, color = '#8b949e', bg = '#21262d', title }) {
   return (
-    <span style={{ background: bg, color, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+    <span title={title} style={{ background: bg, color, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: title ? 'help' : 'default' }}>
       {children}
     </span>
   );
@@ -149,6 +149,8 @@ export default function AdminPage() {
   const [wpSyncing, setWpSyncing] = useState(false);
   const [wpResult, setWpResult] = useState(null);
   const [wpStatus, setWpStatus] = useState(null); // null | { connected, site, user } | { error }
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [wpTokenInput, setWpTokenInput] = useState('');
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -203,7 +205,7 @@ export default function AdminPage() {
       const [sRes, uRes, aRes, rRes] = await Promise.all([
         apiFetch('/api/admin/stats', {}, t),
         apiFetch('/api/admin/users', {}, t),
-        apiFetch('/api/admin/ads?limit=200', {}, t),
+        apiFetch('/api/admin/ads?limit=500', {}, t),
         apiFetch('/api/admin/reports', {}, t),
       ]);
       if (sRes.ok) setStats(sRes.data);
@@ -274,7 +276,7 @@ export default function AdminPage() {
       setUsers(prev => prev.map(x => x._id === u._id ? { ...x, isSuspended: data.suspended } : x));
       showToast(data.suspended ? '🔇 تم إيقاف المستخدم وإعلاناته' : '✅ تم استعادة المستخدم');
     } else showToast('خطأ: ' + (data?.error || 'فشل'));
-  }, [apiFetch, token, showToast]);
+  }, [token, showToast]);
 
   const handleToggleAdmin = useCallback(async (u) => {
     const { ok, data } = await patch('/api/admin/users/' + u._id + '/make-admin', {});
@@ -449,7 +451,9 @@ export default function AdminPage() {
                 <StatCard label="إجمالي الإعلانات" value={stats.totalAds} icon="📋" color="#00ff41" />
                 <StatCard label="الإعلانات النشطة" value={stats.activeAds} icon="✅" color="#00ff41" />
                 <StatCard label="الإعلانات المميزة" value={stats.featuredAds} icon="⭐" color="#ffd700" />
-                <StatCard label="المستخدمون المحظورون" value={stats.bannedUsers} icon="🚫" color="#ff4444" />
+                <StatCard label="المحظورون" value={stats.bannedUsers} icon="🚫" color="#ff4444" />
+                <StatCard label="الموقوفون" value={stats.suspendedUsers ?? 0} icon="⏸️" color="#ff8800" />
+                <StatCard label="البلاغات المعلقة" value={stats.pendingReports ?? 0} icon="🚨" color="#ff4444" />
               </div>
             ) : (
               <div style={{ color: '#8b949e', textAlign: 'center', padding: 40 }}>جارٍ تحميل الإحصائيات...</div>
@@ -468,7 +472,8 @@ export default function AdminPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#8b949e' }}>إجمالي المستخدمين</span><span style={{ color: '#00d4ff' }}>{stats?.totalUsers || 0}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#ff4444' }}>محظورون</span><span style={{ color: '#ff4444' }}>{stats?.bannedUsers || 0}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#8b949e' }}>بلاغات معلقة</span><span style={{ color: '#ff4444' }}>{reports.length}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#ff8800' }}>موقوفون</span><span style={{ color: '#ff8800' }}>{stats?.suspendedUsers ?? 0}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#8b949e' }}>بلاغات معلقة</span><span style={{ color: '#ff4444' }}>{stats?.pendingReports ?? reports.length}</span></div>
                 </div>
               </div>
             </div>
@@ -517,7 +522,9 @@ export default function AdminPage() {
                       <td style={ADMIN_S.td}>
                         {u.isBanned
                           ? <Badge color="#ff4444" bg="#3d1a1a">🚫 محظور</Badge>
-                          : <Badge color="#00ff41" bg="#1f3a1f">✅ نشط</Badge>}
+                          : u.isSuspended
+                            ? <Badge color="#ff8800" bg="#2d1a00" title={u.suspendReason || ''}>⏸️ موقوف</Badge>
+                            : <Badge color="#00ff41" bg="#1f3a1f">✅ نشط</Badge>}
                       </td>
                       <td style={{ ...ADMIN_S.td, color: '#8b949e', fontSize: 11 }}>
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-EG') : '—'}
@@ -898,14 +905,15 @@ export default function AdminPage() {
                 <h3 style={{ color: '#00d4ff', fontSize: 14, margin: '0 0 14px' }}>📢 إرسال رسالة جماعية</h3>
                 <textarea
                   placeholder="اكتب رسالتك هنا..."
-                  id="broadcast-msg"
+                  value={broadcastMsg}
+                  onChange={e => setBroadcastMsg(e.target.value)}
                   style={{ width: '100%', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '8px', color: '#fff', fontSize: 12, fontFamily: 'Cairo, monospace', resize: 'vertical', height: 80, boxSizing: 'border-box', marginBottom: 10, direction: 'rtl' }}
                 />
-                <Btn onClick={() => {
-                  const msg = document.getElementById('broadcast-msg').value;
-                  if (!msg) return;
-                  apiFetch('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ message: msg }) }, token)
-                    .then(r => { if (r.ok) showToast('تم الإرسال!'); else showToast('خطأ: ' + (r.data.error || 'فشل')); });
+                <Btn onClick={async () => {
+                  if (!broadcastMsg.trim()) return showToast('يرجى كتابة رسالة أولاً');
+                  const r = await apiFetch('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ message: broadcastMsg.trim() }) }, token);
+                  if (r.ok) { showToast('✅ تم إرسال الرسالة لجميع المستخدمين!'); setBroadcastMsg(''); }
+                  else showToast('❌ خطأ: ' + (r.data?.error || 'فشل الإرسال'));
                 }} color="#ffd700">📢 إرسال</Btn>
               </div>
             </div>
@@ -962,13 +970,13 @@ export default function AdminPage() {
                 <input
                   type="text"
                   placeholder="الصق رمز WordPress هنا..."
-                  id="wp-token-input"
+                  value={wpTokenInput}
+                  onChange={e => setWpTokenInput(e.target.value)}
                   style={{ flex: 1, background: '#0d1117', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px', color: '#e6edf3', fontSize: 12, fontFamily: 'Cairo, monospace' }}
                 />
                 <button
                   onClick={async () => {
-                    const tokenInput = document.getElementById('wp-token-input');
-                    const tok = tokenInput ? tokenInput.value.trim() : '';
+                    const tok = wpTokenInput.trim();
                     if (!tok) return;
                     try {
                       const r = await fetch((process.env.NEXT_PUBLIC_API_URL || '') + '/api/wp/save-token', {
@@ -977,7 +985,8 @@ export default function AdminPage() {
                         body: JSON.stringify({ token: tok })
                       });
                       const d = await r.json();
-                      setWpResult(d.success ? { message: `✅ تم حفظ الرمز: ${d.user}` } : { error: d.error });
+                      if (d.success) { setWpResult({ message: `✅ تم حفظ الرمز: ${d.user}` }); setWpTokenInput(''); }
+                      else setWpResult({ error: d.error || 'فشل حفظ الرمز' });
                     } catch (e) { setWpResult({ error: e.message }); }
                   }}
                   style={{ background: '#1f6feb', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontFamily: 'Cairo, sans-serif', whiteSpace: 'nowrap' }}

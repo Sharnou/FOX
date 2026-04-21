@@ -531,14 +531,31 @@ export default function AdPageClient({ params }) {
     useEffect(() => {
     if (!ad) return;
     setRelatedLoading(true);
-    const qs = new URLSearchParams({ limit: '6', exclude: ad._id || '' });
+    // BUG 1+3 FIX: decode JWT to get current user ID for server-side + client-side exclusion
+    let myId = null;
+    try {
+      const _tok = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') : null;
+      if (_tok) myId = JSON.parse(atob(_tok.split('.')[1]))?.id || null;
+    } catch {}
+    const qs = new URLSearchParams({ limit: '6' });
+    if (ad._id) qs.set('exclude', ad._id);           // exclude current ad (Bug 3)
     if (ad.category) qs.set('category', ad.category);
     if (ad.country) qs.set('country', ad.country);
+    if (myId) qs.set('excludeSeller', myId);          // exclude own ads (Bug 1)
     fetch(API + '/api/ads?' + qs)
       .then(r => r.ok ? r.json() : [])
       .then(data => {
         const list = Array.isArray(data) ? data : (data.ads || data.data || []);
-        setRelatedAds(list.filter(a => a._id !== ad._id).slice(0, 6));
+        // Client-side safety net: also filter own ads + current ad
+        const filtered = list.filter(a => {
+          if (String(a._id) === String(ad._id)) return false;
+          if (myId) {
+            const sid = String(a.userId?._id || a.userId || a.seller?._id || a.seller || '');
+            if (sid && sid === String(myId)) return false;
+          }
+          return true;
+        });
+        setRelatedAds(filtered.slice(0, 6));
       })
       .catch(() => {})
       .finally(() => setRelatedLoading(false));
@@ -840,8 +857,10 @@ export default function AdPageClient({ params }) {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {relatedAds.map(item => {
-                const itemMedia = item.media || item.images || [];
-                const itemImg = Array.isArray(itemMedia) ? itemMedia[0] : itemMedia;
+                // BUG 4 FIX: explicitly check both images and media fields; call optimizeImage on both
+                const itemImg = item.images?.[0] || item.media?.[0] ||
+                  (Array.isArray(item.images) ? item.images[0] : null) ||
+                  (Array.isArray(item.media) ? item.media[0] : null) || null;
                 return (
                   <a key={item._id} href={'/ads/' + item._id} style={{ textDecoration: 'none', color: 'inherit', borderRadius: 10, overflow: 'hidden', border: '1px solid #eee', background: 'white', display: 'block', transition: 'box-shadow 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.12)'}

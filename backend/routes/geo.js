@@ -189,6 +189,18 @@ router.get('/nearby', geoOptionalAuth, async (req, res) => {
       }
     }
 
+    // BUG 2 FIX: Also support excludeSeller query param (defense in depth — works for anonymous users too)
+    if (req.query.excludeSeller) {
+      const _esSellerId = req.query.excludeSeller;
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $nor: [
+          { userId: _esSellerId },
+          { seller: _esSellerId },
+        ]
+      });
+    }
+
     const ads = await Ad.find(filter).limit(100);
 
     const R = 6371;

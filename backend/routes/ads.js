@@ -1,4 +1,5 @@
 import express from 'express';
+import { adminAuth } from '../middleware/auth.js';
 import { writeFile, unlink } from 'fs/promises';
 import Ad from '../models/Ad.js';
 import { dbState, MemAd } from '../server/memoryStore.js';
@@ -216,6 +217,28 @@ router.get('/', async (req, res) => {
     if (city) filter.city = city;
     if (querySubcategory) filter.subcategory = querySubcategory;
     if (querySubsub) filter.subsub = querySubsub;
+
+    // BUG 3 FIX: Support exclude=<adId> — exclude the current ad from related ads
+    if (req.query.exclude) {
+      try {
+        if (mongoose.Types.ObjectId.isValid(req.query.exclude)) {
+          filter._id = { $ne: new mongoose.Types.ObjectId(req.query.exclude) };
+        }
+      } catch (_exErr) { /* invalid ObjectId — skip */ }
+    }
+
+    // BUG 1 FIX: Support excludeSeller=<userId> — exclude a specific seller's own ads
+    // Used by related ads / nearby to hide own ads when user is not logged in via JWT
+    if (req.query.excludeSeller) {
+      const _exSellerId = req.query.excludeSeller;
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $nor: [
+          { userId: _exSellerId },
+          { seller: _exSellerId },
+        ]
+      });
+    }
     // #127 — $text search (MongoDB full-text with relevance scoring)
     // $regex removed: $text is faster, supports Arabic, and enables relevance ranking
     // Note: handled below as early-return aggregation when searchQuery is present
@@ -695,8 +718,26 @@ router.get('/subsub-options', async (req, res) => {
 // Fixes: reduced limit(200), added subcategory: {$exists:false}, 80ms rate limit buffer, better logging
 router.post('/admin/auto-categorize-all', async (req, res) => {
   const adminKey = req.headers['x-admin-key'] || req.query.adminKey;
-  if (adminKey !== (process.env.ADMIN_KEY || 'xtox-admin-2026')) {
-    return res.status(403).json({ error: 'Forbidden' });
+  const validKey = adminKey === (process.env.ADMIN_KEY || 'xtox-admin-2026');
+  if (!validKey) {
+    // Also accept admin JWT token
+    try {
+      const { default: jwt } = await import('jsonwebtoken');
+      const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
+      const authHeader = (req.headers.authorization || '').trim();
+      const tok = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader;
+      if (tok && tok.length > 20) {
+        const decoded = jwt.verify(tok, JWT_SECRET);
+        if (!['admin', 'sub_admin', 'superadmin'].includes(decoded.role)) {
+          return res.status(403).json({ error: 'Forbidden — admin role required' });
+        }
+        // JWT valid + admin role — allow through
+      } else {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    } catch {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
   }
 
   try {
@@ -753,8 +794,24 @@ router.post('/admin/auto-categorize-all', async (req, res) => {
 // Must be BEFORE /:id to avoid ID capture
 router.post('/admin/regenerate-translations', async (req, res) => {
   const adminKey = req.headers['x-admin-key'] || req.query.adminKey;
-  if (adminKey !== (process.env.ADMIN_KEY || 'xtox-admin-2026')) {
-    return res.status(403).json({ error: 'Forbidden' });
+  const validKey2 = adminKey === (process.env.ADMIN_KEY || 'xtox-admin-2026');
+  if (!validKey2) {
+    try {
+      const { default: jwt } = await import('jsonwebtoken');
+      const JWT_SECRET = process.env.JWT_SECRET || 'fox-default-secret';
+      const authHeader = (req.headers.authorization || '').trim();
+      const tok = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader;
+      if (tok && tok.length > 20) {
+        const decoded = jwt.verify(tok, JWT_SECRET);
+        if (!['admin', 'sub_admin', 'superadmin'].includes(decoded.role)) {
+          return res.status(403).json({ error: 'Forbidden — admin role required' });
+        }
+      } else {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    } catch {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
   }
   try {
     const { execFile } = await import('child_process');

@@ -42,14 +42,16 @@ const router = express.Router();
 // ─────────────────────────────────────────────────────────
 router.get('/stats', adminAuth, async (req, res) => {
   try {
-    const [totalUsers, totalAds, activeAds, featuredAds, bannedUsers] = await Promise.all([
+    const [totalUsers, totalAds, activeAds, featuredAds, bannedUsers, suspendedUsers, pendingReports] = await Promise.all([
       User.countDocuments(),
       Ad.countDocuments({ isDeleted: { $ne: true } }),
       Ad.countDocuments({ status: 'active', isDeleted: { $ne: true } }),
       Ad.countDocuments({ isFeatured: true, featuredUntil: { $gt: new Date() }, isDeleted: { $ne: true } }),
       User.countDocuments({ isBanned: true }),
+      User.countDocuments({ isSuspended: true }),
+      Report.countDocuments({ resolved: false }),
     ]);
-    res.json({ totalUsers, totalAds, activeAds, featuredAds, bannedUsers });
+    res.json({ totalUsers, totalAds, activeAds, featuredAds, bannedUsers, suspendedUsers, pendingReports });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -60,11 +62,28 @@ router.get('/stats', adminAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────
 router.get('/users', adminAuth, async (req, res) => {
   try {
-    const users = await User.find({}, {
+    // Build search filter
+    const searchQ = (req.query.search || '').trim();
+    const pageNum  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limitNum = Math.min(1000, parseInt(req.query.limit) || 1000);
+    const skipNum  = (pageNum - 1) * limitNum;
+
+    const filter = {};
+    if (searchQ) {
+      filter.$or = [
+        { name:          { $regex: searchQ, $options: 'i' } },
+        { email:         { $regex: searchQ, $options: 'i' } },
+        { xtoxId:        { $regex: searchQ, $options: 'i' } },
+        { whatsappPhone: { $regex: searchQ, $options: 'i' } },
+        { phone:         { $regex: searchQ, $options: 'i' } },
+      ];
+    }
+
+    const users = await User.find(filter, {
       _id: 1, xtoxId: 1, name: 1, email: 1, whatsappPhone: 1,
-      role: 1, isBanned: 1, createdAt: 1, googleId: 1, country: 1,
-      phone: 1, lastSeen: 1,
-    }).sort({ createdAt: -1 }).lean();
+      role: 1, isBanned: 1, isSuspended: 1, suspendReason: 1,
+      createdAt: 1, googleId: 1, country: 1, phone: 1, lastSeen: 1,
+    }).sort({ createdAt: -1 }).skip(skipNum).limit(limitNum).lean();
 
     const userIds = users.map(u => u._id);
     const adCounts = await Ad.aggregate([
