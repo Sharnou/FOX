@@ -305,7 +305,14 @@ export default function AdPageClient({ params }) {
               adData.media = adData.images || [];
             }
             setAd(adData);
-            try { recordRecentView(adData._id || params.id); } catch {}
+            // Fix A: Don't save own ads to recently viewed
+            try {
+              const _uid = localStorage.getItem('userId') || localStorage.getItem('xtox_user_id') || localStorage.getItem('xtox_userId') || '';
+              const _sellerId = String(adData.userId?._id || adData.userId || adData.seller?._id || adData.seller || '');
+              if (!_uid || _sellerId !== String(_uid)) {
+                recordRecentView(adData._id || params.id);
+              }
+            } catch {}
           } else {
             setAdNotFound(true);
           }

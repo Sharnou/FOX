@@ -15,6 +15,20 @@ const CAT_SUBSUB_MAP = {
   services: ['HomeServices','Cleaning','Repairs','Education','Health','Transport','Design','Plumber','Electrician','Carpenter','Painter','ACRepair','PestControl','HomeCleaning','OfficeCleaning','CarWash','SofaCleaning','Electronics','Appliances','Furniture','Math','Science','Languages','Quran','Music','Fitness','Nutrition','Salon','Spa','FurnitureMoving','AirportTransfer','LogoDesign','Print','WebDesign','Video','Photography'],
 };
 
+// ─── Get current user ID (defensive, tries multiple keys + JWT decode) ────────
+function getCurrentUserId() {
+  try {
+    const uid = localStorage.getItem('userId') ||
+                localStorage.getItem('xtox_user_id') ||
+                localStorage.getItem('xtox_userId') || '';
+    if (uid) return uid;
+    const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
+    if (!token) return '';
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload._id || payload.id || payload.userId || '';
+  } catch { return ''; }
+}
+
 // ─── Arabic constants & labels ───────────────────────────────────────────────
 const LABELS = {
   title: '🗺️ إعلانات قريبة',
@@ -420,6 +434,12 @@ export default function NearbyPage() {
       : adList;
 
     filtered.forEach(ad => {
+      // Double-check: skip own ads (second-layer guard)
+      const _guardId = getCurrentUserId();
+      if (_guardId) {
+        const _sid = String(ad.userId?._id || ad.userId || ad.seller?._id || ad.seller || '');
+        if (_sid && _sid === String(_guardId)) return;
+      }
       const lat = ad.location?.coordinates?.[1] || ad.lat;
       const lng = ad.location?.coordinates?.[0] || ad.lng;
       if (!lat || !lng) return;
@@ -462,8 +482,16 @@ export default function NearbyPage() {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data   = await res.json();
       const adList = Array.isArray(data) ? data : (data.ads || []);
-      setAds(adList);
-      plotAds(adList);
+      // ── Second-layer filter: remove own ads ──
+      const _myId = getCurrentUserId();
+      const filteredAdList = _myId
+        ? adList.filter(ad => {
+            const sid = String(ad.userId?._id || ad.userId || ad.seller?._id || ad.seller || '');
+            return sid !== String(_myId);
+          })
+        : adList;
+      setAds(filteredAdList);
+      plotAds(filteredAdList);
 
       // Nearby new-ad alert
       if (adList.length > 0 && adList[0]._id !== lastAlertAdId.current) {
@@ -567,8 +595,16 @@ export default function NearbyPage() {
               .then(r => r.json())
               .then(data => {
                 const adList = Array.isArray(data) ? data : (data.ads || []);
-                setAds(adList);
-                plotAds(adList);
+                // Filter own ads from fallback fetch too
+                const _myId2 = getCurrentUserId();
+                const filteredFallback = _myId2
+                  ? adList.filter(ad => {
+                      const sid = String(ad.userId?._id || ad.userId || ad.seller?._id || ad.seller || '');
+                      return sid !== String(_myId2);
+                    })
+                  : adList;
+                setAds(filteredFallback);
+                plotAds(filteredFallback);
               })
               .catch(() => setFetchError(LABELS.fetchError))
               .finally(() => setLoading(false));

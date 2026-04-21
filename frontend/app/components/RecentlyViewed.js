@@ -41,6 +41,25 @@ export function recordRecentView(adId) {
 export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
   const [ads, setAds] = useState([]);
 
+  // Fix C: Clean up any stored own ad IDs when the component mounts
+  useEffect(() => {
+    try {
+      const _myId = localStorage.getItem('userId') || localStorage.getItem('xtox_user_id') || localStorage.getItem('xtox_userId') || '';
+      if (!_myId) return;
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      // IDs only — can't filter without fetching; but if stored as objects, filter by seller
+      if (stored.length && typeof stored[0] === 'object') {
+        const cleaned = stored.filter(ad => {
+          const sid = String(ad.userId?._id || ad.userId || ad.seller?._id || ad.seller || '');
+          return sid !== String(_myId);
+        });
+        if (cleaned.length !== stored.length) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+        }
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     async function load() {
       try {
@@ -50,7 +69,18 @@ export default function RecentlyViewed({ currentAdId, lang = 'ar' }) {
         const results = await Promise.allSettled(
           ids.map(id => fetch(API + '/api/ads/' + id, { signal: AbortSignal.timeout(8000) }).then(r => r.ok ? r.json() : null))
         );
-        setAds(results.flatMap(r => (r.status === 'fulfilled' && r.value ? [r.value] : [])));
+        const fetchedAds = results.flatMap(r => (r.status === 'fulfilled' && r.value ? [r.value] : []));
+        // Fix B: filter out own ads from recently viewed display
+        const _myId = typeof window !== 'undefined'
+          ? (localStorage.getItem('userId') || localStorage.getItem('xtox_user_id') || localStorage.getItem('xtox_userId') || '')
+          : '';
+        const displayAds = _myId
+          ? fetchedAds.filter(ad => {
+              const sid = String(ad.userId?._id || ad.userId || ad.seller?._id || ad.seller || '');
+              return sid !== String(_myId);
+            })
+          : fetchedAds;
+        setAds(displayAds);
       } catch {}
     }
     load();
