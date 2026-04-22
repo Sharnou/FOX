@@ -54,6 +54,7 @@ import userRoutes, { seedSuperAdmin } from '../routes/users.js';
 import adRoutes from '../routes/ads.js';
 import chatRoutes from '../routes/chat.js';
 import adminRoutes from '../routes/admin.js';
+import adminPromotionsRouter from '../routes/adminPromotions.js';
 import jobRoutes from '../routes/jobs.js';
 import serviceRoutes from '../routes/services.js';
 import supermarketRoutes from '../routes/supermarket.js';
@@ -249,6 +250,7 @@ app.use((req, res, next) => {
 app.use('/api/users', userRoutes);
 app.use('/api/ads', adRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/admin/promotions', adminPromotionsRouter);
 app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/services', serviceRoutes);

@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/categories', label: 'التصنيفات',   icon: '🗂️' },
   { href: '/admin/analytics',  label: 'الإحصائيات',  icon: '📈' },
   { href: '/admin/language',   label: 'اللغات',      icon: '🌐' },
+  { href: '/admin/promotions', label: 'طلبات التمييز', icon: '💳' },
 ];
 
 export default function AdminLayout({ children, title }) {

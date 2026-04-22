@@ -4,6 +4,8 @@ import { auth } from '../middleware/auth.js';
 import Ad from '../models/Ad.js';
 import User from '../models/User.js';
 import PendingPayment from '../models/PendingPayment.js';
+import Promotion from '../models/Promotion.js';
+import multer from 'multer';
 
 const router = express.Router();
 
@@ -381,6 +383,41 @@ router.post('/webhook', async (req, res) => {
             }
             await ad.save();
             console.log(`[STRIPE WEBHOOK] Promotion applied: adId=${adId} plan=${plan} user=${userId}`);
+            // Create/update Promotion record in DB
+            try {
+              const startDate = now;
+              const endDate = new Date(now.getTime() + p.days * 24 * 60 * 60 * 1000);
+              const freshAd = await Ad.findById(adId).populate('seller userId', 'name email phone').lean();
+              const seller = freshAd?.seller || freshAd?.userId;
+              await Promotion.findOneAndUpdate(
+                { stripeSessionId: session.id },
+                {
+                  adId, userId: userId || freshAd?.userId,
+                  plan, durationDays: p.days,
+                  amount: session.amount_total || Math.round(p.priceUSD * 100),
+                  currency: (session.currency || 'usd').toUpperCase(),
+                  paymentMethod: 'stripe',
+                  stripeSessionId: session.id,
+                  stripePaymentIntentId: session.payment_intent,
+                  stripeCustomerId: session.customer,
+                  status: 'active',
+                  confirmedAt: now,
+                  startDate, endDate,
+                  adSnapshot: {
+                    title: freshAd?.title, price: freshAd?.price,
+                    category: freshAd?.category, city: freshAd?.city,
+                    image: freshAd?.images?.[0] || freshAd?.media?.[0]
+                  },
+                  sellerSnapshot: {
+                    name: seller?.name, email: seller?.email, phone: seller?.phone
+                  }
+                },
+                { upsert: true, new: true }
+              );
+              console.log('[STRIPE WEBHOOK] Promotion record saved for session:', session.id);
+            } catch (promoErr) {
+              console.error('[STRIPE WEBHOOK] Promotion record error:', promoErr.message);
+            }
           }
         } catch (applyErr) {
           console.error('[STRIPE WEBHOOK] Failed to apply promotion:', applyErr.message);
@@ -409,5 +446,84 @@ router.post('/expire-all', auth, async (req, res) => {
   }
 });
 
+
+
+// ── POST /api/promote/request-manual — seller creates manual payment request ──
+// Body: { adId, plan, receiptNotes }
+// File: receipt image (optional)
+const uploadManual = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
+
+router.post('/request-manual', auth, uploadManual.single('receipt'), async (req, res) => {
+  try {
+    const { adId, plan = 'featured', receiptNotes } = req.body;
+    if (!adId || !mongoose.Types.ObjectId.isValid(adId))
+      return res.status(400).json({ error: 'معرف إعلان غير صالح' });
+    if (!['featured', 'premium'].includes(plan))
+      return res.status(400).json({ error: 'الخطة غير صالحة' });
+
+    const ad = await Ad.findById(adId).populate('seller userId', 'name email phone').lean();
+    if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
+
+    const seller = ad.seller || ad.userId;
+    const amount = plan === 'premium' ? 1500 : 500; // cents
+    const durationDays = plan === 'premium' ? 30 : 14;
+
+    const promoData = {
+      adId,
+      userId: req.user.id,
+      plan,
+      amount,
+      currency: 'USD',
+      paymentMethod: 'manual',
+      status: 'pending',
+      durationDays,
+      receiptNotes,
+      adSnapshot: {
+        title: ad.title, price: ad.price,
+        category: ad.category, city: ad.city,
+        image: ad.images?.[0] || ad.media?.[0]
+      },
+      sellerSnapshot: {
+        name: seller?.name, email: seller?.email, phone: seller?.phone
+      }
+    };
+
+    if (req.file) {
+      // Store as base64 data URL (Cloudinary upload handled if available)
+      try {
+        const { CLOUDINARY_ENABLED: CE, default: cloudinaryClient } = await import('../server/cloudinary.js');
+        if (CE) {
+          const result = await new Promise((resolve, reject) => {
+            const stream = cloudinaryClient.uploader.upload_stream(
+              { folder: 'xtox/receipts', resource_type: 'auto' },
+              (err, r) => err ? reject(err) : resolve(r)
+            );
+            stream.end(req.file.buffer);
+          });
+          promoData.receiptUrl = result.secure_url;
+          promoData.receiptPublicId = result.public_id;
+        } else {
+          promoData.receiptUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+        }
+      } catch (uploadErr) {
+        console.warn('[PROMOTE/request-manual] Receipt upload failed:', uploadErr.message);
+        promoData.receiptUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
+    }
+
+    const promo = await Promotion.create(promoData);
+    res.json({
+      success: true,
+      promoId: promo._id,
+      message: 'تم إرسال طلب التمييز بنجاح، سيتم مراجعته خلال 24 ساعة'
+    });
+  } catch (err) {
+    console.error('[PROMOTE/request-manual] Error:', err);
+    res.status(500).json({ error: 'خطأ في الخادم' });
+  }
+});
 
 export default router;
