@@ -117,7 +117,7 @@ const CATEGORIES = [
   {
     id: 'sports', name: 'رياضة وترفيه', nameEn: 'Sports & Leisure', emoji: '⚽',
     imageUrl: 'https://res.cloudinary.com/dni9wcvx3/image/upload/xtox/categories/sports',
-    keywords: ['رياضة', 'جيم', 'دراجة', 'سكوتر', 'كرة', 'مضرب', 'سباحة', 'صيد', 'سنارة', 'قصبة', 'شبكة', 'صنارة', 'sport', 'gym', 'bike', 'scooter', 'fishing', 'football', 'tennis'],
+    keywords: ['رياضة', 'جيم', 'دراجة', 'سكوتر', 'كرة', 'مضرب', 'سباحة', 'صيد', 'سنارة', 'سناره', 'قصبة صيد', 'شبكة صيد', 'طعم صيد', 'بكرة صيد', 'قصبة', 'شبكة', 'صنارة', 'سمك', 'sport', 'gym', 'bike', 'scooter', 'fishing', 'football', 'tennis'],
     subcategories: [
       { id: 'gym_fitness', name: 'جيم ولياقة', nameEn: 'Gym & Fitness', emoji: '🏋️' },
       { id: 'team_sports', name: 'كرة قدم ورياضات جماعية', nameEn: 'Team Sports', emoji: '⚽' },
@@ -148,6 +148,7 @@ const CATEGORIES = [
       { id: 'photography', name: 'تصوير وإضاءة', nameEn: 'Photography', emoji: '📷' },
       { id: 'art_craft', name: 'فنون وحرف', nameEn: 'Arts & Crafts', emoji: '🎨' },
       { id: 'collectibles', name: 'تحف وأنتيكات', nameEn: 'Collectibles & Antiques', emoji: '🏺' },
+      { id: 'fishing_hobby', name: 'صيد السمك', nameEn: 'Fishing', emoji: '🎣', imageUrl: '/category-images/fishing.jpg' },
     ]
   },
   {

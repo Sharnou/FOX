@@ -195,7 +195,15 @@ export const CATEGORY_IMAGES = {
   'bicycles':           `${BASE}/bicycles.jpg`,
   'دراجات':             `${BASE}/bicycles.jpg`,
   'water_sports':       `${BASE}/sports.jpg`,
-  'fishing':            `${BASE}/sports.jpg`,
+  'fishing':            `${BASE}/fishing.jpg`,
+  // Fishing / صيد السمك
+  'صيد':                `${BASE}/fishing.jpg`,
+  'صيد_سمك':            `${BASE}/fishing.jpg`,
+  'صيد سمك':            `${BASE}/fishing.jpg`,
+  'سنارة':              `${BASE}/fishing.jpg`,
+  'سناره':              `${BASE}/fishing.jpg`,
+  'صنارة':              `${BASE}/fishing.jpg`,
+
   'football':           `${BASE}/football.jpg`,
   'كرة قدم':            `${BASE}/football.jpg`,
 
@@ -214,6 +222,7 @@ export const CATEGORY_IMAGES = {
 
   // ── HOBBIES ──────────────────────────────────────────────────────────────
   'hobbies':            `${BASE}/other.jpg`,
+  'هوايات':             `${BASE}/other.jpg`,
   // subcategories
   'art_craft':          `${BASE}/other.jpg`,
   'music_instruments':  `${BASE}/other.jpg`,
