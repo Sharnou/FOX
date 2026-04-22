@@ -292,6 +292,26 @@ export const CATEGORY_IMAGES = {
 };
 
 /**
+ * Title-keyword fallback map — checked BEFORE category slug lookup.
+ * Allows "سناره" with category "متفرقات" to still get the fishing image.
+ */
+export const TITLE_KEYWORD_MAP = [
+  { keywords: ['سنار', 'صنار', 'صيد', 'سمك', 'شبكة', 'طعم', 'بكرة'], image: '/category-images/fishing.jpg' },
+  { keywords: ['موبايل', 'ايفون', 'سامسونج', 'هاتف', 'تليفون', 'شاومي', 'اوبو', 'ريلمي', 'نوكيا', 'iphone', 'samsung', 'mobile', 'phone'], image: '/category-images/mobile-phones.jpg' },
+  { keywords: ['لابتوب', 'كمبيوتر', 'laptop', 'pc', 'ماك', 'dell', 'hp', 'lenovo', 'asus'], image: '/category-images/laptops.jpg' },
+  { keywords: ['تليفزيون', 'شاشة', 'tv', 'lcd', 'تلفزيون'], image: '/category-images/monitors.jpg' },
+  { keywords: ['عربية', 'سيارة', 'اتوبيس', 'موتوسيكل', 'موتو', 'عجلة', 'car', 'motor'], image: '/category-images/cars.jpg' },
+  { keywords: ['شقة', 'فيلا', 'ايجار', 'بيع', 'عقار', 'ارض', 'مبنى', 'دور', 'apartment', 'villa'], image: '/category-images/real-estate.jpg' },
+  { keywords: ['كلب', 'قطة', 'طير', 'عصفور', 'ببغاء', 'حيوان', 'pet', 'dog', 'cat', 'bird'], image: '/category-images/animals.jpg' },
+  { keywords: ['ملابس', 'فستان', 'جاكيت', 'بنطلون', 'قميص', 'shoes', 'احذية', 'حذاء', 'clothes', 'fashion'], image: '/category-images/clothes.jpg' },
+  { keywords: ['اثاث', 'كنبة', 'طاولة', 'كرسي', 'دولاب', 'سرير', 'furniture', 'sofa'], image: '/category-images/furniture.jpg' },
+  { keywords: ['كاميرا', 'camera', 'تصوير', 'لينس', 'canon', 'nikon'], image: '/category-images/cameras.jpg' },
+  { keywords: ['كتاب', 'مذكرة', 'رواية', 'كتب', 'book', 'novel'], image: '/category-images/books.jpg' },
+  { keywords: ['عود', 'جيتار', 'بيانو', 'ناي', 'موسيق', 'guitar', 'piano'], image: '/category-images/other.jpg' },
+];
+
+
+/**
  * Extract a usable image URL from a value that might be:
  *   • A plain string URL ("https://..." or "data:..." or a Cloudinary public_id)
  *   • An object with a `.url` or `.secure_url` field  (old upload shape)
@@ -331,6 +351,14 @@ export function getAdDefaultImage(ad) {
       if (url.startsWith('/category-images')) return url;
       // Assume Cloudinary public_id
       return `https://res.cloudinary.com/dni9wcvx3/image/upload/f_auto,q_auto,w_400,c_limit/${url}`;
+    }
+  }
+
+  // ── Step 1b: title keyword lookup ────────────────────────────────────────
+  const _title = ((ad?.title || '') + ' ' + (ad?.description || '')).toLowerCase();
+  for (const { keywords, image } of TITLE_KEYWORD_MAP) {
+    if (keywords.some(kw => _title.includes(kw.toLowerCase()))) {
+      return image;
     }
   }
 

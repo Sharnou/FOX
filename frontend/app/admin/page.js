@@ -644,6 +644,7 @@ export default function AdminPage() {
                               ? <Btn small onClick={() => handleCancelBubble(ad._id)} color="#8b949e">❌ فقاعة</Btn>
                               : <Btn small onClick={() => setModal({ type: 'bubble', adId: ad._id, adTitle: ad.title })} color="#bf5fff">🫧 فقاعة</Btn>}
                             <Btn small onClick={() => handleDeleteAd(ad)} color="#ff4444">🗑️</Btn>
+                            <Btn small onClick={() => handleEnrichAd(ad._id)} color="#00d4ff">🤖 إثراء</Btn>
                           </div>
                         </td>
                       </tr>
@@ -888,6 +889,7 @@ export default function AdminPage() {
               <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 10, padding: 18 }}>
                 <h3 style={{ color: '#00ff41', fontSize: 14, margin: '0 0 14px' }}>🔧 إجراءات سريعة</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <Btn onClick={handleEnrichBatch} color="#00d4ff">🤖 إثراء الكل</Btn>
                   <Btn onClick={() => apiFetch('/api/admin/fix-categories', { method: 'POST', body: '{}' }, token).then(r => showToast('تم إصلاح ' + (r.data.fixed || 0) + ' إعلان'))} color="#00ff41">🔧 إصلاح التصنيفات</Btn>
                   <Btn onClick={() => apiFetch('/api/admin/ai-learn', { method: 'POST', body: '{}' }, token).then(() => showToast('تم بدء التعلم الأسبوعي'))} color="#00d4ff">🤖 تشغيل AI للتصنيف</Btn>
                   <Btn onClick={() => apiFetch('/api/admin/location-vocab/run', { method: 'POST', body: '{}' }, token).then(() => showToast('تم بدء تعلم اللغات'))} color="#bf5fff">🌐 تعلم لغات المواقع</Btn>
@@ -1100,3 +1102,22 @@ export default function AdminPage() {
     </div>
   );
 }
+  async function handleEnrichAd(adId) {
+    try {
+      const r = await apiFetch('/api/admin/ads/' + adId + '/enrich', { method: 'POST' }, token);
+      showToast(r.data?.message || 'تم الإثراء');
+    } catch { showToast('خطأ في الإثراء'); }
+  }
+
+  async function handleEnrichBatch() {
+    if (!confirm('إثراء جميع الإعلانات (حتى 500)؟')) return;
+    try {
+      const r = await apiFetch('/api/admin/ads/enrich-batch', {
+        method: 'POST',
+        body: JSON.stringify({ onlyNew: false, limit: 500 }),
+      }, token);
+      showToast(r.data?.message || 'تم الإثراء الجماعي');
+    } catch { showToast('خطأ في الإثراء الجماعي'); }
+  }
+
+

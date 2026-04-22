@@ -114,7 +114,7 @@ router.get('/', auth, async (req, res) => {
     const needsBackfill = chats.filter(c => (!c.adTitle || c.adTitle === '') && c.ad?.title);
     if (needsBackfill.length > 0) {
       Promise.all(needsBackfill.map(c =>
-        Chat.updateOne({ _id: c._id }, { $set: { adTitle: c.ad.title.slice(0, 60) } })
+        getChat().updateOne({ _id: c._id }, { $set: { adTitle: c.ad.title.slice(0, 60) } })
       )).catch(e => console.warn('[CHAT] adTitle backfill error:', e.message));
     }
     // Return as plain array — frontend handles both shapes: data.chats || Array.isArray(data)

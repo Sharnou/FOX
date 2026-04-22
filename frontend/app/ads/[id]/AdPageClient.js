@@ -479,7 +479,7 @@ export default function AdPageClient({ params }) {
         setReviewChecked(true);
       })
       .catch(() => setReviewChecked(true));
-  }, [ad && ad._id]);
+  }, [ad?._id]);
 
   async function submitReview() {
     const tok = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null;
@@ -560,7 +560,7 @@ export default function AdPageClient({ params }) {
       })
       .catch(() => {})
       .finally(() => setRelatedLoading(false));
-  }, [ad && ad._id]);
+  }, [ad?._id]);
 
   // Animated view counter: counts up from 0 to actual views on load
   useEffect(() => {
@@ -579,7 +579,7 @@ export default function AdPageClient({ params }) {
       }
     }, 16);
     return () => clearInterval(timer);
-  }, [ad && ad.views, ad && ad.viewCount]);
+  }, [ad?.views, ad?.viewCount]);
 
   async function createPeer(s, targetId) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

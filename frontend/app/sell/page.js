@@ -571,6 +571,7 @@ export default function SellPage() {
     if (form.category && SUBCATS[form.category]) {
       const _selSub2 = SUBCATS[form.category].find(function(s) { return s.v === form.subcategory; });
       if (_selSub2 && _selSub2.subsubs && _selSub2.subsubs.length > 0 && (!subsub || subsub === 'أخرى')) {
+        e.subsub = 'التصنيف الفرعي مطلوب';
         if (subsubRef.current) subsubRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }

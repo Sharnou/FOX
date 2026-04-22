@@ -674,7 +674,7 @@ router.post('/:id/rate', auth, async (req, res) => {
           adSnapshot = {
             title:    adDoc.title || '',
             price:    adDoc.price || 0,
-            image:    (adDoc.images && adDoc.images[0]) || (adDoc.media && adDoc.media[0]) || '',
+            image:    adDoc.images?.[0]?.url || adDoc.images?.[0] || adDoc.media?.[0]?.url || adDoc.media?.[0] || '',
             category: adDoc.category || '',
           };
         }
