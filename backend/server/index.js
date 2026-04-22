@@ -352,9 +352,13 @@ initSocket(io);
 
 // Daily cron: archive expired ads, cleanup old
 cron.schedule('0 2 * * *', async () => {
-  await archiveExpiredAds();
-  await deleteOldArchives();
-  logger.info('Daily cleanup done');
+  try {
+    await archiveExpiredAds();
+    await deleteOldArchives();
+    logger.info('Daily cleanup done');
+  } catch (e) {
+    logger.error('[DailyCron] Error:', e.message);
+  }
 });
 
 // Hourly cron: permanently delete archived chats past their 7-day closeAt deadline

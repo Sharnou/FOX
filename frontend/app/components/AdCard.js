@@ -846,6 +846,56 @@ export default function AdCard({
         </div>
       )}
 
+      {/* Contact icons row — 3 compact action buttons */}
+      {!isOwnAd && (
+        <div style={{
+          display: 'flex', gap: '6px', padding: '4px 12px 8px',
+          justifyContent: 'flex-end', alignItems: 'center'
+        }} onClick={e => e.stopPropagation()}>
+          
+          {/* Chat icon */}
+          <button
+            title="راسل البائع"
+            onClick={e => { e.stopPropagation(); handleOpenChat(e); }}
+            style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '13px', cursor: 'pointer'
+            }}
+          >💬</button>
+
+          {/* Voice call icon */}
+          <button
+            title="مكالمة صوتية"
+            onClick={e => { e.stopPropagation(); router.push(`/call?peerId=${ad.seller?._id || ad.userId}&adId=${ad._id}`); }}
+            style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: 'rgba(0,170,68,0.1)', border: '1px solid rgba(0,170,68,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '13px', cursor: 'pointer'
+            }}
+          >📞</button>
+
+          {/* WhatsApp icon — only show if seller has phone */}
+          {(ad.sellerPhone || ad.seller?.phone || ad.sellerProfile?.phone) && (
+            <a
+              href={`https://wa.me/${(ad.sellerPhone || ad.seller?.phone || ad.sellerProfile?.phone || '').replace(/\D/g,'')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="واتساب"
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: '28px', height: '28px', borderRadius: '50%',
+                background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '13px', textDecoration: 'none'
+              }}
+            >🟢</a>
+          )}
+        </div>
+      )}
+
       {/* BUG 1 FIX: Inline chatbox — outside navigable div, with zIndex:100 so it's never clipped */}
       {chatOpen && !isOwnAd && (
         <div

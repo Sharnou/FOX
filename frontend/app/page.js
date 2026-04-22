@@ -66,6 +66,21 @@ function cloudinaryHQ(url) {
   return url.replace('/upload/', '/upload/q_auto,f_auto,w_800/');
 }
 
+// BUG FIX: ad.images[0] / ad.media[0] may be an object {url, secure_url} not a string
+// Extract the actual URL string safely
+function extractImgUrl(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw.url || raw.secure_url || raw.imageUrl || null;
+  const s = String(raw).trim();
+  return (!s || s === '[object Object]') ? null : s;
+}
+
+// Get the first available image URL from an ad
+function getAdFirstImg(ad) {
+  const raw = ad?.media?.[0] || ad?.images?.[0] || null;
+  return extractImgUrl(raw);
+}
+
 // Currency lookup by detected country
 function getCurrency(country) {
   const map = {
@@ -269,7 +284,7 @@ export default function Home() {
         '@type': 'Product',
         name: ad.title,
         url: 'https://xtox.app/ads/' + ad._id,
-        image: ad.media?.[0] || ad.images?.[0] || undefined,
+        image: getAdFirstImg(ad) || undefined,
         offers: {
           '@type': 'Offer',
           price: ad.price,
@@ -748,8 +763,8 @@ export default function Home() {
                   </div>
                 )}
                 <div style={{ position: 'relative', overflow: 'hidden' }}>
-                  {(ad.media?.[0] || ad.images?.[0])
-                    ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '12px 12px 0 0', display: 'block' }} alt={ad.title || ''} loading="lazy" width="200" height="200" />
+                  {(getAdFirstImg(ad))
+                    ? <img src={cloudinaryHQ(getAdFirstImg(ad))} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '12px 12px 0 0', display: 'block' }} alt={ad.title || ''} loading="lazy" width="200" height="200" />
                     : <img
                     src="/category-images/other.jpg"
                     alt=""
@@ -877,8 +892,8 @@ export default function Home() {
                 }}>
                   {ad.video
                     ? <video src={ad.video} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} autoPlay muted loop playsInline aria-hidden="true" />
-                    : (ad.media?.[0] || ad.images?.[0])
-                      ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} alt="" loading={adIdx < 2 ? 'eager' : 'lazy'} fetchPriority={adIdx === 0 ? 'high' : 'auto'} />
+                    : (getAdFirstImg(ad))
+                      ? <img src={cloudinaryHQ(getAdFirstImg(ad))} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} alt="" loading={adIdx < 2 ? 'eager' : 'lazy'} fetchPriority={adIdx === 0 ? 'high' : 'auto'} />
                       : <img
                       src="/category-images/other.jpg"
                       alt=""
@@ -1189,8 +1204,8 @@ export default function Home() {
                   boxShadow: '0 4px 14px rgba(99,102,241,0.1)',
                 }}
               >
-                {(popup.ad.media?.[0] || popup.ad.images?.[0]) && (
-                  <img src={popup.ad.media?.[0] || popup.ad.images?.[0]} style={{ width: '100%', height: 148, objectFit: 'cover' }} alt={popup.ad.title || ''} loading="lazy" />
+                {(getAdFirstImg(popup.ad)) && (
+                  <img src={getAdFirstImg(popup.ad)} style={{ width: '100%', height: 148, objectFit: 'cover' }} alt={popup.ad.title || ''} loading="lazy" />
                 )}
                 <div style={{ padding: '12px 16px', textAlign: isRTL ? 'right' : 'left' }}>
                   <p style={{ fontWeight: 700, margin: '0 0 6px', color: '#1e293b' }}>{popup.ad.title}</p>
