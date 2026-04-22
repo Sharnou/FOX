@@ -858,15 +858,18 @@ export default function AdPageClient({ params }) {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {relatedAds.map(item => {
-                // BUG 4 FIX: explicitly check both images and media fields; call optimizeImage on both
-                const itemImg = item.images?.[0] || item.media?.[0] ||
-                  (Array.isArray(item.images) ? item.images[0] : null) ||
-                  (Array.isArray(item.media) ? item.media[0] : null) || null;
+                // Route image through getAdDefaultImage — handles objects, broken strings,
+                // and the full subcategory → category → other.jpg fallback chain.
+                // Then optimize only if it's a real Cloudinary URL.
+                const itemDefaultImg = getAdDefaultImage(item);
+                const itemImg = itemDefaultImg.startsWith('http')
+                  ? optimizeImage(itemDefaultImg, 200)
+                  : itemDefaultImg;
                 return (
                   <a key={item._id} href={'/ads/' + item._id} style={{ textDecoration: 'none', color: 'inherit', borderRadius: 10, overflow: 'hidden', border: '1px solid #eee', background: 'white', display: 'block', transition: 'box-shadow 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.12)'}
                     onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                    <img src={itemImg ? optimizeImage(itemImg, 200) : getAdDefaultImage(item)} alt={item.title} loading="lazy"
+                    <img src={itemImg} alt={item.title} loading="lazy"
                         style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
                         onError={e => { e.target.onerror = null; e.target.src = getAdDefaultImage(item); }} />
                     <div style={{ padding: '8px 10px' }}>
