@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appName: 'XTOX',
   webDir: 'out',
   server: { androidScheme: 'https' },
+  android: {
+    ignoredPlugins: ['@capacitor-community/fcm'],
+  },
   plugins: {
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
