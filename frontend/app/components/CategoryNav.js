@@ -1,24 +1,35 @@
 'use client';
 import { useLanguage } from '../context/LanguageContext';
 
-// run 43+: Arabic category labels + icons + RTL accessibility for Arab marketplace users
-// Replaced hardcoded labels with t() translation calls so they auto-translate for every language.
-// Added aria-label, aria-pressed, dir={isRTL ? "rtl" : "ltr"} and scrollbar-hide for mobile UX.
+// run 44+: Replaced emoji icons with circular category images from /category-images/
+
+const CAT_IMAGE_MAP = {
+  'All':         'other',
+  'Vehicles':    'cars',
+  'Electronics': 'electronics',
+  'Real Estate': 'real-estate',
+  'Jobs':        'jobs',
+  'Services':    'services',
+  'Supermarket': 'groceries',
+  'Pharmacy':    'health-beauty',
+  'Fast Food':   'food',
+  'Fashion':     'clothes',
+};
 
 export default function CategoryNav({ active, onChange }) {
   const { t, isRTL } = useLanguage();
 
   const categories = [
-    { key: 'All',         icon: '🌐', label: t('cat_all') },
-    { key: 'Vehicles',    icon: '🚗', label: t('cat_vehicles') },
-    { key: 'Electronics', icon: '📱', label: t('cat_electronics') },
-    { key: 'Real Estate', icon: '🏠', label: t('cat_real_estate') },
-    { key: 'Jobs',        icon: '💼', label: t('cat_jobs') },
-    { key: 'Services',    icon: '🔧', label: t('cat_services') },
-    { key: 'Supermarket', icon: '🛒', label: t('cat_supermarket') },
-    { key: 'Pharmacy',    icon: '💊', label: t('cat_pharmacy') },
-    { key: 'Fast Food',   icon: '🍕', label: t('cat_fast_food') },
-    { key: 'Fashion',     icon: '👗', label: t('cat_fashion') },
+    { key: 'All',         label: t('cat_all') },
+    { key: 'Vehicles',    label: t('cat_vehicles') },
+    { key: 'Electronics', label: t('cat_electronics') },
+    { key: 'Real Estate', label: t('cat_real_estate') },
+    { key: 'Jobs',        label: t('cat_jobs') },
+    { key: 'Services',    label: t('cat_services') },
+    { key: 'Supermarket', label: t('cat_supermarket') },
+    { key: 'Pharmacy',    label: t('cat_pharmacy') },
+    { key: 'Fast Food',   label: t('cat_fast_food') },
+    { key: 'Fashion',     label: t('cat_fashion') },
   ];
 
   return (
@@ -28,7 +39,7 @@ export default function CategoryNav({ active, onChange }) {
       className="flex gap-2 p-3 overflow-x-auto bg-white shadow-sm"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {categories.map(({ key, label, icon }) => (
+      {categories.map(({ key, label }) => (
         <button
           key={key}
           onClick={() => onChange(key)}
@@ -41,7 +52,19 @@ export default function CategoryNav({ active, onChange }) {
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
           }
         >
-          <span aria-hidden="true">{icon}</span>
+          <img
+            src={`/category-images/${CAT_IMAGE_MAP[key] || 'other'}.jpg`}
+            alt=""
+            aria-hidden="true"
+            style={{
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              flexShrink: 0,
+            }}
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
           <span>{label}</span>
         </button>
       ))}

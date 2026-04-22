@@ -18,7 +18,7 @@ import LanguageToggle from './components/LanguageToggle';
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
 const CAT_VALS = ['', 'Vehicles', 'Electronics', 'Real Estate', 'Jobs', 'Services', 'Supermarket', 'Pharmacy', 'Fast Food', 'Fashion'];
-const CAT_ICONS = ['🌐', '🚗', '📱', '🏠', '💼', '🔧', '🛒', '💊', '🍕', '👗'];
+const CAT_IMAGES = ['other', 'cars', 'electronics', 'real-estate', 'jobs', 'services', 'groceries', 'health-beauty', 'food', 'clothes'];
 // Translation keys for each category (maps CAT_KEYS index → translations/index.js key)
 const CAT_TKEYS = ['cat_all', 'cat_vehicles', 'cat_electronics', 'cat_real_estate', 'cat_jobs', 'cat_services', 'cat_supermarket', 'cat_pharmacy', 'cat_food', 'cat_fashion'];
 
@@ -620,7 +620,21 @@ export default function Home() {
                 transform: catIdx === i ? 'translateY(-1px)' : 'none',
               }}
             >
-              <span aria-hidden="true">{CAT_ICONS[i]}</span>{' '}
+              <img
+                  src={`/category-images/${CAT_IMAGES[i]}.jpg`}
+                  alt=""
+                  aria-hidden="true"
+                  style={{
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    verticalAlign: 'middle',
+                    marginInlineEnd: '5px',
+                    display: 'inline-block',
+                  }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />{' '}
               {t(CAT_TKEYS[i])}
             </button>
           ))}
@@ -736,7 +750,12 @@ export default function Home() {
                 <div style={{ position: 'relative', overflow: 'hidden' }}>
                   {(ad.media?.[0] || ad.images?.[0])
                     ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '12px 12px 0 0', display: 'block' }} alt={ad.title || ''} loading="lazy" width="200" height="200" />
-                    : <div style={{ width: '100%', height: '200px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}><span aria-hidden="true">📦</span></div>}
+                    : <img
+                    src="/category-images/other.jpg"
+                    alt=""
+                    aria-hidden="true"
+                    style={{ width: '100%', height: '200px', objectFit: 'cover', display: 'block' }}
+                  />}
                   <span style={{
                     position: 'absolute', bottom: 6, right: 6,
                     background: 'rgba(0,0,0,0.6)', color: '#fff',
@@ -860,7 +879,12 @@ export default function Home() {
                     ? <video src={ad.video} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} autoPlay muted loop playsInline aria-hidden="true" />
                     : (ad.media?.[0] || ad.images?.[0])
                       ? <img src={cloudinaryHQ(ad.media?.[0] || ad.images?.[0])} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px 10px 0 0', display: 'block' }} alt="" loading={adIdx < 2 ? 'eager' : 'lazy'} fetchPriority={adIdx === 0 ? 'high' : 'auto'} />
-                      : <div style={{ width: '100%', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}><span aria-hidden="true">📦</span></div>}
+                      : <img
+                      src="/category-images/other.jpg"
+                      alt=""
+                      aria-hidden="true"
+                      style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }}
+                    />}
                   <span style={{
                     position: 'absolute', bottom: 6, right: 6,
                     background: 'rgba(0,0,0,0.6)', color: '#fff',
