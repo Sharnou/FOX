@@ -27,7 +27,7 @@ import { moderateAdContent } from '../utils/adModeration.js';
 import { createWPPost, deleteWPPost, updateWPPost } from '../utils/wordpress.js';
 import { addPointsToUser } from '../utils/points.js';
 import { locationToCountry, countryFromIP } from '../utils/geoCountry.js';
-import { autoCategorize } from '../services/autoCategorize.js';
+import { autoCategorize, classifyAdFull } from '../services/autoCategorize.js';
 
 // ── Anti-gaming: 1 view point per user per ad per 24h ───────────────────────
 // Key: "${adId}-${userId}", value: timestamp of last point award
@@ -1560,6 +1560,31 @@ router.post('/', auth, multerUpload, async (req, res) => {
     console.log('[ADS POST] 8: responding 201, ad._id=', _normalizedAd._id?.toString());
     res.status(201).json({ success: true, ad: _normalizedAd, _id: _normalizedAd._id });
 
+    // ── SMART AUTO-ENRICH: if category is vague, classify in background ──────
+    {
+      const _VAGUE_CATS = ['متفرقات', 'other', 'general', 'عام', 'miscellaneous', 'أخرى'];
+      const _catLower = (finalCategory || '').toLowerCase().trim();
+      const _needsEnrich = !finalCategory || _VAGUE_CATS.some(v => _catLower === v.toLowerCase()) || _catLower === '';
+      if (_needsEnrich && (title || description)) {
+        const _enrichAdId = ad._id;
+        const _enrichText = `${title || ''} ${description || ''}`.trim();
+        classifyAdFull(_enrichText).then(async (result) => {
+          if (result && result.category && !['general', 'other', 'أخرى', 'عام'].includes((result.category || '').toLowerCase())) {
+            try {
+              const _enrichUpdate = { category: result.category, subcategory: result.subcategory || '' };
+              if (result.condition) _enrichUpdate.condition = result.condition;
+              await getAdModel().findByIdAndUpdate(_enrichAdId, { $set: _enrichUpdate });
+              console.log('[AutoEnrich POST] Updated ad', _enrichAdId, '→', result.category, '/', result.subcategory, '(', result.provider, ')');
+            } catch (_enrichErr) {
+              console.warn('[AutoEnrich POST] DB update failed:', _enrichErr.message);
+            }
+          }
+        }).catch(e => console.warn('[AutoEnrich POST] classifyAdFull failed:', e.message));
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+
     // WORDPRESS AUTO-SYNC: create post async after response (non-blocking)
     setImmediate(async () => {
       try {
@@ -1853,6 +1878,31 @@ router.put('/:id', auth, async (req, res) => {
     ad.language = /[\u0600-\u06FF]/.test(title || '') ? 'arabic' : 'english'; // FIX: use full language names (not 'ar'/'en')
 
     await ad.save();
+
+    // ── SMART AUTO-ENRICH: if category is vague, classify in background ──────
+    {
+      const _VAGUE_CATS_PUT = ['متفرقات', 'other', 'general', 'عام', 'miscellaneous', 'أخرى'];
+      const _putCatLower = (ad.category || '').toLowerCase().trim();
+      const _putNeedsEnrich = !ad.category || _VAGUE_CATS_PUT.some(v => _putCatLower === v.toLowerCase()) || _putCatLower === '';
+      if (_putNeedsEnrich && (ad.title || ad.description)) {
+        const _putEnrichAdId = ad._id;
+        const _putEnrichText = `${ad.title || ''} ${ad.description || ''}`.trim();
+        classifyAdFull(_putEnrichText).then(async (result) => {
+          if (result && result.category && !['general', 'other', 'أخرى', 'عام'].includes((result.category || '').toLowerCase())) {
+            try {
+              const _putUpdate = { category: result.category, subcategory: result.subcategory || '' };
+              if (result.condition) _putUpdate.condition = result.condition;
+              await ad.constructor.findByIdAndUpdate(_putEnrichAdId, { $set: _putUpdate });
+              console.log('[AutoEnrich PUT] Updated ad', _putEnrichAdId, '→', result.category, '/', result.subcategory, '(', result.provider, ')');
+            } catch (_putErr) {
+              console.warn('[AutoEnrich PUT] DB update failed:', _putErr.message);
+            }
+          }
+        }).catch(e => console.warn('[AutoEnrich PUT] classifyAdFull failed:', e.message));
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     await rankAd(ad).catch(() => {});
     await indexAd(ad).catch(() => {});
     // #148 — update seller score after new ad (non-blocking)

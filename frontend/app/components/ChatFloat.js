@@ -177,9 +177,9 @@ export default function ChatFloat() {
     };
   }, [userToken]);
 
-  // Check initial presence when conversations load
+  // Check initial presence when conversations load (Bug 2 fix)
   useEffect(() => {
-    if (!conversations.length || !presenceRef.current) return;
+    if (!conversations.length) return;
     const myId = (user?.id || user?._id || '').toString();
     const partnerIds = conversations.map(conv => {
       const buyerId = conv.buyer?._id?.toString() || conv.buyer?.toString() || '';
@@ -189,8 +189,10 @@ export default function ChatFloat() {
 
     if (!partnerIds.length) return;
 
-    const sock = presenceRef.current;
-    if (sock && sock.connected) {
+    function doPresenceCheck() {
+      const sock = presenceRef.current;
+      if (!sock) return;
+      // Emit presence:check with acknowledgement callback
       sock.emit('presence:check', { userIds: partnerIds }, (statuses) => {
         if (!statuses || typeof statuses !== 'object') return;
         setOnlineUsers(prev => ({
@@ -200,7 +202,24 @@ export default function ChatFloat() {
           )
         }));
       });
+      // Also emit individual check events for each user
+      partnerIds.forEach(uid => {
+        sock.emit('presence:request', { userId: uid });
+      });
     }
+
+    const sock = presenceRef.current;
+    if (sock) {
+      if (sock.connected) {
+        doPresenceCheck();
+      } else {
+        // Wait for connection then check
+        sock.once('connect', doPresenceCheck);
+      }
+    }
+    // Retry after 2s in case socket is still connecting
+    const _presenceTimer = setTimeout(doPresenceCheck, 2000);
+    return () => clearTimeout(_presenceTimer);
   }, [conversations]);
 
   function stopRingtoneFloat() {
@@ -211,10 +230,10 @@ export default function ChatFloat() {
   }
 
   // ── FEATURE 1 + 2: initiateCall / acceptCall / declineCall ─────────────
-  function initiateCall(targetUserId, targetName) {
+  function initiateCall(targetUserId, targetName, adId) {
     if (!targetUserId) return;
-    // Navigate to call page — CallManager on that page handles full WebRTC
-    const url = `/call?to=${encodeURIComponent(targetUserId)}&name=${encodeURIComponent(targetName || '')}`;
+    // Navigate to call page with peerId param — CallManager on that page handles full WebRTC
+    const url = `/call?peerId=${encodeURIComponent(targetUserId)}&name=${encodeURIComponent(targetName || '')}${adId ? '&adId=' + encodeURIComponent(adId) : ''}`;
     window.location.href = url;
   }
 
@@ -394,7 +413,7 @@ export default function ChatFloat() {
                 )}
               </div>
             ) : (
-              <span style={{ fontWeight: 700, fontSize: 15 }}>&#128172; {tr('chat_conversations')}</span>
+              <span style={{ fontWeight: 700, fontSize: 15 }}>💬 محادثاتي</span>
             )}
             <button onClick={() => { setOpen(false); setActiveChat(null); }} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>&#10005;</button>
           </div>
@@ -452,8 +471,15 @@ export default function ChatFloat() {
                   ? (conv.seller?.name || conv.seller?.xtoxId || tr('chat_seller'))
                   : (conv.buyer?.name || conv.buyer?.xtoxId || tr('chat_buyer'));
                 const otherAvatar = buyerId === myId ? conv.seller?.avatar : conv.buyer?.avatar;
-                const lastMsg = conv.lastMessage || conv.messages?.[conv.messages.length - 1];
-                const unread = buyerId === myId ? conv.unreadBuyer : conv.unreadSeller;
+                // Filter out call-type messages from last message preview (Bug 4)
+                const _allMsgs = conv.messages || [];
+                const _lastNonCallMsg = _allMsgs.length > 0
+                  ? [..._allMsgs].reverse().find(m => m.type !== 'call' && m.type !== 'call_event')
+                  : null;
+                const lastMsg = (conv.lastMessage?.type === 'call' || conv.lastMessage?.type === 'call_event')
+                  ? _lastNonCallMsg
+                  : (conv.lastMessage || _lastNonCallMsg);
+                const unread = (buyerId === myId ? conv.unreadBuyer : conv.unreadSeller) || conv.unreadCount || 0;
                 const isMuted = conv.mutedBy?.map(id => id?.toString()).includes(myId);
                 // FEATURE 3: live presence from state
                 const isOnline = !!onlineUsers[otherUserId];
@@ -630,7 +656,7 @@ export default function ChatFloat() {
         }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-        title={tr('chat_conversations')}
+        title={open ? 'إغلاق' : '💬 محادثاتي'}
       >
         {open ? '✕' : '💬'}
         {!open && (unreadTotal > 0 || incomingCall) && (

@@ -764,13 +764,13 @@ export default function AdCard({
       )}
 
       {/* BUG 3 FIX: Description — always visible, no expand/collapse needed */}
-      {ad.description && (
+      {(ad.description || ad.desc) && (
         <p
           onClick={e => e.stopPropagation()}
           style={{
-            fontSize: 12,
-            color: '#6b7280',
-            lineHeight: 1.5,
+            fontSize: '12px',
+            color: 'rgb(107, 114, 128)',
+            lineHeight: '1.5',
             margin: '4px 12px 6px',
             display: '-webkit-box',
             WebkitLineClamp: 2,
@@ -780,7 +780,7 @@ export default function AdCard({
             fontFamily: 'Cairo, Tajawal, sans-serif',
           }}
         >
-          {ad.description}
+          {ad.description || ad.desc}
         </p>
       )}
 

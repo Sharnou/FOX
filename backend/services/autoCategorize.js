@@ -67,6 +67,28 @@ async function classifyWithOpenAI(title, description) {
 // Keyword-based fallback classifier (no API needed)
 function classifyByKeywords(title, description) {
   const text = `${title} ${description || ''}`.toLowerCase();
+
+  // ── Direct keyword rules (highest priority, checked before category loop) ──
+  // Fishing
+  if (/سنار|صنار|صيد|سمك|شبكة صيد|بكرة|طعم/.test(text)) return { category: 'رياضة', subcategory: 'صيد وأدواته', condition: 'مستعمل' };
+  // Electronics - Mobile
+  if (/موبايل|ايفون|iphone|سامسونج|samsung|هاتف|تليفون|شاومي|اوبو|ريلمي/.test(text)) return { category: 'إلكترونيات', subcategory: 'موبايلات', condition: null };
+  // Electronics - Laptop
+  if (/لابتوب|laptop|كمبيوتر|dell|hp|lenovo|asus|ماك/.test(text)) return { category: 'إلكترونيات', subcategory: 'لابتوب وكمبيوتر', condition: null };
+  // Electronics - TV
+  if (/تليفزيون|تلفزيون|شاشة|lcd|oled/.test(text)) return { category: 'إلكترونيات', subcategory: 'تلفزيونات وشاشات', condition: null };
+  // Cars
+  if (/سيارة|عربية|اتوبيس|موتوسيكل|موتو/.test(text)) return { category: 'سيارات', subcategory: 'ملاكي', condition: null };
+  // Real estate
+  if (/شقة|فيلا|ايجار|للبيع|عقار|ارض|دور/.test(text)) return { category: 'عقارات', subcategory: 'شقق للإيجار', condition: null };
+  // Pets
+  if (/كلب|قطة|طير|عصفور|ببغاء|حيوان/.test(text)) return { category: 'حيوانات أليفة', subcategory: 'كلاب', condition: null };
+  // Clothes
+  if (/فستان|جاكيت|بنطلون|ملابس|حذاء|احذية/.test(text)) return { category: 'أزياء وملابس', subcategory: 'ملابس نساء', condition: null };
+  // Furniture
+  if (/كنبة|اثاث|طاولة|كرسي|دولاب|سرير/.test(text)) return { category: 'أثاث ومستلزمات منزلية', subcategory: 'أثاث صالون', condition: null };
+  // ─────────────────────────────────────────────────────────────────────────
+
   let bestMatch = null;
   let bestScore = 0;
 

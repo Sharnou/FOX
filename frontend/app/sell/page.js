@@ -460,34 +460,64 @@ export default function SellPage() {
   }, [form.category, form.subcategory]);
 
   async function detectLocation() {
-    if (!navigator.geolocation) { setGpsError('المتصفح لا يدعم تحديد الموقع'); return; }
     setGpsLoading(true);
     setGpsError('');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const posLat = pos.coords.latitude;
-        const posLon = pos.coords.longitude;
-        setLat(posLat);
-        setLng(posLon);
-        let cityFound = false;
-        try {
-          const r = await fetch('https://ipapi.co/' + posLat + ',' + posLon + '/json/');
-          const data = await r.json();
-          if (data && data.city) { setForm(p => ({ ...p, city: data.city })); cityFound = true; }
-        } catch (_) {}
-        if (!cityFound) {
-          try {
-            const r2 = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + posLat + '&lon=' + posLon);
-            const data2 = await r2.json();
-            const city = (data2 && data2.address) ? (data2.address.city || data2.address.town || data2.address.county) : null;
-            if (city) setForm(p => ({ ...p, city }));
-          } catch (_2) {}
-        }
-        setGpsLoading(false);
-      },
-      () => { setGpsLoading(false); },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    // Try browser geolocation first
+    if (navigator.geolocation) {
+      try {
+        await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+              const posLat = pos.coords.latitude;
+              const posLon = pos.coords.longitude;
+              setLat(posLat);
+              setLng(posLon);
+              // Try Nominatim (free, no key needed) for Arabic city name
+              let cityFound = false;
+              try {
+                const r = await fetch(
+                  'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + posLat + '&lon=' + posLon,
+                  { headers: { 'Accept-Language': 'ar,en' } }
+                );
+                const data = await r.json();
+                const city = data?.address?.city || data?.address?.town || data?.address?.county || data?.address?.state;
+                if (city) { setForm(p => ({ ...p, city })); cityFound = true; }
+              } catch (_) {}
+              // Fallback to ipapi coordinates lookup
+              if (!cityFound) {
+                try {
+                  const r2 = await fetch('https://ipapi.co/' + posLat + ',' + posLon + '/json/');
+                  const data2 = await r2.json();
+                  if (data2?.city) { setForm(p => ({ ...p, city: data2.city })); cityFound = true; }
+                } catch (_2) {}
+              }
+              resolve();
+            },
+            async (err) => {
+              // Geolocation denied or failed — use IP-based fallback
+              console.warn('[Location] Geolocation failed:', err.message);
+              try {
+                const ipRes = await fetch('https://ipapi.co/json/');
+                const ipData = await ipRes.json();
+                if (ipData?.city) setForm(p => ({ ...p, city: ipData.city }));
+                else if (ipData?.country_name) setForm(p => ({ ...p, city: ipData.country_name }));
+              } catch (_ipErr) {}
+              resolve();
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+          );
+        });
+      } catch (_geoErr) {}
+    } else {
+      // No geolocation support — use IP fallback
+      try {
+        const ipRes = await fetch('https://ipapi.co/json/');
+        const ipData = await ipRes.json();
+        if (ipData?.city) setForm(p => ({ ...p, city: ipData.city }));
+        else if (ipData?.country_name) setForm(p => ({ ...p, city: ipData.country_name }));
+      } catch (_) {}
+    }
+    setGpsLoading(false);
   }
 
   const handlePhotoSelect = async (e) => {
@@ -536,10 +566,58 @@ export default function SellPage() {
           const pct = Math.round((result.probability ?? result.confidence ?? 0) * 100);
           setAiStatus('🤖 تم الكشف: ' + result.detectedAs + (pct > 0 ? ' (' + pct + '%)' : '') + (result.learned ? ' ✅ مُتعلَّم' : ''));
         } else {
-          setAiStatus('⚠️ تعذّر التعرف على المنتج — يرجى اختيار الفئة يدوياً');
+          // Keyword fallback: try to guess from title before showing warning
+          const _kwTitle = (form.title || '').toLowerCase();
+          const _kwMap = [
+            { re: /سنار|صنار|صيد|سمك|شبكة.*صيد|بكرة|طعم/, cat: 'رياضة', sub: 'صيد وأدواته' },
+            { re: /موبايل|ايفون|iphone|سامسونج|samsung|هاتف|تليفون|شاومي|اوبو|ريلمي/, cat: 'إلكترونيات', sub: 'موبايلات' },
+            { re: /لابتوب|laptop|كمبيوتر|dell|hp|lenovo|asus|ماك/, cat: 'إلكترونيات', sub: 'لابتوب وكمبيوتر' },
+            { re: /تليفزيون|تلفزيون|شاشة|lcd|oled/, cat: 'إلكترونيات', sub: 'تلفزيونات وشاشات' },
+            { re: /سيارة|عربية|اتوبيس|موتوسيكل|موتو/, cat: 'سيارات', sub: 'ملاكي' },
+            { re: /شقة|فيلا|ايجار|للبيع|عقار|ارض|دور/, cat: 'عقارات', sub: 'شقق للإيجار' },
+            { re: /كلب|قطة|طير|عصفور|ببغاء|حيوان/, cat: 'حيوانات أليفة', sub: 'كلاب' },
+            { re: /فستان|جاكيت|بنطلون|ملابس|حذاء|احذية/, cat: 'أزياء وملابس', sub: 'ملابس نساء' },
+            { re: /كنبة|اثاث|طاولة|كرسي|دولاب|سرير/, cat: 'أثاث ومستلزمات منزلية', sub: 'أثاث صالون' },
+          ];
+          const _kwMatch = _kwMap.find(({ re }) => re.test(_kwTitle));
+          if (_kwMatch) {
+            setForm(f => {
+              const up = { ...f };
+              if (!f.category) up.category = _kwMatch.cat;
+              if (!f.subcategory || f.subcategory === 'أخرى') up.subcategory = _kwMatch.sub;
+              return up;
+            });
+            setAiStatus('🔍 تم اقتراح الفئة بناءً على العنوان');
+          } else {
+            setAiStatus('⚠️ تعذّر التعرف على المنتج — يرجى اختيار الفئة يدوياً');
+          }
         }
       } else {
-        setAiStatus('⚠️ تعذّر التعرف على المنتج — يرجى اختيار الفئة يدوياً');
+        // No result from AI: try keyword fallback on title
+        const _kwTitle2 = (form.title || '').toLowerCase();
+        const _kwMap2 = [
+          { re: /سنار|صنار|صيد|سمك|شبكة.*صيد|بكرة|طعم/, cat: 'رياضة', sub: 'صيد وأدواته' },
+          { re: /موبايل|ايفون|iphone|سامسونج|samsung|هاتف|تليفون|شاومي|اوبو|ريلمي/, cat: 'إلكترونيات', sub: 'موبايلات' },
+          { re: /لابتوب|laptop|كمبيوتر|dell|hp|lenovo|asus|ماك/, cat: 'إلكترونيات', sub: 'لابتوب وكمبيوتر' },
+          { re: /تليفزيون|تلفزيون|شاشة|lcd|oled/, cat: 'إلكترونيات', sub: 'تلفزيونات وشاشات' },
+          { re: /سيارة|عربية|اتوبيس|موتوسيكل|موتو/, cat: 'سيارات', sub: 'ملاكي' },
+          { re: /شقة|فيلا|ايجار|للبيع|عقار|ارض|دور/, cat: 'عقارات', sub: 'شقق للإيجار' },
+          { re: /كلب|قطة|طير|عصفور|ببغاء|حيوان/, cat: 'حيوانات أليفة', sub: 'كلاب' },
+          { re: /فستان|جاكيت|بنطلون|ملابس|حذاء|احذية/, cat: 'أزياء وملابس', sub: 'ملابس نساء' },
+          { re: /كنبة|اثاث|طاولة|كرسي|دولاب|سرير/, cat: 'أثاث ومستلزمات منزلية', sub: 'أثاث صالون' },
+        ];
+        const _kwMatch2 = _kwMap2.find(({ re }) => re.test(_kwTitle2));
+        if (_kwMatch2) {
+          setForm(f => {
+            const up = { ...f };
+            if (!f.category) up.category = _kwMatch2.cat;
+            if (!f.subcategory || f.subcategory === 'أخرى') up.subcategory = _kwMatch2.sub;
+            return up;
+          });
+          setAiStatus('🔍 تم اقتراح الفئة بناءً على العنوان');
+        } else {
+          setAiStatus('⚠️ تعذّر التعرف على المنتج — يرجى اختيار الفئة يدوياً');
+        }
       }
     } catch (err) {
       setAiStatus('');
@@ -1050,10 +1128,27 @@ export default function SellPage() {
             {/* City */}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle} htmlFor="sell-city">المدينة <span style={{ color: '#e53e3e' }}>*</span></label>
-              <input id="sell-city" value={form.city} required
-                onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-                placeholder="مثال: القاهرة، الرياض، دبي..."
-                style={inputStyle('city')} />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input id="sell-city" value={form.city} required
+                  onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
+                  placeholder="مثال: القاهرة، الرياض، دبي..."
+                  style={{ ...inputStyle('city'), flex: 1 }} />
+                <button
+                  type="button"
+                  onClick={detectLocation}
+                  disabled={gpsLoading}
+                  title="اكتشف موقعي تلقائياً"
+                  style={{
+                    padding: '8px 12px', borderRadius: 8, border: '1px solid #6366f1',
+                    background: gpsLoading ? '#e0e7ff' : '#6366f1', color: '#fff',
+                    cursor: gpsLoading ? 'not-allowed' : 'pointer', fontSize: 12,
+                    whiteSpace: 'nowrap', fontFamily: "'Cairo','Tajawal',system-ui",
+                    flexShrink: 0,
+                  }}
+                >
+                  {gpsLoading ? '...' : '📍 اكتشف موقعي'}
+                </button>
+              </div>
               {gpsLoading && <p style={{ color: '#6366f1', fontSize: 12, margin: '4px 0 0', fontFamily: "'Cairo','Tajawal',system-ui" }}>📍 جارٍ تحديد موقعك...</p>}
               {errors.city && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.city}</p>}
               {country && COUNTRIES[country] && (
