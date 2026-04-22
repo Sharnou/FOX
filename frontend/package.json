@@ -10,7 +10,6 @@
     "build:capacitor": "bash scripts/capacitor-build.sh"
   },
   "dependencies": {
-    "@capacitor-community/fcm": "^8.1.0",
     "@capacitor/android": "^8.3.1",
     "@capacitor/cli": "^8.3.1",
     "@capacitor/core": "^8.3.1",

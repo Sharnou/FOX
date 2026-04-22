@@ -12,7 +12,7 @@ if (cordovaVars.exists()) {
     apply from: cordovaVars
 }
 dependencies {
-    implementation project(':capacitor-community-fcm')
+    implementation project(':capacitor-local-notifications')
     implementation project(':capacitor-push-notifications')
 
 }
