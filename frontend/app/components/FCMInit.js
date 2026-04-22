@@ -12,20 +12,28 @@ export default function FCMInit() {
         if (perm.receive === 'prompt') perm = await PushNotifications.requestPermissions();
         if (perm.receive !== 'granted') return;
         await PushNotifications.register();
-        PushNotifications.addListener('pushNotificationReceived', (n) => {
+        PushNotifications.addListener('pushNotificationReceived', async (n) => {
           if (n.data?.type === 'call') {
-            // Show sticky notification
-            PushNotifications.schedule([{
-              title: `${n.data.name} is calling`,
-              body: 'Tap to answer',
-              id: parseInt(n.data.uuid) || 1,
-              sound: true,
-              vibrate: [300, 100, 300, 100, 300, 100, 300, 100, 300],
-              ongoing: true,
-              autoCancel: false,
-              channelId: 'voip_calls',
-              data: n.data,
-            }]);
+            // BUG FIX: PushNotifications.schedule() does not exist in @capacitor/push-notifications.
+            // Use @capacitor/local-notifications instead to show a sticky in-app call notification.
+            try {
+              const { LocalNotifications } = await import('@capacitor/local-notifications');
+              await LocalNotifications.schedule({
+                notifications: [{
+                  title: `${n.data.name || 'Someone'} is calling`,
+                  body: 'Tap to answer',
+                  id: parseInt(n.data.uuid) || 1,
+                  sound: 'default',
+                  channelId: 'voip_calls',
+                  extra: n.data,
+                  ongoing: true,
+                  autoCancel: false,
+                }],
+              });
+            } catch (schedErr) {
+              // Graceful fallback: @capacitor/local-notifications not available
+              console.debug('[FCMInit] LocalNotifications unavailable:', schedErr?.message);
+            }
           }
         });
         PushNotifications.addListener('pushNotificationActionPerformed', (a) => {

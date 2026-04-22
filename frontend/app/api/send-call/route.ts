@@ -7,12 +7,17 @@ const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.r
 export async function POST(req: NextRequest) {
   try {
     const { to, data } = await req.json();
+    // Forward Authorization header so the backend auth middleware accepts the request
+    const authHeader = req.headers.get('authorization') || '';
     // Forward to Railway backend which has firebase-admin
     const res = await fetch(
       BACKEND + '/api/calls/push',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authHeader ? { 'Authorization': authHeader } : {}),
+        },
         body: JSON.stringify({ token: to, data }),
       }
     );

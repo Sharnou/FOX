@@ -176,18 +176,24 @@ export default function ProfilePage({ params }) {
     import('socket.io-client').then(({ io }) => {
       s = io(SOCKET_URL, { auth: { token: typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') || 'guest' : 'guest' } });
       s.emit('join', myUserId);
-      s.on('call_offer', async (d) => {
+      // BUG FIX: 'call_offer' → 'call:incoming'; payload is {callerId, callerSocketId, offer, ...}
+      s.on('call:incoming', async (d) => {
+        const callerSocketId = d.callerSocketId || d.callerId;
         setCallStatus('مكالمة واردة...');
-        const pc = await createPeer(s, d.from);
+        const pc = await createPeer(s, callerSocketId);
         await pc.setRemoteDescription(d.offer);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        s.emit('call_answer', { to: d.from, answer });
+        // BUG FIX: 'call_answer' → 'call:answer'; use callerSocketId key
+        s.emit('call:answer', { callerSocketId: callerSocketId, answer });
         setCallActive(true); setCallStatus('متصل 🟢');
       });
-      s.on('call_answer', async (d) => { await pcRef.current?.setRemoteDescription(d.answer); setCallStatus('متصل 🟢'); });
-      s.on('ice_candidate', async (d) => { await pcRef.current?.addIceCandidate(d.candidate); });
-      s.on('call_end', () => { endCall(); setCallStatus('انتهت المكالمة'); });
+      // BUG FIX: 'call_answer' → 'call:accepted'; backend emits call:accepted
+      s.on('call:accepted', async (d) => { await pcRef.current?.setRemoteDescription(d.answer); setCallStatus('متصل 🟢'); });
+      // BUG FIX: 'ice_candidate' → 'call:ice'; payload is {candidate, fromSocketId}
+      s.on('call:ice', async (d) => { if (d.candidate) await pcRef.current?.addIceCandidate(d.candidate); });
+      // BUG FIX: 'call_end' → 'call:ended'
+      s.on('call:ended', () => { endCall(); setCallStatus('انتهت المكالمة'); });
       setSocket(s);
     });
     return () => s?.disconnect();
@@ -198,7 +204,8 @@ export default function ProfilePage({ params }) {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     pc.ontrack = e => { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = e.streams[0]; };
-    pc.onicecandidate = e => { if (e.candidate) s.emit('ice_candidate', { to: targetId, candidate: e.candidate }); };
+    // BUG FIX: 'ice_candidate' → 'call:ice'; use targetSocketId key
+    pc.onicecandidate = e => { if (e.candidate) s.emit('call:ice', { targetSocketId: targetId, candidate: e.candidate }); };
     pcRef.current = pc;
     return pc;
   }
@@ -210,13 +217,15 @@ export default function ProfilePage({ params }) {
       const pc = await createPeer(socket, params.id);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socket.emit('call_offer', { to: params.id, from: myUserId, offer });
+      // BUG FIX: 'call_offer' → 'call:initiate'; use targetUserId/callerId keys
+      socket.emit('call:initiate', { targetUserId: params.id, callerId: myUserId, offer });
       setCallActive(true);
     } catch { setCallStatus('فشل الاتصال — تحقق من الميكروفون'); }
   }
 
   function endCall() {
-    socket?.emit('call_end', { to: params.id });
+    // BUG FIX: 'call_end' → 'call:end'; use targetSocketId key
+    socket?.emit('call:end', { targetSocketId: params.id });
     pcRef.current?.close(); pcRef.current = null;
     setCallActive(false); setCallStatus('');
   }

@@ -115,8 +115,7 @@ function CallPageInner() {
     // Fetch TURN credentials from backend (keeps API key server-side)
     let iceServers = [...ICE_SERVERS_STATIC];
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://fox-production-c2a0.up.railway.app';
-      const res = await fetch(`${apiBase}/api/ice/credentials`);
+      const res = await fetch(`${API_BASE}/api/ice/credentials`);
       if (res.ok) {
         const data = await res.json();
         if (data.iceServers) iceServers = [...iceServers, ...data.iceServers];
