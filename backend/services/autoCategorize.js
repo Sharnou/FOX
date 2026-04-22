@@ -132,3 +132,132 @@ async function autoCategorize(title, description = '') {
 }
 
 export { autoCategorize, classifyByKeywords };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// classifyAdFull — enriched classification that also returns product condition
+// Used by the AI Ad Enrichment System (jobs/adEnrichment.js)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FULL_SYSTEM_PROMPT = `أنت خبير تصنيف إعلانات عربية متخصص. حلل نص الإعلان وأعد JSON فقط بدون أي نص آخر:
+{
+  "category": "التصنيف الرئيسي",
+  "subcategory": "التصنيف الفرعي الأدق",
+  "condition": "جديد|مستعمل - ممتاز|مستعمل - جيد|مستعمل - مقبول|لا ينطبق",
+  "confidence": 0.95,
+  "reasoning": "سبب التصنيف"
+}
+
+التصنيفات المتاحة فقط:
+إلكترونيات (موبايلات، لابتوب، تابلت، كاميرات، سماعات، شاشات، ألعاب فيديو، أجهزة منزلية)
+سيارات (سيارات ملاكي، دراجات نارية، قطع غيار، إكسسوارات سيارات)
+عقارات (شقق للإيجار، شقق للبيع، فيلل، أراضي، مكاتب)
+ملابس (ملابس رجالي، ملابس حريمي، ملابس أطفال، أحذية، اكسسوارات)
+أثاث (غرف نوم، أنتريهات، مطابخ، مكاتب وكراسي، ديكور)
+خدمات (صيانة، تعليم وتدريس، تصميم، سباكة وكهرباء، نقل وشحن)
+وظائف (تقنية ومعلومات، مبيعات وتسويق، طب وصحة، تعليم، هندسة)
+حيوانات (كلاب، قطط، طيور، أسماك، مستلزمات حيوانات)
+رياضة (معدات رياضية، ملابس رياضية، دراجات، كرة قدم)
+كتب وتعليم (كتب مدرسية، روايات، كورسات، أدوات مكتبية)
+ألعاب أطفال (ألعاب تعليمية، دمى، سكوتر ودراجات أطفال)
+صحة وجمال (عطور، مستحضرات تجميل، أجهزة طبية، مكملات غذائية)
+طعام ومشروبات (طعام منزلي، مواد غذائية، حلويات)
+أخرى (أدوات منزلية، مقتنيات ونادر، هدايا)
+
+قاعدة مهمة: condition = "لا ينطبق" للعقارات، الخدمات، الوظائف فقط.`;
+
+async function classifyFullWithGroq(text) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: FULL_SYSTEM_PROMPT },
+        { role: 'user', content: `صنف هذا الإعلان:\n${text.slice(0, 800)}` }
+      ],
+      max_tokens: 200,
+      temperature: 0.1,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!res.ok) throw new Error(`Groq error: ${res.status}`);
+  const data = await res.json();
+  return JSON.parse(data.choices[0].message.content);
+}
+
+async function classifyFullWithOpenAI(text) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: FULL_SYSTEM_PROMPT },
+        { role: 'user', content: `صنف هذا الإعلان:\n${text.slice(0, 800)}` }
+      ],
+      max_tokens: 200,
+      temperature: 0.1,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!res.ok) throw new Error(`OpenAI error: ${res.status}`);
+  const data = await res.json();
+  return JSON.parse(data.choices[0].message.content);
+}
+
+/**
+ * Full ad classification — returns category, subcategory, condition, confidence, provider.
+ * Priority: Groq → OpenAI → keyword fallback (no condition from keywords)
+ * @param {string} text - Combined ad text (title + description + price + city)
+ * @returns {Promise<{category, subcategory, condition, confidence, reasoning, provider}>}
+ */
+export async function classifyAdFull(text) {
+  // Try Groq first (fast, free tier)
+  try {
+    if (GROQ_KEY) {
+      const result = await classifyFullWithGroq(text);
+      if (result.category && result.subcategory) {
+        return {
+          category: result.category,
+          subcategory: result.subcategory,
+          condition: result.condition || '',
+          confidence: result.confidence || 0.8,
+          reasoning: result.reasoning || '',
+          provider: 'groq',
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[classifyAdFull] Groq failed:', err.message);
+  }
+
+  // Fallback to OpenAI
+  try {
+    if (OPENAI_KEY) {
+      const result = await classifyFullWithOpenAI(text);
+      if (result.category && result.subcategory) {
+        return {
+          category: result.category,
+          subcategory: result.subcategory,
+          condition: result.condition || '',
+          confidence: result.confidence || 0.8,
+          reasoning: result.reasoning || '',
+          provider: 'openai',
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[classifyAdFull] OpenAI failed:', err.message);
+  }
+
+  // Final fallback: keyword matching (no condition info)
+  const basic = classifyByKeywords(text, '');
+  return {
+    category: basic.category,
+    subcategory: basic.subcategory,
+    condition: '',
+    confidence: 0.4,
+    reasoning: 'keyword fallback',
+    provider: 'keywords',
+  };
+}

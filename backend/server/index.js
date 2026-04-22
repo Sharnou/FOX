@@ -378,6 +378,14 @@ cron.schedule('0 * * * *', async () => {
   }
 });
 // Run once on startup to catch any missed windows
+
+// ── AI Ad Enrichment Job — auto-classify + auto-image + auto-condition ──────
+import('../jobs/adEnrichment.js').then(({ startAdEnrichmentJob }) => {
+  startAdEnrichmentJob(app);
+}).catch(e => {
+  logger.warn('[adEnrichment] Failed to start enrichment job:', e.message);
+});
+
 import('../jobs/adLifecycle.js').then(({ runAdLifecycle, migrateSellerScores, deleteAnonymousAds }) => {
   runAdLifecycle().catch(() => {});
   migrateSellerScores().catch(() => {});

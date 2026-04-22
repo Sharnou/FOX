@@ -1118,4 +1118,48 @@ router.post('/categories/generate-image', adminAuth, async (req, res) => {
   }
 });
 
+
+// ─────────────────────────────────────────────────────────
+// POST /api/admin/ads/:id/enrich — enrich a single ad on demand
+// ─────────────────────────────────────────────────────────
+router.post('/ads/:id/enrich', adminAuth, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'معرف غير صالح' });
+
+    const { enrichSingleAd } = await import('../jobs/adEnrichment.js');
+    const ad = await Ad.findById(req.params.id);
+    if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
+
+    const result = await enrichSingleAd(ad);
+    res.json({ success: true, adId: req.params.id, ...result });
+  } catch (err) {
+    console.error('[Admin] enrichSingleAd error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// POST /api/admin/ads/enrich-batch — run batch enrichment on all vague ads
+// ─────────────────────────────────────────────────────────
+router.post('/ads/enrich-batch', adminAuth, async (req, res) => {
+  try {
+    const { onlyNew = false, limit = 200 } = req.body;
+    const { runEnrichmentBatch } = await import('../jobs/adEnrichment.js');
+
+    // Respond immediately, run in background
+    res.json({
+      success: true,
+      message: 'تم بدء عملية التصنيف، قد تستغرق بضع دقائق',
+      options: { onlyNew, limit },
+    });
+
+    runEnrichmentBatch({ onlyNew, limit })
+      .then((summary) => console.log('[Admin] enrich-batch complete:', summary))
+      .catch((err) => console.error('[Admin] enrich-batch error:', err));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

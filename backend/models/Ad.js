@@ -127,6 +127,12 @@ AdSchema.pre('validate', async function() {
   }
 });
 
+
+  // ── Enrichment tracking (added by AI Ad Enrichment System) ──────────────
+  defaultImageAutoSet:   { type: Boolean, default: false },
+  conditionAutoDetected: { type: Boolean, default: false },
+  enrichedAt:            { type: Date },
+  enrichmentVersion:     { type: Number, default: 0 },
 // FIX B: Pre-save hook — final safety net to clear invalid location objects
 // Catches any path (create, update, republish) that writes without valid coords.
 // NOTE: _id is immutable — MongoDB prevents _id modification automatically
@@ -154,5 +160,10 @@ AdSchema.virtual('promotionPriority').get(function() {
 
 // Index for promotion queries
 AdSchema.index({ 'promotion.type': 1, 'promotion.expiresAt': 1 });
+
+
+// Enrichment system indexes
+AdSchema.index({ createdAt: -1, defaultImageAutoSet: 1 });
+AdSchema.index({ category: 1, defaultImageAutoSet: 1 });
 
 export default mongoose.model('Ad', AdSchema);
