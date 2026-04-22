@@ -441,24 +441,30 @@ export default function AdPageClient({ params }) {
       // Handle socket connection errors gracefully — must never block UI
       _s.on('connect_error', function(err) { console.warn('[Socket] connect error:', err.message); });
       _s.emit('join', userId);
-      _s.on('incoming_call', function(data) {
+      // BUG FIX: 'incoming_call' → 'call:incoming'; payload is {callerId, callerSocketId, offer, ...}
+      _s.on('call:incoming', function(data) {
         // Wrap async handler in try/catch so mic errors don't crash the page
         (async function() {
           try {
+            var callerSocketId = data.callerSocketId || data.callerId;
             setCallStatus('مكالمة واردة...');
-            var pc = await createPeer(_s, data.from);
+            var pc = await createPeer(_s, callerSocketId);
             await pc.setRemoteDescription(data.offer);
             var answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            _s.emit('call_answer', { to: data.from, answer: answer });
+            // BUG FIX: 'call_answer' → 'call:answer'; use callerSocketId not 'to'
+            _s.emit('call:answer', { callerSocketId: callerSocketId, answer: answer });
             setCallActive(true);
             setCallStatus('متصل 🟢');
           } catch (e) { setCallStatus('فشل الرد على المكالمة'); }
         })();
       });
-      _s.on('call_answer', function(data) { (async function() { try { if (pcRef.current) { await pcRef.current.setRemoteDescription(data.answer); } setCallStatus('متصل 🟢'); } catch {} })(); });
-      _s.on('ice_candidate', function(data) { (async function() { try { if (pcRef.current) { await pcRef.current.addIceCandidate(data.candidate); } } catch {} })(); });
-      _s.on('call_end', function() { endCall(); setCallStatus('انتهت المكالمة'); });
+      // BUG FIX: backend emits 'call:accepted' (not 'call_answer'), payload is {answer, calleeSocketId}
+      _s.on('call:accepted', function(data) { (async function() { try { if (pcRef.current) { await pcRef.current.setRemoteDescription(data.answer); } setCallStatus('متصل 🟢'); } catch {} })(); });
+      // BUG FIX: 'ice_candidate' → 'call:ice'; payload is {candidate, fromSocketId}
+      _s.on('call:ice', function(data) { (async function() { try { if (pcRef.current && data.candidate) { await pcRef.current.addIceCandidate(data.candidate); } } catch {} })(); });
+      // BUG FIX: 'call_end' → 'call:ended' (backend emits 'call:ended' not 'call_end')
+      _s.on('call:ended', function() { endCall(); setCallStatus('انتهت المكالمة'); });
       setSocket(_s);
     }).catch(function(err) { console.warn('[Socket] failed to load:', err.message); });
     return function() { _mounted = false; if (_s) _s.disconnect(); };
@@ -586,7 +592,8 @@ export default function AdPageClient({ params }) {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] });
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     pc.ontrack = e => { if (remoteAudioRef.current) { remoteAudioRef.current.srcObject = e.streams[0]; remoteAudioRef.current.play().catch(() => {}); } };
-    pc.onicecandidate = e => { if (e.candidate) s.emit('ice_candidate', { to: targetId, candidate: e.candidate }); };
+    // BUG FIX: 'ice_candidate' → 'call:ice'; use targetSocketId not 'to'
+    pc.onicecandidate = e => { if (e.candidate) s.emit('call:ice', { targetSocketId: targetId, candidate: e.candidate }); };
     pcRef.current = pc;
     return pc;
   }
@@ -600,7 +607,8 @@ export default function AdPageClient({ params }) {
       var pc = await createPeer(socket, targetId);
       var offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socket.emit('call_offer', { to: targetId, from: userId, offer: offer });
+      // BUG FIX: 'call_offer' → 'call:initiate'; use targetUserId/callerId keys
+      socket.emit('call:initiate', { targetUserId: targetId, callerId: userId, offer: offer });
       setCallActive(true);
     } catch (e) {
       var errName = (e && e.name) || '';
@@ -616,7 +624,8 @@ export default function AdPageClient({ params }) {
 
   function endCall() {
     const targetId = (ad && ad.userId && ad.userId._id) || (ad && ad.userId);
-    if (socket) socket.emit('call_end', { to: targetId });
+    // BUG FIX: 'call_end' → 'call:end'; use targetSocketId key
+    if (socket) socket.emit('call:end', { targetSocketId: targetId });
     if (pcRef.current) pcRef.current.close();
     pcRef.current = null;
     setCallActive(false);

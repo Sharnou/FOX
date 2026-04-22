@@ -24,68 +24,10 @@ var _SKIP_DOMAINS = [
   'ipapi.co',
 ];
 
-self.addEventListener('fetch', function(event) {
-  // Avoid handling non-GET requests
-  if (event.request.method !== 'GET') return;
-  // NEVER intercept navigation requests — the main fetch handler below handles them correctly
-  if (event.request.mode === 'navigate') return;
-  
-  var url;
-  try { url = new URL(event.request.url); } catch(e) { return; }
-
-  // SKIP external domains — let browser handle them directly to avoid CSP violations.
-  // SW fetch() to cross-origin URLs is blocked by connect-src unless explicitly allowed.
-  if (_SKIP_DOMAINS.some(function(d) { return url.hostname === d || url.hostname.endsWith('.' + d); })) return;
-
-  // SWR for ads API — already handled above by main SW; this block is a backup
-  if (url.origin === _XTOX_API && url.pathname.startsWith('/api/ads')) {
-    event.respondWith(
-      caches.open(_XTOX_CACHE).then(function(cache) {
-        return cache.match(event.request).then(function(cached) {
-          var fetchPromise = fetch(event.request).then(function(response) {
-            if (response.ok) cache.put(event.request, response.clone());
-            return response;
-          }).catch(function() {
-            // Only return cached if it's a valid Response — never return undefined
-            return cached || fetch(event.request);
-          });
-          return cached || fetchPromise;
-        });
-      }).catch(function() { return fetch(event.request); })
-    );
-    return;
-  }
-  
-  // Cache-first for static assets — only for same-origin or pre-approved CDNs.
-  // External image/style/script requests (Google Fonts, avatars, etc.) are already
-  // skipped by the _SKIP_DOMAINS check above, so this block is safe.
-  // FIX: use explicit comparisons (not || 'string' which is always truthy)
-  if (event.request.destination === 'image' || 
-      event.request.destination === 'style' || 
-      event.request.destination === 'script') {
-    // Extra guard: only cache same-origin or known CDN assets
-    if (url.origin !== self.location.origin &&
-        !url.hostname.includes('cloudinary.com') &&
-        !url.hostname.includes('jsdelivr.net')) {
-      return; // Let browser handle unknown cross-origin assets
-    }
-    event.respondWith(
-      caches.open(_XTOX_CACHE).then(function(cache) {
-        return cache.match(event.request).then(function(cached) {
-          if (cached) return cached;
-          return fetch(event.request).then(function(r) {
-            if (r && r.ok) cache.put(event.request, r.clone());
-            return r;
-          }).catch(function() {
-            // cached could be undefined — fall back to a network error response
-            return cached || new Response('', { status: 503, statusText: 'Service Unavailable' });
-          });
-        });
-      }).catch(function() { return fetch(event.request); })
-    );
-    return;
-  }
-});
+// NOTE: Legacy first fetch handler removed (bug fix: it called event.respondWith() for
+// same-origin script/style/image requests, conflicting with the comprehensive second
+// fetch handler below and causing InvalidStateError that broke Next.js JS chunk loading).
+// The second fetch handler (below) correctly handles all asset caching strategies.
 
 // Background sync — refresh ads every 15 minutes + presence ping
 self.addEventListener('periodicsync', function(event) {

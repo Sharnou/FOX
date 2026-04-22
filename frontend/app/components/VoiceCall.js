@@ -251,7 +251,7 @@ export default function VoiceCall({ socket, targetId, userId }) {
       // Forward local ICE candidates to remote peer via socket
       pc.onicecandidate = (evt) => {
         if (evt.candidate && activeSocket) {
-          activeSocket.emit('ice_candidate', { to: remoteId, candidate: evt.candidate });
+          activeSocket.emit('call:ice', { targetSocketId: remoteId, candidate: evt.candidate });
         }
       };
 
@@ -291,8 +291,10 @@ export default function VoiceCall({ socket, targetId, userId }) {
     if (!socket) return;
 
     // ① Remote user is calling us
-    const onIncomingCall = ({ from, offer }) => {
-      setIncomingCall({ from, offer });
+    // BUG FIX: event is now 'call:incoming' with payload {callerId, callerSocketId, callerName, callerAvatar, offer}
+    const onIncomingCall = ({ callerId, callerSocketId, callerName, callerAvatar, offer }) => {
+      // Store callerSocketId (socket ID) as 'from' so ICE and answer go to the right socket
+      setIncomingCall({ from: callerSocketId || callerId, offer, callerName });
       setCallStatus('ringing');
       setErrorMsg('');
     };
@@ -322,10 +324,11 @@ export default function VoiceCall({ socket, targetId, userId }) {
     };
 
     // ④ Receive ICE candidate from remote peer
-    const onIceCandidate = async (candidateData) => {
+    // BUG FIX: event 'call:ice' sends payload {candidate, fromSocketId}
+    const onIceCandidate = async ({ candidate } = {}) => {
       try {
-        if (pcRef.current && candidateData) {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidateData));
+        if (pcRef.current && candidate) {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
         }
       } catch {
         // Non-fatal ICE error — ignore
@@ -340,16 +343,17 @@ export default function VoiceCall({ socket, targetId, userId }) {
       setErrorMsg(lang === 'ar' ? 'أنهى الطرف الآخر المكالمة' : 'The other party ended the call');
     };
 
-    socket.on('incoming_call', onIncomingCall);
-    socket.on('call_answered', onCallAccepted);
-    socket.on('call_ended', onCallEnded);
-    socket.on('ice_candidate', onIceCandidate);
+    // BUG FIX: use correct socket event names matching backend socket.js
+    socket.on('call:incoming', onIncomingCall);
+    socket.on('call:accepted', onCallAccepted);
+    socket.on('call:ended', onCallEnded);
+    socket.on('call:ice', onIceCandidate);
 
     return () => {
-      socket.off('incoming_call', onIncomingCall);
-      socket.off('call_answered', onCallAccepted);
-      socket.off('call_ended', onCallEnded);
-      socket.off('ice_candidate', onIceCandidate);
+      socket.off('call:incoming', onIncomingCall);
+      socket.off('call:accepted', onCallAccepted);
+      socket.off('call:ended', onCallEnded);
+      socket.off('call:ice', onIceCandidate);
     };
   }, [socket, cleanup, lang]);
 
@@ -373,7 +377,8 @@ export default function VoiceCall({ socket, targetId, userId }) {
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socket.emit('call_offer', { to: targetId, from: userId, offer });
+      // BUG FIX: 'call_offer' → 'call:initiate' (matching backend socket.js)
+      socket.emit('call:initiate', { targetUserId: targetId, callerId: userId, offer });
     } catch {
       setCallStatus('ended');
       setErrorMsg(lang === 'ar' ? 'تعذّر الوصول إلى الميكروفون. تحقق من الصلاحيات.' : 'Microphone access denied. Check permissions.');
@@ -393,7 +398,8 @@ export default function VoiceCall({ socket, targetId, userId }) {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socket.emit('call_answer', { to: from, answer });
+      // BUG FIX: 'call_answer' → 'call:answer', payload uses callerSocketId not 'to'
+      socket.emit('call:answer', { callerSocketId: from, answer });
       setIncomingCall(null);
     } catch {
       setCallStatus('ended');
@@ -403,13 +409,15 @@ export default function VoiceCall({ socket, targetId, userId }) {
 
   function rejectCall() {
     if (!incomingCall || !socket) return;
-    socket.emit('call_end', { to: incomingCall.from });
+    // BUG FIX: use call:reject (not call_end) so backend knows it's a rejection
+    socket.emit('call:reject', { callerSocketId: incomingCall.from });
     setIncomingCall(null);
     setCallStatus('idle');
   }
 
   function endCall() {
-    if (socket && targetId) socket.emit('call_end', { to: targetId });
+    // BUG FIX: 'call_end' → 'call:end', use targetSocketId in payload
+    if (socket && targetId) socket.emit('call:end', { targetSocketId: targetId });
     cleanup();
     setCallStatus('ended');
   }

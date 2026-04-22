@@ -341,7 +341,7 @@ async function runSeedsOnce() {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['https://fox-kohl-eight.vercel.app', 'https://xtox.app', 'http://localhost:3000', /.vercel.app$/, /.railway.app$/],
+    origin: ['https://fox-kohl-eight.vercel.app', 'https://xtox.app', 'http://localhost:3000', /\.vercel\.app$/, /\.railway\.app$/],
     methods: ['GET', 'POST'],
     credentials: true,
   },
