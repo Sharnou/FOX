@@ -55,7 +55,7 @@ export const metadata = {
     canonical: 'https://xtox.app',
     languages: { 'ar': 'https://xtox.app', 'ar-EG': 'https://xtox.app' }
   },
-  verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || 'xtox-google-verify', yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFY || 'xtox-yandex-verify' },
+  verification: { google: 'RxrSDuYw7UKw32DYzMk-7d8HSIZ1c4TxLztuOY7vsCg', yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFY || 'xtox-yandex-verify' },
   manifest: '/manifest.json',
   // OFFICIAL XTOX ICON — DO NOT CHANGE
   icons: {
