@@ -131,7 +131,7 @@ export function analyzeTextOffline(text = '') {
   const conditionAr = { new: 'جديد', excellent: 'بحالة ممتازة', used: 'مستعمل بحالة جيدة', rent: 'للإيجار' };
   const description = restText.length > 10
     ? restText.slice(0, 400)
-    : `${title} - ${conditionAr[condition]} - السعر: ${suggestedPrice.toLocaleString()} - للتواصل عبر الواتساب`;
+    : text.slice(0, 400).trim();
 
   const confidence = best.score > 0 ? 'high' : 'low';
 

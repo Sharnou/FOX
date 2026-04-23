@@ -845,30 +845,30 @@ export default function AdCard({
         </div>
       )}
 
-      {/* Contact icons row — 3 compact action buttons */}
+      {/* 3 contact icons — forced fix #208 */}
       {!isOwnAd && (
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px', padding: '0 12px 8px' }} onClick={e => e.stopPropagation()}>
-          {/* Chat icon */}
+          {/* Chat */}
           <button
-            onClick={(e) => { e.stopPropagation(); handleOpenChat(e); }}
-            style={{ background: '#e3f2fd', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            title="راسل البائع"
+            title="محادثة"
+            onClick={e => { e.stopPropagation(); e.preventDefault(); setChatOpen(s => !s); }}
+            style={{ background: '#e3f2fd', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', flexShrink: 0 }}
           >💬</button>
-          {/* Voice call icon */}
+          {/* Voice call */}
           <button
-            onClick={(e) => { e.stopPropagation(); router.push(`/call?to=${ad.seller?._id || ad.userId}&adId=${ad._id}`); }}
-            style={{ background: '#e8f5e9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             title="مكالمة صوتية"
+            onClick={e => { e.stopPropagation(); e.preventDefault(); const sellerId = ad.seller?._id || ad.seller || ad.userId; if (sellerId) router.push(`/call?to=${sellerId}&adId=${ad._id}`); }}
+            style={{ background: '#e8f5e9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', flexShrink: 0 }}
           >📞</button>
-          {/* WhatsApp icon — only if seller has phone */}
-          {(ad.phone || ad.sellerPhone || ad.seller?.phone || ad.sellerProfile?.phone) && (
+          {/* WhatsApp — only if phone exists */}
+          {(ad.phone || ad.seller?.phone) && (
             <a
-              href={`https://wa.me/${(ad.phone || ad.sellerPhone || ad.seller?.phone || ad.sellerProfile?.phone || '').replace(/[^0-9]/g, '')}`}
-              onClick={(e) => e.stopPropagation()}
+              href={`https://wa.me/${(ad.phone || ad.seller?.phone || '').replace(/[^0-9]/g, '')}`}
+              onClick={e => e.stopPropagation()}
               target="_blank"
               rel="noopener noreferrer"
               title="واتساب"
-              style={{ background: '#e8f5e9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+              style={{ background: '#e8f5e9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', flexShrink: 0, textDecoration: 'none' }}
             >🟢</a>
           )}
         </div>
