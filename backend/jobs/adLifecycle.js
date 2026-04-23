@@ -29,6 +29,14 @@ export async function runAdLifecycle() {
     // TASK 3: Ensure partial index on userId — prevents DB-level anonymous ads
     // This index only covers documents WHERE userId exists and is not null.
     // Runs once-per-lifecycle (createIndex is idempotent).
+    // Drop old conflicting index first (it may exist with sparse+partialFilterExpression from an older version)
+    // MongoDB cannot mix these options — so we always drop and recreate to fix the existing DB state.
+    try {
+      await Ad.collection.dropIndex('idx_userId_nonanonymous');
+      console.log('[adLifecycle] Dropped old idx_userId_nonanonymous index for recreation');
+    } catch (_dropErr) {
+      // Index doesn't exist yet, that's fine — proceed to create
+    }
     try {
       await Ad.collection.createIndex(
         { userId: 1 },
@@ -38,11 +46,10 @@ export async function runAdLifecycle() {
           name: 'idx_userId_nonanonymous'
         }
       );
+      console.log('[adLifecycle] Created idx_userId_nonanonymous partial index');
     } catch (_idxErr) {
-      // Index creation is non-fatal — may already exist or DB may be read-only
-      if (!_idxErr.message?.includes('already exists') && !_idxErr.message?.includes('IndexOptionsConflict')) {
-        console.warn('[adLifecycle] Partial index creation skipped:', _idxErr.message);
-      }
+      // Non-fatal — log but continue
+      console.warn('[adLifecycle] Partial index creation skipped:', _idxErr.message);
     }
 
     // #127 — Drop old conflicting text index (one-time migration)
@@ -154,16 +161,14 @@ export async function backfillSellerField() {
   try {
     const Ad = await getAdModel();
     // Backfill seller from userId where seller is missing
-    const r1 = await Ad.updateMany(
+    const r1 = await Ad.collection.updateMany(
       { userId: { $exists: true, $ne: null }, $or: [{ seller: null }, { seller: { $exists: false } }] },
-      [{ $set: { seller: '$userId' } }],
-      { updatePipeline: true }
+      [{ $set: { seller: '$userId' } }]
     );
     // Backfill userId from seller where userId is missing
-    const r2 = await Ad.updateMany(
+    const r2 = await Ad.collection.updateMany(
       { seller: { $exists: true, $ne: null }, $or: [{ userId: null }, { userId: { $exists: false } }] },
-      [{ $set: { userId: '$seller' } }],
-      { updatePipeline: true }
+      [{ $set: { userId: '$seller' } }]
     );
     if (r1.modifiedCount > 0 || r2.modifiedCount > 0) {
       console.log(`[Cleanup] Backfilled seller: ${r1.modifiedCount}, userId: ${r2.modifiedCount}`);
