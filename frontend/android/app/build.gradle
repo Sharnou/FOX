@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.xtox.voicecall"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
     defaultConfig {
         applicationId "com.xtox.voicecall"
         minSdk rootProject.ext.minSdkVersion

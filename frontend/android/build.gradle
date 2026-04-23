@@ -21,3 +21,16 @@ apply from: "variables.gradle"
 tasks.register('clean', Delete) {
     delete layout.buildDirectory
 }
+
+// Force all subprojects (Capacitor plugins) to use compileSdk 35
+// Prevents AGP 8.x from auto-selecting Build-Tools 36 for any library module
+subprojects { subproject ->
+    afterEvaluate {
+        if (subproject.plugins.hasPlugin('com.android.library')) {
+            subproject.android {
+                compileSdkVersion 35
+                buildToolsVersion "35.0.0"
+            }
+        }
+    }
+}
