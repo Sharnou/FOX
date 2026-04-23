@@ -28,29 +28,24 @@ export async function runAdLifecycle() {
     await backfillSellerField().catch(e => console.warn('[adLifecycle] backfillSellerField failed:', e.message));
 
     // TASK 3: Ensure partial index on userId — prevents DB-level anonymous ads
-    // DEFINITIVE-v3: Use db.command (runCommand) to drop by KEY SPEC — bypasses name lookup issues.
-    // Then create with $type filter. Name changed to idx_userId_hasvalue to avoid conflict.
+    // v5-getClient: Drop by key spec + recreate with partial filter via native MongoClient.
+    // Drop bad sparse userId index + recreate clean
     try {
-      const db = mongoose.connection.db;
-      if (db) {
+      const client = mongoose.connection.getClient();
+      const db = client.db();
+      // Drop by key spec — works regardless of index name
+      try {
         await db.command({ dropIndexes: 'ads', index: { userId: 1 } });
-        console.log('[adLifecycle] Dropped userId index via runCommand');
-      }
-    } catch (dropErr) {
-      // Index may not exist or already dropped — fine
-      console.log('[adLifecycle] dropIndex note:', dropErr.message);
-    }
-    try {
-      const db = mongoose.connection.db;
-      if (db) {
-        await db.collection('ads').createIndex(
-          { userId: 1 },
-          { partialFilterExpression: { userId: { $type: 'objectId' } }, name: 'idx_userId_hasvalue' }
-        );
-        console.log('[adLifecycle] Created idx_userId_hasvalue');
-      }
-    } catch (idxErr) {
-      console.warn('[adLifecycle] Index creation note:', idxErr.message);
+        console.log('[adLifecycle] Dropped sparse userId index');
+      } catch (_) { /* index may not exist yet */ }
+      // Create clean partial index
+      await db.collection('ads').createIndex(
+        { userId: 1 },
+        { partialFilterExpression: { userId: { $type: 'objectId' } }, name: 'idx_userId_hasvalue' }
+      );
+      console.log('[adLifecycle] Created idx_userId_hasvalue');
+    } catch (err) {
+      console.warn('[adLifecycle] Index setup skipped:', err.message);
     }
 
     // #127 — Drop old conflicting text index (one-time migration)
@@ -156,26 +151,25 @@ export { deleteAnonymousAds };
 
 
 // ── FIX BUG2B: Backfill missing seller/userId fields ─────────────────────────
-// DEFINITIVE-v3: Uses mongoose.connection.db (absolute bottom-most driver level).
-// Completely bypasses all Mongoose Collection wrappers to avoid pipeline array errors.
+// v5-getClient: Uses mongoose.connection.getClient() — 100% native MongoClient,
+// zero Mongoose wrapping — eliminates the "Cannot pass array to query updates
+// unless updatePipeline option is set" error that Mongoose 9.x throws on ALL
+// its Collection wrapper paths.
 export async function backfillSellerField() {
-  console.log('[Cleanup] DEFINITIVE-v3: backfillSellerField start');
+  console.log('[Cleanup] v5-getClient: backfillSellerField start');
   try {
-    const db = mongoose.connection.db;
-    if (!db) { console.warn('[Cleanup] db not ready, skip backfill'); return; }
-    const ads = db.collection('ads');
-
+    const client = mongoose.connection.getClient();
+    const ads = client.db().collection('ads');
     const r1 = await ads.updateMany(
       { userId: { $exists: true, $ne: null }, $or: [{ seller: null }, { seller: { $exists: false } }] },
       [{ $set: { seller: '$userId' } }]
     );
-    console.log('[Cleanup] backfill userId→seller:', r1.modifiedCount);
-
+    console.log('[Cleanup] userId→seller:', r1.modifiedCount);
     const r2 = await ads.updateMany(
       { seller: { $exists: true, $ne: null }, $or: [{ userId: null }, { userId: { $exists: false } }] },
       [{ $set: { userId: '$seller' } }]
     );
-    console.log('[Cleanup] backfill seller→userId:', r2.modifiedCount);
+    console.log('[Cleanup] seller→userId:', r2.modifiedCount);
   } catch (err) {
     console.error('[Cleanup] backfillSellerField failed:', err.message);
   }
