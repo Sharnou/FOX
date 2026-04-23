@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 // backend/jobs/adLifecycle.js
 // Ad lifecycle cron job — Bug #112
 // Business rules:
@@ -27,42 +28,29 @@ export async function runAdLifecycle() {
     await backfillSellerField().catch(e => console.warn('[adLifecycle] backfillSellerField failed:', e.message));
 
     // TASK 3: Ensure partial index on userId — prevents DB-level anonymous ads
-    // This index only covers documents WHERE userId exists and is not null.
-    // Runs once-per-lifecycle (createIndex is idempotent).
-    // DEFINITIVE FIX: Scan ALL indexes and drop any that has sparse:true on userId field.
-    // This handles cases where the real Atlas index name differs from 'idx_userId_nonanonymous'
-    // (e.g. MongoDB auto-assigned name 'userId_1' before we added the 'name' option).
+    // DEFINITIVE-v3: Use db.command (runCommand) to drop by KEY SPEC — bypasses name lookup issues.
+    // Then create with $type filter. Name changed to idx_userId_hasvalue to avoid conflict.
     try {
-      const existingIndexes = await Ad.collection.indexes();
-      for (const idx of existingIndexes) {
-        if (idx.key && idx.key.userId !== undefined && idx.sparse === true) {
-          console.log(`[adLifecycle] Dropping sparse userId index: ${idx.name}`);
-          await Ad.collection.dropIndex(idx.name);
-          console.log(`[adLifecycle] Dropped sparse userId index: ${idx.name}`);
-        }
+      const db = mongoose.connection.db;
+      if (db) {
+        await db.command({ dropIndexes: 'ads', index: { userId: 1 } });
+        console.log('[adLifecycle] Dropped userId index via runCommand');
       }
     } catch (dropErr) {
-      console.warn('[adLifecycle] Error during sparse index cleanup:', dropErr.message);
-    }
-    // Also attempt to drop by known name in case it exists with wrong options (non-sparse)
-    try {
-      await Ad.collection.dropIndex('idx_userId_nonanonymous');
-      console.log('[adLifecycle] Dropped old idx_userId_nonanonymous index for recreation');
-    } catch (_dropErr) {
-      // Index doesn't exist or already dropped — proceed to create
+      // Index may not exist or already dropped — fine
+      console.log('[adLifecycle] dropIndex note:', dropErr.message);
     }
     try {
-      await Ad.collection.createIndex(
-        { userId: 1 },
-        {
-          partialFilterExpression: { userId: { $type: 'objectId' } },
-          name: 'idx_userId_nonanonymous'
-        }
-      );
-      console.log('[adLifecycle] Created idx_userId_nonanonymous partial index');
-    } catch (_idxErr) {
-      // Non-fatal — log but continue
-      console.warn('[adLifecycle] Partial index creation skipped:', _idxErr.message);
+      const db = mongoose.connection.db;
+      if (db) {
+        await db.collection('ads').createIndex(
+          { userId: 1 },
+          { partialFilterExpression: { userId: { $type: 'objectId' } }, name: 'idx_userId_hasvalue' }
+        );
+        console.log('[adLifecycle] Created idx_userId_hasvalue');
+      }
+    } catch (idxErr) {
+      console.warn('[adLifecycle] Index creation note:', idxErr.message);
     }
 
     // #127 — Drop old conflicting text index (one-time migration)
@@ -168,38 +156,28 @@ export { deleteAnonymousAds };
 
 
 // ── FIX BUG2B: Backfill missing seller/userId fields ─────────────────────────
-// Some older ads have userId but no seller (or vice versa). This ensures both
-// fields are always in sync so queries using either field find all user ads.
-//
-// DEFINITIVE FIX: Use raw MongoDB Node.js driver via Ad.collection.conn.db
-// to completely bypass ALL Mongoose layers (MongooseCollection wrapper).
-// Ad.collection.updateMany still goes through Mongoose's MongooseCollection
-// which in some configurations intercepts array pipeline syntax and throws
-// "Cannot pass an array to query updates unless the updatePipeline option is set".
-// Using conn.db.collection() gives the true native Collection from the driver.
+// DEFINITIVE-v3: Uses mongoose.connection.db (absolute bottom-most driver level).
+// Completely bypasses all Mongoose Collection wrappers to avoid pipeline array errors.
 export async function backfillSellerField() {
+  console.log('[Cleanup] DEFINITIVE-v3: backfillSellerField start');
   try {
-    console.log('[Cleanup] Starting backfillSellerField...');
-    const Ad = await getAdModel();
-    const db = Ad.collection.conn.db;
-    const collection = db.collection('ads');
+    const db = mongoose.connection.db;
+    if (!db) { console.warn('[Cleanup] db not ready, skip backfill'); return; }
+    const ads = db.collection('ads');
 
-    const r1 = await collection.updateMany(
+    const r1 = await ads.updateMany(
       { userId: { $exists: true, $ne: null }, $or: [{ seller: null }, { seller: { $exists: false } }] },
       [{ $set: { seller: '$userId' } }]
     );
-    console.log('[Cleanup] backfill userId→seller:', r1.modifiedCount, 'docs');
+    console.log('[Cleanup] backfill userId→seller:', r1.modifiedCount);
 
-    const r2 = await collection.updateMany(
+    const r2 = await ads.updateMany(
       { seller: { $exists: true, $ne: null }, $or: [{ userId: null }, { userId: { $exists: false } }] },
       [{ $set: { userId: '$seller' } }]
     );
-    console.log('[Cleanup] backfill seller→userId:', r2.modifiedCount, 'docs');
-
-    return { seller: r1.modifiedCount, userId: r2.modifiedCount };
+    console.log('[Cleanup] backfill seller→userId:', r2.modifiedCount);
   } catch (err) {
     console.error('[Cleanup] backfillSellerField failed:', err.message);
-    return { seller: 0, userId: 0 };
   }
 }
 

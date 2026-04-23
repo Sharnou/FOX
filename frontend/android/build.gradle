@@ -28,8 +28,7 @@ subprojects { subproject ->
     afterEvaluate {
         if (subproject.plugins.hasPlugin('com.android.library')) {
             subproject.android {
-                compileSdkVersion 35
-                buildToolsVersion "35.0.0"
+                compileSdkVersion 36
             }
         }
     }

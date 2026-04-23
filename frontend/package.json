@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "if [ \"$BUILD_TARGET\" = \"capacitor\" ]; then bash scripts/capacitor-build.sh; else next build; fi",
+    "build": "next build",
     "start": "next start",
     "postbuild": "node scripts/generate-sitemap.js",
-    "build:capacitor": "bash scripts/capacitor-build.sh"
+    "build:capacitor": "node scripts/capacitor-build.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",
