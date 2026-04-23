@@ -1961,8 +1961,14 @@ router.patch('/:id', auth, async (req, res) => {
 });
 
 // ── PUT update ad (owner only, full field-level sanitization) ──
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, multerUpload, async (req, res) => {
   try {
+    // #227 FIX: Express 5 + body-parser 2.x leaves req.body undefined for multipart/form-data
+    // (body-parser 2.x no longer initialises req.body to {} when content-type doesn't match).
+    // multerUpload (above) now parses the FormData; this guard handles any edge-case where
+    // body is still undefined (e.g. JSON PUT with no body).
+    req.body = req.body || {};
+
     // Immutable fields — strip them from any update payload
     delete req.body._id;
     delete req.body.userId;
@@ -1982,6 +1988,37 @@ router.put('/:id', auth, async (req, res) => {
     });
     if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود أو لا يخصك' });
 
+    // ── PROCESS UPLOADED FILES for PUT (multerUpload parsed them above) ────────
+    // If user uploaded new images when editing, upload them to Cloudinary (or keep as base64)
+    let _putUploadedMedia = [];
+    const _putImageFiles = req.files?.images
+      ? (Array.isArray(req.files.images) ? req.files.images : [req.files.images])
+      : [];
+    const _putMediaFiles = (req.files && req.files.media) ? req.files.media : [];
+    const _putAllFiles = _putImageFiles.concat(_putMediaFiles);
+    if (_putAllFiles.length > 0) {
+      _putUploadedMedia = _putAllFiles.map(f => 'data:' + f.mimetype + ';base64,' + f.buffer.toString('base64'));
+      if (CLOUDINARY_ENABLED) {
+        try {
+          const { default: cloudinaryClient } = await import('../server/cloudinary.js');
+          const _putProcessed = [];
+          for (const img of _putUploadedMedia) {
+            try {
+              const result = await cloudinaryClient.uploader.upload(img, { folder: 'xtox_ads' });
+              _putProcessed.push(result.secure_url);
+            } catch (_putImgErr) {
+              console.warn('[PUT /:id] Cloudinary image upload failed, keeping base64:', _putImgErr.message);
+              _putProcessed.push(img);
+            }
+          }
+          _putUploadedMedia = _putProcessed;
+        } catch (_putCloudErr) {
+          console.warn('[PUT /:id] Cloudinary init failed, keeping base64:', _putCloudErr.message);
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Merge: use existing ad values as defaults for any omitted field
     const mergedBody = {
       title:        req.body.title        !== undefined ? req.body.title        : ad.title,
@@ -1990,7 +2027,7 @@ router.put('/:id', auth, async (req, res) => {
       price:        req.body.price        !== undefined ? req.body.price        : ad.price,
       city:         req.body.city         !== undefined ? req.body.city         : ad.city,
       currency:     req.body.currency     !== undefined ? req.body.currency     : ad.currency,
-      media:        req.body.media        !== undefined ? req.body.media        : ad.media,
+      media:        _putUploadedMedia.length > 0 ? _putUploadedMedia : (req.body.media !== undefined ? req.body.media : ad.media),
       video:        req.body.video        !== undefined ? req.body.video        : ad.video,
       featuredStyle:req.body.featuredStyle!== undefined ? req.body.featuredStyle: ad.featuredStyle,
       condition:    req.body.condition    !== undefined ? req.body.condition    : ad.condition,
