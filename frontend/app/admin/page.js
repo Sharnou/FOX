@@ -157,6 +157,9 @@ export default function AdminPage() {
   const [sitemapXml, setSitemapXml] = useState('');
   const [sitemapStatus, setSitemapStatus] = useState('');
   const [sitemapLoading, setSitemapLoading] = useState(false);
+  const [robotsTxt, setRobotsTxt] = useState('');
+  const [robotsStatus, setRobotsStatus] = useState('');
+  const [robotsLoading, setRobotsLoading] = useState(false);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -171,6 +174,13 @@ export default function AdminPage() {
     })
       .then(r => r.json())
       .then(d => setSitemapXml(d.xml || ''))
+      .catch(() => {});
+    // Load robots.txt
+    fetch(API + '/api/admin/robots', {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+    })
+      .then(r => r.json())
+      .then(d => setRobotsTxt(d.txt || ''))
       .catch(() => {});
   }, [authed, token]);
 
@@ -399,6 +409,24 @@ export default function AdminPage() {
       </div>
     </div>
   );
+
+  // ── saveRobots ──────────────────────────────────────────
+  const saveRobots = async () => {
+    setRobotsLoading(true);
+    setRobotsStatus('');
+    try {
+      const r = await fetch(API + '/api/admin/robots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ txt: robotsTxt }),
+      });
+      const d = await r.json();
+      setRobotsStatus(d.success ? '✅ Robots.txt saved successfully' : '❌ ' + (d.error || 'Failed'));
+    } catch (e) {
+      setRobotsStatus('❌ Network error');
+    }
+    setRobotsLoading(false);
+  };
 
   // ══════════════════════════════════════════════════════
   // MAIN ADMIN UI
@@ -1200,6 +1228,55 @@ export default function AdminPage() {
               <p style={{ color: '#475569', fontSize: 11, marginTop: 12 }}>
                 💡 عند عدم وجود sitemap مرفوع، يُنشئ النظام sitemap تلقائياً من الإعلانات النشطة.
               </p>
+            </div>
+
+            {/* ── Divider ── */}
+            <hr style={{ border: 'none', borderTop: '1px solid #334155', margin: '32px 0' }} />
+
+            {/* ── Robots.txt Section ── */}
+            <h2 style={{ color: '#fff', marginBottom: 16, fontSize: 18 }}>🤖 Robots.txt</h2>
+            <p style={{ color: '#aaa', marginBottom: 12, fontSize: 14 }}>
+              Customize your <code style={{ color: '#60a5fa' }}>robots.txt</code> — controls how search engines crawl your site.
+            </p>
+            <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 24 }}>
+              <textarea
+                value={robotsTxt}
+                onChange={e => setRobotsTxt(e.target.value)}
+                placeholder={'User-agent: *\nAllow: /\nSitemap: https://fox-kohl-eight.vercel.app/sitemap.xml'}
+                rows={10}
+                style={{
+                  width: '100%', fontFamily: 'monospace', fontSize: 13,
+                  background: '#0f0f1a', color: '#e2e8f0', border: '1px solid #334155',
+                  borderRadius: 8, padding: 12, resize: 'vertical', boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <button
+                  onClick={saveRobots}
+                  disabled={robotsLoading || !robotsTxt}
+                  style={{
+                    background: '#7c3aed', color: '#fff', border: 'none',
+                    borderRadius: 8, padding: '10px 24px', cursor: 'pointer', fontWeight: 600,
+                    opacity: robotsLoading || !robotsTxt ? 0.6 : 1,
+                  }}
+                >
+                  {robotsLoading ? 'Saving...' : '💾 Save Robots.txt'}
+                </button>
+                <button
+                  onClick={() => window.open('/robots.txt', '_blank')}
+                  style={{
+                    background: 'transparent', color: '#60a5fa', border: '1px solid #60a5fa',
+                    borderRadius: 8, padding: '10px 24px', cursor: 'pointer',
+                  }}
+                >
+                  🔗 Preview /robots.txt
+                </button>
+                {robotsStatus && (
+                  <span style={{ color: robotsStatus.startsWith('✅') ? '#22c55e' : '#ef4444', fontWeight: 600, fontSize: 13 }}>
+                    {robotsStatus}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}

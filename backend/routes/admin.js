@@ -1193,4 +1193,35 @@ router.post('/sitemap', adminAuth, async (req, res) => {
   }
 });
 
+
+// ─────────────────────────────────────────────────────────
+// GET /api/admin/robots — get current robots.txt content
+// ─────────────────────────────────────────────────────────
+router.get('/robots', adminAuth, async (req, res) => {
+  try {
+    const s = await Setting.findOne({ key: 'robots_txt' });
+    res.json({ txt: s ? s.value : '' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// POST /api/admin/robots — save robots.txt content
+// ─────────────────────────────────────────────────────────
+router.post('/robots', adminAuth, async (req, res) => {
+  try {
+    const { txt } = req.body;
+    if (!txt || typeof txt !== 'string') return res.status(400).json({ error: 'Invalid content' });
+    await Setting.findOneAndUpdate(
+      { key: 'robots_txt' },
+      { key: 'robots_txt', value: txt, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

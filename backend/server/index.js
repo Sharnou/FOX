@@ -94,6 +94,7 @@ let _getWPTokenStatus = null;
 })();
 import wpRouter from "../routes/wp.js";
 import sitemapRouter from "../routes/sitemap.js";
+import robotsRouter from "../routes/robots.js";
 import { loadWPTokenFromDB } from '../utils/wordpress.js';
 import translationsRouter from '../routes/translations.js';
 import translateRouter from '../routes/translate.js';
@@ -310,6 +311,7 @@ app.get('/api/metrics', (req, res) => {
 });
 
 app.use('/api/sitemap', sitemapRouter);
+app.use('/api/robots', robotsRouter);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
 app.get('/robots.txt', (req, res) => res.redirect('/seo/robots.txt'));
 
