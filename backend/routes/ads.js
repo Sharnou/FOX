@@ -1963,6 +1963,8 @@ router.patch('/:id', auth, async (req, res) => {
 // ── PUT update ad (owner only, full field-level sanitization) ──
 router.put('/:id', auth, multerUpload, async (req, res) => {
   try {
+    // #228 ENTRY LOG: confirm handler is reached and Railway is running new code
+    console.log('[PUT /:id] handler entered — v228, user=', req.user?.id, 'adId=', req.params.id, 'bodyKeys=', Object.keys(req.body || {}));
     // #227 FIX: Express 5 + body-parser 2.x leaves req.body undefined for multipart/form-data
     // (body-parser 2.x no longer initialises req.body to {} when content-type doesn't match).
     // multerUpload (above) now parses the FormData; this guard handles any edge-case where
@@ -2036,6 +2038,7 @@ router.put('/:id', auth, multerUpload, async (req, res) => {
       whatsapp:     req.body.whatsapp     !== undefined ? req.body.whatsapp     : ad.whatsapp,
       tags:         req.body.tags         !== undefined ? req.body.tags         : ad.tags,
       level4:       req.body.level4       !== undefined ? req.body.level4       : ad.level4,
+      subsub:       req.body.subsub       !== undefined ? req.body.subsub       : ad.subsub,
     };
 
     // ── FIELD-LEVEL SANITIZATION (mirrors POST validation) ──
@@ -2058,13 +2061,20 @@ router.put('/:id', auth, multerUpload, async (req, res) => {
     ad.price = price;
     ad.city = city || ad.city;
     ad.currency = currency;
-    ad.media = media.length ? media : ad.media;
+    if (media.length) { ad.media = media; ad.images = media; } // keep both fields in sync
     if (video !== undefined) ad.video = video;
     if (featuredStyle && featuredStyle !== 'normal') ad.featuredStyle = featuredStyle;
     if (sanitized.condition !== undefined) ad.condition = sanitized.condition; // FIX: apply condition from mergedBody
     if (updateWhatsapp !== undefined) ad.whatsapp = updateWhatsapp;
     if (updateLevel4 !== undefined) ad.level4 = updateLevel4;
     if (updateTags !== undefined) ad.tags = updateTags;
+    // FIX #228: apply subsub from user selection (not just AI detection)
+    if (mergedBody.subsub && mergedBody.subsub !== 'أخرى' && mergedBody.subsub !== 'Other') {
+      ad.subsub = String(mergedBody.subsub).slice(0, 60).trim();
+    }
+    // FIX #228: apply whatsapp/tags/level4 directly from mergedBody (sanitizeAdFields doesn't handle them)
+    if (mergedBody.whatsapp !== undefined) ad.whatsapp = String(mergedBody.whatsapp || '').slice(0, 30).trim() || ad.whatsapp;
+    if (mergedBody.level4 !== undefined) ad.level4 = String(mergedBody.level4 || '').slice(0, 60).trim() || null;
     // Re-detect subsub when title or description changed
     if (req.body.title !== undefined || req.body.description !== undefined) {
       const _reText = (title || ad.title || '') + ' ' + (description || ad.description || '');
@@ -2152,7 +2162,10 @@ router.put('/:id', auth, multerUpload, async (req, res) => {
     });
 
     res.json({ ok: true, ad });
-  } catch (e) { res.status(500).json({ error: 'فشل تحديث الإعلان', code: 'UPDATE_ERROR' }); }
+  } catch (e) {
+    console.error('[PUT /api/ads/:id] UNHANDLED ERROR — adId:', req.params.id, 'user:', req.user?.id, 'err:', e.message, '\nstack:', e.stack);
+    res.status(500).json({ error: e.message || 'فشل تحديث الإعلان', code: 'UPDATE_ERROR' });
+  }
 });
 
 // ── DELETE ad ──

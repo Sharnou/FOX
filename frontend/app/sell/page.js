@@ -658,7 +658,8 @@ export default function SellPage() {
 
   async function submit(forceDuplicate = false) {
     if (!validate()) return;
-    if (!forceDuplicate && form.title.trim().length >= 5) {
+    // FIX #228: skip duplicate check when editing existing ad — user's own ad would always match
+    if (!editAdId && !forceDuplicate && form.title.trim().length >= 5) {
       try {
         const myAdsRes = await fetchWithRetry(API + '/api/ads/my/all', { headers: { Authorization: 'Bearer ' + token } }, { retries: 1 });
         const myAdsData = await myAdsRes.json();
@@ -720,7 +721,8 @@ export default function SellPage() {
             setErrors({ submit: err.error || 'لقد وصلت للحد اليومي للإعلانات' });
           }
         } else {
-          setErrors({ submit: 'حدث خطأ أثناء نشر الإعلان، يرجى المحاولة مجدداً' });
+          // FIX #228: show actual backend error message when available
+          setErrors({ submit: err.error || (_isEdit ? 'حدث خطأ أثناء تحديث الإعلان، يرجى المحاولة مجدداً' : 'حدث خطأ أثناء نشر الإعلان، يرجى المحاولة مجدداً') });
         }
         setLoading(false);
         return;
