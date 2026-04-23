@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const BASE_URL = 'https://fox-kohl-eight.vercel.app';
-const API_URL = 'https://xtox-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 const STATIC_ROUTES = [
   { url: '/', priority: '1.0', changefreq: 'daily' },
@@ -18,6 +18,29 @@ const STATIC_ROUTES = [
 ];
 
 export async function GET() {
+  // ── Step 1: try to serve admin-uploaded sitemap ──────────────────────────
+  try {
+    const stored = await fetch(`${API_URL}/api/sitemap`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(4000),
+    });
+    if (stored.ok) {
+      const xml = await stored.text();
+      if (xml && xml.includes('<urlset')) {
+        return new NextResponse(xml, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/xml; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+          },
+        });
+      }
+    }
+  } catch {
+    // fall through to auto-generate
+  }
+
+  // ── Step 2: auto-generate from live ads ──────────────────────────────────
   let adUrls = [];
   try {
     const res = await fetch(`${API_URL}/api/ads?limit=500&status=active`, {
@@ -34,7 +57,7 @@ export async function GET() {
         title: ad.title || '',
       }));
     }
-  } catch (e) {
+  } catch {
     // fallback to static only
   }
 

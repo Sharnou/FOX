@@ -13,6 +13,7 @@ const ADMIN_TABS = [
   { id: 'reputation', icon: '🏆', ar: 'نقاط السمعة' },
   { id: 'system',     icon: '⚙️', ar: 'النظام' },
   { id: 'reviews_tab', icon: '🌟', ar: 'التقييمات' },
+  { id: 'sitemap_tab', icon: '🗺️', ar: 'Sitemap XML' },
 ];
 const ADMIN_S = { // style shortcuts
   th: { padding: '10px 12px', textAlign: 'right', color: '#8b949e', fontWeight: 'normal', fontSize: 12, borderBottom: '1px solid #21262d' },
@@ -152,11 +153,26 @@ export default function AdminPage() {
   const [wpStatus, setWpStatus] = useState(null); // null | { connected, site, user } | { error }
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [wpTokenInput, setWpTokenInput] = useState('');
+  // ── Sitemap tab state ───────────────────────────────
+  const [sitemapXml, setSitemapXml] = useState('');
+  const [sitemapStatus, setSitemapStatus] = useState('');
+  const [sitemapLoading, setSitemapLoading] = useState(false);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
     setTimeout(() => setToast(''), 2800);
   }, []);
+
+  // ── sitemap loader ──────────────────────────────────────
+  useEffect(() => {
+    if (!authed || !token) return;
+    fetch(API + '/api/admin/sitemap', {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+    })
+      .then(r => r.json())
+      .then(d => setSitemapXml(d.xml || ''))
+      .catch(() => {});
+  }, [authed, token]);
 
   // ── session restore ─────────────────────────────────────
   useEffect(() => {
@@ -1099,6 +1115,94 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+        {/* ══ TAB: Sitemap XML ══ */}
+        {tab === 'sitemap_tab' && (
+          <div>
+            <h2 style={{ color: '#00d4ff', marginBottom: 20, fontSize: 18 }}>🗺️ Sitemap XML (Google & Bing)</h2>
+            <p style={{ color: '#8b949e', marginBottom: 16, fontSize: 13 }}>
+              ارفع ملف sitemap.xml — سيُعرض تلقائياً على{' '}
+              <code style={{ color: '#60a5fa', background: '#161b22', padding: '2px 6px', borderRadius: 4 }}>/sitemap.xml</code>
+            </p>
+            <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ color: '#ccc', fontSize: 13, display: 'block', marginBottom: 8 }}>📂 رفع ملف .xml</label>
+                <input
+                  type="file"
+                  accept=".xml,text/xml,application/xml"
+                  onChange={e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => setSitemapXml(ev.target.result);
+                    reader.readAsText(file);
+                  }}
+                  style={{ color: '#e6edf3', fontSize: 13 }}
+                />
+              </div>
+              <label style={{ color: '#ccc', fontSize: 13, display: 'block', marginBottom: 8 }}>✏️ أو الصق محتوى XML مباشرة:</label>
+              <textarea
+                value={sitemapXml}
+                onChange={e => setSitemapXml(e.target.value)}
+                placeholder={'<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://fox-kohl-eight.vercel.app/</loc>
+  </url>
+</urlset>'}
+                rows={16}
+                style={{
+                  width: '100%', fontFamily: 'monospace', fontSize: 12,
+                  background: '#0d1117', color: '#e2e8f0', border: '1px solid #334155',
+                  borderRadius: 8, padding: 12, resize: 'vertical', boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <button
+                  onClick={async () => {
+                    if (!sitemapXml.trim()) return;
+                    setSitemapLoading(true);
+                    setSitemapStatus('');
+                    try {
+                      const r = await fetch(API + '/api/admin/sitemap', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                        body: JSON.stringify({ xml: sitemapXml }),
+                      });
+                      const d = await r.json();
+                      setSitemapStatus(d.success ? '✅ تم حفظ الـ Sitemap بنجاح' : '❌ ' + (d.error || 'فشل الحفظ'));
+                    } catch {
+                      setSitemapStatus('❌ خطأ في الشبكة');
+                    }
+                    setSitemapLoading(false);
+                  }}
+                  disabled={sitemapLoading || !sitemapXml.trim()}
+                  style={{
+                    background: '#2563eb', color: '#fff', border: 'none',
+                    borderRadius: 8, padding: '10px 24px', cursor: sitemapLoading || !sitemapXml.trim() ? 'not-allowed' : 'pointer',
+                    fontWeight: 600, fontSize: 13, opacity: sitemapLoading || !sitemapXml.trim() ? 0.6 : 1,
+                  }}
+                >
+                  {sitemapLoading ? '⏳ جارٍ الحفظ...' : '💾 حفظ الـ Sitemap'}
+                </button>
+                <button
+                  onClick={() => window.open('/sitemap.xml', '_blank')}
+                  style={{ background: '#21262d', color: '#00d4ff', border: '1px solid #00d4ff', borderRadius: 8, padding: '10px 18px', cursor: 'pointer', fontSize: 13 }}
+                >
+                  🔗 معاينة /sitemap.xml
+                </button>
+                {sitemapStatus && (
+                  <span style={{ color: sitemapStatus.startsWith('✅') ? '#22c55e' : '#ef4444', fontSize: 13, fontWeight: 600 }}>
+                    {sitemapStatus}
+                  </span>
+                )}
+              </div>
+              <p style={{ color: '#475569', fontSize: 11, marginTop: 12 }}>
+                💡 عند عدم وجود sitemap مرفوع، يُنشئ النظام sitemap تلقائياً من الإعلانات النشطة.
+              </p>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import Ad from '../models/Ad.js';
 import Report from '../models/Report.js';
 import AILog from '../models/AILog.js';
+import Setting from '../models/Setting.js';
 import { adminAuth, superAdminAuth } from '../middleware/auth.js';
 import { dbState, MemAd, MemUser, MemReport } from '../server/memoryStore.js';
 import { getActiveDB } from '../server/dbManager.js';
@@ -1159,6 +1160,36 @@ router.post('/ads/enrich-batch', adminAuth, async (req, res) => {
       .catch((err) => console.error('[Admin] enrich-batch error:', err));
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ─────────────────────────────────────────────────────────
+// GET /api/admin/sitemap — get current stored sitemap XML
+// ─────────────────────────────────────────────────────────
+router.get('/sitemap', adminAuth, async (req, res) => {
+  try {
+    const xml = await Setting.get('sitemap_xml', '');
+    res.json({ xml });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// POST /api/admin/sitemap — upload/update sitemap XML
+// ─────────────────────────────────────────────────────────
+router.post('/sitemap', adminAuth, async (req, res) => {
+  try {
+    const { xml } = req.body;
+    if (!xml || typeof xml !== 'string') return res.status(400).json({ error: 'xml field required' });
+    if (!xml.includes('<urlset') && !xml.includes('<sitemapindex')) {
+      return res.status(400).json({ error: 'Invalid XML: must contain <urlset> or <sitemapindex>' });
+    }
+    await Setting.set('sitemap_xml', xml);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
