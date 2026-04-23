@@ -429,6 +429,25 @@ export default function AdminPage() {
   };
 
   // ══════════════════════════════════════════════════════
+
+  async function handleEnrichAd(adId) {
+    try {
+      const r = await apiFetch('/api/admin/ads/' + adId + '/enrich', { method: 'POST' }, token);
+      showToast(r.data?.message || 'تم الإثراء');
+    } catch { showToast('خطأ في الإثراء'); }
+  }
+
+  async function handleEnrichBatch() {
+    if (!confirm('إثراء جميع الإعلانات (حتى 500)؟')) return;
+    try {
+      const r = await apiFetch('/api/admin/ads/enrich-batch', {
+        method: 'POST',
+        body: JSON.stringify({ onlyNew: false, limit: 500 }),
+      }, token);
+      showToast(r.data?.message || 'تم الإثراء الجماعي');
+    } catch { showToast('خطأ في الإثراء الجماعي'); }
+  }
+
   // MAIN ADMIN UI
   // ══════════════════════════════════════════════════════
   return (
@@ -1237,7 +1256,7 @@ export default function AdminPage() {
               <textarea
                 value={robotsTxt}
                 onChange={e => setRobotsTxt(e.target.value)}
-                placeholder={'User-agent: *\nAllow: /\nSitemap: https://fox-kohl-eight.vercel.app/sitemap.xml'}
+                placeholder={`User-agent: *\nAllow: /\nSitemap: https://fox-kohl-eight.vercel.app/sitemap.xml`}
                 rows={10}
                 style={{
                   width: '100%', fontFamily: 'monospace', fontSize: 13,
@@ -1278,22 +1297,3 @@ export default function AdminPage() {
     </div>
   );
 }
-  async function handleEnrichAd(adId) {
-    try {
-      const r = await apiFetch('/api/admin/ads/' + adId + '/enrich', { method: 'POST' }, token);
-      showToast(r.data?.message || 'تم الإثراء');
-    } catch { showToast('خطأ في الإثراء'); }
-  }
-
-  async function handleEnrichBatch() {
-    if (!confirm('إثراء جميع الإعلانات (حتى 500)؟')) return;
-    try {
-      const r = await apiFetch('/api/admin/ads/enrich-batch', {
-        method: 'POST',
-        body: JSON.stringify({ onlyNew: false, limit: 500 }),
-      }, token);
-      showToast(r.data?.message || 'تم الإثراء الجماعي');
-    } catch { showToast('خطأ في الإثراء الجماعي'); }
-  }
-
-
