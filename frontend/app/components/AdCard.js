@@ -740,6 +740,24 @@ export default function AdCard({
           <div className="mt-2">
             <p className="text-xs text-gray-500 m-0">👁 {viewCount} | {ad.city}</p>
           </div>
+          {/* #226 — Description snippet: 2-line clamp, RTL, Cairo font */}
+          {ad.description && (
+            <p style={{
+              fontSize: '12px',
+              color: 'rgb(102, 102, 102)',
+              margin: '4px 12px',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              lineHeight: 1.4,
+              direction: 'rtl',
+              fontFamily: 'Cairo, Tajawal, sans-serif',
+              minHeight: '2.8em',
+            }}>
+              {ad.description}
+            </p>
+          )}
         </div>
       </div>{/* end navigable div */}
 

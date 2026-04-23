@@ -1,5 +1,5 @@
-// SAFETY CHECK: if this line appears in logs, backfillSellerField was not fully removed
-// grep: SAFETY-GUARD-adLifecycle
+// adLifecycle.js — v226 — backfillSellerField PERMANENTLY REMOVED — 2026-04-23
+// If you see [Cleanup] backfillSellerField errors, Railway is running stale code
 console.log('[adLifecycle] LOADED — nuclear version, backfillSellerField removed');
 
 import mongoose from 'mongoose';
