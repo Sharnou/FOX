@@ -1173,8 +1173,10 @@ export default function AdminPage() {
             </p>
             <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 24 }}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ color: '#ccc', fontSize: 13, display: 'block', marginBottom: 8 }}>📂 رفع ملف .xml</label>
+                <label htmlFor="sitemap-file-input" style={{ color: '#ccc', fontSize: 13, display: 'block', marginBottom: 8 }}>📂 رفع ملف .xml</label>
                 <input
+                  id="sitemap-file-input"
+                  name="sitemap-file"
                   type="file"
                   accept=".xml,text/xml,application/xml"
                   onChange={e => {
@@ -1254,6 +1256,7 @@ export default function AdminPage() {
             </p>
             <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 24 }}>
               <textarea
+                id="robots-txt-textarea"
                 value={robotsTxt}
                 onChange={e => setRobotsTxt(e.target.value)}
                 placeholder={`User-agent: *\nAllow: /\nSitemap: https://fox-kohl-eight.vercel.app/sitemap.xml`}

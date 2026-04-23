@@ -1,6 +1,6 @@
 // DEPLOYMENT MARKER — shows in Railway logs to confirm which commit is running
 console.log('[SERVER-STARTUP] ==========================================');
-console.log('[SERVER-STARTUP] v228 — PUT /:id: logging + subsub/whatsapp/level4 fix + frontend dup-check skip on edit');
+console.log('[SERVER-STARTUP] v229 — sitemap/robots routes registered + accessibility fixes');
 console.log('[SERVER-STARTUP] ==========================================');
 
 // CRITICAL: Clear invalid Redis URL before ANY module imports it
