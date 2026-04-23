@@ -1172,12 +1172,7 @@ export default function AdminPage() {
               <textarea
                 value={sitemapXml}
                 onChange={e => setSitemapXml(e.target.value)}
-                placeholder={'<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://fox-kohl-eight.vercel.app/</loc>
-  </url>
-</urlset>'}
+                placeholder={`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://fox-kohl-eight.vercel.app/</loc>\n  </url>\n</urlset>`}
                 rows={16}
                 style={{
                   width: '100%', fontFamily: 'monospace', fontSize: 12,
