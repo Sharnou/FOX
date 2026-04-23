@@ -41,8 +41,7 @@ export async function runAdLifecycle() {
       await Ad.collection.createIndex(
         { userId: 1 },
         {
-          partialFilterExpression: { userId: { $exists: true, $ne: null } },
-          background: true,
+          partialFilterExpression: { userId: { $type: 'objectId' } },
           name: 'idx_userId_nonanonymous'
         }
       );

@@ -84,7 +84,7 @@ export async function runMonthlyWinner() {
     if (!eligibleUsers.length) {
       console.log('[MonthlyWinner] No user has >= 5 monthly points — no winner this month.');
       // Still reset monthly points
-      await User.updateMany({}, [
+      await User.collection.updateMany({}, [
         { $set: { lastMonthPoints: '$monthlyPoints', monthlyPoints: 0 } }
       ]);
       return;
@@ -238,7 +238,7 @@ export async function runMonthlyWinner() {
     }
 
     // Reset all users' monthlyPoints for new month
-    await User.updateMany({}, [
+    await User.collection.updateMany({}, [
       { $set: { lastMonthPoints: '$monthlyPoints', monthlyPoints: 0 } }
     ]);
 
