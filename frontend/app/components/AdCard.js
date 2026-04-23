@@ -828,51 +828,32 @@ export default function AdCard({
 
       {/* BUG 3 FIX: Removed "▼ عرض الإعلان" expand button — description always visible above */}
 
-      {/* Two full-width contact buttons — only on other people's ads */}
+      {/* === 3 CONTACT ICONS - FIXED #214 === */}
       {!isOwnAd && (
-        <div onClick={e => e.stopPropagation()} style={{ padding: '0 12px 4px' }}>
-          {/* Button 1 — Message seller (toggle chatbox open/closed) */}
-          <button
-            onClick={handleOpenChat}
-            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',width:'100%',padding:'13px 20px',borderRadius:'14px',border:'none',background:'linear-gradient(135deg,#7c3aed,#4f46e5)',color:'#fff',fontSize:'15px',fontWeight:700,cursor:'pointer',boxShadow:'0 4px 15px rgba(124,58,237,0.35)',marginTop:'8px',fontFamily:'inherit'}}
-          >💬 راسل البائع</button>
-
-          {/* Button 2 — Direct call */}
-          <button
-            onClick={(e) => { e.stopPropagation(); notifySellerContactViewed('call'); router.push(`/ads/${ad._id}?showPhone=1`); }}
-            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',width:'100%',padding:'14px',borderRadius:'12px',border:'none',background:'rgb(0,170,68)',color:'white',fontWeight:'bold',fontSize:'15px',cursor:'pointer',marginTop:'6px',fontFamily:'inherit'}}
-          >📞 مكالمة مباشرة</button>
-        </div>
-      )}
-
-      {/* 3 contact icons — forced fix #208 */}
-      {!isOwnAd && (
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px', padding: '0 12px 8px' }} onClick={e => e.stopPropagation()}>
-          {/* Chat */}
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px', padding: '0 4px 4px' }} onClick={e => { e.stopPropagation(); e.preventDefault(); }}>
           <button
             title="محادثة"
-            onClick={e => { e.stopPropagation(); e.preventDefault(); setChatOpen(s => !s); }}
-            style={{ background: '#e3f2fd', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', flexShrink: 0 }}
+            onClick={e => { e.stopPropagation(); e.preventDefault(); setChatOpen(prev => !prev); }}
+            style={{ background: '#dbeafe', border: 'none', borderRadius: '50%', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '17px', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}
           >💬</button>
-          {/* Voice call */}
           <button
             title="مكالمة صوتية"
-            onClick={e => { e.stopPropagation(); e.preventDefault(); const sellerId = ad.seller?._id || ad.seller || ad.userId; if (sellerId) router.push(`/call?to=${sellerId}&adId=${ad._id}`); }}
-            style={{ background: '#e8f5e9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', flexShrink: 0 }}
+            onClick={e => { e.stopPropagation(); e.preventDefault(); const sid = ad?.seller?._id || ad?.seller || ad?.userId; if (sid) router.push('/call?to=' + sid + '&adId=' + ad._id); }}
+            style={{ background: '#dcfce7', border: 'none', borderRadius: '50%', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '17px', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}
           >📞</button>
-          {/* WhatsApp — only if phone exists */}
-          {(ad.phone || ad.seller?.phone) && (
+          {Boolean(ad?.phone || ad?.seller?.phone) && (
             <a
-              href={`https://wa.me/${(ad.phone || ad.seller?.phone || '').replace(/[^0-9]/g, '')}`}
+              href={'https://wa.me/' + String(ad?.phone || ad?.seller?.phone || '').replace(/\D/g, '') + '?text=' + encodeURIComponent('مرحباً، رأيت إعلانك على XTOX')}
               onClick={e => e.stopPropagation()}
               target="_blank"
               rel="noopener noreferrer"
               title="واتساب"
-              style={{ background: '#e8f5e9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', flexShrink: 0, textDecoration: 'none' }}
+              style={{ background: '#dcfce7', border: 'none', borderRadius: '50%', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '17px', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.12)', textDecoration: 'none' }}
             >🟢</a>
           )}
         </div>
       )}
+      {/* === END 3 CONTACT ICONS === */}
 
       {/* BUG 1 FIX: Inline chatbox — outside navigable div, with zIndex:100 so it's never clipped */}
       {chatOpen && !isOwnAd && (

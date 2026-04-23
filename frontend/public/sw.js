@@ -1,7 +1,7 @@
 // ─── XTOX Background Sync + Cache Strategy ───────────────
 // NOTE: CACHE_NAME and API_ORIGIN defined here are used in fetch listeners below.
 // The main CACHE_VERSION constant below may differ — both operate independently.
-const _XTOX_CACHE = 'xtox-v54';
+const _XTOX_CACHE = 'xtox-v55';
 const _XTOX_API = 'https://xtox-production.up.railway.app';
 
 // Stale-While-Revalidate for API calls (shows cached, fetches fresh)
@@ -54,9 +54,9 @@ self.addEventListener('periodicsync', function(event) {
               'Content-Type': 'application/json',
             },
           });
-          console.log('[SW v54] Presence ping sent ✓');
+          console.log('[SW v55] Presence ping sent ✓');
         } catch (e) {
-          console.log('[SW v54] Presence ping failed:', e.message);
+          console.log('[SW v55] Presence ping failed:', e.message);
         }
       })()
     );
@@ -101,7 +101,7 @@ function logCallEventSW(type, data) {
 
 // ─── XTOX Service Worker v52 ────────────────────────────────────────────────
 // Bump this version to force all old caches to be deleted on next activation.
-const CACHE_VERSION = 'v54';
+const CACHE_VERSION = 'v55';
 const CACHE_NAME = 'xtox-cache-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
@@ -140,11 +140,11 @@ self.addEventListener('activate', (event) => {
         const existingSub = await self.registration.pushManager.getSubscription();
         if (existingSub) {
           await existingSub.unsubscribe();
-          console.log('[XTOX SW v54] Unsubscribed stale push subscription on activate');
+          console.log('[XTOX SW v55] Unsubscribed stale push subscription on activate');
         }
       } catch (_unsubErr) {
         // Non-fatal — push may not be supported on this device
-        console.warn('[XTOX SW v54] Push unsubscribe failed (non-fatal):', _unsubErr.message);
+        console.warn('[XTOX SW v55] Push unsubscribe failed (non-fatal):', _unsubErr.message);
       }
 
       // 3. Delete ALL old caches
@@ -153,7 +153,7 @@ self.addEventListener('activate', (event) => {
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[XTOX SW v54] Deleting old cache:', name);
+            console.log('[XTOX SW v55] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
