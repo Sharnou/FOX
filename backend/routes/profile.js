@@ -160,15 +160,17 @@ router.patch('/avatar', auth, (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     try {
       let avatarUrl;
-      // Try Cloudinary if configured
-      if (process.env.CLOUDINARY_ENABLED === 'true' || process.env.CLOUDINARY_CLOUD_NAME) {
+      // Try Cloudinary if configured — uses CLOUDINARY_URL (auto-parsed by SDK)
+      if (process.env.CLOUDINARY_URL) {
         try {
           const { v2: cloudinary } = await import('cloudinary');
-          cloudinary.config({
-            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-            api_key: process.env.CLOUDINARY_API_KEY,
-            api_secret: process.env.CLOUDINARY_API_SECRET,
-          });
+          // Safety net: parse CLOUDINARY_URL if SDK hasn't auto-configured yet
+          if (process.env.CLOUDINARY_URL && !cloudinary.config().cloud_name) {
+            const match = process.env.CLOUDINARY_URL.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+            if (match) {
+              cloudinary.config({ api_key: match[1], api_secret: match[2], cloud_name: match[3] });
+            }
+          }
           const result = await new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
               { folder: 'xtox/avatars', transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }] },

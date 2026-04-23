@@ -1,38 +1,52 @@
 import { v2 as cloudinary } from 'cloudinary';
 
-// Guard: only configure Cloudinary if all 3 env vars are present AND valid
-const CLOUD_NAME   = process.env.CLOUD_NAME;
-const CLOUD_KEY    = process.env.CLOUD_KEY;
-const CLOUD_SECRET = process.env.CLOUD_SECRET;
-
-// Validate cloud_name: must not be a Railway service name ('Root'), empty string,
-// the literal string 'undefined', or contain characters invalid in Cloudinary names.
-// Valid cloud names are lowercase alphanumeric + hyphens/underscores only.
-const isValidCloudName = !!(
-  CLOUD_NAME &&
-  CLOUD_NAME !== 'Root' &&
-  CLOUD_NAME !== 'undefined' &&
-  CLOUD_NAME !== 'null' &&
-  !CLOUD_NAME.includes(' ') &&
-  /^[a-z0-9_-]+$/i.test(CLOUD_NAME)
-);
-
-export const CLOUDINARY_ENABLED = !!(isValidCloudName && CLOUD_KEY && CLOUD_SECRET);
-
-if (CLOUDINARY_ENABLED) {
-  cloudinary.config({
-    cloud_name: CLOUD_NAME,
-    api_key:    CLOUD_KEY,
-    api_secret: CLOUD_SECRET,
-  });
-  console.log('[Cloudinary] Configured ✅ cloud:', CLOUD_NAME);
-} else {
-  if (CLOUD_NAME && !isValidCloudName) {
-    console.warn('[Cloudinary] Skipped — CLOUD_NAME "' + CLOUD_NAME + '" is invalid (got Railway service name or placeholder). Image uploads disabled.');
+// ── Cloudinary configuration ────────────────────────────────────────────────
+// Primary: parse CLOUDINARY_URL (format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME)
+// This is the only Cloudinary env var available on Railway.
+// The v2 SDK auto-reads CLOUDINARY_URL when present, but we parse manually as a
+// safety net in case the SDK doesn't auto-detect it.
+let configuredViaUrl = false;
+if (process.env.CLOUDINARY_URL) {
+  const match = process.env.CLOUDINARY_URL.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+  if (match) {
+    cloudinary.config({ api_key: match[1], api_secret: match[2], cloud_name: match[3] });
+    configuredViaUrl = true;
+    console.log('[Cloudinary] Configured from CLOUDINARY_URL ✅ cloud:', match[3]);
   } else {
-    console.warn('[Cloudinary] Not configured (CLOUD_NAME/CLOUD_KEY/CLOUD_SECRET missing) — image uploads disabled');
+    console.warn('[Cloudinary] CLOUDINARY_URL present but could not be parsed');
   }
 }
+
+// Fallback: individual env vars (CLOUD_NAME / CLOUD_KEY / CLOUD_SECRET)
+if (!configuredViaUrl) {
+  const CLOUD_NAME   = process.env.CLOUD_NAME;
+  const CLOUD_KEY    = process.env.CLOUD_KEY;
+  const CLOUD_SECRET = process.env.CLOUD_SECRET;
+
+  const isValidCloudName = !!(
+    CLOUD_NAME &&
+    CLOUD_NAME !== 'Root' &&
+    CLOUD_NAME !== 'undefined' &&
+    CLOUD_NAME !== 'null' &&
+    !CLOUD_NAME.includes(' ') &&
+    /^[a-z0-9_-]+$/i.test(CLOUD_NAME)
+  );
+
+  if (isValidCloudName && CLOUD_KEY && CLOUD_SECRET) {
+    cloudinary.config({ cloud_name: CLOUD_NAME, api_key: CLOUD_KEY, api_secret: CLOUD_SECRET });
+    console.log('[Cloudinary] Configured from CLOUD_NAME/CLOUD_KEY/CLOUD_SECRET ✅ cloud:', CLOUD_NAME);
+  } else {
+    if (CLOUD_NAME && !isValidCloudName) {
+      console.warn('[Cloudinary] Skipped — CLOUD_NAME "' + CLOUD_NAME + '" is invalid. Image uploads disabled.');
+    } else {
+      console.warn('[Cloudinary] Not configured (CLOUDINARY_URL and CLOUD_NAME/CLOUD_KEY/CLOUD_SECRET all missing) — image uploads disabled');
+    }
+  }
+}
+
+// CLOUDINARY_ENABLED: true if cloudinary is configured with valid credentials
+const cfg = cloudinary.config();
+export const CLOUDINARY_ENABLED = !!(cfg.cloud_name && cfg.api_key && cfg.api_secret);
 
 export async function uploadImage(filePath) {
   if (!CLOUDINARY_ENABLED) {
