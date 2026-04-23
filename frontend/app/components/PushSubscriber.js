@@ -21,16 +21,22 @@ export default function PushSubscriber() {
     const token = typeof localStorage !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token')) : null;
     if (!token) return;
 
+    // FIX: Only auto-subscribe if permission is ALREADY granted.
+    // Do NOT call requestPermission() on mount — that prompts the user uninvited.
+    // Do NOT show any toast on mount — the disabled toast must only show when
+    // the user explicitly clicks an "Enable notifications" button AND gets 'denied'.
+    if (Notification.permission !== 'granted') {
+      // If permission was explicitly denied, the caller (a button handler) is responsible
+      // for showing the disabled toast — NOT this auto-run effect.
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
       try {
         const reg = await navigator.serviceWorker.ready;
         if (cancelled) return;
-
-        // Request notification permission first
-        const perm = await Notification.requestPermission();
-        if (perm !== 'granted' || cancelled) return;
 
         // Get VAPID public key from backend (with fallback to hardcoded key)
         let vapidKey = VAPID_DEFAULT;
@@ -44,7 +50,7 @@ export default function PushSubscriber() {
 
         if (cancelled) return;
 
-        // Fix Bug 2: Unsubscribe any existing subscription before subscribing fresh.
+        // Unsubscribe any existing subscription before subscribing fresh.
         // This prevents the "A subscription with a different applicationServerKey already exists"
         // error that occurs when the VAPID key changes between deployments.
         const existing = await reg.pushManager.getSubscription();

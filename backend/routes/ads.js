@@ -28,6 +28,8 @@ import { createWPPost, deleteWPPost, updateWPPost } from '../utils/wordpress.js'
 import { addPointsToUser } from '../utils/points.js';
 import { locationToCountry, countryFromIP } from '../utils/geoCountry.js';
 import { autoCategorize, classifyAdFull } from '../services/autoCategorize.js';
+import crypto from 'crypto';
+import AdView from '../models/AdView.js';
 
 // ── Anti-gaming: 1 view point per user per ad per 24h ───────────────────────
 // Key: "${adId}-${userId}", value: timestamp of last point award
@@ -2503,6 +2505,76 @@ router.get('/:id/contact-link', auth, async (req, res) => {
     return res.json({ url: `tel:${phone}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+
+// POST /api/ads/:id/view — accurate view counter with AdView deduplication
+router.post('/:id/view', async (req, res) => {
+  try {
+    const adId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(adId)) return res.json({ ok: false });
+
+    const ad = await Ad.findById(adId).select('userId seller views').lean();
+    if (!ad) return res.json({ ok: false });
+
+    // Get viewer identity
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+             || req.headers['x-real-ip']
+             || req.connection?.remoteAddress
+             || 'unknown';
+    const ua = req.headers['user-agent'] || '';
+
+    // Skip bots
+    const botUA = /bot|crawl|spider|slurp|GoogleBot|Bingbot|facebookexternalhit|Twitterbot/i;
+    if (botUA.test(ua)) return res.json({ ok: false, reason: 'bot' });
+
+    // Skip owner
+    const token = req.headers.authorization?.split(' ')[1];
+    let viewerUserId = null;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        viewerUserId = decoded.id;
+        const ownerId = String(ad.userId || ad.seller || '');
+        if (ownerId && ownerId === String(viewerUserId)) {
+          return res.json({ ok: false, reason: 'owner', views: ad.views });
+        }
+      } catch {}
+    }
+
+    // Fingerprint: SHA-256 of ip + ua (normalized)
+    const fingerprint = crypto.createHash('sha256')
+      .update(ip + '|' + ua.slice(0, 200))
+      .digest('hex');
+
+    // Check if already viewed in last 24 hours
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existing = await AdView.findOne({
+      adId,
+      fingerprint,
+      viewedAt: { $gte: since }
+    }).lean();
+
+    if (existing) {
+      // Already counted — return current count without incrementing
+      return res.json({ ok: false, reason: 'duplicate', views: ad.views });
+    }
+
+    // Record new view
+    await AdView.create({ adId, fingerprint, userId: viewerUserId || null });
+
+    // Increment counter atomically
+    const updated = await Ad.findByIdAndUpdate(
+      adId,
+      { $inc: { views: 1 } },
+      { new: true, select: 'views' }
+    );
+
+    res.json({ ok: true, views: updated.views });
+  } catch (err) {
+    console.error('[View]', err.message);
+    res.json({ ok: false });
   }
 });
 

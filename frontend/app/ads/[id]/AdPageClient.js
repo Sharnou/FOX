@@ -587,6 +587,27 @@ export default function AdPageClient({ params }) {
     return () => clearInterval(timer);
   }, [ad?.views, ad?.viewCount]);
 
+  // ── Accurate view ping — fires once when ad loads ──────────────────────────
+  useEffect(() => {
+    if (!ad?._id) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') || localStorage.getItem('token') : null;
+    fetch(`${API}/api/ads/${ad._id}/view`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      // Optionally update displayed view count in local state
+      if (data.ok && data.views) {
+        setAd(prev => prev ? { ...prev, views: data.views } : prev);
+      }
+    })
+    .catch(() => {}); // silent fail — never block the UI
+  }, [ad?._id]);
+
   async function createPeer(s, targetId) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] });
