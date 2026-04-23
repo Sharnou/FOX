@@ -29,13 +29,27 @@ export async function runAdLifecycle() {
     // TASK 3: Ensure partial index on userId — prevents DB-level anonymous ads
     // This index only covers documents WHERE userId exists and is not null.
     // Runs once-per-lifecycle (createIndex is idempotent).
-    // Drop old conflicting index first (it may exist with sparse+partialFilterExpression from an older version)
-    // MongoDB cannot mix these options — so we always drop and recreate to fix the existing DB state.
+    // DEFINITIVE FIX: Scan ALL indexes and drop any that has sparse:true on userId field.
+    // This handles cases where the real Atlas index name differs from 'idx_userId_nonanonymous'
+    // (e.g. MongoDB auto-assigned name 'userId_1' before we added the 'name' option).
+    try {
+      const existingIndexes = await Ad.collection.indexes();
+      for (const idx of existingIndexes) {
+        if (idx.key && idx.key.userId !== undefined && idx.sparse === true) {
+          console.log(`[adLifecycle] Dropping sparse userId index: ${idx.name}`);
+          await Ad.collection.dropIndex(idx.name);
+          console.log(`[adLifecycle] Dropped sparse userId index: ${idx.name}`);
+        }
+      }
+    } catch (dropErr) {
+      console.warn('[adLifecycle] Error during sparse index cleanup:', dropErr.message);
+    }
+    // Also attempt to drop by known name in case it exists with wrong options (non-sparse)
     try {
       await Ad.collection.dropIndex('idx_userId_nonanonymous');
       console.log('[adLifecycle] Dropped old idx_userId_nonanonymous index for recreation');
     } catch (_dropErr) {
-      // Index doesn't exist yet, that's fine — proceed to create
+      // Index doesn't exist or already dropped — proceed to create
     }
     try {
       await Ad.collection.createIndex(
@@ -156,25 +170,35 @@ export { deleteAnonymousAds };
 // ── FIX BUG2B: Backfill missing seller/userId fields ─────────────────────────
 // Some older ads have userId but no seller (or vice versa). This ensures both
 // fields are always in sync so queries using either field find all user ads.
+//
+// DEFINITIVE FIX: Use raw MongoDB Node.js driver via Ad.collection.conn.db
+// to completely bypass ALL Mongoose layers (MongooseCollection wrapper).
+// Ad.collection.updateMany still goes through Mongoose's MongooseCollection
+// which in some configurations intercepts array pipeline syntax and throws
+// "Cannot pass an array to query updates unless the updatePipeline option is set".
+// Using conn.db.collection() gives the true native Collection from the driver.
 export async function backfillSellerField() {
   try {
+    console.log('[Cleanup] Starting backfillSellerField...');
     const Ad = await getAdModel();
-    // Backfill seller from userId where seller is missing
-    const r1 = await Ad.collection.updateMany(
+    const db = Ad.collection.conn.db;
+    const collection = db.collection('ads');
+
+    const r1 = await collection.updateMany(
       { userId: { $exists: true, $ne: null }, $or: [{ seller: null }, { seller: { $exists: false } }] },
       [{ $set: { seller: '$userId' } }]
     );
-    // Backfill userId from seller where userId is missing
-    const r2 = await Ad.collection.updateMany(
+    console.log('[Cleanup] backfill userId→seller:', r1.modifiedCount, 'docs');
+
+    const r2 = await collection.updateMany(
       { seller: { $exists: true, $ne: null }, $or: [{ userId: null }, { userId: { $exists: false } }] },
       [{ $set: { userId: '$seller' } }]
     );
-    if (r1.modifiedCount > 0 || r2.modifiedCount > 0) {
-      console.log(`[Cleanup] Backfilled seller: ${r1.modifiedCount}, userId: ${r2.modifiedCount}`);
-    }
+    console.log('[Cleanup] backfill seller→userId:', r2.modifiedCount, 'docs');
+
     return { seller: r1.modifiedCount, userId: r2.modifiedCount };
-  } catch (e) {
-    console.error('[Cleanup] backfillSellerField failed:', e.message);
+  } catch (err) {
+    console.error('[Cleanup] backfillSellerField failed:', err.message);
     return { seller: 0, userId: 0 };
   }
 }
