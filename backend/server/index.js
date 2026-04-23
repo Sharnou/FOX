@@ -1,3 +1,8 @@
+// DEPLOYMENT MARKER — shows in Railway logs to confirm which commit is running
+console.log('[SERVER-STARTUP] ==========================================');
+console.log('[SERVER-STARTUP] COMMIT: cc4185c — nuclear backfill removal');
+console.log('[SERVER-STARTUP] ==========================================');
+
 // CRITICAL: Clear invalid Redis URL before ANY module imports it
 // Prevents "ENOTFOUND disabled" crash
 if (process.env.REDIS_URL && 

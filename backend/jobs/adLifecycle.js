@@ -1,3 +1,7 @@
+// SAFETY CHECK: if this line appears in logs, backfillSellerField was not fully removed
+// grep: SAFETY-GUARD-adLifecycle
+console.log('[adLifecycle] LOADED — nuclear version, backfillSellerField removed');
+
 import mongoose from 'mongoose';
 // backend/jobs/adLifecycle.js
 // Ad lifecycle cron job — Bug #112
