@@ -34,7 +34,6 @@ export async function runAdLifecycle() {
         { userId: 1 },
         {
           partialFilterExpression: { userId: { $exists: true, $ne: null } },
-          sparse: true,
           background: true,
           name: 'idx_userId_nonanonymous'
         }
@@ -157,12 +156,14 @@ export async function backfillSellerField() {
     // Backfill seller from userId where seller is missing
     const r1 = await Ad.updateMany(
       { userId: { $exists: true, $ne: null }, $or: [{ seller: null }, { seller: { $exists: false } }] },
-      [{ $set: { seller: '$userId' } }]
+      [{ $set: { seller: '$userId' } }],
+      { updatePipeline: true }
     );
     // Backfill userId from seller where userId is missing
     const r2 = await Ad.updateMany(
       { seller: { $exists: true, $ne: null }, $or: [{ userId: null }, { userId: { $exists: false } }] },
-      [{ $set: { userId: '$seller' } }]
+      [{ $set: { userId: '$seller' } }],
+      { updatePipeline: true }
     );
     if (r1.modifiedCount > 0 || r2.modifiedCount > 0) {
       console.log(`[Cleanup] Backfilled seller: ${r1.modifiedCount}, userId: ${r2.modifiedCount}`);
