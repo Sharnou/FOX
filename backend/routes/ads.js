@@ -831,6 +831,135 @@ router.post('/admin/regenerate-translations', async (req, res) => {
 });
 
 // ── GET single ad ──
+// ── PATCH /:id/view — increment view count (called by AdCard on mount) ──────
+router.patch('/:id/view', async (req, res) => {
+  try {
+    // Layer 1: Bot detection
+    const patchUa = req.headers['user-agent'] || '';
+    const patchIsBot = /bot|crawler|spider|slurp|baiduspider|facebookexternalhit|twitterbot|googlebot|bingbot|yandex|semrush|ahrefsbot|ia_archiver/i.test(patchUa);
+    if (patchIsBot) return res.json({ views: 0 });
+
+    // Layer 2: IP deduplication
+    const patchIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.headers['x-real-ip'] || req.ip || 'unknown';
+    const patchViewKey = `${req.params.id}:${patchIp}`;
+    const patchLastView = viewCooldown.get(patchViewKey);
+    if (patchLastView && Date.now() - patchLastView < VIEW_COOLDOWN_MS) {
+      // Already counted within cooldown — return current count without incrementing
+      const existingAd = await getAdModel().findById(req.params.id).select('views').lean();
+      return res.json({ views: existingAd?.views || 0 });
+    }
+
+    // Layer 3: Seller own-view exclusion
+    const patchViewerId = req.user?._id || req.user?.id || null;
+
+    // Fetch the ad to check seller
+    const adForView = await getAdModel().findById(req.params.id).select('userId seller views').lean();
+    if (!adForView) return res.status(404).json({ error: 'Ad not found' });
+
+    const patchAdSellerId = (adForView.userId || adForView.seller)?.toString() || null;
+    const patchIsOwnAd = patchViewerId && patchAdSellerId && String(patchViewerId) === String(patchAdSellerId);
+    if (patchIsOwnAd) return res.json({ views: adForView.views || 0 });
+
+    // All layers passed — increment
+    viewCooldown.set(patchViewKey, Date.now());
+    const ad = await getAdModel().findByIdAndUpdate(
+      req.params.id,
+      { $inc: { views: 1 } },
+      { returnDocument: 'after' }
+    );
+    if (!ad) return res.status(404).json({ error: 'Ad not found' });
+    // Award 1 reputation point to ad seller — throttled via viewThrottle map (anti-gaming)
+    try {
+      const sellerId = (ad.userId || ad.seller)?.toString();
+      // optionalAuth sets req.user if a valid JWT was sent
+      if (sellerId && req.user) {
+        const viewerId = req.user.id?.toString();
+        const throttleKey = `${ad._id}-${viewerId}`;
+        const lastAward = viewThrottle.get(throttleKey) || 0;
+        const elapsed = Date.now() - lastAward;
+        if (elapsed >= 24 * 60 * 60 * 1000 && viewerId !== sellerId) {
+          viewThrottle.set(throttleKey, Date.now());
+          const sellerDoc = await User.findById(sellerId);
+          if (sellerDoc) {
+            await addPointsToUser(sellerDoc, 1, 'مشاهدة إعلان');
+          }
+        }
+      }
+    } catch {}
+    res.json({ views: ad.views });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/ads/:id/view — accurate view counter with AdView deduplication
+router.post('/:id/view', async (req, res) => {
+  try {
+    const adId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(adId)) return res.json({ ok: false });
+
+    const ad = await Ad.findById(adId).select('userId seller views').lean();
+    if (!ad) return res.json({ ok: false });
+
+    // Get viewer identity
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+             || req.headers['x-real-ip']
+             || req.connection?.remoteAddress
+             || 'unknown';
+    const ua = req.headers['user-agent'] || '';
+
+    // Skip bots
+    const botUA = /bot|crawl|spider|slurp|GoogleBot|Bingbot|facebookexternalhit|Twitterbot/i;
+    if (botUA.test(ua)) return res.json({ ok: false, reason: 'bot' });
+
+    // Skip owner
+    const token = req.headers.authorization?.split(' ')[1];
+    let viewerUserId = null;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        viewerUserId = decoded.id;
+        const ownerId = String(ad.userId || ad.seller || '');
+        if (ownerId && ownerId === String(viewerUserId)) {
+          return res.json({ ok: false, reason: 'owner', views: ad.views });
+        }
+      } catch {}
+    }
+
+    // Fingerprint: SHA-256 of ip + ua (normalized)
+    const fingerprint = crypto.createHash('sha256')
+      .update(ip + '|' + ua.slice(0, 200))
+      .digest('hex');
+
+    // Check if already viewed in last 24 hours
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existing = await AdView.findOne({
+      adId,
+      fingerprint,
+      viewedAt: { $gte: since }
+    }).lean();
+
+    if (existing) {
+      // Already counted — return current count without incrementing
+      return res.json({ ok: false, reason: 'duplicate', views: ad.views });
+    }
+
+    // Record new view
+    await AdView.create({ adId, fingerprint, userId: viewerUserId || null });
+
+    // Increment counter atomically
+    const updated = await Ad.findByIdAndUpdate(
+      adId,
+      { $inc: { views: 1 } },
+      { new: true, select: 'views' }
+    );
+
+    res.json({ ok: true, views: updated.views });
+  } catch (err) {
+    console.error('[View]', err.message);
+    res.json({ ok: false });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   // Fix E: Validate ObjectId before DB query to avoid CastError and return clean 404
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -2195,66 +2324,6 @@ router.post('/:id/reshare', auth, async (req, res) => {
   }
 });
 
-// ── PATCH /:id/view — increment view count (called by AdCard on mount) ──────
-router.patch('/:id/view', async (req, res) => {
-  try {
-    // Layer 1: Bot detection
-    const patchUa = req.headers['user-agent'] || '';
-    const patchIsBot = /bot|crawler|spider|slurp|baiduspider|facebookexternalhit|twitterbot|googlebot|bingbot|yandex|semrush|ahrefsbot|ia_archiver/i.test(patchUa);
-    if (patchIsBot) return res.json({ views: 0 });
-
-    // Layer 2: IP deduplication
-    const patchIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
-      || req.headers['x-real-ip'] || req.ip || 'unknown';
-    const patchViewKey = `${req.params.id}:${patchIp}`;
-    const patchLastView = viewCooldown.get(patchViewKey);
-    if (patchLastView && Date.now() - patchLastView < VIEW_COOLDOWN_MS) {
-      // Already counted within cooldown — return current count without incrementing
-      const existingAd = await getAdModel().findById(req.params.id).select('views').lean();
-      return res.json({ views: existingAd?.views || 0 });
-    }
-
-    // Layer 3: Seller own-view exclusion
-    const patchViewerId = req.user?._id || req.user?.id || null;
-
-    // Fetch the ad to check seller
-    const adForView = await getAdModel().findById(req.params.id).select('userId seller views').lean();
-    if (!adForView) return res.status(404).json({ error: 'Ad not found' });
-
-    const patchAdSellerId = (adForView.userId || adForView.seller)?.toString() || null;
-    const patchIsOwnAd = patchViewerId && patchAdSellerId && String(patchViewerId) === String(patchAdSellerId);
-    if (patchIsOwnAd) return res.json({ views: adForView.views || 0 });
-
-    // All layers passed — increment
-    viewCooldown.set(patchViewKey, Date.now());
-    const ad = await getAdModel().findByIdAndUpdate(
-      req.params.id,
-      { $inc: { views: 1 } },
-      { returnDocument: 'after' }
-    );
-    if (!ad) return res.status(404).json({ error: 'Ad not found' });
-    // Award 1 reputation point to ad seller — throttled via viewThrottle map (anti-gaming)
-    try {
-      const sellerId = (ad.userId || ad.seller)?.toString();
-      // optionalAuth sets req.user if a valid JWT was sent
-      if (sellerId && req.user) {
-        const viewerId = req.user.id?.toString();
-        const throttleKey = `${ad._id}-${viewerId}`;
-        const lastAward = viewThrottle.get(throttleKey) || 0;
-        const elapsed = Date.now() - lastAward;
-        if (elapsed >= 24 * 60 * 60 * 1000 && viewerId !== sellerId) {
-          viewThrottle.set(throttleKey, Date.now());
-          const sellerDoc = await User.findById(sellerId);
-          if (sellerDoc) {
-            await addPointsToUser(sellerDoc, 1, 'مشاهدة إعلان');
-          }
-        }
-      }
-    } catch {}
-    res.json({ views: ad.views });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 // POST /ai-learn — admin-triggered subcategory AI learning
 router.post('/ai-learn', auth, async (req, res) => {
   try {
@@ -2508,74 +2577,5 @@ router.get('/:id/contact-link', auth, async (req, res) => {
   }
 });
 
-
-// POST /api/ads/:id/view — accurate view counter with AdView deduplication
-router.post('/:id/view', async (req, res) => {
-  try {
-    const adId = req.params.id;
-    if (!mongoose.Types.ObjectId.isValid(adId)) return res.json({ ok: false });
-
-    const ad = await Ad.findById(adId).select('userId seller views').lean();
-    if (!ad) return res.json({ ok: false });
-
-    // Get viewer identity
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-             || req.headers['x-real-ip']
-             || req.connection?.remoteAddress
-             || 'unknown';
-    const ua = req.headers['user-agent'] || '';
-
-    // Skip bots
-    const botUA = /bot|crawl|spider|slurp|GoogleBot|Bingbot|facebookexternalhit|Twitterbot/i;
-    if (botUA.test(ua)) return res.json({ ok: false, reason: 'bot' });
-
-    // Skip owner
-    const token = req.headers.authorization?.split(' ')[1];
-    let viewerUserId = null;
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        viewerUserId = decoded.id;
-        const ownerId = String(ad.userId || ad.seller || '');
-        if (ownerId && ownerId === String(viewerUserId)) {
-          return res.json({ ok: false, reason: 'owner', views: ad.views });
-        }
-      } catch {}
-    }
-
-    // Fingerprint: SHA-256 of ip + ua (normalized)
-    const fingerprint = crypto.createHash('sha256')
-      .update(ip + '|' + ua.slice(0, 200))
-      .digest('hex');
-
-    // Check if already viewed in last 24 hours
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const existing = await AdView.findOne({
-      adId,
-      fingerprint,
-      viewedAt: { $gte: since }
-    }).lean();
-
-    if (existing) {
-      // Already counted — return current count without incrementing
-      return res.json({ ok: false, reason: 'duplicate', views: ad.views });
-    }
-
-    // Record new view
-    await AdView.create({ adId, fingerprint, userId: viewerUserId || null });
-
-    // Increment counter atomically
-    const updated = await Ad.findByIdAndUpdate(
-      adId,
-      { $inc: { views: 1 } },
-      { new: true, select: 'views' }
-    );
-
-    res.json({ ok: true, views: updated.views });
-  } catch (err) {
-    console.error('[View]', err.message);
-    res.json({ ok: false });
-  }
-});
 
 export default router;

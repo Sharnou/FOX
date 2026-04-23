@@ -24,30 +24,9 @@ export async function runAdLifecycle() {
 
     // Cleanup anonymous ads (no seller/userId) — runs every lifecycle cycle
     await deleteAnonymousAds().catch(e => console.warn('[adLifecycle] deleteAnonymousAds failed:', e.message));
-    // FIX BUG2B: Backfill missing seller/userId for existing ads
-    await backfillSellerField().catch(e => console.warn('[adLifecycle] backfillSellerField failed:', e.message));
+    // backfillSellerField removed — one-time migration completed
 
-    // TASK 3: Ensure partial index on userId — prevents DB-level anonymous ads
-    // v5-getClient: Drop by key spec + recreate with partial filter via native MongoClient.
-    // Drop bad sparse userId index + recreate clean
-    try {
-      const client = mongoose.connection.getClient();
-      const db = client.db();
-      // Drop by key spec — works regardless of index name
-      try {
-        await db.command({ dropIndexes: 'ads', index: { userId: 1 } });
-        console.log('[adLifecycle] Dropped sparse userId index');
-      } catch (_) { /* index may not exist yet */ }
-      // Create clean partial index
-      await db.collection('ads').createIndex(
-        { userId: 1 },
-        { partialFilterExpression: { userId: { $type: 'objectId' } }, name: 'idx_userId_hasvalue' }
-      );
-      console.log('[adLifecycle] Created idx_userId_hasvalue');
-    } catch (err) {
-      console.warn('[adLifecycle] Index setup skipped:', err.message);
-    }
-
+    // idx_userId_hasvalue — create manually in MongoDB Atlas if needed
     // #127 — Drop old conflicting text index (one-time migration)
     // New index 'ads_text_search' includes category, subcategory, city with weights
     try {
@@ -149,31 +128,6 @@ async function deleteAnonymousAds() {
 // Export so server/index.js can call it on startup
 export { deleteAnonymousAds };
 
-
-// ── FIX BUG2B: Backfill missing seller/userId fields ─────────────────────────
-// v5-getClient: Uses mongoose.connection.getClient() — 100% native MongoClient,
-// zero Mongoose wrapping — eliminates the "Cannot pass array to query updates
-// unless updatePipeline option is set" error that Mongoose 9.x throws on ALL
-// its Collection wrapper paths.
-export async function backfillSellerField() {
-  console.log('[Cleanup] v5-getClient: backfillSellerField start');
-  try {
-    const client = mongoose.connection.getClient();
-    const ads = client.db().collection('ads');
-    const r1 = await ads.updateMany(
-      { userId: { $exists: true, $ne: null }, $or: [{ seller: null }, { seller: { $exists: false } }] },
-      [{ $set: { seller: '$userId' } }]
-    );
-    console.log('[Cleanup] userId→seller:', r1.modifiedCount);
-    const r2 = await ads.updateMany(
-      { seller: { $exists: true, $ne: null }, $or: [{ userId: null }, { userId: { $exists: false } }] },
-      [{ $set: { userId: '$seller' } }]
-    );
-    console.log('[Cleanup] seller→userId:', r2.modifiedCount);
-  } catch (err) {
-    console.error('[Cleanup] backfillSellerField failed:', err.message);
-  }
-}
 
 // ── #163 sellerScore Migration: one-time batch compute for users with score=0 ──
 // Called from runAdLifecycle() automatically. Processes up to 100 users per run
