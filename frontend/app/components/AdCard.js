@@ -763,26 +763,25 @@ export default function AdCard({
         </div>
       )}
 
-      {/* BUG 3 FIX: Description — always visible, no expand/collapse needed */}
-      {(ad.description || ad.desc) && (
-        <p
-          onClick={e => e.stopPropagation()}
-          style={{
-            fontSize: '12px',
-            color: 'rgb(107, 114, 128)',
-            lineHeight: '1.5',
-            margin: '4px 12px 6px',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            direction: 'rtl',
-            fontFamily: 'Cairo, Tajawal, sans-serif',
-          }}
-        >
-          {ad.description || ad.desc}
-        </p>
-      )}
+      {/* Description — always visible (2-line clamp) */}
+      <p
+        onClick={e => e.stopPropagation()}
+        style={{
+          fontSize: '12px',
+          color: '#666',
+          margin: '4px 12px',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          lineHeight: '1.4',
+          direction: 'rtl',
+          fontFamily: 'Cairo, Tajawal, sans-serif',
+          minHeight: '2.8em',
+        }}
+      >
+        {ad.description || ad.desc || ''}
+      </p>
 
       {/* Price + city — always visible below description */}
       <div
@@ -848,49 +847,28 @@ export default function AdCard({
 
       {/* Contact icons row — 3 compact action buttons */}
       {!isOwnAd && (
-        <div style={{
-          display: 'flex', gap: '6px', padding: '4px 12px 8px',
-          justifyContent: 'flex-end', alignItems: 'center'
-        }} onClick={e => e.stopPropagation()}>
-          
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px', padding: '0 12px 8px' }} onClick={e => e.stopPropagation()}>
           {/* Chat icon */}
           <button
+            onClick={(e) => { e.stopPropagation(); handleOpenChat(e); }}
+            style={{ background: '#e3f2fd', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             title="راسل البائع"
-            onClick={e => { e.stopPropagation(); handleOpenChat(e); }}
-            style={{
-              width: '28px', height: '28px', borderRadius: '50%',
-              background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '13px', cursor: 'pointer'
-            }}
           >💬</button>
-
           {/* Voice call icon */}
           <button
+            onClick={(e) => { e.stopPropagation(); router.push(`/call?to=${ad.seller?._id || ad.userId}&adId=${ad._id}`); }}
+            style={{ background: '#e8f5e9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             title="مكالمة صوتية"
-            onClick={e => { e.stopPropagation(); router.push(`/call?peerId=${ad.seller?._id || ad.userId}&adId=${ad._id}`); }}
-            style={{
-              width: '28px', height: '28px', borderRadius: '50%',
-              background: 'rgba(0,170,68,0.1)', border: '1px solid rgba(0,170,68,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '13px', cursor: 'pointer'
-            }}
           >📞</button>
-
-          {/* WhatsApp icon — only show if seller has phone */}
-          {(ad.sellerPhone || ad.seller?.phone || ad.sellerProfile?.phone) && (
+          {/* WhatsApp icon — only if seller has phone */}
+          {(ad.phone || ad.sellerPhone || ad.seller?.phone || ad.sellerProfile?.phone) && (
             <a
-              href={`https://wa.me/${(ad.sellerPhone || ad.seller?.phone || ad.sellerProfile?.phone || '').replace(/\D/g,'')}`}
+              href={`https://wa.me/${(ad.phone || ad.sellerPhone || ad.seller?.phone || ad.sellerProfile?.phone || '').replace(/[^0-9]/g, '')}`}
+              onClick={(e) => e.stopPropagation()}
               target="_blank"
               rel="noopener noreferrer"
               title="واتساب"
-              onClick={e => e.stopPropagation()}
-              style={{
-                width: '28px', height: '28px', borderRadius: '50%',
-                background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.3)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '13px', textDecoration: 'none'
-              }}
+              style={{ background: '#e8f5e9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
             >🟢</a>
           )}
         </div>

@@ -1584,6 +1584,42 @@ router.post('/', auth, multerUpload, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    // Auto-generate image for متفرقات ads with no images
+    {
+      const _isVagueCat = !finalCategory || ['متفرقات','other','general','عام',''].includes((finalCategory || '').toLowerCase());
+      const _hasNoImages = !_normalizedAd.images || _normalizedAd.images.length === 0;
+      if (_isVagueCat && _hasNoImages && title) {
+        (async () => {
+          try {
+            const { default: OpenAI } = await import('openai');
+            const { default: cloudinaryAI } = await import('../server/cloudinary.js');
+            const AdModel2 = getAdModel();
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            const prompt = `Realistic product photo of: ${title}. Clean white background, professional marketplace listing photo, high quality`;
+            const imgResp = await openai.images.generate({
+              model: 'dall-e-3',
+              prompt,
+              n: 1,
+              size: '1024x1024',
+              quality: 'standard',
+            });
+            const imageUrl = imgResp.data[0].url;
+            const uploadResp = await cloudinaryAI.uploader.upload(imageUrl, {
+              folder: 'xtox_ai_generated',
+              public_id: `ai_${ad._id}`,
+              overwrite: true,
+              transformation: [{ width: 800, height: 800, crop: 'limit', quality: 'auto' }],
+            });
+            await AdModel2.findByIdAndUpdate(ad._id, {
+              images: [{ url: uploadResp.secure_url, public_id: uploadResp.public_id, aiGenerated: true }]
+            });
+            console.log(`[AI Image] Generated for ad ${ad._id}: ${uploadResp.secure_url}`);
+          } catch (err) {
+            console.error('[AI Image] Error:', err.message);
+          }
+        })();
+      }
+    }
 
     // WORDPRESS AUTO-SYNC: create post async after response (non-blocking)
     setImmediate(async () => {

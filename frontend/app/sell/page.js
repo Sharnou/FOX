@@ -641,7 +641,6 @@ export default function SellPage() {
   function validate() {
     const e = {};
     if (!form.title.trim()) e.title = 'العنوان مطلوب';
-    if (!form.city || !form.city.trim()) e.city = 'المدينة مطلوبة';
     else if (form.title.trim().length < 5) e.title = 'العنوان قصير جداً (5 أحرف على الأقل)';
     if (!form.category) e.category = 'الفئة مطلوبة';
     if (form.price && isNaN(Number(form.price))) e.price = 'السعر يجب أن يكون رقماً';
@@ -1125,32 +1124,29 @@ export default function SellPage() {
               {errors.price && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.price}</p>}
             </div>
 
-            {/* City */}
+            {/* Location — auto-detect only, no manual city text input */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="sell-city">المدينة <span style={{ color: '#e53e3e' }}>*</span></label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input id="sell-city" value={form.city} required
-                  onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-                  placeholder="مثال: القاهرة، الرياض، دبي..."
-                  style={{ ...inputStyle('city'), flex: 1 }} />
-                <button
-                  type="button"
-                  onClick={detectLocation}
-                  disabled={gpsLoading}
-                  title="اكتشف موقعي تلقائياً"
-                  style={{
-                    padding: '8px 12px', borderRadius: 8, border: '1px solid #6366f1',
-                    background: gpsLoading ? '#e0e7ff' : '#6366f1', color: '#fff',
-                    cursor: gpsLoading ? 'not-allowed' : 'pointer', fontSize: 12,
-                    whiteSpace: 'nowrap', fontFamily: "'Cairo','Tajawal',system-ui",
-                    flexShrink: 0,
-                  }}
-                >
-                  {gpsLoading ? '...' : '📍 اكتشف موقعي'}
-                </button>
-              </div>
-              {gpsLoading && <p style={{ color: '#6366f1', fontSize: 12, margin: '4px 0 0', fontFamily: "'Cairo','Tajawal',system-ui" }}>📍 جارٍ تحديد موقعك...</p>}
-              {errors.city && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.city}</p>}
+              <label style={labelStyle}>الموقع</label>
+              <button
+                type="button"
+                onClick={detectLocation}
+                disabled={gpsLoading}
+                title="اكتشف موقعي تلقائياً"
+                style={{
+                  padding: '10px 16px', borderRadius: 10, border: '1px solid #6366f1',
+                  background: gpsLoading ? '#e0e7ff' : '#6366f1', color: '#fff',
+                  cursor: gpsLoading ? 'not-allowed' : 'pointer', fontSize: 14,
+                  whiteSpace: 'nowrap', fontFamily: "'Cairo','Tajawal',system-ui",
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                {gpsLoading ? '⏳ جارٍ تحديد الموقع...' : '📍 اكتشف موقعي تلقائياً'}
+              </button>
+              {form.city && !gpsLoading && (
+                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#374151', display: 'flex', alignItems: 'center', gap: 4, fontFamily: "'Cairo','Tajawal',system-ui" }}>
+                  📍 الموقع المكتشف: <strong style={{ color: '#6366f1' }}>{form.city}</strong>
+                </p>
+              )}
               {country && COUNTRIES[country] && (
                 <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6366f1', display: 'flex', alignItems: 'center', gap: 4 }}>
                   📍 إعلانك سيظهر في: <span style={{ fontWeight: 700 }}>{COUNTRIES[country].flag} {COUNTRIES[country].name}</span>
