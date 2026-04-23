@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "if [ \"$BUILD_TARGET\" = \"capacitor\" ]; then bash scripts/capacitor-build.sh; else next build; fi",
     "start": "next start",
     "postbuild": "node scripts/generate-sitemap.js",
     "build:capacitor": "bash scripts/capacitor-build.sh"
