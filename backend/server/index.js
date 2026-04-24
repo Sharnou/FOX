@@ -1,6 +1,6 @@
 // DEPLOYMENT MARKER — shows in Railway logs to confirm which commit is running
 console.log('[SERVER-STARTUP] ==========================================');
-console.log('[SERVER-STARTUP] v231 — nuclear confirmed: backfillSellerField + idx_userId ZERO occurrences');
+console.log('[SERVER-STARTUP] v232 — all routes verified: categories, sitemap, robots, whatsapp, enrich');
 console.log('[SERVER-STARTUP] ==========================================');
 
 // CRITICAL: Clear invalid Redis URL before ANY module imports it

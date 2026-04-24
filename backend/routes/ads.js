@@ -961,6 +961,35 @@ router.post('/:id/view', async (req, res) => {
   }
 });
 
+// ── POST /api/ads/:id/enrich — user-initiated AI enrichment of a single ad ──
+// Must be BEFORE router.get('/:id') to avoid path capture.
+// Allows ad owners (or admins) to improve their ad title/description via AI.
+router.post('/:id/enrich', auth, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'معرف غير صالح' });
+
+    const ad = await Ad.findById(req.params.id);
+    if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
+
+    // Only owner or admin can enrich
+    const userId = req.user?.id || req.user?._id;
+    const ownerId = (ad.seller || ad.userId)?.toString();
+    const isAdmin = ['admin', 'sub_admin', 'superadmin'].includes(req.user?.role);
+    if (!isAdmin && ownerId !== userId?.toString()) {
+      return res.status(403).json({ error: 'غير مسموح' });
+    }
+
+    const { enrichSingleAd } = await import('../jobs/adEnrichment.js');
+    const result = await enrichSingleAd(ad);
+    res.json({ success: true, adId: req.params.id, ...result });
+  } catch (err) {
+    console.error('[Enrich]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 router.get('/:id', async (req, res) => {
   // Fix E: Validate ObjectId before DB query to avoid CastError and return clean 404
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
