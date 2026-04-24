@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import translations, { CATEGORY_KEY_MAP, CITY_KEY_MAP, CONDITION_KEY_MAP } from '../translations/index';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-const GEO_CACHE_VERSION = '5';  // bumped to v5 — forces nuclear clear of stale FR data
+const GEO_CACHE_VERSION = '5';  // bump this to force fresh geo detection on next visit
 const TRANS_CACHE_VERSION = '1'; // bump to force re-fetch of dynamic translations
 
 // Languages served from the static bundle (no API fetch needed)
@@ -96,8 +96,7 @@ export function LanguageProvider({ children }) {
       const cacheVersion = localStorage.getItem('xtox_geo_version');
 
       // Nuclear clear: if version doesn't match, wipe ALL stale geo + lang data.
-      // This fixes Egyptian users who got version '2' cached WITH wrong 'fr' data
-      // from the Railway-IP detection bug (before the geo fix was live).
+      // Bump GEO_CACHE_VERSION to force fresh geo detection when needed.
       if (cacheVersion !== GEO_CACHE_VERSION) {
         // Only clear geo detection cache — never the user's explicit language choice.
         // Bumping GEO_CACHE_VERSION forces fresh geo detection but PRESERVES user language pref.
@@ -105,11 +104,7 @@ export function LanguageProvider({ children }) {
           'xtox_detected_country', 'xtox_show_toggle', 'xtox_native_lang',
           'xtox_native_name', 'xtox_native_rtl', 'xtox_geo_version',
           // 'xtox_language' intentionally excluded — user choice is never auto-reset
-          'xtox_trans_fr', 'xtox_trans_v_fr',
         ].forEach(k => localStorage.removeItem(k));
-        // Also clear language if it's French (no longer supported)
-        const storedLangCheck = localStorage.getItem('xtox_language');
-        if (storedLangCheck === 'fr') localStorage.removeItem('xtox_language');
       }
 
       // After possible clear, read from localStorage (null if we just cleared)
@@ -184,17 +179,16 @@ export function LanguageProvider({ children }) {
   }, []);
 
   async function toggleLanguage() {
-    if (!showToggle) return;
-    const nativeRtl = localStorage.getItem('xtox_native_rtl') === 'true';
-    const newLang   = language === nativeLang ? 'en' : nativeLang;
-    const newRTL    = newLang  === nativeLang ? nativeRtl : false;
+    // AR/EN only — hardcoded toggle
+    const newLang = language === 'ar' ? 'en' : 'ar';
+    const newRTL  = newLang === 'ar';
 
     setLanguage(newLang);
     setIsRTL(newRTL);
     localStorage.setItem('xtox_language', newLang);
     applyLangToDOM(newLang, newRTL);
 
-    // Fetch dynamic translations for the toggled language if needed
+    // Fetch dynamic translations if needed
     await fetchDynamicTranslations(newLang);
   }
 
