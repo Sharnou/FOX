@@ -14,7 +14,6 @@ const ADMIN_TABS = [
   { id: 'system',     icon: '⚙️', ar: 'النظام' },
   { id: 'reviews_tab', icon: '🌟', ar: 'التقييمات' },
   { id: 'sitemap_tab', icon: '🗺️', ar: 'Sitemap XML' },
-  { id: 'categories_tab', icon: '🗂️', ar: 'الفئات' },
 ];
 const ADMIN_S = { // style shortcuts
   th: { padding: '10px 12px', textAlign: 'right', color: '#8b949e', fontWeight: 'normal', fontSize: 12, borderBottom: '1px solid #21262d' },
@@ -176,6 +175,8 @@ export default function AdminPage() {
   const [newSubNameAr, setNewSubNameAr] = useState('');
   const [newSubEmoji, setNewSubEmoji] = useState('📦');
   const [genImageLoading, setGenImageLoading] = useState({});
+  const [categoriesSectionOpen, setCategoriesSectionOpen] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState({});
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -773,6 +774,156 @@ export default function AdminPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+            {/* ───── Categories & Subcategories Management ───── */}
+            <div style={{ marginTop: 32, borderTop: '2px solid #21262d', paddingTop: 20 }}>
+              <button
+                onClick={() => setCategoriesSectionOpen(prev => !prev)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  fontSize: 16, fontWeight: 700, color: '#e6edf3', marginBottom: 12,
+                  fontFamily: 'Cairo, monospace',
+                }}
+              >
+                <span>{categoriesSectionOpen ? '▼' : '▶'}</span>
+                <span>📂 إدارة الفئات والأقسام</span>
+              </button>
+
+              {categoriesSectionOpen && (
+                <div>
+                  {/* Add new category */}
+                  <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+                    <h3 style={{ color: '#fff', marginBottom: 12, fontSize: 15 }}>➕ إضافة فئة جديدة</h3>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <input value={newCatEmoji} onChange={e => setNewCatEmoji(e.target.value)}
+                        style={{ width: 55, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 8, padding: '8px', textAlign: 'center', fontSize: 20 }} />
+                      <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
+                        placeholder="Category name (EN)" style={{ flex: 1, minWidth: 150, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px' }} />
+                      <input value={newCatNameAr} onChange={e => setNewCatNameAr(e.target.value)}
+                        placeholder="اسم الفئة بالعربي" style={{ flex: 1, minWidth: 150, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px', direction: 'rtl' }} />
+                      <button onClick={async () => {
+                        if (!newCatName) return;
+                        const r = await fetch(API + '/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ name: newCatName, nameAr: newCatNameAr, emoji: newCatEmoji }) });
+                        const d = await r.json();
+                        if (d.success) { setNewCatName(''); setNewCatNameAr(''); setNewCatEmoji('📂'); loadCategories(); }
+                      }} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', cursor: 'pointer', fontWeight: 600 }}>حفظ</button>
+                    </div>
+                  </div>
+
+                  {/* Categories list */}
+                  {catsLoading ? <p style={{ color: '#aaa' }}>جارٍ التحميل...</p> :
+                  categories.map(cat => (
+                    <div key={cat._id} style={{ background: '#161b27', borderRadius: 12, padding: 16, marginBottom: 14, border: '1px solid #21262d' }}>
+                      {/* Category header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <span style={{ fontSize: 24 }}>{cat.emoji}</span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>{cat.nameAr || cat.name}</span>
+                          <span style={{ color: '#64748b', fontSize: 12, marginRight: 8 }}>{cat.name}</span>
+                        </div>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{cat.subcategories?.length || 0} قسم</span>
+                        <button
+                          onClick={() => setExpandedCategories(prev => ({ ...prev, [cat._id]: !prev[cat._id] }))}
+                          style={{ background: '#21262d', color: '#aaa', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}
+                        >
+                          {expandedCategories[cat._id] ? '▲ طي' : '▼ تفصيل'}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm('حذف ' + (cat.nameAr || cat.name) + '?')) {
+                              await fetch(API + '/api/admin/categories/' + cat._id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+                              loadCategories();
+                            }
+                          }}
+                          style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}
+                        >🗑️</button>
+                      </div>
+
+                      {/* Subcategories tree */}
+                      {expandedCategories[cat._id] && (
+                        <div style={{ borderTop: '1px solid #21262d', paddingTop: 12 }}>
+                          {/* Add subcategory form */}
+                          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <input value={newSubEmoji} onChange={e => setNewSubEmoji(e.target.value)}
+                              style={{ width: 48, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 6, padding: 6, textAlign: 'center', fontSize: 18 }} />
+                            <input value={newSubName} onChange={e => setNewSubName(e.target.value)}
+                              placeholder="Subcategory EN" style={{ flex: 1, minWidth: 120, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', fontSize: 13 }} />
+                            <input value={newSubNameAr} onChange={e => setNewSubNameAr(e.target.value)}
+                              placeholder="القسم بالعربي" style={{ flex: 1, minWidth: 120, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', fontSize: 13, direction: 'rtl' }} />
+                            <button onClick={async () => {
+                              if (!newSubName) return;
+                              const r = await fetch(API + '/api/admin/categories/' + cat._id + '/subcategories', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ name: newSubName, nameAr: newSubNameAr, emoji: newSubEmoji }) });
+                              const d = await r.json();
+                              if (d.success) { setNewSubName(''); setNewSubNameAr(''); setNewSubEmoji('📦'); loadCategories(); }
+                            }} style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>+ إضافة</button>
+                          </div>
+
+                          {/* Subcategory list */}
+                          {(cat.subcategories || []).map(sub => (
+                            <div key={sub._id || sub.nameEn || sub.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#0d1117', borderRadius: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 18 }}>{sub.emoji}</span>
+                              <div style={{ flex: 1 }}>
+                                <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{sub.nameAr || sub.name}</span>
+                                <span style={{ color: '#64748b', fontSize: 11, marginRight: 6 }}>{sub.name}</span>
+                                {sub.defaultImage && (
+                                  <img src={sub.defaultImage} alt="" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, marginRight: 8, verticalAlign: 'middle' }} />
+                                )}
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  setGenImageLoading(l => ({ ...l, [sub._id]: true }));
+                                  try {
+                                    const r = await fetch(API + '/api/admin/categories/' + cat._id + '/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ subId: sub._id }) });
+                                    const d = await r.json();
+                                    if (d.success) loadCategories();
+                                    else alert(d.error);
+                                  } catch (e) { alert(e.message); }
+                                  setGenImageLoading(l => ({ ...l, [sub._id]: false }));
+                                }}
+                                disabled={genImageLoading[sub._id]}
+                                style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontSize: 12, opacity: genImageLoading[sub._id] ? 0.6 : 1 }}
+                              >
+                                {genImageLoading[sub._id] ? '⏳' : '🎨 AI'}
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  await fetch(API + '/api/admin/categories/' + cat._id + '/subcategories/' + sub._id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+                                  loadCategories();
+                                }}
+                                style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 16 }}
+                              >🗑️</button>
+                            </div>
+                          ))}
+
+                          {/* AI image for entire category */}
+                          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <button
+                              onClick={async () => {
+                                setGenImageLoading(l => ({ ...l, [cat._id + '_main']: true }));
+                                try {
+                                  const r = await fetch(API + '/api/admin/categories/' + cat._id + '/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({}) });
+                                  const d = await r.json();
+                                  if (d.success) loadCategories();
+                                  else alert(d.error);
+                                } catch (e) { alert(e.message); }
+                                setGenImageLoading(l => ({ ...l, [cat._id + '_main']: false }));
+                              }}
+                              disabled={genImageLoading[cat._id + '_main']}
+                              style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 12, opacity: genImageLoading[cat._id + '_main'] ? 0.6 : 1 }}
+                            >
+                              {genImageLoading[cat._id + '_main'] ? '⏳' : '🎨 AI صورة الفئة'}
+                            </button>
+                            {cat.defaultImage && (
+                              <img src={cat.defaultImage} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6, border: '1px solid #334155' }} />
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1378,125 +1529,6 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
-          </div>
-        )}
-
-        {tab === 'categories_tab' && (
-          <div style={{ padding: '0 8px' }}>
-            <h2 style={{ color: '#00d4ff', marginBottom: 20 }}>🗂️ إدارة الفئات والأقسام</h2>
-
-            {/* Add new category */}
-            <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 20, marginBottom: 20 }}>
-              <h3 style={{ color: '#fff', marginBottom: 12, fontSize: 15 }}>➕ إضافة فئة جديدة</h3>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <input value={newCatEmoji} onChange={e => setNewCatEmoji(e.target.value)}
-                  style={{ width: 55, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 8, padding: '8px', textAlign: 'center', fontSize: 20 }} />
-                <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
-                  placeholder="Category name (EN)" style={{ flex: 1, minWidth: 150, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px' }} />
-                <input value={newCatNameAr} onChange={e => setNewCatNameAr(e.target.value)}
-                  placeholder="اسم الفئة بالعربي" style={{ flex: 1, minWidth: 150, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px', direction: 'rtl' }} />
-                <button onClick={async () => {
-                  if (!newCatName) return;
-                  const r = await fetch(API + '/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ name: newCatName, nameAr: newCatNameAr, emoji: newCatEmoji }) });
-                  const d = await r.json();
-                  if (d.success) { setNewCatName(''); setNewCatNameAr(''); setNewCatEmoji('📂'); loadCategories(); }
-                }} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', cursor: 'pointer', fontWeight: 600 }}>حفظ</button>
-              </div>
-            </div>
-
-            {/* Categories list */}
-            {catsLoading ? <p style={{ color: '#aaa' }}>جارٍ التحميل...</p> :
-            categories.map(cat => (
-              <div key={cat._id} style={{ background: '#161b27', borderRadius: 12, padding: 16, marginBottom: 14, border: '1px solid #21262d' }}>
-
-                {/* Category header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <span style={{ fontSize: 24 }}>{cat.emoji}</span>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>{cat.nameAr || cat.name}</span>
-                    <span style={{ color: '#64748b', fontSize: 12, marginRight: 8 }}>{cat.name}</span>
-                  </div>
-                  <span style={{ color: '#64748b', fontSize: 12, marginLeft: 4 }}>{cat.subcategories?.length || 0} قسم</span>
-                  <button onClick={() => setExpandedCat(expandedCat === cat._id ? null : cat._id)}
-                    style={{ background: '#21262d', color: '#aaa', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>
-                    {expandedCat === cat._id ? '▲ طي' : '▼ تفصيل'}
-                  </button>
-                  <button onClick={async () => { if (confirm('حذف ' + (cat.nameAr || cat.name) + '?')) { await fetch(API + '/api/admin/categories/' + cat._id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } }); loadCategories(); } }}
-                    style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}>🗑️</button>
-                </div>
-
-                {/* Subcategories */}
-                {expandedCat === cat._id && (
-                  <div style={{ borderTop: '1px solid #21262d', paddingTop: 12 }}>
-
-                    {/* Add subcategory */}
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <input value={newSubEmoji} onChange={e => setNewSubEmoji(e.target.value)}
-                        style={{ width: 48, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 6, padding: 6, textAlign: 'center', fontSize: 18 }} />
-                      <input value={newSubName} onChange={e => setNewSubName(e.target.value)}
-                        placeholder="Subcategory EN" style={{ flex: 1, minWidth: 120, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', fontSize: 13 }} />
-                      <input value={newSubNameAr} onChange={e => setNewSubNameAr(e.target.value)}
-                        placeholder="القسم بالعربي" style={{ flex: 1, minWidth: 120, background: '#0d1117', color: '#fff', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', fontSize: 13, direction: 'rtl' }} />
-                      <button onClick={async () => {
-                        if (!newSubName) return;
-                        const r = await fetch(API + '/api/admin/categories/' + cat._id + '/subcategories', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ name: newSubName, nameAr: newSubNameAr, emoji: newSubEmoji }) });
-                        const d = await r.json();
-                        if (d.success) { setNewSubName(''); setNewSubNameAr(''); setNewSubEmoji('📦'); loadCategories(); }
-                      }} style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>+ إضافة</button>
-                    </div>
-
-                    {/* Subcategory list */}
-                    {(cat.subcategories || []).map(sub => (
-                      <div key={sub._id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#0d1117', borderRadius: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 18 }}>{sub.emoji}</span>
-                        <div style={{ flex: 1 }}>
-                          <span style={{ color: '#e2e8f0', fontSize: 13 }}>{sub.nameAr || sub.name}</span>
-                          <span style={{ color: '#64748b', fontSize: 11, marginRight: 6 }}>{sub.name}</span>
-                          {sub.defaultImage && <img src={sub.defaultImage} alt="" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, marginRight: 8, verticalAlign: 'middle' }} />}
-                        </div>
-                        <button
-                          onClick={async () => {
-                            setGenImageLoading(l => ({...l, [sub._id]: true}));
-                            try {
-                              const r = await fetch(API + '/api/admin/categories/' + cat._id + '/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ subId: sub._id }) });
-                              const d = await r.json();
-                              if (d.success) loadCategories();
-                              else alert(d.error);
-                            } catch(e) { alert(e.message); }
-                            setGenImageLoading(l => ({...l, [sub._id]: false}));
-                          }}
-                          disabled={genImageLoading[sub._id]}
-                          style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontSize: 12, opacity: genImageLoading[sub._id] ? 0.6 : 1 }}>
-                          {genImageLoading[sub._id] ? '⏳' : '🎨 AI'}
-                        </button>
-                        <button onClick={async () => { await fetch(API + '/api/admin/categories/' + cat._id + '/subcategories/' + sub._id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } }); loadCategories(); }}
-                          style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 16 }}>🗑️</button>
-                      </div>
-                    ))}
-
-                    {/* Generate image for entire category */}
-                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <button
-                        onClick={async () => {
-                          setGenImageLoading(l => ({...l, [cat._id + '_main']: true}));
-                          try {
-                            const r = await fetch(API + '/api/admin/categories/' + cat._id + '/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({}) });
-                            const d = await r.json();
-                            if (d.success) loadCategories();
-                            else alert(d.error);
-                          } catch(e) { alert(e.message); }
-                          setGenImageLoading(l => ({...l, [cat._id + '_main']: false}));
-                        }}
-                        disabled={genImageLoading[cat._id + '_main']}
-                        style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 12, opacity: genImageLoading[cat._id + '_main'] ? 0.6 : 1 }}>
-                        {genImageLoading[cat._id + '_main'] ? '⏳' : '🎨 AI صورة الفئة'}
-                      </button>
-                      {cat.defaultImage && <img src={cat.defaultImage} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6, border: '1px solid #334155' }} />}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
           </div>
         )}
     </div>
