@@ -1224,4 +1224,164 @@ router.post('/robots', adminAuth, async (req, res) => {
   }
 });
 
+
+// ─────────────────────────────────────────────────────────
+// Category CRUD — /api/admin/categories
+// ─────────────────────────────────────────────────────────
+
+// GET /api/admin/categories
+router.get('/categories', adminAuth, async (req, res) => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    const cats = await Category.find().sort('order').lean();
+    res.json({ categories: cats });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/categories — create new category
+router.post('/categories', adminAuth, async (req, res) => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    const { name, nameAr, emoji, accentColor, defaultImage } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    const count = await Category.countDocuments();
+    const cat = await Category.create({ name, nameAr, emoji: emoji || '📂', accentColor: accentColor || '#6366f1', defaultImage, order: count });
+    res.json({ success: true, category: cat });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT /api/admin/categories/:id — update category
+router.put('/categories/:id', adminAuth, async (req, res) => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    const cat = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!cat) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true, category: cat });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/admin/categories/:id
+router.delete('/categories/:id', adminAuth, async (req, res) => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    await Category.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/categories/:id/subcategories — add subcategory
+router.post('/categories/:id/subcategories', adminAuth, async (req, res) => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    const { name, nameAr, emoji, accentColor, defaultImage } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    const cat = await Category.findById(req.params.id);
+    if (!cat) return res.status(404).json({ error: 'Category not found' });
+    cat.subcategories.push({ name, nameAr, emoji: emoji || '📦', accentColor: accentColor || '#6366f1', defaultImage, order: cat.subcategories.length });
+    await cat.save();
+    res.json({ success: true, category: cat });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT /api/admin/categories/:id/subcategories/:subId
+router.put('/categories/:id/subcategories/:subId', adminAuth, async (req, res) => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    const cat = await Category.findById(req.params.id);
+    if (!cat) return res.status(404).json({ error: 'Not found' });
+    const sub = cat.subcategories.id(req.params.subId);
+    if (!sub) return res.status(404).json({ error: 'Subcategory not found' });
+    Object.assign(sub, req.body);
+    await cat.save();
+    res.json({ success: true, category: cat });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/admin/categories/:id/subcategories/:subId
+router.delete('/categories/:id/subcategories/:subId', adminAuth, async (req, res) => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    const cat = await Category.findById(req.params.id);
+    if (!cat) return res.status(404).json({ error: 'Not found' });
+    cat.subcategories.pull({ _id: req.params.subId });
+    await cat.save();
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/categories/:id/generate-image — AI generate default image
+router.post('/categories/:id/generate-image', adminAuth, async (req, res) => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    const { subId, prompt } = req.body;
+    const cat = await Category.findById(req.params.id);
+    if (!cat) return res.status(404).json({ error: 'Not found' });
+
+    const target = subId ? cat.subcategories.id(subId) : cat;
+    const targetName = target?.nameAr || target?.name || 'category';
+
+    const OpenAI = (await import('openai')).default;
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const imagePrompt = prompt || `Clean, minimal product listing icon for "${targetName}" marketplace category. Flat design, white background, Arabic marketplace. 512x512.`;
+
+    const result = await openai.images.generate({
+      model: 'dall-e-3',
+      prompt: imagePrompt,
+      n: 1,
+      size: '1024x1024',
+      quality: 'standard',
+    });
+
+    const imageUrl = result.data[0].url;
+
+    // Upload to Cloudinary
+    const cloudinary = (await import('../utils/cloudinary.js')).default;
+    const uploaded = await cloudinary.uploader.upload(imageUrl, {
+      folder: 'xtox/categories',
+      public_id: `cat_${req.params.id}_${subId || 'main'}_${Date.now()}`,
+    });
+
+    // Save URL
+    if (subId) {
+      cat.subcategories.id(subId).defaultImage = uploaded.secure_url;
+    } else {
+      cat.defaultImage = uploaded.secure_url;
+    }
+    await cat.save();
+
+    res.json({ success: true, url: uploaded.secure_url });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────
+// GET /api/admin/whatsapp — get WhatsApp support number
+// ─────────────────────────────────────────────────────────
+router.get('/whatsapp', adminAuth, async (req, res) => {
+  try {
+    const s = await Setting.findOne({ key: 'whatsapp_number' });
+    res.json({ number: s ? s.value : '201020326953' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────
+// POST /api/admin/whatsapp — update WhatsApp support number
+// ─────────────────────────────────────────────────────────
+router.post('/whatsapp', adminAuth, async (req, res) => {
+  try {
+    const { number } = req.body;
+    if (!number || !/^\d{10,15}$/.test(number.replace(/[+\s-]/g, ''))) {
+      return res.status(400).json({ error: 'Invalid number' });
+    }
+    const clean = number.replace(/[^\d]/g, '');
+    await Setting.findOneAndUpdate(
+      { key: 'whatsapp_number' },
+      { key: 'whatsapp_number', value: clean, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true, number: clean });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
 export default router;

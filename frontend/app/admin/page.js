@@ -160,6 +160,9 @@ export default function AdminPage() {
   const [robotsTxt, setRobotsTxt] = useState('');
   const [robotsStatus, setRobotsStatus] = useState('');
   const [robotsLoading, setRobotsLoading] = useState(false);
+  const [waNumber, setWaNumber] = useState('201020326953');
+  const [waStatus, setWaStatus] = useState('');
+  const [waLoading, setWaLoading] = useState(false);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -181,6 +184,13 @@ export default function AdminPage() {
     })
       .then(r => r.json())
       .then(d => setRobotsTxt(d.txt || ''))
+      .catch(() => {});
+    // Load WhatsApp number
+    fetch(API + '/api/admin/whatsapp', {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+    })
+      .then(r => r.json())
+      .then(d => { if (d.number) setWaNumber(d.number); })
       .catch(() => {});
   }, [authed, token]);
 
@@ -411,6 +421,20 @@ export default function AdminPage() {
   );
 
   // ── saveRobots ──────────────────────────────────────────
+  const saveWaNumber = async () => {
+    setWaLoading(true); setWaStatus('');
+    try {
+      const r = await fetch(API + '/api/admin/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ number: waNumber }),
+      });
+      const d = await r.json();
+      setWaStatus(d.success ? '✅ تم الحفظ' : `❌ ${d.error}`);
+    } catch { setWaStatus('❌ خطأ في الشبكة'); }
+    setWaLoading(false);
+  };
+
   const saveRobots = async () => {
     setRobotsLoading(true);
     setRobotsStatus('');
@@ -1166,6 +1190,34 @@ export default function AdminPage() {
         {/* ══ TAB: Sitemap XML ══ */}
         {tab === 'sitemap_tab' && (
           <div>
+            {/* ── WhatsApp Number Editor ── */}
+            <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 20, marginBottom: 24 }}>
+              <h2 style={{ color: '#25D366', marginBottom: 12, fontSize: 17 }}>📱 رقم واتساب الدعم</h2>
+              <p style={{ color: '#aaa', marginBottom: 10, fontSize: 13 }}>الرقم الظاهر في زر واتساب العائم في الموقع</p>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  value={waNumber}
+                  onChange={e => setWaNumber(e.target.value)}
+                  placeholder="201020326953"
+                  style={{
+                    flex: 1, minWidth: 200, background: '#0f0f1a', color: '#e2e8f0',
+                    border: '1px solid #334155', borderRadius: 8, padding: '10px 14px',
+                    fontSize: 15, fontFamily: 'monospace', direction: 'ltr'
+                  }}
+                />
+                <button
+                  onClick={saveWaNumber}
+                  disabled={waLoading}
+                  style={{
+                    background: '#25D366', color: '#fff', border: 'none',
+                    borderRadius: 8, padding: '10px 22px', cursor: 'pointer', fontWeight: 700
+                  }}
+                >{waLoading ? 'جارٍ الحفظ...' : '💾 حفظ'}</button>
+                {waStatus && <span style={{ color: waStatus.startsWith('✅') ? '#22c55e' : '#ef4444' }}>{waStatus}</span>}
+              </div>
+              <p style={{ color: '#64748b', fontSize: 11, marginTop: 8 }}>أدخل الرقم بدون + مثل: 201020326953</p>
+            </div>
+
             <h2 style={{ color: '#00d4ff', marginBottom: 20, fontSize: 18 }}>🗺️ Sitemap XML (Google & Bing)</h2>
             <p style={{ color: '#8b949e', marginBottom: 16, fontSize: 13 }}>
               ارفع ملف sitemap.xml — سيُعرض تلقائياً على{' '}

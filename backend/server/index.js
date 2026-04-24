@@ -311,6 +311,18 @@ app.get('/api/metrics', (req, res) => {
   });
 });
 
+
+// GET /api/whatsapp-number — public endpoint for frontend to fetch support WA number
+app.get('/api/whatsapp-number', async (req, res) => {
+  try {
+    const Setting = mongoose.models.Setting;
+    const s = Setting ? await Setting.findOne({ key: 'whatsapp_number' }).lean() : null;
+    res.json({ number: s ? s.value : '201020326953' });
+  } catch (e) {
+    res.json({ number: '201020326953' });
+  }
+});
+
 app.use('/api/sitemap', sitemapRouter);
 app.use('/api/robots', robotsRouter);
 app.get('/sitemap.xml', (req, res) => res.redirect('/seo/sitemap.xml'));
@@ -601,7 +613,78 @@ connectDatabases().then(async (db) => {
     // ────────────────────────────────────────────────────────────────────────────────
 
     // ── Run seeds + cleanup ─────────────────────────────────────────────
+
+// ── Seed categories if empty ─────────────────────────────────────────────────
+const seedCategories = async () => {
+  try {
+    const Category = (await import('../models/Category.js')).default;
+    const count = await Category.countDocuments();
+    if (count > 0) return; // Already seeded
+
+    const defaultCategories = [
+      { name: 'Electronics', nameAr: 'إلكترونيات', emoji: '📱', accentColor: '#3b82f6', subcategories: [
+        { name: 'Mobile', nameAr: 'موبايلات', emoji: '📱', accentColor: '#3b82f6' },
+        { name: 'Laptop', nameAr: 'لابتوب', emoji: '💻', accentColor: '#6366f1' },
+        { name: 'Camera', nameAr: 'كاميرات', emoji: '📷', accentColor: '#f59e0b' },
+        { name: 'TV & Audio', nameAr: 'تلفزيون وصوت', emoji: '📺', accentColor: '#06b6d4' },
+        { name: 'Gaming', nameAr: 'ألعاب إلكترونية', emoji: '🎮', accentColor: '#8b5cf6' },
+      ]},
+      { name: 'Vehicles', nameAr: 'سيارات', emoji: '🚗', accentColor: '#ef4444', subcategories: [
+        { name: 'Cars', nameAr: 'ملاكي', emoji: '🚗', accentColor: '#ef4444' },
+        { name: 'Motorcycle', nameAr: 'موتوسيكل', emoji: '🏍️', accentColor: '#f97316' },
+        { name: 'Truck', nameAr: 'شاحنة', emoji: '🚛', accentColor: '#92400e' },
+        { name: 'Spare Parts', nameAr: 'قطع غيار', emoji: '⚙️', accentColor: '#6b7280' },
+        { name: 'Boats', nameAr: 'مراكب', emoji: '⛵', accentColor: '#0284c7' },
+      ]},
+      { name: 'Real Estate', nameAr: 'عقارات', emoji: '🏠', accentColor: '#0ea5e9', subcategories: [
+        { name: 'Apartment', nameAr: 'شقق', emoji: '🏠', accentColor: '#0ea5e9' },
+        { name: 'Villa', nameAr: 'فيلا', emoji: '🏡', accentColor: '#06b6d4' },
+        { name: 'Office', nameAr: 'مكتب', emoji: '🏢', accentColor: '#0284c7' },
+        { name: 'Land', nameAr: 'أراضي', emoji: '🌍', accentColor: '#16a34a' },
+        { name: 'Warehouse', nameAr: 'مخازن', emoji: '🏗️', accentColor: '#78716c' },
+      ]},
+      { name: 'Fashion', nameAr: 'أزياء', emoji: '👗', accentColor: '#ec4899', subcategories: [
+        { name: 'Clothes', nameAr: 'ملابس', emoji: '👗', accentColor: '#ec4899' },
+        { name: 'Shoes', nameAr: 'أحذية', emoji: '👟', accentColor: '#f43f5e' },
+        { name: 'Accessories', nameAr: 'اكسسوارات', emoji: '💍', accentColor: '#a855f7' },
+        { name: 'Bags', nameAr: 'حقائب', emoji: '👜', accentColor: '#d97706' },
+        { name: 'Kids Fashion', nameAr: 'أزياء أطفال', emoji: '👶', accentColor: '#10b981' },
+      ]},
+      { name: 'Services', nameAr: 'خدمات', emoji: '🔧', accentColor: '#14b8a6', subcategories: [
+        { name: 'Repair', nameAr: 'صيانة', emoji: '🔧', accentColor: '#14b8a6' },
+        { name: 'Cleaning', nameAr: 'نظافة', emoji: '🧹', accentColor: '#10b981' },
+        { name: 'Teaching', nameAr: 'تدريس', emoji: '📚', accentColor: '#8b5cf6' },
+        { name: 'Beauty', nameAr: 'تجميل', emoji: '💅', accentColor: '#f43f5e' },
+        { name: 'Transport', nameAr: 'نقل وشحن', emoji: '🚚', accentColor: '#f97316' },
+      ]},
+      { name: 'Pets', nameAr: 'حيوانات', emoji: '🐾', accentColor: '#22c55e', subcategories: [
+        { name: 'Dogs', nameAr: 'كلاب', emoji: '🐕', accentColor: '#22c55e' },
+        { name: 'Cats', nameAr: 'قطط', emoji: '🐈', accentColor: '#84cc16' },
+        { name: 'Birds', nameAr: 'طيور', emoji: '🦜', accentColor: '#facc15' },
+        { name: 'Pet Supplies', nameAr: 'مستلزمات حيوانات', emoji: '🦴', accentColor: '#a78bfa' },
+      ]},
+      { name: 'Jobs', nameAr: 'وظائف', emoji: '💼', accentColor: '#f59e0b', subcategories: [
+        { name: 'Full Time', nameAr: 'دوام كامل', emoji: '💼', accentColor: '#f59e0b' },
+        { name: 'Part Time', nameAr: 'دوام جزئي', emoji: '⏰', accentColor: '#fb923c' },
+        { name: 'Freelance', nameAr: 'فريلانس', emoji: '💻', accentColor: '#a78bfa' },
+        { name: 'Internship', nameAr: 'تدريب', emoji: '🎓', accentColor: '#0ea5e9' },
+      ]},
+      { name: 'Misc', nameAr: 'متفرقات', emoji: '📦', accentColor: '#64748b', subcategories: [
+        { name: 'Furniture', nameAr: 'أثاث', emoji: '🛋️', accentColor: '#78716c' },
+        { name: 'Books', nameAr: 'كتب', emoji: '📚', accentColor: '#854d0e' },
+        { name: 'Kids', nameAr: 'أطفال', emoji: '🧸', accentColor: '#db2777' },
+        { name: 'Sports', nameAr: 'رياضة', emoji: '⚽', accentColor: '#16a34a' },
+        { name: 'Home Appliances', nameAr: 'أجهزة منزلية', emoji: '🫙', accentColor: '#0d9488' },
+      ]},
+    ];
+
+    await Category.insertMany(defaultCategories.map((c, i) => ({ ...c, order: i })));
+    console.log('[Category] Seeded', defaultCategories.length, 'categories');
+  } catch (e) { console.error('[Category] Seed error:', e.message); }
+};
+
     await runSeedsOnce();
+    await seedCategories();
 
     // ── Load WP OAuth token from MongoDB on startup (persists across Railway restarts) ──
     try {

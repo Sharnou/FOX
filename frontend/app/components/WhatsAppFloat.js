@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react';
 
 // Module-level constants to avoid TDZ (Temporal Dead Zone) crash after minification
-const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT || '201000000000'; // country code + number, no '+' or spaces — set NEXT_PUBLIC_WHATSAPP_SUPPORT in env
+// WA number fetched dynamically from backend, with fallback to env or default
+const DEFAULT_WA_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT || '201020326953'; // country code + number, no '+' or spaces — set NEXT_PUBLIC_WHATSAPP_SUPPORT in env
 const WA_MESSAGE = encodeURIComponent('مرحبا، أحتاج مساعدة في XTOX 👋');
-const WA_URL = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + WA_MESSAGE;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 
 /**
  * WhatsAppFloat — Floating WhatsApp support button for XTOX Arab marketplace.
@@ -15,8 +16,15 @@ const WA_URL = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + WA_MESSAGE;
 export default function WhatsAppFloat() {
   const [visible, setVisible] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [waNumber, setWaNumber] = useState(DEFAULT_WA_NUMBER);
 
-  // WA_URL, WHATSAPP_NUMBER, MESSAGE moved to module level to avoid TDZ
+  // Fetch WA number from backend (falls back to DEFAULT_WA_NUMBER)
+  useEffect(() => {
+    fetch(API_BASE + '/api/whatsapp-number')
+      .then(r => r.json())
+      .then(d => { if (d.number) setWaNumber(d.number); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     // Don't show if user dismissed this session
@@ -103,7 +111,7 @@ export default function WhatsAppFloat() {
 
         {/* WhatsApp icon button */}
         <a
-          href={WA_URL}
+          href={`https://wa.me/${waNumber}?text=${WA_MESSAGE}`}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="تواصل معنا عبر واتساب"
