@@ -422,6 +422,20 @@ export default function AdCard({
     }
   };
 
+
+  // ── Reveal contact deduction: call /api/users/:id/reveal-contact ────────────
+  async function revealContact(sellerIdParam, type) {
+    try {
+      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
+      if (!token || !sellerIdParam) return;
+      fetch('/api/users/' + sellerIdParam + '/reveal-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ type }),
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
   // ── Notify seller when contact info is viewed (from AdCard) ──────────────
   async function notifySellerContactViewed(type) {
     try {
@@ -770,7 +784,7 @@ export default function AdCard({
             rel="noopener noreferrer"
             dir="auto"
             className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-500 hover:bg-green-600 active:bg-green-700 px-3 py-1 text-xs font-semibold text-white shadow transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); revealContact(_sellerId, 'whatsapp'); }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
@@ -862,7 +876,7 @@ export default function AdCard({
           {Boolean(ad?.phone || ad?.seller?.phone) && (
             <a
               href={'https://wa.me/' + String(ad?.phone || ad?.seller?.phone || '').replace(/\D/g, '') + '?text=' + encodeURIComponent('مرحباً، رأيت إعلانك على XTOX')}
-              onClick={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); revealContact(_sellerId, 'whatsapp'); }}
               target="_blank"
               rel="noopener noreferrer"
               title="واتساب"

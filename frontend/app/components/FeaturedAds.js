@@ -191,7 +191,21 @@ function FeaturedCard({ ad, featIdx }) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={'تواصل عبر واتساب بخصوص: ' + ad.title}
-          onClick={e => e.stopPropagation()}
+          onClick={e => {
+            e.stopPropagation();
+            // Fire reveal-contact API
+            try {
+              const sellerIdFeatured = ad?.userId?._id || ad?.userId || ad?.seller?._id || ad?.seller;
+              const token = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token') || '') : '';
+              if (token && sellerIdFeatured) {
+                fetch('/api/users/' + sellerIdFeatured + '/reveal-contact', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                  body: JSON.stringify({ type: 'whatsapp' }),
+                }).catch(() => {});
+              }
+            } catch (_) {}
+          }}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
             background: isGolden ? '#16a34a' : '#25D366',

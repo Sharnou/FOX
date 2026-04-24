@@ -24,7 +24,7 @@ export default function BottomNav() {
     { icon: '🏠', labelKey: 'nav_home', href: '/' },
     { icon: '🔍', labelKey: 'nav_search', href: '/search' },
     { icon: '➕', labelKey: 'nav_sell', href: '/sell', highlight: true },
-    { icon: '📲', labelKey: 'nav_install', href: '/install' },
+    { icon: '🏆', labelKey: 'nav_honor', href: '/honor-roll' },
     // Navigate to /profile if logged in, otherwise /login
     { icon: '👤', labelKey: 'nav_profile', href: isLoggedIn ? '/profile' : '/login' },
   ];

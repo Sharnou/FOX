@@ -611,8 +611,124 @@ export function initSocket(io) {
       }
     });
 
+
+    // ── Call Reputation Deductions ─────────────────────────────────────
+    // call:start — fired when caller initiates a call (client sends this alongside call:initiate)
+    socket.on('call:start', async ({ callerId, receiverId }) => {
+      try {
+        const CallSession = (await import('../models/CallSession.js')).default;
+        const User = (await import('mongoose')).default.models.User || (await import('../models/User.js')).default;
+        const { addPointsToUser } = await import('../utils/points.js');
+
+        // Check if this is the first time callerId has called receiverId
+        const priorCall = await CallSession.findOne({ callerId, receiverId });
+        const isFirstCall = !priorCall;
+
+        // Create call session record
+        const session = await CallSession.create({
+          callerId,
+          receiverId,
+          isFirstCall,
+          startedAt: new Date(),
+        });
+
+        // Deduct -10 points if first time calling this person
+        if (isFirstCall) {
+          const caller = await User.findById(callerId);
+          if (caller) {
+            await addPointsToUser(caller, -10, 'مكالمة صوتية مع مستخدم جديد (-10 نقطة)');
+          }
+        }
+
+        // Send session ID back so client can reference it
+        socket.emit('call:session', { sessionId: session._id.toString() });
+        console.log('[Socket] call:start — sessionId:', session._id, '| isFirstCall:', isFirstCall);
+      } catch (err) {
+        console.error('[Socket] call:start error:', err.message);
+      }
+    });
+
+    // call:answered — fired when receiver picks up
+    socket.on('call:answered', async ({ sessionId }) => {
+      if (!sessionId) return;
+      try {
+        const CallSession = (await import('../models/CallSession.js')).default;
+        await CallSession.findByIdAndUpdate(sessionId, { answeredAt: new Date() });
+
+        // Start per-minute deduction timer
+        const User = (await import('mongoose')).default.models.User || (await import('../models/User.js')).default;
+        const { addPointsToUser } = await import('../utils/points.js');
+
+        const minuteTimer = setInterval(async () => {
+          try {
+            const session = await CallSession.findById(sessionId);
+            if (!session || session.endedAt) {
+              clearInterval(minuteTimer);
+              return;
+            }
+            const caller = await User.findById(session.callerId);
+            if (caller) {
+              await addPointsToUser(caller, -10, 'دقيقة مكالمة صوتية (-10 نقطة)');
+              await CallSession.findByIdAndUpdate(sessionId, { $inc: { pointsDeducted: 10 } });
+            }
+          } catch (timerErr) {
+            console.error('[Socket] minuteTimer error:', timerErr.message);
+            clearInterval(minuteTimer);
+          }
+        }, 60 * 1000); // every 60 seconds
+
+        socket.callTimer = minuteTimer;
+        socket.callSessionId = sessionId;
+        console.log('[Socket] call:answered — sessionId:', sessionId, '| minute timer started');
+      } catch (err) {
+        console.error('[Socket] call:answered error:', err.message);
+      }
+    });
+
+    // call:ended_session — fired when call ends (either side hangs up)
+    socket.on('call:ended_session', async ({ sessionId }) => {
+      if (socket.callTimer) {
+        clearInterval(socket.callTimer);
+        socket.callTimer = null;
+      }
+      if (!sessionId) return;
+      try {
+        const CallSession = (await import('../models/CallSession.js')).default;
+        const endedAt = new Date();
+        const session = await CallSession.findById(sessionId);
+        if (session && !session.endedAt) {
+          const answeredAt = session.answeredAt;
+          const durationSeconds = answeredAt ? Math.floor((endedAt - answeredAt) / 1000) : 0;
+          await CallSession.findByIdAndUpdate(sessionId, { endedAt, durationSeconds });
+          console.log('[Socket] call:ended_session — sessionId:', sessionId, '| duration:', durationSeconds, 's');
+        }
+      } catch (err) {
+        console.error('[Socket] call:ended_session error:', err.message);
+      }
+    });
+
     // ── Disconnect ───────────────────────────────────────────────
     socket.on('disconnect', async () => {
+      // Clean up call timer on disconnect
+      if (socket.callTimer) {
+        clearInterval(socket.callTimer);
+        socket.callTimer = null;
+        if (socket.callSessionId) {
+          try {
+            const CallSession = (await import('../models/CallSession.js')).default;
+            const endedAt = new Date();
+            const session = await CallSession.findById(socket.callSessionId);
+            if (session && !session.endedAt) {
+              const durationSeconds = session.answeredAt
+                ? Math.floor((endedAt - session.answeredAt) / 1000)
+                : 0;
+              await CallSession.findByIdAndUpdate(socket.callSessionId, { endedAt, durationSeconds });
+            }
+          } catch (_callEndErr) {
+            console.warn('[Socket] disconnect callTimer cleanup error:', _callEndErr.message);
+          }
+        }
+      }
       const userId = socket.data.userId;
       if (!userId) return;
       // Check if user has other active tabs before marking offline

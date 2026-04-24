@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import fetch from 'node-fetch';
 import rateLimit from 'express-rate-limit';
 import { auth } from '../middleware/auth.js';
+import { addPointsToUser } from '../utils/points.js';
 import User from '../models/User.js';
 import { dbState, MemUser } from '../server/memoryStore.js';
 import { getActiveDB } from '../server/dbManager.js';
@@ -634,6 +635,67 @@ router.get('/me/points-history', auth, async (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+
+// GET /api/users/leaderboard — top 20 users by reputation points (public, no auth required)
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const UserModel = getUserModel();
+    const users = await UserModel.find({ isDeleted: { $ne: true } })
+      .select('name avatar reputationPoints createdAt')
+      .sort({ reputationPoints: -1 })
+      .limit(20);
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/users/:id/reveal-contact
+// Called when viewer clicks WhatsApp button or reveals phone number for seller :id
+// Deducts -10 points from viewer if first time for this seller+type
+router.post('/:id/reveal-contact', auth, async (req, res) => {
+  try {
+    const viewerId = req.user._id;
+    const sellerId = req.params.id;
+    const { type } = req.body; // 'whatsapp' or 'phone'
+
+    if (!type || !['whatsapp', 'phone'].includes(type)) {
+      return res.status(400).json({ error: 'type must be whatsapp or phone' });
+    }
+
+    if (viewerId.toString() === sellerId.toString()) {
+      return res.json({ firstReveal: false }); // viewing own contact, no penalty
+    }
+
+    const ContactReveal = (await import('../models/ContactReveal.js')).default;
+
+    // Try to create the reveal record (will fail with duplicate error if already exists)
+    let firstReveal = false;
+    try {
+      await ContactReveal.create({ viewerId, sellerId, type });
+      firstReveal = true;
+    } catch (dupErr) {
+      if (dupErr.code !== 11000) throw dupErr;
+      // Already revealed before — no deduction
+    }
+
+    if (firstReveal) {
+      const UserModel = getUserModel();
+      const viewer = await UserModel.findById(viewerId);
+      if (viewer) {
+        const label = type === 'whatsapp'
+          ? 'تواصل عبر واتساب مع بائع جديد (-10 نقطة)'
+          : 'كشف رقم هاتف بائع جديد (-10 نقطة)';
+        await addPointsToUser(viewer, -10, label);
+      }
+    }
+
+    res.json({ firstReveal });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -8,7 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
  * Supports Arabic RTL + English LTR
  * Run 118 — XTOX Auto-Upgrade
  */
-export default function PhoneRevealButton({ phone, lang = 'ar' }) {
+export default function PhoneRevealButton({ phone, lang = 'ar', sellerId = null }) {
   const { t: tr } = useLanguage();
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -69,7 +69,20 @@ export default function PhoneRevealButton({ phone, lang = 'ar' }) {
     >
       {!revealed ? (
         <button
-          onClick={() => setRevealed(true)}
+          onClick={async () => {
+            setRevealed(true);
+            // Call reveal-contact API (fire and forget)
+            try {
+              const token = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token') || '') : '';
+              if (token && sellerId) {
+                fetch('/api/users/' + sellerId + '/reveal-contact', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                  body: JSON.stringify({ type: 'phone' }),
+                }).catch(() => {});
+              }
+            } catch (_) {}
+          }}
           style={{
             display: 'flex',
             alignItems: 'center',

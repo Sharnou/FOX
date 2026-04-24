@@ -63,6 +63,9 @@ export default function ProfilePage() {
   const [pointsHistoryLoading, setPointsHistoryLoading] = useState(false);
   const [pointsHistory, setPointsHistory] = useState([]);
 
+  // ── Call History state ─────────────────────────────────────────────────────
+  const [callHistory, setCallHistory] = useState([]);
+
 
   const getToken = () =>
     localStorage.getItem('xtox_token') ||
@@ -214,6 +217,16 @@ export default function ProfilePage() {
       .catch(() => {})
       .finally(() => { clearTimeout(timer); if (!cancelled) setAdsLoading(false); });
     return () => { cancelled = true; ctrl.abort(); };
+  }, [userId]);
+
+  // ── Fetch call history ────────────────────────────────────────────────
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('xtox_token') || localStorage.getItem('token') || '') : '';
+    if (!token || !userId) return;
+    fetch(API + '/api/calls/history', { headers: { Authorization: 'Bearer ' + token } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => Array.isArray(data) && setCallHistory(data))
+      .catch(() => {});
   }, [userId]);
 
   // ── Initialize soundMuted from localStorage ───────────────────────────
@@ -687,6 +700,47 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* ── Call History Section ─────────────────────────────────────────── */}
+      {callHistory.length > 0 && (
+        <div style={{ margin: '24px 0', background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: 18, color: '#1a1a2e' }}>📞 سجل المكالمات</h3>
+          {callHistory.slice(0, 20).map(call => {
+            const myId = user?._id || user?.id;
+            const isOutgoing = call.callerId?._id === myId || String(call.callerId?._id) === String(myId);
+            const other = isOutgoing ? call.receiverId : call.callerId;
+            const mins = Math.floor((call.durationSeconds || 0) / 60);
+            const secs = (call.durationSeconds || 0) % 60;
+            const answered = !!call.answeredAt;
+            return (
+              <div key={call._id} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 0', borderBottom: '1px solid #f0f0f0'
+              }}>
+                <span style={{ fontSize: 20 }}>{isOutgoing ? '📞' : '📲'}</span>
+                {other?.avatar ? (
+                  <img src={other.avatar} alt=""
+                    style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: 15, flexShrink: 0 }}>
+                    {(other?.name?.[0] || '?').toUpperCase()}
+                  </div>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{other?.name || 'مستخدم'}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                    {new Date(call.startedAt).toLocaleDateString('ar-EG')} · {' '}
+                    {answered ? `${mins}:${secs.toString().padStart(2, '0')}` : '❌ لم يُرَد'}
+                  </div>
+                </div>
+                {call.pointsDeducted > 0 && (
+                  <span style={{ color: '#ef4444', fontSize: 12, fontWeight: 600 }}>-{call.pointsDeducted} نقطة</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Received Reviews Section ──────────────────────────────────── */}
       {myReviewsLoaded && (

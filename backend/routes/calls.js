@@ -76,4 +76,24 @@ router.post('/push', auth, async (req, res) => {
   }
 });
 
+
+// GET /api/calls/history — get current user's call history (both as caller and receiver)
+router.get('/history', auth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const CallSession = (await import('../models/CallSession.js')).default;
+    const calls = await CallSession.find({
+      $or: [{ callerId: userId }, { receiverId: userId }]
+    })
+    .populate('callerId', 'name avatar')
+    .populate('receiverId', 'name avatar')
+    .sort({ startedAt: -1 })
+    .limit(100);
+
+    res.json(calls);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
