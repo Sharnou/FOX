@@ -96,6 +96,7 @@ import wpRouter from "../routes/wp.js";
 import sitemapRouter from "../routes/sitemap.js";
 import robotsRouter from "../routes/robots.js";
 import { loadWPTokenFromDB, syncAllAdsToWordPress } from '../utils/wordpress.js';
+import { runWPMigration } from '../utils/wpMigration.js';
 import translationsRouter from '../routes/translations.js';
 import translateRouter from '../routes/translate.js';
 import callsRouter from '../routes/calls.js';
@@ -608,6 +609,12 @@ connectDatabases().then(async (db) => {
     } catch (e) {
       console.warn('[WP] loadWPTokenFromDB failed (non-fatal):', e.message);
     }
+
+    // ── WP one-time cleanup migration: dedup pages + update sidebar/footer ──
+    // Runs 45s after startup so WP token is loaded and DB is ready
+    setTimeout(() => {
+      runWPMigration().catch(e => console.warn('[WP-MIGRATE] Startup migration failed:', e.message));
+    }, 45000);
 
     // ── Bulk sync ALL active ads to WordPress on startup (deferred 30s to let DB stabilize) ──
     setTimeout(() => {

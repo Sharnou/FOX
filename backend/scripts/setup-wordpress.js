@@ -63,6 +63,31 @@ async function pageExists(pages, keywords) {
   );
 }
 
+// ─── Helper: create-or-update page by SLUG (prevents duplicates) ──────────────
+async function upsertPage(slug, title, content) {
+  // First check if page with this slug already exists
+  const checkRes = await fetch(`${API}/posts/?type=page&slug=${encodeURIComponent(slug)}&status=any&number=1`, {
+    headers: jsonHeaders,
+  }).then(r => r.json()).catch(() => null);
+
+  const existing = checkRes?.posts?.[0];
+
+  if (existing) {
+    // Update existing page
+    const updated = await post(`/posts/${existing.ID}`, { title, content, status: 'publish' });
+    if (updated) {
+      console.log(`ℹ️  Page "${title}" already exists (ID ${existing.ID}) — updated`);
+      return updated;
+    }
+    return existing;
+  }
+
+  // Create new page
+  const created = await post('/posts/new', { title, content, slug, type: 'page', status: 'publish' });
+  if (created) console.log(`✅ Page "${title}" created: ${created.URL}`);
+  return created;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log('🚀 WordPress site setup starting for', SITE);
@@ -131,28 +156,15 @@ async function main() {
   const existingPages = pagesRes?.pages || [];
   console.log('   Found', existingPages.length, 'existing pages');
 
-  // Home page
-  if (!await pageExists(existingPages, ['الرئيسية', 'home', 'welcome'])) {
-    const home = await post('/posts/new', {
-      title: 'الرئيسية',
-      content: `<div dir="rtl" style="text-align:center;font-family:Arial,sans-serif;padding:40px">
+  // Home page (slug-based upsert prevents duplicates)
+  await upsertPage('al-raesiyya', 'الرئيسية', `<div dir="rtl" style="text-align:center;font-family:Arial,sans-serif;padding:40px">
 <h1>XTOX - سوق محلي عربي</h1>
 <p>أكبر سوق إلكتروني عربي محلي — بيع واشتري بكل سهولة وأمان</p>
 <a href="https://fox-kohl-eight.vercel.app" style="display:inline-block;background:#002f34;color:white;padding:14px 28px;border-radius:10px;text-decoration:none;font-size:18px">افتح التطبيق →</a>
-</div>`,
-      type: 'page',
-      status: 'publish',
-    });
-    if (home) console.log('✅ Home page created:', home.URL);
-  } else {
-    console.log('ℹ️  Home page exists');
-  }
+</div>`);
 
-  // About page
-  if (!await pageExists(existingPages, ['عن', 'about', 'من نحن'])) {
-    const about = await post('/posts/new', {
-      title: 'عن XTOX',
-      content: `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px">
+  // About page (slug-based upsert prevents duplicates)
+  await upsertPage('man-nahnu', 'من نحن', `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px">
 <h1>مرحباً بك في XTOX</h1>
 <p>XTOX هو سوق محلي عربي مجاني يتيح لك بيع وشراء أي شيء بكل سهولة وأمان.</p>
 <h2>ما يميزنا</h2>
@@ -165,20 +177,28 @@ async function main() {
 <li>💬 دردشة فورية مع البائعين</li>
 </ul>
 <p><a href="https://fox-kohl-eight.vercel.app">ابدأ الآن مجاناً →</a></p>
-</div>`,
-      type: 'page',
-      status: 'publish',
-    });
-    if (about) console.log('✅ About page created:', about.URL);
-  } else {
-    console.log('ℹ️  About page exists');
-  }
+</div>`);
 
-  // Privacy Policy page
-  if (!await pageExists(existingPages, ['سياسة الخصوصية', 'privacy', 'خصوصية'])) {
-    const privacy = await post('/posts/new', {
-      title: 'سياسة الخصوصية',
-      content: `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px">
+  // Download app page (slug-based upsert prevents duplicates)
+  await upsertPage('haml-tatbiq-xtox', 'حمّل تطبيق XTOX', `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;text-align:center">
+<h1>📱 حمّل تطبيق XTOX مجاناً</h1>
+<p style="font-size:18px;color:#64748b;margin-bottom:32px">السوق المحلي العربي الأول — اعلن وابيع وإشتري في منطقتك</p>
+<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:32px">
+  <a href="https://fox-kohl-eight.vercel.app/install" style="display:inline-block;background:#2563eb;color:white;padding:14px 28px;border-radius:10px;text-decoration:none;font-size:18px;font-weight:700">📲 تحميل التطبيق (PWA)</a>
+  <a href="https://fox-kohl-eight.vercel.app" style="display:inline-block;background:#0f172a;color:white;padding:14px 28px;border-radius:10px;text-decoration:none;font-size:18px">🏠 الصفحة الرئيسية</a>
+</div>
+<h2>مميزات التطبيق</h2>
+<ul style="text-align:right;max-width:500px;margin:0 auto">
+<li>📱 مجاني 100% — لا رسوم، لا عمولات</li>
+<li>🌍 دعم كامل للغة العربية</li>
+<li>📞 مكالمات صوتية مجانية</li>
+<li>💬 دردشة فورية مع البائعين</li>
+<li>⭐ نظام تقييمات موثوق</li>
+</ul>
+</div>`);
+
+  // Privacy Policy page (slug-based upsert prevents duplicates)
+  await upsertPage('siyasat-alkhusussiyya', 'سياسة الخصوصية', `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px">
 <h1>سياسة الخصوصية</h1>
 <p>آخر تحديث: ${new Date().toLocaleDateString('ar-EG')}</p>
 <h2>المعلومات التي نجمعها</h2>
@@ -195,14 +215,7 @@ async function main() {
 <p>يمكنك طلب حذف حسابك وبياناتك في أي وقت عبر البريد: xtox.noreply@gmail.com</p>
 <h2>الاتصال بنا</h2>
 <p>📧 xtox.noreply@gmail.com</p>
-</div>`,
-      type: 'page',
-      status: 'publish',
-    });
-    if (privacy) console.log('✅ Privacy Policy page created:', privacy.URL);
-  } else {
-    console.log('ℹ️  Privacy Policy page exists');
-  }
+</div>`);
 
   // ── 7. Site icon ────────────────────────────────────────────────────────────
   console.log('\n🎨 7. Site icon (informational)...');

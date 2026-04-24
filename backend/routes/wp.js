@@ -3,6 +3,7 @@ import Ad from '../models/Ad.js'
 import Setting from '../models/Setting.js'
 import { auth as verifyToken } from '../middleware/auth.js'
 import { getWPTokenStatus, saveWPTokenToDB } from '../utils/wordpress.js'
+import { runWPMigration } from '../utils/wpMigration.js'
 
 const router = express.Router()
 
@@ -509,6 +510,26 @@ router.post('/dedup-titles', verifyToken, async (req, res) => {
     }
 
     res.json({ deleted, total: allPosts.length + allPages.length, kept: allPosts.length + allPages.length - deleted });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/wp/run-migration — admin: trigger one-time WP cleanup migration
+// Resets the migration flag so it runs again on next call
+router.post('/run-migration', verifyToken, async (req, res) => {
+  const role = req.user?.role;
+  if (!['admin', 'sub_admin', 'superadmin'].includes(role)) {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  try {
+    // Reset the migration flag to allow re-run
+    await Setting.set('wp_migration_v2_done', '').catch(() => {});
+    res.json({ success: true, message: 'Migration triggered — check server logs' });
+    // Run asynchronously after response
+    setImmediate(() => {
+      runWPMigration().catch(e => console.error('[WP-MIGRATE] Manual trigger failed:', e.message));
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
