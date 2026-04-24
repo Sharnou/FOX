@@ -57,6 +57,7 @@ const AdSchema = new mongoose.Schema({
   // AI quality scoring
   aiQualityScore: { type: Number, default: null },
   aiQualityTips: [String],
+  aiGeneratedImage: { type: Boolean, default: false }, // true if main image was AI-generated
   // AI auto-categorization tracking
   categoryAutoClassified: { type: Boolean, default: false },
   classificationProvider: { type: String, default: null },

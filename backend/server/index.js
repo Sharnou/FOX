@@ -279,6 +279,17 @@ app.use('/api/wishlist', wishlistRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/promote', promoteRouter);
+// GET /api/whatsapp-number — public endpoint, MUST be registered BEFORE /api/whatsapp router
+// to prevent Express prefix-matching from routing it into the chatbot router.
+app.get('/api/whatsapp-number', async (req, res) => {
+  try {
+    const Setting = mongoose.models.Setting;
+    const s = Setting ? await Setting.findOne({ key: 'whatsapp_number' }).lean() : null;
+    res.json({ number: s ? s.value : '201020326953' });
+  } catch (e) {
+    res.json({ number: '201020326953' });
+  }
+});
 app.use('/api/whatsapp', whatsappRouter); // WhatsApp chatbot webhook (no auth — UltraMsg posts here)
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/push', pushRoutes);
@@ -311,17 +322,6 @@ app.get('/api/metrics', (req, res) => {
   });
 });
 
-
-// GET /api/whatsapp-number — public endpoint for frontend to fetch support WA number
-app.get('/api/whatsapp-number', async (req, res) => {
-  try {
-    const Setting = mongoose.models.Setting;
-    const s = Setting ? await Setting.findOne({ key: 'whatsapp_number' }).lean() : null;
-    res.json({ number: s ? s.value : '201020326953' });
-  } catch (e) {
-    res.json({ number: '201020326953' });
-  }
-});
 
 app.use('/api/sitemap', sitemapRouter);
 app.use('/api/robots', robotsRouter);

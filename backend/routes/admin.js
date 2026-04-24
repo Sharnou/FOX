@@ -6,6 +6,7 @@ import Ad from '../models/Ad.js';
 import Report from '../models/Report.js';
 import AILog from '../models/AILog.js';
 import Setting from '../models/Setting.js';
+import { generateAIImage } from '../utils/aiImage.js';
 import { adminAuth, superAdminAuth } from '../middleware/auth.js';
 import { dbState, MemAd, MemUser, MemReport } from '../server/memoryStore.js';
 import { syncCountryPages } from '../utils/wpMigration.js';
@@ -1353,6 +1354,27 @@ router.post('/categories/:id/generate-image', adminAuth, async (req, res) => {
 
     res.json({ success: true, url: uploaded.secure_url });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────
+// POST /api/admin/backfill-images — generate AI images for all active ads with no images
+// Admin only. Processes up to 50 ads with 2s delay between each to respect rate limits.
+// ─────────────────────────────────────────────────────────
+router.post('/backfill-images', adminAuth, async (req, res) => {
+  try {
+    const ads = await Ad.find({ images: { $size: 0 }, status: 'active' }).limit(50).lean();
+    res.json({ queued: ads.length });
+    // Fire and forget for each ad with rate-limit delay
+    (async () => {
+      for (const ad of ads) {
+        await generateAIImage(ad);
+        await new Promise(r => setTimeout(r, 2000)); // 2s delay between calls
+      }
+    })();
+  } catch (err) {
+    console.error('[backfill-images]', err.message);
+    // Response already sent above via res.json — just log
+  }
 });
 
 // ─────────────────────────────────────────────────────────
