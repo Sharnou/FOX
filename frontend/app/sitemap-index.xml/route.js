@@ -27,8 +27,6 @@ const COUNTRY_SITEMAPS = [
   // English (en)
   { code: 'US', lang: 'en', label: 'United States' },
   { code: 'GB', lang: 'en', label: 'United Kingdom' },
-  // French (fr)
-  { code: 'FR', lang: 'fr', label: 'France' },
   // Russian (ru)
   { code: 'RU', lang: 'ru', label: 'Russia' },
   // German (de)

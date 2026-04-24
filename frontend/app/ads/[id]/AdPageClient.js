@@ -93,7 +93,6 @@ function AITranslate({ title, description }) {
         >
           <option value="en">English</option>
           <option value="ar">العربية</option>
-          <option value="fr">Français</option>
           <option value="de">Deutsch</option>
           <option value="es">Español</option>
           <option value="tr">Türkçe</option>

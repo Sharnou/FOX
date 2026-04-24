@@ -15,13 +15,14 @@ export function detectLang() {
 
   // 1. Explicit user choice (support both key conventions)
   const stored = localStorage.getItem('xtox_lang') || localStorage.getItem('lang');
-  if (stored === 'ar' || stored === 'en' || stored === 'de' || stored === 'fr') return stored;
+  if (stored === 'ar' || stored === 'en' || stored === 'de') return stored;
 
   // 2. Browser language
   const browserLang = navigator.language || (navigator.languages && navigator.languages[0]) || '';
   if (ARABIC_LOCALES.some(l => browserLang.startsWith(l))) return 'ar';
   if (browserLang.startsWith('de')) return 'de';
-  if (browserLang.startsWith('fr')) return 'fr';
+  // French browser language → fallback to Arabic (app is AR/EN only)
+  // if (browserLang.startsWith('fr')) return 'ar'; // removed - handled by default
   if (browserLang.startsWith('en')) return 'en';
 
   // 3. IP-based country (set during app init by ipapi.co call)
@@ -63,7 +64,6 @@ export const COUNTRY_CURRENCY = {
   US: { code: 'USD', symbol: '$', name: 'US Dollar' },
   GB: { code: 'GBP', symbol: '£', name: 'British Pound' },
   DE: { code: 'EUR', symbol: '€', name: 'Euro' },
-  FR: { code: 'EUR', symbol: '€', name: 'Euro' },
 };
 
 export function detectCurrency() {

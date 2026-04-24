@@ -978,7 +978,7 @@ export default function Home() {
                     </span>
                     {ad.expiresAt && (
                       <span style={{ color: '#f87171', fontSize: 11 }}>
-                        ⏰ {new Date(ad.expiresAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang === 'fr' ? 'fr-FR' : 'en-US')}
+                        ⏰ {new Date(ad.expiresAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')}
                       </span>
                     )}
                   </div>

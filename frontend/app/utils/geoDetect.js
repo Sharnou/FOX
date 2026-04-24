@@ -21,7 +21,7 @@ export const COUNTRIES = {
   SO: { name: 'الصومال', nameEn: 'Somalia', flag: '🇸🇴', lang: 'ar', dir: 'rtl', currency: 'شلن' },
   US: { name: 'USA', nameEn: 'United States', flag: '🇺🇸', lang: 'en', dir: 'ltr', currency: '$' },
   GB: { name: 'UK', nameEn: 'United Kingdom', flag: '🇬🇧', lang: 'en', dir: 'ltr', currency: '£' },
-  FR: { name: 'France', nameEn: 'France', flag: '🇫🇷', lang: 'fr', dir: 'ltr', currency: '€' },
+  FR: { name: 'France', nameEn: 'France', flag: '🇫🇷', lang: 'en', dir: 'ltr', currency: '€' },
   DE: { name: 'Deutschland', nameEn: 'Germany', flag: '🇩🇪', lang: 'de', dir: 'ltr', currency: '€' },
   CA: { name: 'Canada', nameEn: 'Canada', flag: '🇨🇦', lang: 'en', dir: 'ltr', currency: '$' },
   AU: { name: 'Australia', nameEn: 'Australia', flag: '🇦🇺', lang: 'en', dir: 'ltr', currency: '$' },
@@ -46,12 +46,6 @@ export const UI_STRINGS = {
     selectCountry: 'Select your country', latestAds: 'Latest Ads',
     featuredAds: 'Featured Ads', searchPlaceholder: 'Search for anything...',
     buy: 'Buy', sell: 'Sell', chat: 'Chat', profile: 'Profile',
-  },
-  fr: {
-    allAds: 'Toutes les annonces', noAds: 'Aucune annonce dans ce pays', ads: 'annonces',
-    selectCountry: 'Votre pays', latestAds: 'Dernières annonces',
-    featuredAds: 'Annonces vedettes', searchPlaceholder: 'Chercher...',
-    buy: 'Acheter', sell: 'Vendre', chat: 'Messages', profile: 'Profil',
   },
 };
 

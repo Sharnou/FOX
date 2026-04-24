@@ -4,12 +4,12 @@ import { NextResponse } from 'next/server';
  * Proxy: Locale detection for App Router (renamed from middleware per Next.js 16)
  *
  * Reads the Accept-Language header and maps it to a supported locale.
- * Supported: 'ar' (default), 'en', 'de', 'fr', 'tr'
+ * Supported: 'ar' (default), 'en', 'de', 'tr'
  * This prevents "language override unsupported" warnings by explicitly
  * acknowledging Arabic and other supported locales at the routing layer.
  */
 
-const SUPPORTED_LOCALES = ['ar', 'en', 'de', 'fr', 'tr'];
+const SUPPORTED_LOCALES = ['ar', 'en', 'de', 'tr'];
 const DEFAULT_LOCALE = 'ar';
 
 function detectLocale(acceptLanguage) {

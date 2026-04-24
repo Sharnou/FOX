@@ -10,7 +10,7 @@ const COUNTRY_HINTS = {
   SA: { country: "Saudi Arabia", currency: "SAR", lang: "ar", flag: "🇸🇦" },
   US: { country: "USA", currency: "USD", lang: "en", flag: "🇺🇸" },
   GB: { country: "UK", currency: "GBP", lang: "en", flag: "🇬🇧" },
-  FR: { country: "France", currency: "EUR", lang: "fr", flag: "🇫🇷" },
+  FR: { country: "France", currency: "EUR", lang: "en", flag: "🇫🇷" },
   DE: { country: "Germany", currency: "EUR", lang: "de", flag: "🇩🇪" },
 };
 

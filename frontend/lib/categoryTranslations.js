@@ -1,13 +1,12 @@
 // AUTO-GENERATED — do not edit manually
 // Source: backend/config/categoryTranslations.js
 // Regenerate: node backend/scripts/generateCategoryTranslations.js
-// Languages: ar (Arabic), en (English), fr (Français), de (Deutsch), es (Español), tr (Türkçe), ru (Русский), fa (فارسی)
+// Languages: ar (Arabic), en (English), de (Deutsch), es (Español), tr (Türkçe), ru (Русский), fa (فارسی)
 
 export const CATEGORY_TRANSLATIONS = {
   "cat_electronics": {
     "ar": "إلكترونيات",
     "en": "Electronics",
-    "fr": "Électronique",
     "de": "Elektronik",
     "es": "Electrónica",
     "tr": "Elektronik",
@@ -17,7 +16,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_cars": {
     "ar": "سيارات ومركبات",
     "en": "Cars & Vehicles",
-    "fr": "Voitures & Véhicules",
     "de": "Autos & Fahrzeuge",
     "es": "Coches & Vehículos",
     "tr": "Arabalar & Araçlar",
@@ -27,7 +25,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_real_estate": {
     "ar": "عقارات",
     "en": "Real Estate",
-    "fr": "Immobilier",
     "de": "Immobilien",
     "es": "Inmuebles",
     "tr": "Emlak",
@@ -37,7 +34,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_fashion": {
     "ar": "أزياء وملابس",
     "en": "Fashion & Clothing",
-    "fr": "Mode & Vêtements",
     "de": "Mode & Kleidung",
     "es": "Moda & Ropa",
     "tr": "Moda & Giyim",
@@ -47,7 +43,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_furniture": {
     "ar": "أثاث ومنزل",
     "en": "Furniture & Home",
-    "fr": "Meubles & Maison",
     "de": "Möbel & Haus",
     "es": "Muebles & Hogar",
     "tr": "Mobilya & Ev",
@@ -57,7 +52,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_services": {
     "ar": "خدمات",
     "en": "Services",
-    "fr": "Services",
     "de": "Dienstleistungen",
     "es": "Servicios",
     "tr": "Hizmetler",
@@ -67,7 +61,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_jobs": {
     "ar": "وظائف",
     "en": "Jobs",
-    "fr": "Emplois",
     "de": "Jobs",
     "es": "Empleos",
     "tr": "İş İlanları",
@@ -77,7 +70,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_pets": {
     "ar": "حيوانات أليفة",
     "en": "Pets",
-    "fr": "Animaux",
     "de": "Haustiere",
     "es": "Mascotas",
     "tr": "Evcil Hayvanlar",
@@ -87,7 +79,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_sports": {
     "ar": "رياضة وترفيه",
     "en": "Sports & Leisure",
-    "fr": "Sport & Loisirs",
     "de": "Sport & Freizeit",
     "es": "Deporte & Ocio",
     "tr": "Spor & Eğlence",
@@ -97,7 +88,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_kids": {
     "ar": "أطفال ومستلزماتهم",
     "en": "Kids & Baby",
-    "fr": "Enfants & Bébé",
     "de": "Kinder & Baby",
     "es": "Niños & Bebé",
     "tr": "Çocuk & Bebek",
@@ -107,7 +97,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_hobbies": {
     "ar": "هوايات وترفيه",
     "en": "Hobbies",
-    "fr": "Loisirs & Hobbies",
     "de": "Hobbys",
     "es": "Aficiones",
     "tr": "Hobiler",
@@ -117,7 +106,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_agriculture": {
     "ar": "زراعة ومواشي",
     "en": "Agriculture & Livestock",
-    "fr": "Agriculture & Élevage",
     "de": "Landwirtschaft & Vieh",
     "es": "Agricultura & Ganadería",
     "tr": "Tarım & Hayvancılık",
@@ -127,7 +115,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_food": {
     "ar": "أكل وشرب",
     "en": "Food & Drinks",
-    "fr": "Alimentation & Boissons",
     "de": "Essen & Trinken",
     "es": "Comida & Bebidas",
     "tr": "Yiyecek & İçecek",
@@ -137,7 +124,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_tools": {
     "ar": "أدوات ومعدات",
     "en": "Tools & Equipment",
-    "fr": "Outils & Équipements",
     "de": "Werkzeuge & Geräte",
     "es": "Herramientas & Equipos",
     "tr": "Aletler & Ekipmanlar",
@@ -147,7 +133,6 @@ export const CATEGORY_TRANSLATIONS = {
   "cat_general": {
     "ar": "متفرقات",
     "en": "General",
-    "fr": "Divers",
     "de": "Allgemein",
     "es": "General",
     "tr": "Genel",
@@ -157,7 +142,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_electronics_mobile": {
     "ar": "موبايلات وهواتف",
     "en": "Mobile Phones",
-    "fr": "Téléphones Mobiles",
     "de": "Handys",
     "es": "Teléfonos Móviles",
     "tr": "Cep Telefonları",
@@ -167,7 +151,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_electronics_laptop": {
     "ar": "لابتوب وكمبيوتر",
     "en": "Laptops & PCs",
-    "fr": "Ordinateurs Portables",
     "de": "Laptops & PCs",
     "es": "Portátiles & PCs",
     "tr": "Dizüstü & Masaüstü",
@@ -177,7 +160,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_electronics_tablet": {
     "ar": "تابلت",
     "en": "Tablets",
-    "fr": "Tablettes",
     "de": "Tablets",
     "es": "Tabletas",
     "tr": "Tabletler",
@@ -187,7 +169,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_electronics_camera": {
     "ar": "كاميرات",
     "en": "Cameras",
-    "fr": "Appareils Photo",
     "de": "Kameras",
     "es": "Cámaras",
     "tr": "Kameralar",
@@ -197,7 +178,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_electronics_tv": {
     "ar": "تلفزيونات وشاشات",
     "en": "TVs & Screens",
-    "fr": "Téléviseurs & Écrans",
     "de": "Fernseher & Bildschirme",
     "es": "Televisores & Pantallas",
     "tr": "TV & Ekranlar",
@@ -207,7 +187,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_electronics_gaming": {
     "ar": "ألعاب فيديو",
     "en": "Gaming",
-    "fr": "Jeux Vidéo",
     "de": "Gaming",
     "es": "Videojuegos",
     "tr": "Oyun",
@@ -217,7 +196,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_electronics_accessories_tech": {
     "ar": "إكسسوارات تقنية",
     "en": "Tech Accessories",
-    "fr": "Accessoires Tech",
     "de": "Technik-Zubehör",
     "es": "Accesorios Tecnológicos",
     "tr": "Teknoloji Aksesuarları",
@@ -227,7 +205,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_electronics_audio": {
     "ar": "صوتيات وسماعات",
     "en": "Audio",
-    "fr": "Audio & Son",
     "de": "Audio & Lautsprecher",
     "es": "Audio & Sonido",
     "tr": "Ses Sistemleri",
@@ -237,7 +214,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_cars_passenger_car": {
     "ar": "سيارات ملاكي",
     "en": "Passenger Cars",
-    "fr": "Voitures de Tourisme",
     "de": "Personenwagen",
     "es": "Coches Particulares",
     "tr": "Binek Araçlar",
@@ -247,7 +223,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_cars_commercial_vehicle": {
     "ar": "سيارات نقل وتجارية",
     "en": "Commercial Vehicles",
-    "fr": "Véhicules Commerciaux",
     "de": "Nutzfahrzeuge",
     "es": "Vehículos Comerciales",
     "tr": "Ticari Araçlar",
@@ -257,7 +232,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_cars_motorcycle": {
     "ar": "موتوسيكلات",
     "en": "Motorcycles",
-    "fr": "Motos",
     "de": "Motorräder",
     "es": "Motos",
     "tr": "Motosikletler",
@@ -267,7 +241,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_cars_car_parts": {
     "ar": "قطع غيار",
     "en": "Spare Parts",
-    "fr": "Pièces Détachées",
     "de": "Ersatzteile",
     "es": "Repuestos",
     "tr": "Yedek Parçalar",
@@ -277,7 +250,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_cars_car_accessories": {
     "ar": "إكسسوارات سيارات",
     "en": "Car Accessories",
-    "fr": "Accessoires Auto",
     "de": "Auto-Zubehör",
     "es": "Accesorios de Coche",
     "tr": "Araba Aksesuarları",
@@ -287,7 +259,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_cars_boats": {
     "ar": "قوارب ومراكب",
     "en": "Boats",
-    "fr": "Bateaux",
     "de": "Boote",
     "es": "Barcos",
     "tr": "Tekneler",
@@ -297,7 +268,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_real_estate_apartment_rent": {
     "ar": "شقق للإيجار",
     "en": "Apartments for Rent",
-    "fr": "Appartements à Louer",
     "de": "Wohnungen zur Miete",
     "es": "Pisos en Alquiler",
     "tr": "Kiralık Daireler",
@@ -307,7 +277,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_real_estate_apartment_sale": {
     "ar": "شقق للبيع",
     "en": "Apartments for Sale",
-    "fr": "Appartements à Vendre",
     "de": "Wohnungen zu kaufen",
     "es": "Pisos en Venta",
     "tr": "Satılık Daireler",
@@ -317,7 +286,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_real_estate_villa": {
     "ar": "فيلات ومنازل",
     "en": "Villas & Houses",
-    "fr": "Villas & Maisons",
     "de": "Villen & Häuser",
     "es": "Villas & Casas",
     "tr": "Villalar & Evler",
@@ -327,7 +295,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_real_estate_land": {
     "ar": "أراضي",
     "en": "Land",
-    "fr": "Terrains",
     "de": "Grundstücke",
     "es": "Terrenos",
     "tr": "Arazi",
@@ -337,7 +304,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_real_estate_commercial_space": {
     "ar": "محلات ومكاتب",
     "en": "Commercial Spaces",
-    "fr": "Locaux Commerciaux",
     "de": "Gewerberäume",
     "es": "Locales Comerciales",
     "tr": "Ticari Alanlar",
@@ -347,7 +313,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_real_estate_room_rent": {
     "ar": "غرف للإيجار",
     "en": "Rooms for Rent",
-    "fr": "Chambres à Louer",
     "de": "Zimmer zur Miete",
     "es": "Habitaciones en Alquiler",
     "tr": "Kiralık Odalar",
@@ -357,7 +322,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_fashion_mens_clothing": {
     "ar": "ملابس رجالي",
     "en": "Men's Clothing",
-    "fr": "Vêtements Hommes",
     "de": "Herrenkleidung",
     "es": "Ropa de Hombre",
     "tr": "Erkek Giyim",
@@ -367,7 +331,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_fashion_womens_clothing": {
     "ar": "ملابس حريمي",
     "en": "Women's Clothing",
-    "fr": "Vêtements Femmes",
     "de": "Damenkleidung",
     "es": "Ropa de Mujer",
     "tr": "Kadın Giyim",
@@ -377,7 +340,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_fashion_kids_clothing": {
     "ar": "ملابس أطفال",
     "en": "Kids' Clothing",
-    "fr": "Vêtements Enfants",
     "de": "Kinderkleidung",
     "es": "Ropa de Niños",
     "tr": "Çocuk Giyim",
@@ -387,7 +349,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_fashion_shoes": {
     "ar": "أحذية",
     "en": "Shoes",
-    "fr": "Chaussures",
     "de": "Schuhe",
     "es": "Zapatos",
     "tr": "Ayakkabılar",
@@ -397,7 +358,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_fashion_bags": {
     "ar": "شنط وحقائب",
     "en": "Bags",
-    "fr": "Sacs",
     "de": "Taschen",
     "es": "Bolsos",
     "tr": "Çantalar",
@@ -407,7 +367,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_fashion_watches_jewelry": {
     "ar": "ساعات ومجوهرات",
     "en": "Watches & Jewelry",
-    "fr": "Montres & Bijoux",
     "de": "Uhren & Schmuck",
     "es": "Relojes & Joyas",
     "tr": "Saatler & Mücevherler",
@@ -417,7 +376,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_fashion_accessories_fashion": {
     "ar": "إكسسوارات",
     "en": "Accessories",
-    "fr": "Accessoires",
     "de": "Accessoires",
     "es": "Accesorios",
     "tr": "Aksesuarlar",
@@ -427,7 +385,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_furniture_living_room": {
     "ar": "أثاث صالون وريسبشن",
     "en": "Living Room Furniture",
-    "fr": "Meubles Salon",
     "de": "Wohnzimmermöbel",
     "es": "Muebles de Sala",
     "tr": "Oturma Odası Mobilyaları",
@@ -437,7 +394,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_furniture_bedroom": {
     "ar": "أثاث غرف نوم",
     "en": "Bedroom Furniture",
-    "fr": "Meubles Chambre",
     "de": "Schlafzimmermöbel",
     "es": "Muebles de Dormitorio",
     "tr": "Yatak Odası Mobilyaları",
@@ -447,7 +403,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_furniture_kitchen_appliances": {
     "ar": "أجهزة مطبخ",
     "en": "Kitchen Appliances",
-    "fr": "Électroménager Cuisine",
     "de": "Küchengeräte",
     "es": "Electrodomésticos de Cocina",
     "tr": "Mutfak Aletleri",
@@ -457,7 +412,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_furniture_home_appliances": {
     "ar": "أجهزة منزلية كبيرة",
     "en": "Large Home Appliances",
-    "fr": "Gros Électroménager",
     "de": "Große Haushaltsgeräte",
     "es": "Grandes Electrodomésticos",
     "tr": "Büyük Ev Aletleri",
@@ -467,7 +421,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_furniture_decor": {
     "ar": "ديكور وإضاءة",
     "en": "Decor & Lighting",
-    "fr": "Décoration & Éclairage",
     "de": "Dekor & Beleuchtung",
     "es": "Decoración & Iluminación",
     "tr": "Dekorasyon & Aydınlatma",
@@ -477,7 +430,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_furniture_ac_heating": {
     "ar": "تكييف وتدفئة",
     "en": "AC & Heating",
-    "fr": "Climatisation & Chauffage",
     "de": "Klimaanlage & Heizung",
     "es": "Aire Acondicionado & Calefacción",
     "tr": "Klima & Isıtma",
@@ -487,7 +439,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_services_education": {
     "ar": "تعليم ودروس",
     "en": "Education & Tutoring",
-    "fr": "Éducation & Cours",
     "de": "Bildung & Nachhilfe",
     "es": "Educación & Clases",
     "tr": "Eğitim & Dersler",
@@ -497,7 +448,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_services_repair_maintenance": {
     "ar": "صيانة وإصلاح",
     "en": "Repair & Maintenance",
-    "fr": "Réparation & Maintenance",
     "de": "Reparatur & Wartung",
     "es": "Reparación & Mantenimiento",
     "tr": "Tamir & Bakım",
@@ -507,7 +457,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_services_design_tech": {
     "ar": "تصميم وبرمجة",
     "en": "Design & Programming",
-    "fr": "Design & Programmation",
     "de": "Design & Programmierung",
     "es": "Diseño & Programación",
     "tr": "Tasarım & Programlama",
@@ -517,7 +466,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_services_transport": {
     "ar": "نقل وشحن",
     "en": "Transport & Shipping",
-    "fr": "Transport & Livraison",
     "de": "Transport & Versand",
     "es": "Transporte & Envío",
     "tr": "Nakliye & Kargo",
@@ -527,7 +475,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_services_health_beauty": {
     "ar": "صحة وجمال",
     "en": "Health & Beauty",
-    "fr": "Santé & Beauté",
     "de": "Gesundheit & Schönheit",
     "es": "Salud & Belleza",
     "tr": "Sağlık & Güzellik",
@@ -537,7 +484,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_services_cleaning": {
     "ar": "تنظيف ونظافة",
     "en": "Cleaning",
-    "fr": "Nettoyage",
     "de": "Reinigung",
     "es": "Limpieza",
     "tr": "Temizlik",
@@ -547,7 +493,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_services_legal_financial": {
     "ar": "قانوني ومالي",
     "en": "Legal & Financial",
-    "fr": "Juridique & Financier",
     "de": "Rechts- & Finanzdienstleistungen",
     "es": "Legal & Financiero",
     "tr": "Hukuki & Mali",
@@ -557,7 +502,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_services_events": {
     "ar": "مناسبات وأفراح",
     "en": "Events & Weddings",
-    "fr": "Événements & Mariages",
     "de": "Events & Hochzeiten",
     "es": "Eventos & Bodas",
     "tr": "Etkinlikler & Düğünler",
@@ -567,7 +511,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_jobs_job_offered": {
     "ar": "وظائف متاحة",
     "en": "Jobs Available",
-    "fr": "Offres d'Emploi",
     "de": "Stellenangebote",
     "es": "Ofertas de Empleo",
     "tr": "İş İlanları",
@@ -577,7 +520,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_jobs_job_wanted": {
     "ar": "باحثون عن عمل",
     "en": "Job Seekers",
-    "fr": "Recherche d'Emploi",
     "de": "Jobsuche",
     "es": "Búsqueda de Empleo",
     "tr": "İş Arayanlar",
@@ -587,7 +529,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_jobs_freelance": {
     "ar": "فريلانس وعمل حر",
     "en": "Freelance",
-    "fr": "Freelance",
     "de": "Freiberuflich",
     "es": "Freelance",
     "tr": "Serbest Çalışma",
@@ -597,7 +538,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_pets_cats": {
     "ar": "قطط",
     "en": "Cats",
-    "fr": "Chats",
     "de": "Katzen",
     "es": "Gatos",
     "tr": "Kediler",
@@ -607,7 +547,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_pets_dogs": {
     "ar": "كلاب",
     "en": "Dogs",
-    "fr": "Chiens",
     "de": "Hunde",
     "es": "Perros",
     "tr": "Köpekler",
@@ -617,7 +556,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_pets_birds": {
     "ar": "طيور",
     "en": "Birds",
-    "fr": "Oiseaux",
     "de": "Vögel",
     "es": "Pájaros",
     "tr": "Kuşlar",
@@ -627,7 +565,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_pets_fish": {
     "ar": "أسماك وأحواض",
     "en": "Fish & Aquariums",
-    "fr": "Poissons & Aquariums",
     "de": "Fische & Aquarien",
     "es": "Peces & Acuarios",
     "tr": "Balıklar & Akvaryumlar",
@@ -637,7 +574,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_pets_other_pets": {
     "ar": "حيوانات أخرى",
     "en": "Other Pets",
-    "fr": "Autres Animaux",
     "de": "Andere Haustiere",
     "es": "Otras Mascotas",
     "tr": "Diğer Hayvanlar",
@@ -647,7 +583,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_pets_pet_accessories": {
     "ar": "مستلزمات حيوانات",
     "en": "Pet Accessories",
-    "fr": "Accessoires Animaux",
     "de": "Tieraccessoires",
     "es": "Accesorios para Mascotas",
     "tr": "Evcil Hayvan Aksesuarları",
@@ -657,7 +592,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_sports_gym_fitness": {
     "ar": "جيم ولياقة",
     "en": "Gym & Fitness",
-    "fr": "Salle de Sport & Fitness",
     "de": "Fitness & Gym",
     "es": "Gimnasio & Fitness",
     "tr": "Spor Salonu & Fitness",
@@ -667,7 +601,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_sports_team_sports": {
     "ar": "كرة قدم ورياضات جماعية",
     "en": "Team Sports",
-    "fr": "Sports Collectifs",
     "de": "Mannschaftssport",
     "es": "Deportes de Equipo",
     "tr": "Takım Sporları",
@@ -677,7 +610,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_sports_outdoor_sports": {
     "ar": "رياضات خارجية",
     "en": "Outdoor Sports",
-    "fr": "Sports de Plein Air",
     "de": "Outdoor-Sport",
     "es": "Deportes al Aire Libre",
     "tr": "Açık Hava Sporları",
@@ -687,7 +619,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_sports_fishing": {
     "ar": "صيد وأدواته",
     "en": "Fishing",
-    "fr": "Pêche",
     "de": "Angeln",
     "es": "Pesca",
     "tr": "Balıkçılık",
@@ -697,7 +628,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_sports_cycling": {
     "ar": "دراجات وسكوتر",
     "en": "Cycling & Scooters",
-    "fr": "Vélos & Scooters",
     "de": "Fahrräder & Roller",
     "es": "Bicicletas & Patinetes",
     "tr": "Bisiklet & Scooter",
@@ -707,7 +637,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_sports_water_sports": {
     "ar": "رياضات مائية",
     "en": "Water Sports",
-    "fr": "Sports Nautiques",
     "de": "Wassersport",
     "es": "Deportes Acuáticos",
     "tr": "Su Sporları",
@@ -717,7 +646,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_sports_sports_clothing": {
     "ar": "ملابس رياضية",
     "en": "Sports Clothing",
-    "fr": "Vêtements de Sport",
     "de": "Sportkleidung",
     "es": "Ropa Deportiva",
     "tr": "Spor Giyim",
@@ -727,7 +655,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_kids_toys": {
     "ar": "ألعاب أطفال",
     "en": "Toys",
-    "fr": "Jouets",
     "de": "Spielzeug",
     "es": "Juguetes",
     "tr": "Oyuncaklar",
@@ -737,7 +664,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_kids_baby_gear": {
     "ar": "مستلزمات رضع",
     "en": "Baby Gear",
-    "fr": "Équipement Bébé",
     "de": "Babyausstattung",
     "es": "Artículos de Bebé",
     "tr": "Bebek Gereçleri",
@@ -747,7 +673,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_kids_kids_furniture": {
     "ar": "أثاث أطفال",
     "en": "Kids Furniture",
-    "fr": "Meubles Enfants",
     "de": "Kindermöbel",
     "es": "Muebles Infantiles",
     "tr": "Çocuk Mobilyaları",
@@ -757,7 +682,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_hobbies_books": {
     "ar": "كتب ومجلات",
     "en": "Books & Magazines",
-    "fr": "Livres & Magazines",
     "de": "Bücher & Zeitschriften",
     "es": "Libros & Revistas",
     "tr": "Kitaplar & Dergiler",
@@ -767,7 +691,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_hobbies_music_instruments": {
     "ar": "آلات موسيقية",
     "en": "Musical Instruments",
-    "fr": "Instruments de Musique",
     "de": "Musikinstrumente",
     "es": "Instrumentos Musicales",
     "tr": "Müzik Aletleri",
@@ -777,7 +700,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_hobbies_photography": {
     "ar": "تصوير وإضاءة",
     "en": "Photography",
-    "fr": "Photographie",
     "de": "Fotografie",
     "es": "Fotografía",
     "tr": "Fotoğrafçılık",
@@ -787,7 +709,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_hobbies_art_craft": {
     "ar": "فنون وحرف",
     "en": "Arts & Crafts",
-    "fr": "Arts & Artisanat",
     "de": "Kunst & Handwerk",
     "es": "Arte & Manualidades",
     "tr": "Sanat & El Sanatları",
@@ -797,7 +718,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_hobbies_collectibles": {
     "ar": "تحف وأنتيكات",
     "en": "Collectibles & Antiques",
-    "fr": "Antiquités & Collections",
     "de": "Antiquitäten & Sammlerstücke",
     "es": "Antigüedades & Coleccionables",
     "tr": "Antikalar & Koleksiyonlar",
@@ -807,7 +727,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_agriculture_livestock": {
     "ar": "مواشي وأبقار",
     "en": "Livestock & Cattle",
-    "fr": "Bétail & Bovins",
     "de": "Vieh & Rinder",
     "es": "Ganado & Bovinos",
     "tr": "Hayvancılık & Sığırlar",
@@ -817,7 +736,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_agriculture_poultry": {
     "ar": "دواجن وطيور مزرعة",
     "en": "Poultry",
-    "fr": "Volaille",
     "de": "Geflügel",
     "es": "Aves de Corral",
     "tr": "Kümes Hayvanları",
@@ -827,7 +745,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_agriculture_agriculture_equipment": {
     "ar": "معدات زراعية",
     "en": "Agriculture Equipment",
-    "fr": "Équipements Agricoles",
     "de": "Landwirtschaftliche Geräte",
     "es": "Equipos Agrícolas",
     "tr": "Tarım Ekipmanları",
@@ -837,7 +754,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_agriculture_crops_plants": {
     "ar": "محاصيل ونباتات",
     "en": "Crops & Plants",
-    "fr": "Cultures & Plantes",
     "de": "Pflanzen & Kulturpflanzen",
     "es": "Cultivos & Plantas",
     "tr": "Ürünler & Bitkiler",
@@ -847,7 +763,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_food_homemade_food": {
     "ar": "أكل بيتي وحلويات",
     "en": "Homemade Food & Sweets",
-    "fr": "Cuisine Maison & Pâtisseries",
     "de": "Hausgemachtes Essen & Süßigkeiten",
     "es": "Comida Casera & Dulces",
     "tr": "Ev Yemekleri & Tatlılar",
@@ -857,7 +772,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_food_restaurant_supplies": {
     "ar": "مستلزمات مطاعم",
     "en": "Restaurant Supplies",
-    "fr": "Fournitures de Restaurant",
     "de": "Restaurantbedarf",
     "es": "Suministros para Restaurantes",
     "tr": "Restoran Malzemeleri",
@@ -867,7 +781,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_food_food_products": {
     "ar": "منتجات غذائية",
     "en": "Food Products",
-    "fr": "Produits Alimentaires",
     "de": "Lebensmittelprodukte",
     "es": "Productos Alimentarios",
     "tr": "Gıda Ürünleri",
@@ -877,7 +790,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_tools_power_tools": {
     "ar": "أدوات كهربائية",
     "en": "Power Tools",
-    "fr": "Outils Électriques",
     "de": "Elektrowerkzeuge",
     "es": "Herramientas Eléctricas",
     "tr": "Elektrikli Aletler",
@@ -887,7 +799,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_tools_hand_tools": {
     "ar": "أدوات يدوية",
     "en": "Hand Tools",
-    "fr": "Outils Manuels",
     "de": "Handwerkzeuge",
     "es": "Herramientas Manuales",
     "tr": "El Aletleri",
@@ -897,7 +808,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_tools_industrial": {
     "ar": "معدات صناعية",
     "en": "Industrial Equipment",
-    "fr": "Équipements Industriels",
     "de": "Industrieanlagen",
     "es": "Equipos Industriales",
     "tr": "Endüstriyel Ekipmanlar",
@@ -907,7 +817,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_tools_generators": {
     "ar": "مولدات وطاقة",
     "en": "Generators & Energy",
-    "fr": "Générateurs & Énergie",
     "de": "Generatoren & Energie",
     "es": "Generadores & Energía",
     "tr": "Jeneratörler & Enerji",
@@ -917,7 +826,6 @@ export const CATEGORY_TRANSLATIONS = {
   "sub_general_other": {
     "ar": "أخرى",
     "en": "Other",
-    "fr": "Autre",
     "de": "Sonstiges",
     "es": "Otro",
     "tr": "Diğer",
@@ -936,7 +844,7 @@ const CATEGORY_EMOJIS = {
 /**
  * Get category label (name + emoji) in a specific language
  * @param {string} categoryId - e.g. 'sports'
- * @param {string} lang - e.g. 'fr'
+ * @param {string} lang - e.g. 'ar'
  * @returns {{name: string, emoji: string}}
  */
 export function getCategoryLabel(categoryId, lang = 'ar') {
@@ -952,7 +860,7 @@ export function getCategoryLabel(categoryId, lang = 'ar') {
  * Get subcategory name in a specific language
  * @param {string} categoryId - e.g. 'sports'
  * @param {string} subcategoryId - e.g. 'fishing'
- * @param {string} lang - e.g. 'fr'
+ * @param {string} lang - e.g. 'ar'
  * @returns {string}
  */
 export function getSubcategoryLabel(categoryId, subcategoryId, lang = 'ar') {
@@ -972,6 +880,6 @@ export function detectUserLang() {
   if (typeof navigator === 'undefined') return 'ar';
   const lang = navigator.language || navigator.userLanguage || 'ar';
   const code = lang.slice(0, 2).toLowerCase();
-  const supported = ['ar', 'en', 'fr', 'de', 'es', 'tr', 'ru', 'fa'];
+  const supported = ['ar', 'en', 'de', 'es', 'tr', 'ru', 'fa'];
   return supported.includes(code) ? code : 'ar';
 }

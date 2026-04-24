@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-// Error messages for all 8 supported languages
+// Error messages for supported languages (AR, EN, DE, ES, TR, RU, ZH)
 // This file is an error boundary — it renders OUTSIDE the React context tree
 // and CANNOT use useLanguage(). Language is read directly from localStorage.
 const ERROR_MESSAGES = {
@@ -20,14 +20,6 @@ const ERROR_MESSAGES = {
     clear: 'Clear data & retry',
     fixing: '⏳ Fixing...',
     home: '← Home',
-  },
-  fr: {
-    title: 'Échec du chargement',
-    body: 'Cette page n\'a pas pu se charger. Veuillez réessayer.',
-    retry: 'Réessayer',
-    clear: 'Effacer et réessayer',
-    fixing: '⏳ Correction...',
-    home: '← Accueil',
   },
   ru: {
     title: 'Ошибка загрузки',

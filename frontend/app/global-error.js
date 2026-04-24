@@ -24,10 +24,10 @@ function getStoredLang() {
 }
 
 const MSGS = {
-  retry: { ar: 'إعادة المحاولة', en: 'Try Again', fr: 'Réessayer' },
-  clear: { ar: '🔄 مسح الكاش وإعادة التحميل', en: '🔄 Clear Cache & Reload', fr: '🔄 Vider le cache et recharger' },
-  home:  { ar: '← الرئيسية', en: '← Home', fr: '← Accueil' },
-  err:   { ar: 'حدث خطأ في التطبيق. يرجى إعادة المحاولة.', en: 'App error. Please try again.', fr: "Erreur d'application. Veuillez réessayer." },
+  retry: { ar: 'إعادة المحاولة', en: 'Try Again' },
+  clear: { ar: '🔄 مسح الكاش وإعادة التحميل', en: '🔄 Clear Cache & Reload' },
+  home:  { ar: '← الرئيسية', en: '← Home' },
+  err:   { ar: 'حدث خطأ في التطبيق. يرجى إعادة المحاولة.', en: 'App error. Please try again.' },
 };
 
 function m(key) {

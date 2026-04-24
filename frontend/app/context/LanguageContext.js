@@ -3,11 +3,11 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import translations, { CATEGORY_KEY_MAP, CITY_KEY_MAP, CONDITION_KEY_MAP } from '../translations/index';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-const GEO_CACHE_VERSION = '4';  // bumped from '2' — forces nuclear clear for stale FR detection
+const GEO_CACHE_VERSION = '5';  // bumped to v5 — forces nuclear clear of stale FR data
 const TRANS_CACHE_VERSION = '1'; // bump to force re-fetch of dynamic translations
 
 // Languages served from the static bundle (no API fetch needed)
-const STATIC_LANGS = new Set(['ar', 'en', 'fr', 'de', 'es', 'tr', 'ru', 'zh']);
+const STATIC_LANGS = new Set(['ar', 'en', 'de', 'es', 'tr', 'ru', 'zh']);
 
 const LanguageContext = createContext({
   language: 'ar', isRTL: true, showToggle: true,
@@ -107,6 +107,9 @@ export function LanguageProvider({ children }) {
           // 'xtox_language' intentionally excluded — user choice is never auto-reset
           'xtox_trans_fr', 'xtox_trans_v_fr',
         ].forEach(k => localStorage.removeItem(k));
+        // Also clear language if it's French (no longer supported)
+        const storedLangCheck = localStorage.getItem('xtox_language');
+        if (storedLangCheck === 'fr') localStorage.removeItem('xtox_language');
       }
 
       // After possible clear, read from localStorage (null if we just cleared)

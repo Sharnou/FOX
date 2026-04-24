@@ -20,7 +20,6 @@ function getLang() {
 const LOADING_TEXT = {
   ar: 'جارٍ التحميل...',
   en: 'Loading...',
-  fr: 'Chargement...',
   ru: 'Загрузка...',
   de: 'Laden...',
   es: 'Cargando...',
