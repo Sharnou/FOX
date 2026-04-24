@@ -1,6 +1,6 @@
 // DEPLOYMENT MARKER — shows in Railway logs to confirm which commit is running
 console.log('[SERVER-STARTUP] ==========================================');
-console.log('[SERVER-STARTUP] v233 — CONFIRMED: backfillSellerField + idx_userId NUKED from orbit');
+console.log('[SERVER-STARTUP] v234 — reputation points purchase system: 5pts=$0.01, live exchange rates, Stripe checkout');
 console.log('[SERVER-STARTUP] ==========================================');
 
 // CRITICAL: Clear invalid Redis URL before ANY module imports it
@@ -100,6 +100,8 @@ import { runWPMigration, syncCountryPages } from '../utils/wpMigration.js';
 import translationsRouter from '../routes/translations.js';
 import translateRouter from '../routes/translate.js';
 import callsRouter from '../routes/calls.js';
+import reputationRouter from '../routes/reputation.js';
+import reputationWebhookRouter from '../routes/reputationWebhook.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 // Pre-register WinnerHistory model so it is available before first query
 import('../models/WinnerHistory.js').catch(e => console.warn('[WinnerHistory] model load failed:', e.message));
@@ -168,6 +170,8 @@ if (helmet) app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPo
 // Raw body parser for Stripe webhook signature verification — MUST be before express.json()
 // Stripe's constructEvent() requires the raw buffer, not parsed JSON
 app.use('/api/promote/webhook', express.raw({ type: '*/*' }));
+// Raw body for reputation points webhook (Stripe signature requires raw body)
+app.use('/api/reputation/webhook', reputationWebhookRouter);
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -299,6 +303,7 @@ app.use('/api/wp', wpRouter); // WordPress.com OAuth2 + auto-sync
 app.use('/api/translations', translationsRouter); // Auto-generate translations via OpenAI + MongoDB cache
 app.use('/api/translate', translateRouter);
 app.use('/api/calls', callsRouter);     // WebRTC call push notifications
+app.use('/api/reputation', reputationRouter);  // Reputation points purchase (Stripe checkout + packages)
 
 // GET /api/metrics — admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {

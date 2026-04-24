@@ -8,6 +8,8 @@ const MEDAL = ['🥇', '🥈', '🥉'];
 const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
 const MEDAL_BG = ['#fffbea', '#f8f8f8', '#fff5ee'];
 
+const PKG_ICONS = ['💎', '⭐', '🌟', '✨', '🚀', '👑'];
+
 function MedalRank({ rank }) {
   if (rank <= 3) return <span style={{ fontSize: 28 }}>{MEDAL[rank - 1]}</span>;
   return (
@@ -23,13 +25,76 @@ export default function HonorRollPage() {
   const [leaders, setLeaders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Purchase section state
+  const [packages, setPackages] = useState([]);
+  const [pkgLoading, setPkgLoading] = useState(true);
+  const [country, setCountry] = useState('US');
+  const [checkoutLoading, setCheckoutLoading] = useState(null); // packageId being purchased
+  const [purchaseError, setPurchaseError] = useState('');
+
+  // Check for ?purchased=XXXX in URL
+  const [purchasedPts, setPurchasedPts] = useState(null);
+
   useEffect(() => {
+    // Parse URL param
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const pts = params.get('purchased');
+      if (pts) setPurchasedPts(parseInt(pts, 10));
+    }
+
+    // Fetch leaderboard
     fetch(API + '/api/users/leaderboard')
       .then(r => r.ok ? r.json() : [])
       .then(data => Array.isArray(data) && setLeaders(data))
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // Detect country then fetch packages
+    fetch('/api/geo')
+      .then(r => r.ok ? r.json() : { country: 'US' })
+      .then(geo => {
+        const c = geo.country || 'US';
+        setCountry(c);
+        return fetch(`${API}/api/reputation/packages?country=${c}`);
+      })
+      .then(r => r.ok ? r.json() : { packages: [] })
+      .then(data => {
+        if (data.packages) setPackages(data.packages);
+      })
+      .catch(() => {})
+      .finally(() => setPkgLoading(false));
   }, []);
+
+  async function handleBuy(pkg) {
+    setPurchaseError('');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtox_token') : null;
+    if (!token) {
+      window.location.href = '/login';
+      return;
+    }
+    setCheckoutLoading(pkg.id);
+    try {
+      const res = await fetch(`${API}/api/reputation/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ packageId: pkg.id, country }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setPurchaseError(data.error || 'حدث خطأ، يرجى المحاولة لاحقاً');
+      }
+    } catch {
+      setPurchaseError('حدث خطأ في الاتصال بالخادم');
+    } finally {
+      setCheckoutLoading(null);
+    }
+  }
 
   return (
     <div dir="rtl" style={{
@@ -45,6 +110,167 @@ export default function HonorRollPage() {
           <div style={{ fontSize: 48, marginBottom: 8 }}>🏆</div>
           <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 8px' }}>لوحة الشرف</h1>
           <p style={{ margin: 0, opacity: 0.85, fontSize: 15 }}>أفضل البائعين والمشترين بناءً على نقاط السمعة</p>
+        </div>
+
+        {/* ✅ Purchase Success Banner */}
+        {purchasedPts && (
+          <div style={{
+            background: 'linear-gradient(135deg,#d1fae5,#a7f3d0)',
+            border: '2px solid #34d399',
+            borderRadius: 16,
+            padding: '20px 24px',
+            marginBottom: 28,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+          }}>
+            <span style={{ fontSize: 36 }}>✅</span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 18, color: '#065f46' }}>
+                تم الشراء بنجاح!
+              </div>
+              <div style={{ color: '#047857', fontSize: 14, marginTop: 4 }}>
+                تمت إضافة <strong>{purchasedPts.toLocaleString('ar-EG')} نقطة سمعة</strong> إلى حسابك بنجاح 🎉
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 🛒 BUY REPUTATION POINTS */}
+        <div style={{ background: 'white', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', overflow: 'hidden', marginBottom: 36 }}>
+          <div style={{
+            padding: '20px 24px 16px',
+            borderBottom: '1px solid #f3f4f6',
+            background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)',
+          }}>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#4c1d95', display: 'flex', alignItems: 'center', gap: 10 }}>
+              🛒 اشترِ نقاط السمعة
+            </h2>
+            <p style={{ margin: '8px 0 0', color: '#6d28d9', fontSize: 13, fontWeight: 600 }}>
+              5 نقاط = 1 سنت أمريكي · الأسعار تُعرض بعملتك المحلية
+            </p>
+          </div>
+
+          <div style={{ padding: '24px' }}>
+            {purchaseError && (
+              <div style={{
+                background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10,
+                padding: '12px 16px', marginBottom: 20, color: '#dc2626', fontWeight: 600, fontSize: 14,
+              }}>
+                ⚠️ {purchaseError}
+              </div>
+            )}
+
+            {pkgLoading ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af' }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
+                <p style={{ margin: 0 }}>جاري تحميل الباقات...</p>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: 16,
+              }}>
+                {packages.map((pkg, i) => {
+                  const isBuying = checkoutLoading === pkg.id;
+                  const isPopular = i === 2; // 1000 pts is "most popular"
+                  return (
+                    <div key={pkg.id} style={{
+                      border: isPopular ? '2px solid #6366f1' : '1.5px solid #e5e7eb',
+                      borderRadius: 16,
+                      padding: '20px 16px',
+                      textAlign: 'center',
+                      position: 'relative',
+                      background: isPopular ? 'linear-gradient(135deg,#faf5ff,#ede9fe)' : 'white',
+                      boxShadow: isPopular ? '0 4px 20px rgba(99,102,241,0.2)' : '0 2px 8px rgba(0,0,0,0.04)',
+                      transition: 'transform 0.15s, box-shadow 0.15s',
+                    }}>
+                      {isPopular && (
+                        <div style={{
+                          position: 'absolute', top: -12, right: '50%', transform: 'translateX(50%)',
+                          background: '#6366f1', color: 'white', fontSize: 11, fontWeight: 800,
+                          padding: '3px 12px', borderRadius: 99, whiteSpace: 'nowrap',
+                        }}>
+                          ⭐ الأكثر شعبية
+                        </div>
+                      )}
+
+                      {/* Icon */}
+                      <div style={{ fontSize: 32, marginBottom: 10, marginTop: isPopular ? 8 : 0 }}>
+                        {PKG_ICONS[i] || '💎'}
+                      </div>
+
+                      {/* Points */}
+                      <div style={{
+                        fontSize: 22, fontWeight: 900,
+                        color: '#6366f1',
+                        marginBottom: 4,
+                      }}>
+                        {pkg.points.toLocaleString('ar-EG')}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2, fontWeight: 600 }}>نقطة سمعة</div>
+                      <div style={{ fontSize: 11, color: '#d1d5db', marginBottom: 14 }}>
+                        = {pkg.usdCents} سنت أمريكي
+                      </div>
+
+                      {/* Local Price */}
+                      <div style={{
+                        fontSize: 18, fontWeight: 800,
+                        color: '#1a1a2e',
+                        marginBottom: 16,
+                        padding: '8px 0',
+                        borderTop: '1px solid #f3f4f6',
+                        borderBottom: '1px solid #f3f4f6',
+                      }}>
+                        {pkg.localPriceFormatted}
+                      </div>
+
+                      {/* Buy Button */}
+                      <button
+                        onClick={() => handleBuy(pkg)}
+                        disabled={isBuying}
+                        style={{
+                          width: '100%',
+                          padding: '10px 0',
+                          background: isBuying ? '#c4b5fd' : (isPopular ? '#6366f1' : '#8b5cf6'),
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 10,
+                          fontSize: 14,
+                          fontWeight: 800,
+                          cursor: isBuying ? 'wait' : 'pointer',
+                          fontFamily: 'inherit',
+                          transition: 'background 0.2s',
+                        }}
+                      >
+                        {isBuying ? '⏳ جاري...' : 'اشترِ الآن'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pricing note */}
+            <div style={{
+              marginTop: 20,
+              padding: '12px 16px',
+              background: '#f8fafc',
+              borderRadius: 10,
+              fontSize: 12,
+              color: '#6b7280',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}>
+              <span>💡</span>
+              <span>
+                السعر يُحسب تلقائياً بعملتك المحلية · 5 نقاط = $0.01 · الدفع عبر Stripe (آمن 100%)
+                {packages[0] ? ` · العملة: ${packages[0].currency}` : ''}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Leaderboard */}
@@ -172,6 +398,7 @@ export default function HonorRollPage() {
                     ['استقبال تقييم 4 نجوم', '+7'],
                     ['استقبال تقييم 5 نجوم', '+10'],
                     ['مكافأة تقييم 5 نجوم', '+15'],
+                    ['شراء نقاط بالدفع الإلكتروني', '+حسب الباقة'],
                   ].map(([action, pts], i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? 'white' : '#f9fafb' }}>
                       <td style={{ padding: '10px 14px', color: '#374151' }}>{action}</td>
