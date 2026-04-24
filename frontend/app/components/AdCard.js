@@ -512,7 +512,7 @@ export default function AdCard({
     // Navigation is handled via onClick→router.push on the inner navigable div.
     // This eliminates the invalid-HTML issue (anchors/buttons nested inside <Link>/<a>)
     // that was corrupting the browser DOM and breaking click events.
-    <div className="bg-white rounded-xl slide-in relative"
+    <div className="bg-white rounded-xl slide-in relative ad-card"
       style={{
         border: cardBorder,
         boxShadow: cardBoxShadow,

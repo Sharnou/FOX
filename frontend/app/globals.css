@@ -60,6 +60,67 @@
 }
 
 
+/* ===== XTOX Category Theming System ===== */
+:root {
+  --page-bg: #f8fafc;
+  --page-bg-secondary: #f1f5f9;
+  --page-gradient: radial-gradient(circle at top, #e0f2fe, #f8fafc);
+  --header-bg: rgba(255,255,255,0.92);
+  --header-border: #e2e8f0;
+  --header-blur: 18px;
+
+  --card-bg: #ffffff;
+  --card-bg-soft: #f9fafb;
+  --card-border: #e4e4e7;
+  --card-radius: 20px;
+  --card-shadow-soft: 0 20px 50px rgba(15,23,42,0.12);
+  --card-shadow-hover: 0 24px 80px rgba(15,23,42,0.18);
+
+  --accent: #6366f1;
+  --accent-soft: rgba(99,102,241,0.09);
+  --accent-strong: #4f46e5;
+  --accent-pill: rgba(99,102,241,0.14);
+
+  --text-main: #0f172a;
+  --text-soft: #475569;
+  --text-muted: #94a3b8;
+
+  --icon-bg: rgba(99,102,241,0.12);
+  --icon-border: rgba(15,23,42,0.1);
+}
+
+/* Smooth theme transitions */
+body,
+.page-header,
+header,
+nav,
+main,
+.ad-card,
+.category-icon {
+  transition-property: color, background-color, background, border-color, box-shadow;
+  transition-duration: 260ms;
+  transition-timing-function: ease;
+}
+
+body {
+  background: var(--page-gradient), linear-gradient(to bottom, var(--page-bg), var(--page-bg-secondary));
+  color: var(--text-main);
+}
+
+/* Icon pop animation on theme switch */
+.category-icon {
+  transition:
+    background-color 260ms ease,
+    border-color 260ms ease,
+    box-shadow 260ms ease,
+    transform 220ms cubic-bezier(0.19,1,0.22,1);
+}
+
+body.theme-switching .category-icon {
+  transform: scale(1.1);
+}
+
+
 * {
   box-sizing: border-box;
   margin: 0;

@@ -802,13 +802,30 @@ export default function AdminPage() {
                             <Btn small onClick={() => handleDeleteAd(ad)} color="#ff4444">🗑️</Btn>
                             <Btn small onClick={() => handleEnrichAd(ad._id)} color="#00d4ff">🤖 إثراء</Btn>
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (editingAdMeta?.adId === ad._id) {
                                   setEditingAdMeta(null);
-                                } else {
-                                  setEditingAdMeta({ adId: ad._id, category: ad.category || '', subcategory: ad.subcategory || '', condition: ad.condition || 'used_good' });
-                                  if (categories.length === 0) loadCategories();
+                                  return;
                                 }
+                                // Fetch fresh categories if empty (inline fetch avoids stale token closure)
+                                let cats = categories;
+                                if (cats.length === 0) {
+                                  try {
+                                    const tok = getToken();
+                                    const r = await fetch(API + '/api/admin/categories', {
+                                      headers: { Authorization: 'Bearer ' + tok }
+                                    });
+                                    const d = await r.json();
+                                    cats = Array.isArray(d) ? d : (d.categories || []);
+                                    setCategories(cats);
+                                  } catch(e) {}
+                                }
+                                setEditingAdMeta({
+                                  adId: ad._id,
+                                  category: ad.category || '',
+                                  subcategory: ad.subcategory || '',
+                                  condition: ad.condition || 'used_good',
+                                });
                               }}
                               style={{ fontSize: 10, padding: '2px 7px', background: editingAdMeta?.adId === ad._id ? '#c7d2fe' : '#e0f2fe', border: 'none', borderRadius: 6, cursor: 'pointer' }}
                             >

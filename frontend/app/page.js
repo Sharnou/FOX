@@ -14,6 +14,8 @@ import WinnerBanner from './components/WinnerBanner';
 import WinnerAnnouncement from './components/WinnerAnnouncement';
 import CountryTabs from './components/CountryTabs';
 import LanguageToggle from './components/LanguageToggle';
+import LangToggle from './components/LangToggle';
+import CategoryThemeProvider from './components/CategoryThemeProvider';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
 const CAT_KEYS = ['all', 'vehicles', 'electronics', 'realEstate', 'jobs', 'services', 'supermarket', 'pharmacy', 'food', 'fashion'];
@@ -462,7 +464,8 @@ export default function Home() {
         </Link>
 
         {/* Language Toggle — only shown for non-English-native countries */}
-        <LanguageToggle />
+        <CategoryThemeProvider category={CAT_VALS[catIdx]} />
+        <LangToggle />
         {/* User / Login */}
         {user ? (
           <a
