@@ -96,7 +96,7 @@ import wpRouter from "../routes/wp.js";
 import sitemapRouter from "../routes/sitemap.js";
 import robotsRouter from "../routes/robots.js";
 import { loadWPTokenFromDB, syncAllAdsToWordPress } from '../utils/wordpress.js';
-import { runWPMigration } from '../utils/wpMigration.js';
+import { runWPMigration, syncCountryPages } from '../utils/wpMigration.js';
 import translationsRouter from '../routes/translations.js';
 import translateRouter from '../routes/translate.js';
 import callsRouter from '../routes/calls.js';
@@ -698,6 +698,21 @@ const seedCategories = async () => {
     setTimeout(() => {
       runWPMigration().catch(e => console.warn('[WP-MIGRATE] Startup migration failed:', e.message));
     }, 45000);
+
+    // ── WP country pages auto-sync: upsert all 18 country pages on every deploy ──
+    // Runs 60s after startup to ensure DB + WP token are ready
+    setTimeout(async () => {
+      try {
+        const wpToken = process.env.WP_ACCESS_TOKEN
+          || await Setting.get?.('wp_access_token').catch(() => null);
+        if (!wpToken) return console.log('[WP-COUNTRY] No token — skipping country page sync');
+        console.log('[WP-COUNTRY] 🚀 Auto-syncing country pages...');
+        const result = await syncCountryPages(wpToken);
+        console.log('[WP-COUNTRY] ✅ Country pages sync done:', JSON.stringify(result));
+      } catch (e) {
+        console.warn('[WP-COUNTRY] Country pages sync failed (non-fatal):', e.message);
+      }
+    }, 60000);
 
     // ── Bulk sync ALL active ads to WordPress on startup (deferred 30s to let DB stabilize) ──
     setTimeout(() => {

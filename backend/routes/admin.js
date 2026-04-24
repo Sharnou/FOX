@@ -8,6 +8,7 @@ import AILog from '../models/AILog.js';
 import Setting from '../models/Setting.js';
 import { adminAuth, superAdminAuth } from '../middleware/auth.js';
 import { dbState, MemAd, MemUser, MemReport } from '../server/memoryStore.js';
+import { syncCountryPages } from '../utils/wpMigration.js';
 import { getActiveDB } from '../server/dbManager.js';
 import { CouchbaseAd, CouchbaseUser, CouchbaseReport } from '../server/couchbaseModels.js';
 
@@ -1381,6 +1382,30 @@ router.post('/whatsapp', adminAuth, async (req, res) => {
     );
     res.json({ success: true, number: clean });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ─────────────────────────────────────────────────────────
+// GET /api/admin/country-pages-sync
+// Upserts WordPress pages for all 18 countries. Returns { created, updated, failed }.
+// ─────────────────────────────────────────────────────────
+router.get('/country-pages-sync', adminAuth, async (req, res) => {
+  try {
+    const token = process.env.WP_ACCESS_TOKEN;
+    if (!token) {
+      // Try DB token
+      const dbToken = await Setting.findOne({ key: 'wp_access_token' });
+      if (!dbToken?.value) {
+        return res.status(400).json({ error: 'No WordPress access token configured' });
+      }
+      const result = await syncCountryPages(dbToken.value);
+      return res.json(result);
+    }
+    const result = await syncCountryPages(token);
+    return res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 
