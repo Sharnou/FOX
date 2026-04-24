@@ -4,7 +4,7 @@ import { translations as staticTranslations, CATEGORY_KEY_MAP, CITY_KEY_MAP, CON
 import { RTL_LANGS } from '../lib/countryLanguageMap';
 
 const LanguageContext = createContext(null);
-const GEO_CACHE_VERSION = '7';
+const GEO_CACHE_VERSION = '8';
 const GEO_CACHE_KEY = `xtox_geo_v${GEO_CACHE_VERSION}`;
 
 export function LanguageProvider({ children }) {
@@ -125,6 +125,10 @@ export function LanguageProvider({ children }) {
       let saved = null;
       try { saved = localStorage.getItem('xtox_lang'); } catch {}
       const activeLang = (saved && langs.includes(saved)) ? saved : geoLocalLang;
+      // Clear invalid saved language (e.g. old 'fr' saved for an Egypt/Arabic user)
+      if (saved && !langs.includes(saved)) {
+        try { localStorage.removeItem('xtox_lang'); } catch {}
+      }
 
       const trans = await getTranslations(activeLang);
       setLang(activeLang);
