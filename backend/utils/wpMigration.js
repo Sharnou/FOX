@@ -4,6 +4,8 @@
  * Runs on server startup to:
  *  1. Delete duplicate WordPress pages (keeps oldest, deletes copies)
  *  2. Update sidebar/footer widgets from Bedrock/Minetest → XTOX content
+ *  3. Create country-specific pages (one per Arab country, translated)
+ *  4. Inject country detection JS into WP site footer
  *
  * Guarded by a MongoDB "migration" flag — runs exactly once per environment.
  */
@@ -31,8 +33,20 @@ const XTOX_ABOUT_WIDGET = `<div dir="rtl" style="font-family:Arial,sans-serif;co
 const XTOX_DESCRIPTION = 'السوق المحلي العربي الأول — اعلن مجاناً وابيع وإشتري في منطقتك';
 const XTOX_TITLE       = 'XTOX – سوق محلي عربي';
 
+// ─── Arab country data ────────────────────────────────────────────────────────
+const COUNTRIES = [
+  { code: 'EG', slug: 'eg', lang: 'ar-EG', name: 'مصر', downloadTitle: 'حمّل تطبيق XTOX مجاناً في مصر', downloadContent: '<h2>سوق مصر المحلي</h2><p>نزّل تطبيق XTOX وابيع واشتري في مصر — مجاناً!</p><p><a href="https://fox-kohl-eight.vercel.app">افتح الموقع</a></p>', aboutTitle: 'من نحن | XTOX مصر', aboutContent: '<h2>XTOX السوق المحلي المصري</h2><p>أكبر سوق إعلانات مبوبة مجانية في مصر. بيع واشتر بسهولة في منطقتك.</p>' },
+  { code: 'SA', slug: 'sa', lang: 'ar-SA', name: 'السعودية', downloadTitle: 'حمّل تطبيق XTOX مجاناً في السعودية', downloadContent: '<h2>سوق السعودية المحلي</h2><p>نزّل تطبيق XTOX وبيّع واشتري في السعودية — مجاناً!</p><p><a href="https://fox-kohl-eight.vercel.app">افتح الموقع</a></p>', aboutTitle: 'من نحن | XTOX السعودية', aboutContent: '<h2>XTOX السوق المحلي السعودي</h2><p>أكبر سوق إعلانات مبوبة مجانية في المملكة العربية السعودية.</p>' },
+  { code: 'AE', slug: 'ae', lang: 'ar-AE', name: 'الإمارات', downloadTitle: 'حمّل تطبيق XTOX مجاناً في الإمارات', downloadContent: '<h2>سوق الإمارات المحلي</h2><p>حمّل XTOX وبيّع واشتري في الإمارات — مجاناً!</p><p><a href="https://fox-kohl-eight.vercel.app">افتح الموقع</a></p>', aboutTitle: 'من نحن | XTOX الإمارات', aboutContent: '<h2>XTOX السوق المحلي الإماراتي</h2><p>أكبر سوق إعلانات مبوبة مجانية في الإمارات العربية المتحدة.</p>' },
+  { code: 'KW', slug: 'kw', lang: 'ar-KW', name: 'الكويت', downloadTitle: 'حمّل تطبيق XTOX مجاناً في الكويت', downloadContent: '<h2>سوق الكويت المحلي</h2><p>حمّل XTOX وبيّع واشتري بالكويت — مجاناً!</p><p><a href="https://fox-kohl-eight.vercel.app">افتح الموقع</a></p>', aboutTitle: 'من نحن | XTOX الكويت', aboutContent: '<h2>XTOX السوق المحلي الكويتي</h2><p>سوق إعلانات مبوبة مجانية في الكويت.</p>' },
+  { code: 'QA', slug: 'qa', lang: 'ar-QA', name: 'قطر', downloadTitle: 'حمّل تطبيق XTOX مجاناً في قطر', downloadContent: '<h2>سوق قطر المحلي</h2><p>حمّل XTOX وبيّع واشتري في قطر — مجاناً!</p><p><a href="https://fox-kohl-eight.vercel.app">افتح الموقع</a></p>', aboutTitle: 'من نحن | XTOX قطر', aboutContent: '<h2>XTOX السوق المحلي القطري</h2><p>سوق إعلانات مبوبة مجانية في قطر.</p>' },
+  { code: 'JO', slug: 'jo', lang: 'ar-JO', name: 'الأردن', downloadTitle: 'حمّل تطبيق XTOX مجاناً في الأردن', downloadContent: '<h2>سوق الأردن المحلي</h2><p>حمّل XTOX وبيّع واشتري بالأردن — مجاناً!</p><p><a href="https://fox-kohl-eight.vercel.app">افتح الموقع</a></p>', aboutTitle: 'من نحن | XTOX الأردن', aboutContent: '<h2>XTOX السوق المحلي الأردني</h2><p>سوق إعلانات مبوبة مجانية في الأردن.</p>' },
+  { code: 'MA', slug: 'ma', lang: 'ar-MA', name: 'المغرب', downloadTitle: 'حمّل تطبيق XTOX مجاناً في المغرب', downloadContent: '<h2>سوق المغرب المحلي</h2><p>حمّل XTOX وبيع واشتري فالمغرب — مجاناً!</p><p><a href="https://fox-kohl-eight.vercel.app">افتح الموقع</a></p>', aboutTitle: 'من نحن | XTOX المغرب', aboutContent: '<h2>XTOX السوق المحلي المغربي</h2><p>سوق إعلانات مبوبة مجانية فالمغرب.</p>' },
+  { code: 'IQ', slug: 'iq', lang: 'ar-IQ', name: 'العراق', downloadTitle: 'حمّل تطبيق XTOX مجاناً في العراق', downloadContent: '<h2>سوق العراق المحلي</h2><p>نزّل XTOX وبيع واشتري بالعراق — مجاناً!</p><p><a href="https://fox-kohl-eight.vercel.app">افتح الموقع</a></p>', aboutTitle: 'من نحن | XTOX العراق', aboutContent: '<h2>XTOX السوق المحلي العراقي</h2><p>سوق إعلانات مبوبة مجانية في العراق.</p>' },
+];
+
 // Migration key — bump version to force re-run
-const MIGRATION_KEY = 'wp_migration_v2_done';
+const MIGRATION_KEY = 'wp_migration_v3_done';
 
 function getToken() {
   return process.env.WP_ACCESS_TOKEN || null;
@@ -266,6 +280,127 @@ async function updateWPSidebarWidgets() {
   return { widgetsUpdated, linksDeleted };
 }
 
+// ─── 3. Create country-specific pages (one per Arab country) ─────────────────
+export async function createCountryPages(token) {
+  const API = `https://public-api.wordpress.com/rest/v1.1/sites/254170569`;
+  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  let created = 0, skipped = 0;
+
+  for (const country of COUNTRIES) {
+    for (const pageType of ['download', 'about']) {
+      const slug = pageType === 'download'
+        ? `haml-tatbiq-xtox-${country.slug}`
+        : `man-nahnu-xtox-${country.slug}`;
+      const title   = pageType === 'download' ? country.downloadTitle   : country.aboutTitle;
+      const content = pageType === 'download' ? country.downloadContent : country.aboutContent;
+
+      try {
+        // Check if already exists
+        const checkRes = await fetch(`${API}/posts?type=page&slug=${slug}`, { headers });
+        const checkData = await checkRes.json();
+        if (checkData.posts && checkData.posts.length > 0) {
+          console.log(`[WP Country Pages] Already exists: ${slug}`);
+          skipped++;
+          continue;
+        }
+
+        // Create page
+        const createRes = await fetch(`${API}/posts/new`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ type: 'page', title, content, slug, status: 'publish' }),
+        });
+        const createData = await createRes.json().catch(() => ({}));
+        if (createRes.ok) {
+          created++;
+          console.log(`[WP Country Pages] ✅ Created: ${slug} (ID: ${createData.ID})`);
+        } else {
+          console.warn(`[WP Country Pages] ⚠️ Failed to create ${slug}:`, createData.error || createRes.status);
+        }
+        await new Promise(r => setTimeout(r, 400)); // rate limit
+      } catch (e) {
+        console.error(`[WP Country Pages] Failed ${slug}:`, e.message);
+      }
+    }
+  }
+
+  console.log(`[WP Country Pages] Created: ${created}, Skipped (existing): ${skipped}`);
+  return { created, skipped };
+}
+
+// ─── 4. Inject country detection JS into WP site footer ──────────────────────
+async function injectCountryDetectionScript(token) {
+  const API = `https://public-api.wordpress.com/rest/v1.1/sites/254170569`;
+  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  const detectionScript = `
+<script>
+(function() {
+  var COUNTRY_SLUGS = {
+    'EG': 'haml-tatbiq-xtox-eg', 'SA': 'haml-tatbiq-xtox-sa', 'AE': 'haml-tatbiq-xtox-ae',
+    'KW': 'haml-tatbiq-xtox-kw', 'QA': 'haml-tatbiq-xtox-qa', 'JO': 'haml-tatbiq-xtox-jo',
+    'MA': 'haml-tatbiq-xtox-ma', 'IQ': 'haml-tatbiq-xtox-iq'
+  };
+  var ABOUT_SLUGS = {
+    'EG': 'man-nahnu-xtox-eg', 'SA': 'man-nahnu-xtox-sa', 'AE': 'man-nahnu-xtox-ae',
+    'KW': 'man-nahnu-xtox-kw', 'QA': 'man-nahnu-xtox-qa', 'JO': 'man-nahnu-xtox-jo',
+    'MA': 'man-nahnu-xtox-ma', 'IQ': 'man-nahnu-xtox-iq'
+  };
+
+  function hideCountryNavLinks(countryCode) {
+    var links = document.querySelectorAll('.wp-block-page-list a, .wp-block-navigation a');
+    links.forEach(function(link) {
+      var href = link.getAttribute('href') || '';
+      var isCountryDownload = /haml-tatbiq-xtox-/.test(href);
+      var isCountryAbout = /man-nahnu-xtox-/.test(href);
+      if (isCountryDownload || isCountryAbout) {
+        var mySlug = isCountryDownload ? COUNTRY_SLUGS[countryCode] : ABOUT_SLUGS[countryCode];
+        var li = link.closest('li');
+        if (li) {
+          if (!href.includes(mySlug || '')) {
+            li.style.display = 'none';
+          }
+        }
+      }
+    });
+  }
+
+  // Detect country
+  var cached = sessionStorage.getItem('xtox_country');
+  if (cached) {
+    hideCountryNavLinks(cached);
+  } else {
+    fetch('https://ipapi.co/json/')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var code = d.country_code || 'EG';
+        sessionStorage.setItem('xtox_country', code);
+        hideCountryNavLinks(code);
+      })
+      .catch(function() { hideCountryNavLinks('EG'); });
+  }
+})();
+</script>
+`;
+
+  try {
+    const res = await fetch(`${API}/settings`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ footer_code: detectionScript }),
+    });
+    if (res.ok) {
+      console.log('[WP Country] ✅ Detection script injected into footer');
+    } else {
+      const err = await res.json().catch(() => ({}));
+      console.warn('[WP Country] ⚠️ Script inject failed:', res.status, err.error || '');
+    }
+  } catch (e) {
+    console.error('[WP Country] Script inject error:', e.message);
+  }
+}
+
 // ─── Main migration entry point ───────────────────────────────────────────────
 export async function runWPMigration() {
   try {
@@ -282,7 +417,7 @@ export async function runWPMigration() {
       return;
     }
 
-    console.log('[WP-MIGRATE] 🚀 Starting WordPress cleanup migration...');
+    console.log('[WP-MIGRATE] 🚀 Starting WordPress cleanup migration v3...');
 
     // Step 1: Delete duplicate pages
     const dedupResult = await deleteDuplicateWPPages();
@@ -291,6 +426,14 @@ export async function runWPMigration() {
     // Step 2: Update sidebar/footer from Minetest → XTOX
     const widgetResult = await updateWPSidebarWidgets();
     console.log('[WP-MIGRATE] Step 2 result:', JSON.stringify(widgetResult));
+
+    // Step 3: Create country-specific pages (one per Arab country)
+    const countryResult = await createCountryPages(token);
+    console.log('[WP-MIGRATE] Step 3 result:', JSON.stringify(countryResult));
+
+    // Step 4: Inject country detection JS into WP site footer
+    await injectCountryDetectionScript(token);
+    console.log('[WP-MIGRATE] Step 4 done');
 
     // Mark as done
     await Setting.set(MIGRATION_KEY, 'true').catch(() => {});
