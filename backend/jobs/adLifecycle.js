@@ -1,7 +1,3 @@
-// adLifecycle.js — v226 — backfillSellerField PERMANENTLY REMOVED — 2026-04-23
-// If you see [Cleanup] backfillSellerField errors, Railway is running stale code
-console.log('[adLifecycle] LOADED — nuclear version, backfillSellerField removed');
-
 import mongoose from 'mongoose';
 // backend/jobs/adLifecycle.js
 // Ad lifecycle cron job — Bug #112
@@ -28,9 +24,7 @@ export async function runAdLifecycle() {
 
     // Cleanup anonymous ads (no seller/userId) — runs every lifecycle cycle
     await deleteAnonymousAds().catch(e => console.warn('[adLifecycle] deleteAnonymousAds failed:', e.message));
-    // backfillSellerField removed — one-time migration completed
 
-    // idx_userId_hasvalue — create manually in MongoDB Atlas if needed
     // #127 — Drop old conflicting text index (one-time migration)
     // New index 'ads_text_search' includes category, subcategory, city with weights
     try {
