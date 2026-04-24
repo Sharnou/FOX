@@ -2,22 +2,31 @@
 import { useLanguage } from '../context/LanguageContext';
 
 /**
- * LanguageToggle — AR/EN only toggle button.
- * Label shows the language you can switch TO:
- *   - Current = AR  →  shows "EN"
- *   - Current = EN  →  shows "عر"
+ * LanguageToggle — 3-way toggle: AR → EN → FR → AR
+ * Shows the current language label.
+ * Each click cycles to the next language.
  */
 export default function LanguageToggle() {
   const { language, toggleLanguage } = useLanguage();
 
-  // Show the language you can switch TO
-  const label = language === 'ar' ? 'EN' : 'عر';
+  // Label map: what to show for current language
+  const labelMap = {
+    ar: 'عر',
+    en: 'EN',
+    fr: 'FR',
+  };
+
+  const label = labelMap[language] || language.toUpperCase();
+
+  // Next language label for aria
+  const nextMap = { ar: 'EN', en: 'FR', fr: 'عر' };
+  const nextLabel = nextMap[language] || 'EN';
 
   return (
     <button
       onClick={toggleLanguage}
-      aria-label={language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
-      title={language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+      aria-label={`Switch to ${nextLabel}`}
+      title={`Switch to ${nextLabel}`}
       style={{
         background: 'transparent',
         border: '1.5px solid rgba(255, 255, 255, 0.55)',

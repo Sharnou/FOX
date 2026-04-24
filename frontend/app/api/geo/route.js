@@ -16,6 +16,15 @@ const COUNTRY_MAP = {
   IQ:['ar','عر',true],JO:['ar','عر',true],LB:['ar','عر',true],SY:['ar','عر',true],
   LY:['ar','عر',true],TN:['ar','عر',true],DZ:['ar','عر',true],MA:['ar','عر',true],
   SD:['ar','عر',true],MR:['ar','عر',true],DJ:['ar','عر',true],KM:['ar','عر',true],
+  // French
+  FR:['fr','Fr',false],BE:['fr','Fr',false],LU:['fr','Fr',false],MC:['fr','Fr',false],
+  CD:['fr','Fr',false],CI:['fr','Fr',false],CM:['fr','Fr',false],MG:['fr','Fr',false],
+  SN:['fr','Fr',false],ML:['fr','Fr',false],BF:['fr','Fr',false],GN:['fr','Fr',false],
+  TG:['fr','Fr',false],BJ:['fr','Fr',false],NE:['fr','Fr',false],CF:['fr','Fr',false],
+  GA:['fr','Fr',false],CG:['fr','Fr',false],RW:['fr','Fr',false],BI:['fr','Fr',false],
+  MU:['fr','Fr',false],SC:['fr','Fr',false],HT:['fr','Fr',false],
+  // Switzerland (multilingual — use French as default)
+  CH:['fr','Fr',false],
   // Spanish
   ES:['es','Es',false],MX:['es','Es',false],CO:['es','Es',false],AR:['es','Es',false],
   PE:['es','Es',false],VE:['es','Es',false],CL:['es','Es',false],EC:['es','Es',false],

@@ -3,11 +3,14 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import translations, { CATEGORY_KEY_MAP, CITY_KEY_MAP, CONDITION_KEY_MAP } from '../translations/index';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
-const GEO_CACHE_VERSION = '5';  // bump this to force fresh geo detection on next visit
+const GEO_CACHE_VERSION = '6';  // bump this to force fresh geo detection on next visit
 const TRANS_CACHE_VERSION = '1'; // bump to force re-fetch of dynamic translations
 
 // Languages served from the static bundle (no API fetch needed)
-const STATIC_LANGS = new Set(['ar', 'en', 'de', 'es', 'tr', 'ru', 'zh']);
+const STATIC_LANGS = new Set(['ar', 'en', 'fr', 'de', 'es', 'tr', 'ru', 'zh']);
+
+// Supported toggle languages (cycle: ar → en → fr → ar)
+const TOGGLE_LANGS = ['ar', 'en', 'fr'];
 
 const LanguageContext = createContext({
   language: 'ar', isRTL: true, showToggle: true,
@@ -96,10 +99,7 @@ export function LanguageProvider({ children }) {
       const cacheVersion = localStorage.getItem('xtox_geo_version');
 
       // Nuclear clear: if version doesn't match, wipe ALL stale geo + lang data.
-      // Bump GEO_CACHE_VERSION to force fresh geo detection when needed.
       if (cacheVersion !== GEO_CACHE_VERSION) {
-        // Only clear geo detection cache — never the user's explicit language choice.
-        // Bumping GEO_CACHE_VERSION forces fresh geo detection but PRESERVES user language pref.
         [
           'xtox_detected_country', 'xtox_show_toggle', 'xtox_native_lang',
           'xtox_native_name', 'xtox_native_rtl', 'xtox_geo_version',
@@ -107,7 +107,6 @@ export function LanguageProvider({ children }) {
         ].forEach(k => localStorage.removeItem(k));
       }
 
-      // After possible clear, read from localStorage (null if we just cleared)
       const storedCountry = localStorage.getItem('xtox_detected_country');
       const storedToggle  = storedCountry ? localStorage.getItem('xtox_show_toggle') : null;
       const storedNative  = storedCountry ? localStorage.getItem('xtox_native_lang') : null;
@@ -157,7 +156,7 @@ export function LanguageProvider({ children }) {
         currentLang = 'en'; // English-native country → always English
       } else if (!savedLang) {
         currentLang = native; // No preference saved → use detected native lang
-      } else if (savedLang === 'en' || savedLang === native) {
+      } else if (TOGGLE_LANGS.includes(savedLang) || savedLang === native) {
         currentLang = savedLang; // Valid user preference → keep it
       } else {
         currentLang = native; // Stale/invalid preference → reset to native
@@ -167,7 +166,7 @@ export function LanguageProvider({ children }) {
       localStorage.setItem('xtox_language', currentLang);
       setLanguage(currentLang);
 
-      const currentRTL = (currentLang === native) ? nativeRtl : false;
+      const currentRTL = currentLang === 'ar';
       setIsRTL(currentRTL);
       applyLangToDOM(currentLang, currentRTL);
 
@@ -179,8 +178,10 @@ export function LanguageProvider({ children }) {
   }, []);
 
   async function toggleLanguage() {
-    // AR/EN only — hardcoded toggle
-    const newLang = language === 'ar' ? 'en' : 'ar';
+    // Cycle through: ar → en → fr → ar
+    const currentIndex = TOGGLE_LANGS.indexOf(language);
+    const nextIndex = (currentIndex + 1) % TOGGLE_LANGS.length;
+    const newLang = TOGGLE_LANGS[nextIndex];
     const newRTL  = newLang === 'ar';
 
     setLanguage(newLang);

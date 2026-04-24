@@ -1450,4 +1450,23 @@ router.patch('/ads/:id/meta', adminAuth, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────
+// POST /api/admin/auto-translate — translate text to all supported languages
+// Body: { text: string, fromLang?: string, toLangs?: string[] }
+// ─────────────────────────────────────────────────────────
+router.post('/auto-translate', adminAuth, async (req, res) => {
+  try {
+    const { text, fromLang = 'ar', toLangs = ['en', 'fr', 'de', 'tr', 'es', 'ru', 'zh'] } = req.body;
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    const { autoTranslate: translate } = await import('../utils/autoTranslate.js');
+    const translations = await translate(text.trim(), fromLang, toLangs);
+    res.json({ success: true, source: text, fromLang, translations });
+  } catch (err) {
+    console.error('[auto-translate] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

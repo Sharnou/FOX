@@ -86,9 +86,23 @@ router.post('/', requireAuth, async (req, res) => {
           pts,
           `تقييم ${ratingNum}★ من مستخدم (${sign}${pts} نقطة)`
         );
+        // 5-star bonus: +15 additional points to seller
+        if (ratingNum === 5) {
+          await addPointsToUser(sellerDoc, 15, 'مكافأة تقييم 5 نجوم (+15 نقطة)');
+        }
       }
     } catch (e) {
-      console.error('[Reviews] Points award error:', e.message);
+      console.error('[Reviews] Seller points award error:', e.message);
+    }
+
+    // Award reviewer points for writing a review (+10 points)
+    try {
+      const reviewerDoc = await User.findById(reviewerId);
+      if (reviewerDoc) {
+        await addPointsToUser(reviewerDoc, 10, 'كتابة تقييم (+10 نقاط)');
+      }
+    } catch (e) {
+      console.error('[Reviews] Reviewer points award error:', e.message);
     }
 
     // Populate reviewer name for response

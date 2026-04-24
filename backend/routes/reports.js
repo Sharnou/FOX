@@ -1,6 +1,9 @@
 import express from 'express';
 import Report from '../models/Report.js';
+import User from '../models/User.js';
+import Ad from '../models/Ad.js';
 import { auth, adminAuth } from '../middleware/auth.js';
+import { addPointsToUser } from '../utils/points.js';
 
 const router = express.Router();
 
@@ -33,6 +36,28 @@ router.post('/', auth, async (req, res) => {
       reason: reason.trim(),
       resolved: false,
     });
+
+    // Deduct -10 reputation points from the reported user (non-blocking)
+    try {
+      // Try to find the owner of the reported item (ad or user)
+      let reportedUserId = null;
+      const Ad = (await import('../models/Ad.js')).default;
+      const adDoc = await Ad.findById(targetId).select('userId seller').lean().catch(() => null);
+      if (adDoc) {
+        reportedUserId = String(adDoc.seller || adDoc.userId || '');
+      } else {
+        // Might be a user profile report
+        reportedUserId = String(targetId);
+      }
+      if (reportedUserId && reportedUserId !== String(req.user.id)) {
+        const reportedUser = await User.findById(reportedUserId);
+        if (reportedUser) {
+          await addPointsToUser(reportedUser, -10, 'تم الإبلاغ عن محتوى (-10 نقاط)');
+        }
+      }
+    } catch (e) {
+      // Non-fatal — don't block report submission
+    }
 
     res.status(201).json({
       message: 'تم الإبلاغ بنجاح / Report submitted successfully',
