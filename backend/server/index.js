@@ -1,6 +1,6 @@
 // DEPLOYMENT MARKER — shows in Railway logs to confirm which commit is running
 console.log('[SERVER-STARTUP] ==========================================');
-console.log('[SERVER-STARTUP] v234 — reputation points purchase system: 5pts=$0.01, live exchange rates, Stripe checkout');
+console.log('[SERVER-STARTUP] v235 — full route audit: calls/reputation/webhook registered, health v235, CORS verified, nixpacks fixed');
 console.log('[SERVER-STARTUP] ==========================================');
 
 // CRITICAL: Clear invalid Redis URL before ANY module imports it
@@ -181,7 +181,7 @@ app.get('/api/health', (_, res) => {
   const stateNames = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting', 99: 'uninitialized' };
   res.json({
     status: 'ok',
-    version: '1.0.0',
+    version: 'v235',
     uptime: Math.floor(process.uptime()),
     db: stateNames[connState] || 'unknown',
     mongoConnected: connState === 1,
