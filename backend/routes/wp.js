@@ -149,19 +149,35 @@ function adToWpPost(ad) {
   const slug = `xtox-ad-${ad._id}`
   const title = String(ad.title || 'إعلان XTOX').substring(0, 200)
   const desc = String(ad.description || '').substring(0, 500)
+  const adUrl = `https://fox-kohl-eight.vercel.app/ads/${ad._id}`
+
+  // ── Image gallery: embed Cloudinary URLs directly in post content ──
+  const images = (ad.images || ad.media || []).slice(0, 5)
+  const imageHtml = images.length > 0
+    ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;justify-content:center;">\n` +
+      images.map(url => `<a href="${adUrl}" target="_blank" rel="noopener"><img src="${String(url)}" alt="${title}" style="width:200px;height:150px;object-fit:cover;border-radius:8px;border:1px solid #ddd;" loading="lazy" /></a>`).join('\n') +
+      `\n</div>`
+    : ''
+
+  const price = ad.price ? `<p><strong>💰 السعر: ${ad.price} ${ad.currency || 'جنيه مصري'}</strong></p>` : ''
+  const city = ad.city ? `<p>📍 ${ad.city}</p>` : ''
+
   const content = [
+    imageHtml,
     desc ? `<p>${desc}</p>` : '',
-    ad.price ? `<p><strong>السعر: ${ad.price} جنيه مصري</strong></p>` : '',
-    ad.city ? `<p>&#x1F4CD; ${ad.city}</p>` : '',
+    price,
+    city,
     ad.condition ? `<p>الحالة: ${ad.condition}</p>` : '',
-    ad.category ? `<p>التصنيف: ${ad.category}</p>` : '',
-    `<p><a href="https://fox-kohl-eight.vercel.app/ads/${ad._id}">عرض الإعلان على XTOX</a></p>`
+    ad.category ? `<p>التصنيف: ${ad.subcategory || ad.category}</p>` : '',
+    `<p><a href="${adUrl}" target="_blank" rel="noopener">🔗 عرض الإعلان على XTOX</a></p>`
   ].filter(Boolean).join('\n')
+
   const tagList = [ad.category, ad.city, 'XTOX', 'إعلانات', 'مصر'].filter(Boolean)
+  const excerptParts = [desc || title, ad.price ? `السعر: ${ad.price} ${ad.currency || 'EGP'}` : '', ad.city || ''].filter(Boolean)
   return {
     title,
     content,
-    excerpt: (desc || title).substring(0, 150),
+    excerpt: excerptParts.join(' | ').substring(0, 150),
     slug,
     status: 'publish',
     tags: tagList.join(',')

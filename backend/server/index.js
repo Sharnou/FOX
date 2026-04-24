@@ -95,7 +95,7 @@ let _getWPTokenStatus = null;
 import wpRouter from "../routes/wp.js";
 import sitemapRouter from "../routes/sitemap.js";
 import robotsRouter from "../routes/robots.js";
-import { loadWPTokenFromDB } from '../utils/wordpress.js';
+import { loadWPTokenFromDB, syncAllAdsToWordPress } from '../utils/wordpress.js';
 import translationsRouter from '../routes/translations.js';
 import translateRouter from '../routes/translate.js';
 import callsRouter from '../routes/calls.js';
@@ -452,6 +452,11 @@ cron.schedule('0 1 * * *', async () => {
   }
 }, { timezone: 'Africa/Cairo' });
 
+// Every 6 hours: bulk sync ALL active ads to WordPress (ensures new + updated ads appear)
+cron.schedule('0 */6 * * *', async () => {
+  syncAllAdsToWordPress().catch(e => console.warn('[WP-6H] Bulk sync failed:', e.message));
+}, { timezone: 'Africa/Cairo' });
+
 // Health check every 15 minutes
 cron.schedule('*/15 * * * *', async () => {
   await runHealthCheck();
@@ -603,6 +608,11 @@ connectDatabases().then(async (db) => {
     } catch (e) {
       console.warn('[WP] loadWPTokenFromDB failed (non-fatal):', e.message);
     }
+
+    // ── Bulk sync ALL active ads to WordPress on startup (deferred 30s to let DB stabilize) ──
+    setTimeout(() => {
+      syncAllAdsToWordPress().catch(e => console.warn('[WP Bulk Sync] Startup sync failed:', e.message));
+    }, 30000);
 
     // ── ONE-TIME: Set password for xtox@xtox.com (idempotent) ──────────────
     // Safe to leave in — runs on every startup but only updates the password field.

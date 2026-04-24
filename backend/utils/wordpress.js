@@ -1037,8 +1037,17 @@ function buildGeoContent(ad, country, translated) {
   const price = ad.price ? `${ad.price} ${currency}` : '—';
   const location = [ad.city, ad.governorate, country.name].filter(Boolean).join(', ');
   const borderSide = isRTL ? 'right' : 'left';
+
+  // ── Image gallery (embed Cloudinary URLs directly in post content) ──
+  const images = (ad.images || ad.media || []).slice(0, 5);
+  const imageHtml = images.length > 0 ? `
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;justify-content:center;">
+${images.map(url => `<a href="${esc(adUrl)}" target="_blank" rel="noopener"><img src="${esc(String(url))}" alt="${esc(ad.title || 'XTOX')}" style="width:200px;height:150px;object-fit:cover;border-radius:8px;border:1px solid #ddd;" loading="lazy" /></a>`).join('\n')}
+</div>` : '';
+
   return `<div dir="${dir}" style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;font-size:16px;line-height:1.8;color:#222;max-width:800px;margin:0 auto;">
   <h2 style="color:#6366f1;border-bottom:2px solid #6366f1;padding-bottom:8px;">${esc(translated.title || ad.title || '')}</h2>
+${imageHtml}
   <p style="background:#f8f9fa;padding:12px;border-${borderSide}:4px solid #6366f1;border-radius:4px;">${esc(translated.description || ad.description || '')}</p>
   <table style="width:100%;border-collapse:collapse;margin-top:16px;">
     <tr><td style="padding:8px;border:1px solid #ddd;background:#f2f2f2;font-weight:bold;">${L.price}</td><td style="padding:8px;border:1px solid #ddd;">${esc(price)}</td></tr>
@@ -1508,6 +1517,46 @@ export async function deduplicateWPPosts(adId) {
     return keep.ID;
   } catch (e) {
     console.warn('[WP-DEDUP] Error:', e.message);
+  }
+}
+
+// ─── Bulk sync ALL active ads to WordPress (startup + 6-hour schedule) ─────────
+export async function syncAllAdsToWordPress() {
+  try {
+    if (!isConfigured()) {
+      console.log('[WP Bulk Sync] Skipping — WP_ACCESS_TOKEN not configured');
+      return;
+    }
+    if (!isWPTokenValid()) {
+      console.info('[WP Bulk Sync] Skipping — token known invalid');
+      return;
+    }
+    const Ad = (await import('../models/Ad.js')).default;
+    const ads = await Ad.find({ status: { $in: ['active', 'available'] } }).limit(50).lean();
+    console.log(`[WP Bulk Sync] Syncing ${ads.length} active ads to WordPress...`);
+    let success = 0, failed = 0;
+    for (const ad of ads) {
+      try {
+        const result = await createWPPost(ad);
+        if (result && result.wpPostId) {
+          // Update wpPostId/wpPostUrl in DB if not already set
+          if (!ad.wpPostId || ad.wpPostId !== result.wpPostId) {
+            await Ad.updateOne(
+              { _id: ad._id },
+              { $set: { wpPostId: result.wpPostId, wpPostUrl: result.wpPostUrl || '' } }
+            );
+          }
+        }
+        success++;
+        await new Promise(r => setTimeout(r, 300)); // rate limit: ~3 req/s
+      } catch (e) {
+        failed++;
+        console.error(`[WP Bulk Sync] Failed for ad ${ad._id}: ${e.message}`);
+      }
+    }
+    console.log(`[WP Bulk Sync] Done: ${success} success, ${failed} failed`);
+  } catch (e) {
+    console.error('[WP Bulk Sync] Error:', e.message);
   }
 }
 
