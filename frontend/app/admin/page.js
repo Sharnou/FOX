@@ -206,7 +206,7 @@ export default function AdminPage() {
       headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
     })
       .then(r => r.json())
-      .then(d => setCategories(d.categories || []))
+      .then(d => setCategories(Array.isArray(d) ? d : (d.categories || [])))
       .catch(() => {});
     // Load WhatsApp number
     fetch(API + '/api/admin/whatsapp', {
@@ -239,7 +239,7 @@ export default function AdminPage() {
     try {
       const r = await fetch(API + '/api/admin/categories', { headers: { Authorization: 'Bearer ' + token } });
       const d = await r.json();
-      setCategories(d.categories || []);
+      setCategories(Array.isArray(d) ? d : (d.categories || []));
     } catch {}
     setCatsLoading(false);
   };
@@ -802,11 +802,14 @@ export default function AdminPage() {
                             <Btn small onClick={() => handleDeleteAd(ad)} color="#ff4444">🗑️</Btn>
                             <Btn small onClick={() => handleEnrichAd(ad._id)} color="#00d4ff">🤖 إثراء</Btn>
                             <button
-                              onClick={() => setEditingAdMeta(
-                                editingAdMeta?.adId === ad._id
-                                  ? null
-                                  : { adId: ad._id, category: ad.category || '', subcategory: ad.subcategory || '', condition: ad.condition || 'used_good' }
-                              )}
+                              onClick={() => {
+                                if (editingAdMeta?.adId === ad._id) {
+                                  setEditingAdMeta(null);
+                                } else {
+                                  setEditingAdMeta({ adId: ad._id, category: ad.category || '', subcategory: ad.subcategory || '', condition: ad.condition || 'used_good' });
+                                  if (categories.length === 0) loadCategories();
+                                }
+                              }}
                               style={{ fontSize: 10, padding: '2px 7px', background: editingAdMeta?.adId === ad._id ? '#c7d2fe' : '#e0f2fe', border: 'none', borderRadius: 6, cursor: 'pointer' }}
                             >
                               ✏️ فئة
@@ -829,7 +832,7 @@ export default function AdminPage() {
                                   >
                                     <option value="">-- اختر --</option>
                                     {categories.map(cat => (
-                                      <option key={cat._id} value={cat.nameEn || cat.name || cat.nameAr}>{cat.emoji} {cat.nameAr || cat.name}</option>
+                                      <option key={cat._id} value={cat.nameEn || cat.name}>{cat.emoji} {cat.nameAr || cat.name}</option>
                                     ))}
                                   </select>
                                 </div>
@@ -843,8 +846,8 @@ export default function AdminPage() {
                                       style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1' }}
                                     >
                                       <option value="">-- اختر --</option>
-                                      {(categories.find(c => (c.nameEn || c.name || c.nameAr) === editingAdMeta.category)?.subcategories || []).map(sub => (
-                                        <option key={sub._id || sub.nameEn || sub.name} value={sub.nameEn || sub.name || sub.nameAr}>{sub.emoji} {sub.nameAr || sub.name}</option>
+                                      {(categories.find(c => (c.nameEn || c.name) === editingAdMeta.category)?.subcategories || []).map(sub => (
+                                        <option key={sub._id || sub.nameEn || sub.name} value={sub.nameEn || sub.name}>{sub.emoji} {sub.nameAr || sub.name}</option>
                                       ))}
                                     </select>
                                   </div>
@@ -895,7 +898,7 @@ export default function AdminPage() {
             {/* ───── Categories & Subcategories Management ───── */}
             <div style={{ marginTop: 32, borderTop: '2px solid #21262d', paddingTop: 20 }}>
               <button
-                onClick={() => setCategoriesSectionOpen(prev => !prev)}
+                onClick={() => { setCategoriesSectionOpen(prev => !prev); if (categories.length === 0) loadCategories(); }}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 8,
