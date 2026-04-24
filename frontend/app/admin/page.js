@@ -176,6 +176,8 @@ export default function AdminPage() {
   const [newSubEmoji, setNewSubEmoji] = useState('📦');
   const [genImageLoading, setGenImageLoading] = useState({});
   const [categoriesSectionOpen, setCategoriesSectionOpen] = useState(false);
+  const [editingAdMeta, setEditingAdMeta] = useState(null); // { adId, category, subcategory, condition }
+  const [adMetaSaving, setAdMetaSaving] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
 
   const showToast = useCallback((msg) => {
@@ -284,6 +286,12 @@ export default function AdminPage() {
     } catch {}
     setLoading(false);
   }
+
+  // ── fetchAds — reload just the ads list ───────────────────
+  const fetchAds = useCallback(async () => {
+    const { ok, data } = await apiFetch('/api/admin/ads?limit=500', {}, token);
+    if (ok) setAds(data.ads || data || []);
+  }, [token]);
 
   // ── filtered lists ──────────────────────────────────────
   const filteredUsers = useMemo(() => {
@@ -504,6 +512,29 @@ export default function AdminPage() {
     } catch { showToast('خطأ في الإثراء الجماعي'); }
   }
 
+  // ── handleSaveAdMeta — save category/subcategory/condition ──────────────
+  const handleSaveAdMeta = async (adId) => {
+    setAdMetaSaving(true);
+    try {
+      const res = await fetch(`${API}/api/admin/ads/${adId}/meta`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          category: editingAdMeta.category,
+          subcategory: editingAdMeta.subcategory,
+          condition: editingAdMeta.condition,
+        }),
+      });
+      if (!res.ok) throw new Error('فشل الحفظ');
+      setEditingAdMeta(null);
+      fetchAds();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setAdMetaSaving(false);
+    }
+  };
+
   // MAIN ADMIN UI
   // ══════════════════════════════════════════════════════
   return (
@@ -714,7 +745,8 @@ export default function AdminPage() {
                     const isFeaturedNow = ad.isFeatured && ad.featuredUntil && new Date(ad.featuredUntil) > new Date();
                     const isBubbleNow = ad.bubble && (!ad.bubbleUntil || new Date(ad.bubbleUntil) > new Date());
                     return (
-                      <tr key={ad._id} style={{ borderBottom: '1px solid #1a1f27' }}>
+                      <React.Fragment key={ad._id}>
+                      <tr style={{ borderBottom: '1px solid #1a1f27' }}>
                         <td style={ADMIN_S.td}>
                           {img
                             ? <img src={img} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
@@ -732,6 +764,11 @@ export default function AdminPage() {
                         <td style={{ ...ADMIN_S.td, color: '#8b949e' }}>
                           <div>{ad.category || '—'}</div>
                           {ad.subsub && ad.subsub !== 'Other' && <div style={{ fontSize: 10, color: '#30363d' }}>{ad.subsub}</div>}
+                          {ad.condition && (
+                            <span style={{ fontSize: 10, background: '#f0fdf4', color: '#16a34a', borderRadius: 4, padding: '1px 5px', display: 'inline-block', marginTop: 2 }}>
+                              {{ new: 'جديد', used_excellent: 'ممتاز', used_very_good: 'جيد جداً', used_good: 'جيد', used_acceptable: 'مقبول' }[ad.condition] || ad.condition}
+                            </span>
+                          )}
                         </td>
                         <td style={ADMIN_S.td}>
                           {ad.status === 'active'
@@ -764,9 +801,89 @@ export default function AdminPage() {
                               : <Btn small onClick={() => setModal({ type: 'bubble', adId: ad._id, adTitle: ad.title })} color="#bf5fff">🫧 فقاعة</Btn>}
                             <Btn small onClick={() => handleDeleteAd(ad)} color="#ff4444">🗑️</Btn>
                             <Btn small onClick={() => handleEnrichAd(ad._id)} color="#00d4ff">🤖 إثراء</Btn>
+                            <button
+                              onClick={() => setEditingAdMeta(
+                                editingAdMeta?.adId === ad._id
+                                  ? null
+                                  : { adId: ad._id, category: ad.category || '', subcategory: ad.subcategory || '', condition: ad.condition || 'used_good' }
+                              )}
+                              style={{ fontSize: 10, padding: '2px 7px', background: editingAdMeta?.adId === ad._id ? '#c7d2fe' : '#e0f2fe', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                            >
+                              ✏️ فئة
+                            </button>
                           </div>
                         </td>
                       </tr>
+                      {editingAdMeta?.adId === ad._id && (
+                        <tr>
+                          <td colSpan={9} style={{ padding: 0, border: 'none' }}>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12, margin: '4px 8px' }}>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                                {/* Category */}
+                                <div>
+                                  <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>الفئة</label>
+                                  <select
+                                    value={editingAdMeta.category}
+                                    onChange={e => setEditingAdMeta(prev => ({ ...prev, category: e.target.value, subcategory: '' }))}
+                                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1' }}
+                                  >
+                                    <option value="">-- اختر --</option>
+                                    {categories.map(cat => (
+                                      <option key={cat._id} value={cat.nameEn || cat.name || cat.nameAr}>{cat.emoji} {cat.nameAr || cat.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                {/* Subcategory */}
+                                {editingAdMeta.category && (
+                                  <div>
+                                    <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>القسم الفرعي</label>
+                                    <select
+                                      value={editingAdMeta.subcategory}
+                                      onChange={e => setEditingAdMeta(prev => ({ ...prev, subcategory: e.target.value }))}
+                                      style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1' }}
+                                    >
+                                      <option value="">-- اختر --</option>
+                                      {(categories.find(c => (c.nameEn || c.name || c.nameAr) === editingAdMeta.category)?.subcategories || []).map(sub => (
+                                        <option key={sub._id || sub.nameEn || sub.name} value={sub.nameEn || sub.name || sub.nameAr}>{sub.emoji} {sub.nameAr || sub.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+                                {/* Condition */}
+                                <div>
+                                  <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>حالة المنتج</label>
+                                  <select
+                                    value={editingAdMeta.condition}
+                                    onChange={e => setEditingAdMeta(prev => ({ ...prev, condition: e.target.value }))}
+                                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1' }}
+                                  >
+                                    <option value="new">جديد</option>
+                                    <option value="used_excellent">مستعمل - ممتاز</option>
+                                    <option value="used_very_good">مستعمل - جيد جداً</option>
+                                    <option value="used_good">مستعمل - جيد</option>
+                                    <option value="used_acceptable">مستعمل - مقبول</option>
+                                  </select>
+                                </div>
+                                {/* Buttons */}
+                                <button
+                                  onClick={() => handleSaveAdMeta(ad._id)}
+                                  disabled={adMetaSaving}
+                                  style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}
+                                >
+                                  {adMetaSaving ? '...' : '💾 حفظ'}
+                                </button>
+                                <button
+                                  onClick={() => setEditingAdMeta(null)}
+                                  style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 12 }}
+                                >
+                                  إلغاء
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                   {filteredAds.length === 0 && (

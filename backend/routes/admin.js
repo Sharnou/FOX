@@ -1431,4 +1431,23 @@ router.get('/country-pages-sync', adminAuth, async (req, res) => {
 });
 
 
+
+// ─────────────────────────────────────────────────────────
+// PATCH /api/admin/ads/:id/meta — update ad category, subcategory, condition
+// ─────────────────────────────────────────────────────────
+router.patch('/ads/:id/meta', adminAuth, async (req, res) => {
+  try {
+    const { category, subcategory, condition } = req.body;
+    const update = {};
+    if (category !== undefined) update.category = category;
+    if (subcategory !== undefined) update.subcategory = subcategory;
+    if (condition !== undefined) update.condition = condition;
+    const ad = await Ad.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!ad) return res.status(404).json({ message: 'Ad not found' });
+    res.json({ success: true, ad });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 export default router;
