@@ -102,6 +102,7 @@ import translateRouter from '../routes/translate.js';
 import callsRouter from '../routes/calls.js';
 import reputationRouter from '../routes/reputation.js';
 import reputationWebhookRouter from '../routes/reputationWebhook.js';
+import enrichmentRouter from '../routes/enrichment.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 // Pre-register WinnerHistory model so it is available before first query
 import('../models/WinnerHistory.js').catch(e => console.warn('[WinnerHistory] model load failed:', e.message));
@@ -115,6 +116,28 @@ mongoose.connection.once('open', async () => {
     console.log('[DB] Review unique index ensured');
   } catch(e) {
     console.log('[DB] Review index:', e.message);
+  }
+
+  // FIX: idx_userId_nonanonymous — partial index on userId for non-anonymous ads.
+  // NOTE: do NOT add sparse:true here — MongoDB does not allow mixing
+  // partialFilterExpression and sparse options (throws an error).
+  try {
+    const AdModel = (await import('../models/Ad.js')).default;
+    await AdModel.collection.createIndex(
+      { userId: 1 },
+      {
+        partialFilterExpression: { userId: { $exists: true, $ne: null } },
+        background: true,
+        name: 'idx_userId_nonanonymous'
+      }
+    );
+    console.log('[DB] idx_userId_nonanonymous index ensured');
+  } catch(e) {
+    if (e.codeName === 'IndexOptionsConflict' || e.code === 85 || e.code === 86) {
+      console.log('[adLifecycle] Partial index creation skipped (already exists):', e.message);
+    } else {
+      console.warn('[adLifecycle] Partial index creation skipped:', e.message);
+    }
   }
 });
 import jwt from 'jsonwebtoken';
@@ -304,6 +327,7 @@ app.use('/api/translations', translationsRouter); // Auto-generate translations 
 app.use('/api/translate', translateRouter);
 app.use('/api/calls', callsRouter);     // WebRTC call push notifications
 app.use('/api/reputation', reputationRouter);  // Reputation points purchase (Stripe checkout + packages)
+app.use('/api/enrichment', enrichmentRouter);  // Enrichment ads — profile/segment/insights
 
 // GET /api/metrics — admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {
@@ -417,10 +441,11 @@ import('../jobs/adEnrichment.js').then(({ startAdEnrichmentJob }) => {
   logger.warn('[adEnrichment] Failed to start enrichment job:', e.message);
 });
 
-import('../jobs/adLifecycle.js').then(({ runAdLifecycle, migrateSellerScores, deleteAnonymousAds }) => {
+import('../jobs/adLifecycle.js').then(({ runAdLifecycle, migrateSellerScores, deleteAnonymousAds, backfillSellerField }) => {
   runAdLifecycle().catch(() => {});
   migrateSellerScores().catch(() => {});
   deleteAnonymousAds().catch(e => console.warn('[Startup] deleteAnonymousAds failed:', e.message));
+  backfillSellerField().catch(e => console.warn('[Startup] backfillSellerField failed:', e.message));
 }).catch(() => {});
 
 // Auto backup every 24 hours at 3am

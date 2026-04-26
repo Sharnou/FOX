@@ -33,6 +33,8 @@ router.post('/', auth, async (req, res) => {
 // DELETE /api/wishlist/:adId — remove from wishlist
 router.delete('/:adId', auth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.adId))
+      return res.status(400).json({ error: 'Invalid adId format' });
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 

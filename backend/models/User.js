@@ -42,6 +42,7 @@ const UserSchema = new mongoose.Schema(
     }],
     username: { type: String, sparse: true },
     bio: { type: String, maxlength: 500 },
+    gender: { type: String, enum: ['male', 'female'], default: null },
     lastSeen: { type: Date, default: null },
     isOnline: { type: Boolean, default: false },
     lastActive: Date,

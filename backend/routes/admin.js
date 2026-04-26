@@ -746,6 +746,8 @@ router.get('/payments', adminAuth, async (req, res) => {
 // POST /api/admin/payments/:id/confirm — confirm and activate ad
 router.post('/payments/:id/confirm', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid payment ID' });
     const PendingPayment = (await import('../models/PendingPayment.js')).default;
     const Ad = (await import('../models/Ad.js')).default;
     const User = (await import('../models/User.js')).default;
@@ -808,6 +810,8 @@ router.post('/payments/:id/confirm', adminAuth, async (req, res) => {
 // POST /api/admin/payments/:id/reject
 router.post('/payments/:id/reject', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid payment ID' });
     const PendingPayment = (await import('../models/PendingPayment.js')).default;
     const payment = await PendingPayment.findByIdAndUpdate(req.params.id,
       { status: 'rejected', adminNote: req.body.reason || 'Payment not received' },
@@ -839,8 +843,10 @@ router.get('/users/reputation', adminAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────
 router.patch('/users/:id/reputation', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid user ID' });
     const { amount, reason } = req.body;
-    if (typeof amount !== 'number') return res.status(400).json({ error: 'amount must be a number' });
+    if (typeof amount !== 'number' || !Number.isFinite(amount)) return res.status(400).json({ error: 'amount must be a finite number' });
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     await addPointsToUser(user, amount, reason || `تعديل يدوي من الأدمن (${amount > 0 ? '+' : ''}${amount})`);
@@ -1255,6 +1261,8 @@ router.post('/categories', adminAuth, async (req, res) => {
 // PUT /api/admin/categories/:id — update category
 router.put('/categories/:id', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid category ID' });
     const Category = (await import('../models/Category.js')).default;
     const cat = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!cat) return res.status(404).json({ error: 'Not found' });
@@ -1265,6 +1273,8 @@ router.put('/categories/:id', adminAuth, async (req, res) => {
 // DELETE /api/admin/categories/:id
 router.delete('/categories/:id', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid category ID' });
     const Category = (await import('../models/Category.js')).default;
     await Category.findByIdAndDelete(req.params.id);
     res.json({ success: true });
@@ -1274,12 +1284,14 @@ router.delete('/categories/:id', adminAuth, async (req, res) => {
 // POST /api/admin/categories/:id/subcategories — add subcategory
 router.post('/categories/:id/subcategories', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid category ID' });
     const Category = (await import('../models/Category.js')).default;
     const { name, nameAr, emoji, accentColor, defaultImage } = req.body;
-    if (!name) return res.status(400).json({ error: 'Name required' });
+    if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Name required' });
     const cat = await Category.findById(req.params.id);
     if (!cat) return res.status(404).json({ error: 'Category not found' });
-    cat.subcategories.push({ name, nameAr, emoji: emoji || '📦', accentColor: accentColor || '#6366f1', defaultImage, order: cat.subcategories.length });
+    cat.subcategories.push({ name: name.trim(), nameAr, emoji: emoji || '📦', accentColor: accentColor || '#6366f1', defaultImage, order: cat.subcategories.length });
     await cat.save();
     res.json({ success: true, category: cat });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1288,6 +1300,8 @@ router.post('/categories/:id/subcategories', adminAuth, async (req, res) => {
 // PUT /api/admin/categories/:id/subcategories/:subId
 router.put('/categories/:id/subcategories/:subId', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(req.params.subId))
+      return res.status(400).json({ error: 'Invalid category or subcategory ID' });
     const Category = (await import('../models/Category.js')).default;
     const cat = await Category.findById(req.params.id);
     if (!cat) return res.status(404).json({ error: 'Not found' });
@@ -1302,6 +1316,8 @@ router.put('/categories/:id/subcategories/:subId', adminAuth, async (req, res) =
 // DELETE /api/admin/categories/:id/subcategories/:subId
 router.delete('/categories/:id/subcategories/:subId', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(req.params.subId))
+      return res.status(400).json({ error: 'Invalid category or subcategory ID' });
     const Category = (await import('../models/Category.js')).default;
     const cat = await Category.findById(req.params.id);
     if (!cat) return res.status(404).json({ error: 'Not found' });
@@ -1314,6 +1330,8 @@ router.delete('/categories/:id/subcategories/:subId', adminAuth, async (req, res
 // POST /api/admin/categories/:id/generate-image — AI generate default image
 router.post('/categories/:id/generate-image', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid category ID' });
     const Category = (await import('../models/Category.js')).default;
     const { subId, prompt } = req.body;
     const cat = await Category.findById(req.params.id);

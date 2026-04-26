@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { auth } from '../middleware/auth.js';
 import PushSubscription from '../models/PushSubscription.js';
 import User from '../models/User.js';
@@ -71,6 +72,9 @@ router.post('/ping', auth, async (req, res) => {
 // GET /api/push/online-status/:userId — get real-time online status of a user
 router.get('/online-status/:userId', auth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ error: 'Invalid userId format' });
+    }
     const user = await User.findById(req.params.userId).select('isOnline lastSeen');
     if (!user) return res.status(404).json({ error: 'not found' });
     const onlineThreshold = 5 * 60 * 1000; // 5 minutes

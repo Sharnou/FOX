@@ -127,6 +127,7 @@ export default function ProfilePage() {
           phone: cached.phone || '',
           city: cached.city || '',
           bio: cached.bio || '',
+          gender: cached.gender || '',
           country: cached.country || '',
         });
         setChatEnabled(cached.chatEnabled !== false);
@@ -162,7 +163,8 @@ export default function ProfilePage() {
           email: u.email || '',
           phone: u.phone || '',
           city: u.city || '',
-          bio: u.bio || ''
+          bio: u.bio || '',
+          gender: u.gender || '',
         });
         setChatEnabled(u.chatEnabled !== false);
         // ── FIX: preserve token when caching user object ──
@@ -478,6 +480,27 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {!user.gender && (
+          <div style={{
+            marginBottom: 18,
+            padding: '14px 16px',
+            background: 'linear-gradient(135deg,#fef3c7,#fde68a)',
+            border: '2px solid #f59e0b',
+            borderRadius: 12,
+            color: '#78350f',
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1.7,
+            textAlign: 'right',
+          }}>
+            ⚠️ <strong>إكمال إلزامي:</strong> الرجاء تحديد الجنس لإكمال ملفك الشخصي والحصول على مكافأة <strong>+10 نقاط</strong>.
+            <br />
+            <span style={{ fontSize: 12, color: '#92400e', fontWeight: 500 }}>
+              Profile completion required: please select your gender to receive +10 points bonus.
+            </span>
+          </div>
+        )}
+
         {!editing ? (
           <>
             {[
@@ -488,6 +511,7 @@ export default function ProfilePage() {
                 ? `${COUNTRIES[user.country].flag} ${COUNTRIES[user.country].name}` 
                 : user.country || '—'],
               ['📝 نبذة', user.bio || '—'],
+              ['👤 الجنس', user.gender === 'male' ? '👨 ذكر' : user.gender === 'female' ? '👩 أنثى' : '— (غير محدد)'],
             ].map(([label, value]) => (
               <div key={label} style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ width: 110, color: '#888', fontSize: 14, flexShrink: 0 }}>{label}</span>
@@ -528,6 +552,29 @@ export default function ProfilePage() {
                 />
               </div>
             ))}
+            {/* Gender selector — MANDATORY */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: '#555', fontWeight: 600 }}>
+                👤 الجنس <span style={{ color: '#dc2626' }}>*</span>
+                <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 400, marginRight: 6 }}>
+                  (Gender — required)
+                </span>
+              </label>
+              <select
+                value={form.gender || ''}
+                onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: form.gender ? '1px solid #ddd' : '2px solid #f59e0b', fontSize: 14, boxSizing: 'border-box', direction: 'rtl', background: form.gender ? '#fff' : '#fffbeb' }}
+              >
+                <option value="">— اختر / Select —</option>
+                <option value="male">👨 ذكر / Male</option>
+                <option value="female">👩 أنثى / Female</option>
+              </select>
+              {!form.gender && (
+                <p style={{ fontSize: 11, color: '#b45309', margin: '4px 0 0', textAlign: 'right' }}>
+                  ⚠️ هذا الحقل مطلوب لإكمال الملف الشخصي
+                </p>
+              )}
+            </div>
             {/* Country selector */}
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: '#555' }}>🌍 البلد</label>
