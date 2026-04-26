@@ -230,7 +230,7 @@ export function startAdEnrichmentJob(app) {
     } catch (err) {
       console.error('[AdEnrichment] Scheduled job error:', err.message);
     }
-  });
+  }, { timezone: 'Africa/Cairo' });
 
   // Expose on app for programmatic access
   if (app) {

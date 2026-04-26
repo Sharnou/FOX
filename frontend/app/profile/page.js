@@ -8,6 +8,7 @@ import MicPermissionCard from '../components/MicPermissionCard';
 import { COUNTRIES, detectCountry } from '../utils/geoDetect';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://xtox-production.up.railway.app';
+const API_ENRICH = API; // same backend for enrichment
 
 function getTierBadge(pts) {
   if (pts >= 500) return '💎 Platinum';
@@ -24,7 +25,79 @@ function getTierColor(pts) {
 function getTierBg(pts) {
   if (pts >= 500) return '#e8f4fd';
   if (pts >= 200) return '#fefce8';
-  if (pts >= 50)  return '#f1f5f9';
+  if
+// ── EnrichmentScoreCard — compact widget for profile page ─────────────────
+function EnrichmentScoreCard() {
+  const [data, setData] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    try {
+      const token = localStorage.getItem('xtox_token') || localStorage.getItem('token') || '';
+      if (!token) { setLoading(false); return; }
+      fetch(API_ENRICH + '/api/enrichment/profile', { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+        .then(d => { setData(d); setLoading(false); });
+    } catch { setLoading(false); }
+  }, []);
+
+  if (!loading && !data) return null;
+
+  const score = data?.score ?? 0;
+  const tierAr = data?.tierAr || data?.tier || 'Bronze';
+  const emoji = data?.emoji || '🥉';
+  const color = score >= 80 ? '#16a34a' : score >= 50 ? '#d97706' : '#dc2626';
+  const bgColor = score >= 80 ? '#f0fdf4' : score >= 50 ? '#fffbeb' : '#fef2f2';
+  const borderColor = score >= 80 ? '#bbf7d0' : score >= 50 ? '#fde68a' : '#fecaca';
+
+  return (
+    <div style={{ marginTop: 32, background: bgColor, borderRadius: 18, padding: 20, border: '1px solid ' + borderColor, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold', color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: 6 }}>
+          ✨ نقاط الإثراء — Enrichment Score
+        </h3>
+        <a href="/enrichment" style={{ fontSize: 12, color: '#f97316', fontWeight: '600', textDecoration: 'none' }}>
+          🚀 عزّز وصولك ←
+        </a>
+      </div>
+      {loading ? (
+        <div style={{ height: 60, background: '#e5e7eb', borderRadius: 8, opacity: 0.6 }} />
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+            <div style={{ textAlign: 'center', minWidth: 60 }}>
+              <div style={{ fontSize: 36, fontWeight: '900', color, lineHeight: 1 }}>{score}</div>
+              <div style={{ fontSize: 11, color: '#888' }}>/100</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ height: 10, background: '#e5e7eb', borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: score + '%', background: color, borderRadius: 999 }} />
+              </div>
+              <div style={{ marginTop: 6, fontSize: 14, fontWeight: '700' }}>
+                {emoji} <span style={{ color }}>{tierAr}</span>
+              </div>
+            </div>
+          </div>
+          {Array.isArray(data?.recommendations) && data.recommendations.length > 0 && (
+            <div style={{ fontSize: 13, color: '#374151', borderTop: '1px solid ' + borderColor, paddingTop: 10 }}>
+              <div style={{ fontWeight: '600', marginBottom: 6, fontSize: 12, color: '#6b7280' }}>⚡ لرفع نقاطك — To improve your score:</div>
+              {data.recommendations.slice(0, 3).map(r => (
+                <div key={r.key || r.en} style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ color: '#f97316' }}>→</span>
+                  <span style={{ color: '#6b7280', fontSize: 12 }}>{r.ar || r.en}</span>
+                  {r.link && <a href={r.link} style={{ color: '#f97316', fontSize: 11, fontWeight: 600 }}>إضافة ←</a>}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+ (pts >= 50)  return '#f1f5f9';
   return '#fef3c7';
 }
 
@@ -834,6 +907,9 @@ export default function ProfilePage() {
           )}
         </div>
       )}
+
+      {/* ── Enrichment Score Card ──────────────────────────────────────── */}
+      <EnrichmentScoreCard />
     </div>
   );
 }

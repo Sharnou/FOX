@@ -238,13 +238,52 @@ router.post('/expire-featured', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/payment/webhook ─────────────────────────────────────────────────
-// Reserved for future payment provider webhooks (Stripe, PayMob, etc.)
-router.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  // TODO: verify webhook signature from payment provider
-  // TODO: handle payment.succeeded → activate-featured
-  // TODO: handle payment.failed  → notify user
-  console.log('[Webhook] Payment webhook received — not yet configured');
-  res.json({ received: true });
+// Payment provider webhooks (Stripe, PayMob, Fawry, etc.)
+// NOTE: Add signature verification when choosing a payment provider
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  let event = null;
+  try {
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : JSON.stringify(req.body);
+    event = JSON.parse(rawBody);
+  } catch (e) {
+    console.error('[Webhook] Failed to parse payload:', e.message);
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+
+  const eventType = event?.type || event?.event || event?.obj?.type || 'unknown';
+  console.log('[Webhook] Payment webhook received, type:', eventType, 'id:', event?.id || event?.obj?.id || '—');
+
+  try {
+    switch (eventType) {
+      case 'payment.succeeded':
+      case 'charge.succeeded':
+      case 'TRANSACTION_PROCESSED_SUCCESSFULLY': {
+        // TODO: Look up PendingPayment by event reference → activate featured/promoted ad
+        const refId = event?.data?.object?.id || event?.obj?.id || '';
+        console.log('[Webhook] payment.succeeded — ref:', refId, '— implement PendingPayment lookup + feature activation');
+        break;
+      }
+      case 'payment.failed':
+      case 'charge.failed':
+      case 'TRANSACTION_FAILED': {
+        // TODO: Look up PendingPayment → notify user via push notification / email
+        const refId = event?.data?.object?.id || event?.obj?.id || '';
+        console.log('[Webhook] payment.failed — ref:', refId, '— implement user notification');
+        break;
+      }
+      case 'refund.created':
+      case 'charge.refunded':
+        console.log('[Webhook] refund event — log for manual review');
+        break;
+      default:
+        console.log('[Webhook] Unhandled event type:', eventType);
+    }
+  } catch (handlerErr) {
+    console.error('[Webhook] Handler error:', handlerErr.message);
+    // Still return 200 so provider doesn't retry
+  }
+
+  res.json({ received: true, type: eventType });
 });
 
 export default router;

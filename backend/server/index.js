@@ -410,7 +410,7 @@ cron.schedule('0 2 * * *', async () => {
   } catch (e) {
     logger.error('[DailyCron] Error:', e.message);
   }
-});
+}, { timezone: 'Africa/Cairo' });
 
 // Hourly cron: permanently delete archived chats past their 7-day closeAt deadline
 // Chats are scheduled for deletion when their linked ad is sold or deleted (dubizzle-style)
@@ -421,7 +421,7 @@ cron.schedule('0 * * * *', async () => {
   } catch (e) {
     logger.error('[ChatCleanup cron] Error:', e.message);
   }
-});
+}, { timezone: 'Africa/Cairo' });
 
 // Hourly cron: ad lifecycle — expire active ads and hard-delete past deadline (#112)
 cron.schedule('0 * * * *', async () => {
@@ -431,7 +431,7 @@ cron.schedule('0 * * * *', async () => {
   } catch (e) {
     logger.error('[adLifecycle cron] Error:', e.message);
   }
-});
+}, { timezone: 'Africa/Cairo' });
 // Run once on startup to catch any missed windows
 
 // ── AI Ad Enrichment Job — auto-classify + auto-image + auto-condition ──────
@@ -450,10 +450,14 @@ import('../jobs/adLifecycle.js').then(({ runAdLifecycle, migrateSellerScores, de
 
 // Auto backup every 24 hours at 3am
 cron.schedule('0 3 * * *', async () => {
-  const { autoBackup } = await import('./archiveManager.js');
-  await autoBackup();
-  logger.info('Auto-backup complete');
-});
+  try {
+    const { autoBackup } = await import('./archiveManager.js');
+    await autoBackup();
+    logger.info('Auto-backup complete');
+  } catch (e) {
+    logger.error('[AutoBackup cron] Error:', e.message);
+  }
+}, { timezone: 'Africa/Cairo' });
 
 
 // Daily 1am: sync XTOX ads missing from WordPress
@@ -504,7 +508,7 @@ cron.schedule('0 */6 * * *', async () => {
 cron.schedule('*/15 * * * *', async () => {
   await runHealthCheck();
   await autoResolveOldErrors();
-});
+}, { timezone: 'Africa/Cairo' });
 
 // Auto-expire featured ads every hour
 setInterval(async () => {
