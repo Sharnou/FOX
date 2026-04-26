@@ -583,10 +583,10 @@ router.patch('/me', auth, async (req, res) => {
       if (clean !== null) updates.bio = clean;
     }
     if (gender !== undefined) {
-      const allowed = ['male', 'female', 'prefer_not_to_say'];
+      const allowed = ['male', 'female'];
       if (gender !== null && gender !== '' && !allowed.includes(gender)) {
         return res.status(400).json({
-          message: 'Gender must be male, female, or prefer_not_to_say',
+          message: 'Gender must be male or female',
           messageAr: 'الجنس يجب أن يكون: ذكر أو أنثى أو يفضل عدم القول',
         });
       }

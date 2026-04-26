@@ -511,7 +511,7 @@ export default function ProfilePage() {
                 ? `${COUNTRIES[user.country].flag} ${COUNTRIES[user.country].name}` 
                 : user.country || '—'],
               ['📝 نبذة', user.bio || '—'],
-              ['👤 الجنس', user.gender === 'male' ? '👨 ذكر' : user.gender === 'female' ? '👩 أنثى' : user.gender === 'prefer_not_to_say' ? '🤐 يفضل عدم القول' : '— (غير محدد)'],
+              ['👤 الجنس', user.gender === 'male' ? '👨 ذكر' : user.gender === 'female' ? '👩 أنثى' : '— (غير محدد)'],
             ].map(([label, value]) => (
               <div key={label} style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ width: 110, color: '#888', fontSize: 14, flexShrink: 0 }}>{label}</span>
@@ -568,7 +568,6 @@ export default function ProfilePage() {
                 <option value="">— اختر / Select —</option>
                 <option value="male">👨 ذكر / Male</option>
                 <option value="female">👩 أنثى / Female</option>
-                <option value="prefer_not_to_say">🤐 يفضل عدم القول / Prefer not to say</option>
               </select>
               {!form.gender && (
                 <p style={{ fontSize: 11, color: '#b45309', margin: '4px 0 0', textAlign: 'right' }}>

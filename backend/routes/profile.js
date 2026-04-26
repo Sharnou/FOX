@@ -119,10 +119,10 @@ router.put('/me', auth, async (req, res) => {
 
     // Gender (mandatory for profile completion bonus)
     if (gender !== undefined) {
-      const allowedGenders = ['male', 'female', 'prefer_not_to_say'];
+      const allowedGenders = ['male', 'female'];
       if (gender !== null && gender !== '' && !allowedGenders.includes(gender)) {
         return res.status(400).json({
-          error: 'Gender must be one of: male, female, prefer_not_to_say',
+          error: 'Gender must be one of: male, female',
           errorAr: 'يجب اختيار: ذكر أو أنثى أو يفضل عدم القول',
         });
       }

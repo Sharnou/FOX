@@ -150,3 +150,26 @@ export async function migrateSellerScores() {
     console.warn('[adLifecycle] migrateSellerScores error:', err.message);
   }
 }
+
+
+// ── Backfill seller field: copy userId → seller for ads missing seller ─────────
+// FIX: use { updatePipeline: true } so MongoDB accepts an aggregation array as update.
+// Without this option MongoDB throws: "Cannot pass an array to query updates unless
+// the updatePipeline option is set."
+export async function backfillSellerField() {
+  try {
+    const Ad = await getAdModel();
+    // Uses aggregation pipeline syntax ($set: { seller: '$userId' }) to copy the field.
+    // { updatePipeline: true } is required when passing an array as the update argument.
+    const result = await Ad.updateMany(
+      { userId: { $exists: true, $ne: null }, seller: { $exists: false } },
+      [{ $set: { seller: '$userId' } }],
+      { updatePipeline: true }
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`[Cleanup] backfillSellerField: updated ${result.modifiedCount} ads`);
+    }
+  } catch (e) {
+    console.error('[Cleanup] backfillSellerField failed:', e.message);
+  }
+}
