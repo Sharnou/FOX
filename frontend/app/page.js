@@ -593,6 +593,9 @@ export default function Home() {
           <Link href="/search" className="quick-btn" aria-label={t('nav_swipe')} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
             <span aria-hidden="true">🔍</span>{tLoc.advancedSearch || t('nav_swipe')}
           </Link>
+          <Link href="/enrichment" className="quick-btn" aria-label="Enrichment Ads" style={{ background: 'linear-gradient(135deg,#f97316,#f59e0b)', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,0.35)', fontWeight: 700 }}>
+            <span aria-hidden="true">✨</span>إعلانات الإثراء
+          </Link>
         </nav>
       </section>
 

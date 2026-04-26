@@ -1,5 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -87,6 +88,9 @@ router.get('/history', requireAuth, async (req, res) => {
 // ── GET /api/payment/status/:adId ────────────────────────────────────────────
 router.get('/status/:adId', requireAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.adId)) {
+      return res.status(400).json({ error: 'invalid_ad_id', message: 'معرّف إعلان غير صالح | Invalid ad ID' });
+    }
     const { default: Ad } = await import('../models/Ad.js').catch(() => ({ default: null }));
     if (!Ad) {
       return res.status(404).json({ error: 'not_found', message: 'الإعلان غير موجود | Ad not found' });
@@ -181,6 +185,9 @@ router.post('/activate-featured', requireAuth, async (req, res) => {
       message: 'الدفع غير متاح بعد — قريباً | Payment not active yet — coming soon',
     });
   }
+  if (!adId || !mongoose.Types.ObjectId.isValid(adId)) {
+    return res.status(400).json({ error: 'invalid_ad_id', message: 'معرّف إعلان غير صالح | Invalid ad ID' });
+  }
   try {
     const { default: Ad } = await import('../models/Ad.js').catch(() => ({ default: null }));
     if (!Ad || !PLANS[plan]) {
@@ -211,6 +218,9 @@ router.post('/activate-featured', requireAuth, async (req, res) => {
 router.post('/expire-featured', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'forbidden', message: 'غير مصرح | Admin access required' });
+  }
+  if (!req.body?.adId || !mongoose.Types.ObjectId.isValid(req.body.adId)) {
+    return res.status(400).json({ error: 'invalid_ad_id', message: 'معرّف إعلان غير صالح | Invalid ad ID' });
   }
   try {
     const { default: Ad } = await import('../models/Ad.js').catch(() => ({ default: null }));

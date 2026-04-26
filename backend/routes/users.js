@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { sendOTPEmail } from '../utils/mailer.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -559,7 +560,7 @@ router.get('/me', auth, async (req, res) => {
 router.patch('/me', auth, async (req, res) => {
   try {
     const uid = req.user.id;
-    const { username, phone, city, bio, chatEnabled } = req.body || {};
+    const { username, phone, city, bio, chatEnabled, gender } = req.body || {};
     const updates = {};
 
     if (username !== undefined) {
@@ -580,6 +581,16 @@ router.patch('/me', auth, async (req, res) => {
     if (bio !== undefined) {
       const clean = typeof bio === 'string' ? bio.trim().slice(0, 500) : null;
       if (clean !== null) updates.bio = clean;
+    }
+    if (gender !== undefined) {
+      const allowed = ['male', 'female', 'prefer_not_to_say'];
+      if (gender !== null && gender !== '' && !allowed.includes(gender)) {
+        return res.status(400).json({
+          message: 'Gender must be male, female, or prefer_not_to_say',
+          messageAr: 'الجنس يجب أن يكون: ذكر أو أنثى أو يفضل عدم القول',
+        });
+      }
+      updates.gender = gender || null;
     }
     if (chatEnabled !== undefined) updates.chatEnabled = Boolean(chatEnabled);
 
@@ -658,6 +669,9 @@ router.get('/leaderboard', async (req, res) => {
 // Deducts -10 points from viewer if first time for this seller+type
 router.post('/:id/reveal-contact', auth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid seller ID format' });
+    }
     const viewerId = req.user._id;
     const sellerId = req.params.id;
     const { type } = req.body; // 'whatsapp' or 'phone'
@@ -704,6 +718,9 @@ export default router;
 // ── POST /api/users/:id/rate — Rate a seller (1-5 stars + optional comment) ─
 router.post('/:id/rate', auth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid seller ID format' });
+    }
     const sellerId = req.params.id;
     const raterId  = req.user.id || req.user._id;
 
@@ -780,6 +797,9 @@ router.post('/:id/rate', auth, async (req, res) => {
 // ── POST /api/users/:id/report — Report a seller ────────────────────────────
 router.post('/:id/report', auth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid seller ID format' });
+    }
     const sellerId = req.params.id;
     const reporterId = req.user.id || req.user._id;
 

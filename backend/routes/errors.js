@@ -1,5 +1,6 @@
 // AI Error Scanner v2 — auto-analysis, Gemini diagnosis, pattern learning
 import express from 'express';
+import mongoose from 'mongoose';
 import ErrorLog from '../models/ErrorLog.js';
 import { adminAuth } from '../middleware/auth.js';
 import { getActiveDB } from '../server/dbManager.js';
@@ -138,6 +139,8 @@ router.get('/', adminAuth, async (req, res) => {
 // POST /api/errors/:id/resolve — mark as fixed
 router.post('/:id/resolve', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid error ID' });
     await ErrorLog.findByIdAndUpdate(req.params.id, { resolved: true, aiFixApplied: true });
     res.json({ ok: true });
   } catch (e) {
@@ -148,6 +151,8 @@ router.post('/:id/resolve', adminAuth, async (req, res) => {
 // Keep PATCH for backwards compatibility with existing admin panel
 router.patch('/:id/resolve', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid error ID' });
     await ErrorLog.findByIdAndUpdate(req.params.id, { resolved: true });
     res.json({ ok: true });
   } catch (e) {
@@ -158,6 +163,8 @@ router.patch('/:id/resolve', adminAuth, async (req, res) => {
 // POST /api/errors/:id/analyze — re-analyze with AI (Gemini if available)
 router.post('/:id/analyze', adminAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ error: 'Invalid error ID' });
     const error = await ErrorLog.findById(req.params.id);
     if (!error) return res.status(404).json({ error: 'Not found' });
     

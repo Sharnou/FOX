@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Report from '../models/Report.js';
 import User from '../models/User.js';
 import Ad from '../models/Ad.js';
@@ -18,6 +19,8 @@ router.post('/', auth, async (req, res) => {
     const errors = [];
     if (!targetId || typeof targetId !== 'string' || targetId.length > 100)
       errors.push('targetId is required (max 100 chars)');
+    else if (!mongoose.Types.ObjectId.isValid(targetId.trim()))
+      errors.push('targetId must be a valid ObjectId');
     if (!type || !REPORT_TYPES.includes(type))
       errors.push(`type must be one of: ${REPORT_TYPES.join(', ')}`);
     if (!reason || typeof reason !== 'string' || reason.trim().length < 5 || reason.length > 500)

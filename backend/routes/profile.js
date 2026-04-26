@@ -74,7 +74,7 @@ router.post('/:id/review', auth, async (req, res) => {
 // PUT update own profile
 router.put('/me', auth, async (req, res) => {
   try {
-    const { name, city, avatar, phone, username, bio } = req.body;
+    const { name, city, avatar, phone, username, bio, gender } = req.body;
 
     // ── Input Validation & Sanitization ───────────────────────────────────
     const update = {};
@@ -116,6 +116,18 @@ router.put('/me', auth, async (req, res) => {
     if (bio !== undefined) {
       update.bio = String(bio || '').trim().slice(0, 500);
     }
+
+    // Gender (mandatory for profile completion bonus)
+    if (gender !== undefined) {
+      const allowedGenders = ['male', 'female', 'prefer_not_to_say'];
+      if (gender !== null && gender !== '' && !allowedGenders.includes(gender)) {
+        return res.status(400).json({
+          error: 'Gender must be one of: male, female, prefer_not_to_say',
+          errorAr: 'يجب اختيار: ذكر أو أنثى أو يفضل عدم القول',
+        });
+      }
+      update.gender = gender || null;
+    }
     // ──────────────────────────────────────────────────────────────────────
 
     const updatedUser = await User.findByIdAndUpdate(req.user.id, update, { returnDocument: 'after' }).select('-password');
@@ -127,7 +139,8 @@ router.put('/me', auth, async (req, res) => {
         const hasName   = !!updatedUser.name?.trim();
         const hasPhone  = !!updatedUser.phone?.trim();
         const hasAvatar = !!updatedUser.avatar?.trim();
-        if (hasName && hasPhone && hasAvatar) {
+        const hasGender = !!updatedUser.gender;
+        if (hasName && hasPhone && hasAvatar && hasGender) {
           await addPointsToUser(updatedUser, 10, 'اكتمال الملف الشخصي +10 نقاط');
           await User.findByIdAndUpdate(req.user.id, { profileBonusAwarded: true });
           updatedUser.profileBonusAwarded = true;

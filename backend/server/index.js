@@ -102,6 +102,7 @@ import translateRouter from '../routes/translate.js';
 import callsRouter from '../routes/calls.js';
 import reputationRouter from '../routes/reputation.js';
 import reputationWebhookRouter from '../routes/reputationWebhook.js';
+import enrichmentRouter from '../routes/enrichment.js';
 import { initMonthlyWinner } from '../jobs/monthlyWinner.js';
 // Pre-register WinnerHistory model so it is available before first query
 import('../models/WinnerHistory.js').catch(e => console.warn('[WinnerHistory] model load failed:', e.message));
@@ -304,6 +305,7 @@ app.use('/api/translations', translationsRouter); // Auto-generate translations 
 app.use('/api/translate', translateRouter);
 app.use('/api/calls', callsRouter);     // WebRTC call push notifications
 app.use('/api/reputation', reputationRouter);  // Reputation points purchase (Stripe checkout + packages)
+app.use('/api/enrichment', enrichmentRouter);  // Enrichment ads — profile/segment/insights
 
 // GET /api/metrics — admin-only observability endpoint
 app.get('/api/metrics', (req, res) => {
