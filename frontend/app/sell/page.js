@@ -657,6 +657,15 @@ export default function SellPage() {
   }
 
   async function submit(forceDuplicate = false) {
+    // GENDER GATE: require gender set on user profile before posting ad
+    try {
+      const _cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (_cachedUser && typeof _cachedUser === 'object' && Object.keys(_cachedUser).length > 0 && !_cachedUser.gender) {
+        setErrors({ submit: 'يرجى إكمال ملفك الشخصي وتحديد الجنس أولاً — Please set your gender in your profile before posting.' });
+        setTimeout(() => { window.location.href = '/profile?msg=gender_required'; }, 2500);
+        return;
+      }
+    } catch (_genderGateErr) { /* fail open */ }
     if (!validate()) return;
     // FIX #228: skip duplicate check when editing existing ad — user's own ad would always match
     if (!editAdId && !forceDuplicate && form.title.trim().length >= 5) {
@@ -712,6 +721,12 @@ export default function SellPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 403 && err.code === 'GENDER_REQUIRED') {
+          setErrors({ submit: err.error || 'يرجى إكمال ملفك الشخصي وتحديد الجنس قبل النشر' });
+          setTimeout(() => { window.location.href = '/profile?msg=gender_required'; }, 2500);
+          setLoading(false);
+          return;
+        }
         if (res.status === 403 && err.code === 'UNVERIFIED_USER') { setVerificationError(true); setLoading(false); return; }
         if (res.status === 409 && err.code === 'DUPLICATE_AD') { setBackendDupError({ existingAdId: err.existingAdId }); setLoading(false); return; }
         if (res.status === 429) {
@@ -957,6 +972,7 @@ export default function SellPage() {
                 placeholder="مثال: آيفون 14 برو ماكس بحالة ممتازة"
                 style={inputStyle('title')} maxLength={100} aria-required="true" />
               {errors.title && <p role="alert" style={{ color: '#e53e3e', fontSize: 12, margin: '4px 0 0' }}>⚠️ {errors.title}</p>}
+              <p style={{ textAlign: 'left', fontSize: 11, color: (form.title?.length || 0) > 90 ? '#e53e3e' : '#aaa', margin: '3px 0 0' }}>{form.title?.length || 0}/100</p>
             </div>
 
             {/* Description */}
@@ -966,7 +982,7 @@ export default function SellPage() {
                 onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setCharCount(e.target.value.length); }}
                 placeholder="اكتب وصفاً تفصيلياً للمنتج..."
                 style={{ ...inputStyle('description'), resize: 'vertical', minHeight: 90 }} maxLength={1000} />
-              <p style={{ textAlign: 'left', fontSize: 11, color: '#aaa', margin: '3px 0 0' }}>{charCount}/1000</p>
+              <p style={{ textAlign: 'left', fontSize: 11, color: charCount > 950 ? '#e53e3e' : '#aaa', margin: '3px 0 0' }}>{charCount}/1000</p>
             </div>
 
             {/* Category */}

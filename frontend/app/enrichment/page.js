@@ -9,6 +9,7 @@ export default function EnrichmentPage() {
   const [profile, setProfile] = useState(null);
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(true);
 
   const getToken = () =>
     (typeof window !== 'undefined' &&
@@ -18,7 +19,7 @@ export default function EnrichmentPage() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) { setLoading(false); return; }
+    if (!token) { setLoggedIn(false); setLoading(false); return; }
     Promise.all([
       fetch(`${API}/api/enrichment/profile`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null).catch(() => null),
@@ -65,7 +66,25 @@ export default function EnrichmentPage() {
       <section className="max-w-6xl mx-auto px-6 -mt-10 relative z-10">
         <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-10 border border-orange-100">
           {loading ? (
-            <div className="text-center text-gray-500 py-10">⏳ جاري التحميل...</div>
+            <div className="animate-pulse py-8">
+              <div className="h-6 bg-gray-200 rounded w-48 mb-4 mx-auto"></div>
+              <div className="h-20 bg-gray-200 rounded w-40 mb-4 mx-auto"></div>
+              <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ) : !loggedIn ? (
+            <div className="text-center py-12">
+              <div className="text-5xl mb-4">🔐</div>
+              <p className="text-lg font-bold text-gray-700 mb-2">سجّل دخولك لعرض نقاط الإثراء</p>
+              <p className="text-gray-500 mb-6 text-sm">Login to view your Enrichment Score and personalized segments</p>
+              <a href="/login?redirect=/enrichment" className="inline-block bg-orange-500 text-white font-bold px-8 py-3 rounded-xl hover:bg-orange-600 transition-colors">
+                🔑 تسجيل الدخول — Login
+              </a>
+              <div className="mt-4">
+                <a href="/register" className="text-orange-500 text-sm hover:underline">أو أنشئ حساباً جديداً →</a>
+              </div>
+            </div>
           ) : profile ? (
             <div className="grid md:grid-cols-3 gap-6 items-center">
               <div className="text-center md:text-right">

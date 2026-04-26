@@ -193,7 +193,21 @@ export default function LoginClient() {
         body: JSON.stringify({ email: emailValue || undefined, phone: phoneValue || undefined })
       });
       var data = await res.json();
-      if (!res.ok) { setError(data.error || t('login_error_try_again')); return; }
+      if (!res.ok) {
+        // Per-error-type messages for send-OTP
+        var errCode = data.code || '';
+        var errMsg = data.error || data.message || '';
+        if (errCode === 'USER_NOT_FOUND' || errMsg.toLowerCase().includes('not found') || errMsg.includes('غير مسجل') || errMsg.includes('لا يوجد')) {
+          setError('لم يتم العثور على حساب بهذا البريد أو الرقم — هل تريد التسجيل؟');
+        } else if (errCode === 'BANNED' || errMsg.toLowerCase().includes('banned') || errMsg.includes('محظور')) {
+          setError('هذا الحساب محظور. تواصل مع الدعم الفني.');
+        } else if (errCode === 'SUSPENDED' || errMsg.includes('معلق')) {
+          setError('هذا الحساب معلق مؤقتاً. تواصل مع الدعم الفني.');
+        } else {
+          setError(data.error || t('login_error_try_again'));
+        }
+        return;
+      }
       setOtpSent(true);
       setCountdown(60);
       setSuccess(t('login_otp_sent'));
@@ -217,7 +231,21 @@ export default function LoginClient() {
         body: JSON.stringify({ email: cleanedEmail || undefined, phone: cleanedPhone || undefined, otp: otp })
       });
       var data = await res.json();
-      if (!res.ok) { setError(data.error || t('login_error_try_again')); return; }
+      if (!res.ok) {
+        // Per-error-type messages for verify-OTP
+        var vErrCode = data.code || '';
+        var vErrMsg = data.error || data.message || '';
+        if (vErrCode === 'INVALID_OTP' || vErrMsg.includes('invalid') || vErrMsg.includes('خاطئ') || vErrMsg.includes('غير صحيح')) {
+          setError('الرمز المُدخل غير صحيح. يرجى التحقق والمحاولة مجدداً.');
+        } else if (vErrCode === 'OTP_EXPIRED' || vErrMsg.includes('expired') || vErrMsg.includes('منتهي')) {
+          setError('انتهت صلاحية الرمز. أعد إرسال رمز جديد.');
+        } else if (vErrCode === 'USER_NOT_FOUND') {
+          setError('لم يتم العثور على الحساب. هل تريد التسجيل؟');
+        } else {
+          setError(data.error || t('login_error_try_again'));
+        }
+        return;
+      }
 
       // #151: Complete onboarding pipeline
       // 1+2. localStorage (xtox_token + legacy token + user)

@@ -313,6 +313,7 @@ router.get('/', async (req, res) => {
               { category: { $regex: _q, $options: 'i' } },
             ],
           };
+          _regexFilter.isDeleted = { $ne: true };
           searchResults = await Ad.find(_regexFilter)
             .sort({ isFeatured: -1, createdAt: -1 })
             .skip(_skip)
@@ -746,6 +747,7 @@ router.post('/admin/auto-categorize-all', async (req, res) => {
   try {
     const batchLimit = parseInt(req.query.limit) || 200;
     const ads = await getAdModel().find({
+      isDeleted: { $ne: true },
       $or: [
         { category: { $in: ['General', 'general', 'Other', 'other', '', null] } },
         { category: { $exists: false } },
@@ -1167,6 +1169,23 @@ router.post('/', auth, multerUpload, async (req, res) => {
         error: 'يجب تسجيل الدخول لنشر إعلان',
         code: 'NO_SELLER'
       });
+    }
+
+    // GENDER GATE: user must have gender set before posting an ad
+    try {
+      if (mongoose.Types.ObjectId.isValid(req.user.id)) {
+        const _genderCheckUser = await User.findById(req.user.id).select('gender').lean();
+        if (_genderCheckUser && !_genderCheckUser.gender) {
+          return res.status(403).json({
+            error: 'يرجى إكمال ملفك الشخصي وتحديد الجنس قبل نشر إعلان',
+            redirect: '/profile',
+            code: 'GENDER_REQUIRED'
+          });
+        }
+      }
+    } catch (_genderErr) {
+      // DB lookup failed — fail open, don't block the post
+      console.warn('[ADS POST] Gender gate check failed:', _genderErr.message);
     }
 
     // GATE 1: Only verified users can post ads
@@ -1613,7 +1632,7 @@ router.post('/', auth, multerUpload, async (req, res) => {
         visibilityScore: 10,
         createdAt: new Date(),
         isExpired: false,
-        isDeleted: false,
+        isDeleted: { $ne: true },
       });
     } catch (createErr) {
       // Log full details so the real error is visible in Railway logs
@@ -2453,7 +2472,7 @@ router.post('/debug-create', async (req, res) => {
       images: [],
       tags: [],
       isExpired: false,
-      isDeleted: false,
+      isDeleted: { $ne: true },
     };
     const AdModel = getAdModel();
     const activeDB = getActiveDB();

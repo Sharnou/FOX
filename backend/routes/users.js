@@ -654,10 +654,13 @@ router.get('/me/points-history', auth, async (req, res) => {
 router.get('/leaderboard', async (req, res) => {
   try {
     const UserModel = getUserModel();
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const users = await UserModel.find({ isDeleted: { $ne: true } })
       .select('name avatar reputationPoints createdAt')
       .sort({ reputationPoints: -1 })
-      .limit(20);
+      .skip(skip)
+      .limit(limit);
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -712,6 +715,29 @@ router.post('/:id/reveal-contact', auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── GET /api/users/:id — Public user profile ────────────────────────────────
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    const UserModel = getUserModel();
+    const user = await UserModel.findById(id)
+      .select('name avatar xtoxId createdAt country city sellerScore reviewCount avgRating points reputationPoints isDeleted isBanned gender')
+      .lean();
+    if (!user || user.isDeleted || user.isBanned) {
+      return res.status(404).json({ error: 'المستخدم غير موجود أو محظور' });
+    }
+    // Remove sensitive fields before returning
+    const { isDeleted, isBanned, ...safeUser } = user;
+    res.json({ user: safeUser });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 export default router;
 
