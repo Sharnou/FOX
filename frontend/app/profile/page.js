@@ -25,7 +25,9 @@ function getTierColor(pts) {
 function getTierBg(pts) {
   if (pts >= 500) return '#e8f4fd';
   if (pts >= 200) return '#fefce8';
-  if
+  if (pts >= 50)  return '#f1f5f9';
+  return '#fdf5e6';
+}
 // ── EnrichmentScoreCard — compact widget for profile page ─────────────────
 function EnrichmentScoreCard() {
   const [data, setData] = React.useState(null);
@@ -95,10 +97,6 @@ function EnrichmentScoreCard() {
       )}
     </div>
   );
-}
-
- (pts >= 50)  return '#f1f5f9';
-  return '#fef3c7';
 }
 
 

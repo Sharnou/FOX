@@ -75,6 +75,11 @@ const AdSchema = new mongoose.Schema({
     paidAt: { type: Date, default: null },
     amountUSD: { type: Number, default: 0 },
   },
+  // ── Enrichment tracking (added by AI Ad Enrichment System) ──────────────
+  defaultImageAutoSet:   { type: Boolean, default: false },
+  conditionAutoDetected: { type: Boolean, default: false },
+  enrichedAt:            { type: Date },
+  enrichmentVersion:     { type: Number, default: 0 },
 });
 
 // Compound indexes for fast queries — free performance boost
@@ -129,11 +134,6 @@ AdSchema.pre('validate', async function() {
 });
 
 
-  // ── Enrichment tracking (added by AI Ad Enrichment System) ──────────────
-  defaultImageAutoSet:   { type: Boolean, default: false },
-  conditionAutoDetected: { type: Boolean, default: false },
-  enrichedAt:            { type: Date },
-  enrichmentVersion:     { type: Number, default: 0 },
 // FIX B: Pre-save hook — final safety net to clear invalid location objects
 // Catches any path (create, update, republish) that writes without valid coords.
 // NOTE: _id is immutable — MongoDB prevents _id modification automatically
